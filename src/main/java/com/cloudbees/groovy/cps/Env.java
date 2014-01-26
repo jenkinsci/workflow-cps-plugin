@@ -1,8 +1,8 @@
 package com.cloudbees.groovy.cps;
 
 /**
+ * For variable lookup.
  * @author Kohsuke Kawaguchi
  */
-public interface Program {
-    ProgramState execute(Continuation k);
+public class Env {
 }
