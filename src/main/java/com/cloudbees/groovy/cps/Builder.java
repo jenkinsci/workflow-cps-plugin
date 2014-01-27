@@ -129,6 +129,10 @@ public class Builder {
         }
     }
 
+    public Expression staticCall(Class lhs, String name, Expression... argExps) {
+        return functionCall(constant(lhs),name,argExps);
+    }
+
     /**
      * LHS.name(...)
      */
@@ -169,16 +173,16 @@ public class Builder {
 
     /**
      * name(...)
+     *
+     * TODO: is this the same as this.name(...) ? -> NO, not in closure
      */
     public Expression functionCall(final String name, Expression... argExps) {
         final Expression args = evalArgs(argExps);
         return new Expression() {
             public Next eval(final Env e, final Continuation k) {
-                // TODO: does this happen before or after the arguments are evaluated?
-                final Function f = e.resolveFunction(name);
-
                 return args.eval(e,new Continuation() {
                     public Next receive(Env _, Object args) {
+                        final Function f = e.resolveFunction(name);
                         return f.invoke((List)args,k);
                     }
                 });
