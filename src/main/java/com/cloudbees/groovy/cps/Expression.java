@@ -11,7 +11,7 @@ public interface Expression {
      */
     final static Expression NOOP = new Expression() {
         public Next eval(Env e, Continuation k) {
-            return k.receive(e,null);
+            return k.receive(null);
         }
     };
 }

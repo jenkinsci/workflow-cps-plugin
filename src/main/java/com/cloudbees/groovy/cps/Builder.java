@@ -33,9 +33,9 @@ public class Builder {
 
     public Expression sequence(final Expression exp1, final Expression exp2) {
         return new Expression() {
-            public Next eval(Env e, final Continuation k) {
+            public Next eval(final Env e, final Continuation k) {
                 return new Next(exp1,e,new Continuation() {
-                    public Next receive(Env e, Object _) {
+                    public Next receive(Object __) {
                         return new Next(exp2,e,k);
                     }
                 });
@@ -50,7 +50,7 @@ public class Builder {
     public Expression getLocalVariable(final String name) {
         return new Expression() {
             public Next eval(Env e, Continuation k) {
-                return k.receive(e, e.get(name));
+                return k.receive(e.get(name));
             }
         };
     }
@@ -59,9 +59,9 @@ public class Builder {
         return new Expression() {
             public Next eval(final Env e, final Continuation k) {
                 return rhs.eval(e,new Continuation() {
-                    public Next receive(Env _, Object o) {
+                    public Next receive(Object o) {
                         e.set(name,o);
-                        return k.receive(_,o);
+                        return k.receive(o);
                     }
                 });
             }
@@ -82,7 +82,7 @@ public class Builder {
         return new Expression() {
             public Next eval(final Env e, final Continuation k) {
                 return cond.eval(e,new Continuation() {
-                    public Next receive(Env _, Object o) {
+                    public Next receive(Object o) {
                         return (asBoolean(o) ? then : els).eval(e,k);
                     }
                 });
@@ -101,19 +101,19 @@ public class Builder {
                 final Continuation loopHead = new Continuation() {
                     final Continuation _loopHead = this;    // because 'loopHead' cannot be referenced from within the definition
 
-                    public Next receive(Env _, Object __) {
+                    public Next receive(Object __) {
                         return new Next(e2,e,new Continuation() {// evaluate e2
-                            public Next receive(Env _, Object v2) {
+                            public Next receive(Object v2) {
                                 if (asBoolean(v2)) {
                                     // loop
                                     return new Next(body,e,new Continuation() {
-                                        public Next receive(Env _, Object o) {
+                                        public Next receive(Object o) {
                                             return new Next(e3,e,_loopHead);
                                         }
                                     });
                                 } else {
                                     // exit loop
-                                    return loopEnd.receive(_,null);
+                                    return loopEnd.receive(null);
                                 }
                             }
                         });
@@ -158,9 +158,9 @@ public class Builder {
         return new Expression() {
             public Next eval(final Env e, final Continuation k) {
                 return new Next(lhs,e, new Continuation() {// evaluate lhs
-                    public Next receive(Env _, final Object lhs) {
+                    public Next receive(final Object lhs) {
                         return args.eval(e,new Continuation() {
-                            public Next receive(Env _, Object _args) {
+                            public Next receive(Object _args) {
                                 List args = (List) _args;
 
                                 Object v;
@@ -176,7 +176,7 @@ public class Builder {
                                     return ((Function)v).invoke(args,k);
                                 } else {
                                     // if this was a normal function, the method had just executed synchronously
-                                    return k.receive(e,v);
+                                    return k.receive(v);
                                 }
                             }
                         });
@@ -196,7 +196,7 @@ public class Builder {
         return new Expression() {
             public Next eval(final Env e, final Continuation k) {
                 return args.eval(e,new Continuation() {
-                    public Next receive(Env _, Object args) {
+                    public Next receive(Object args) {
                         final Function f = e.resolveFunction(name);
                         return f.invoke((List)args,k);
                     }
@@ -210,19 +210,19 @@ public class Builder {
      */
     private Expression evalArgs(final Expression... argExps) {
         return new Expression() {
-            public Next eval(Env e, final Continuation k) {
+            public Next eval(final Env e, final Continuation k) {
                 final List<Object> args = new ArrayList<Object>(argExps.length); // this is where we build up actual arguments
 
                 Next n = null;
                 for (int i = argExps.length - 1; i >= 0; i--) {
                     final Next nn = n;
                     n = new Next(argExps[i], e, new Continuation() {
-                        public Next receive(Env e, Object o) {
+                        public Next receive(Object o) {
                             args.add(o);
                             if (nn != null)
                                 return nn;
                             else
-                                return k.receive(e,args);
+                                return k.receive(args);
                         }
                     });
                 }

@@ -18,6 +18,6 @@ public class Constant implements Expression {
     }
 
     public Next eval(Env e, Continuation k) {
-        return k.receive(e,value);
+        return k.receive(value);
     }
 }
