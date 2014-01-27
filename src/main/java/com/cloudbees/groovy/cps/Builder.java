@@ -186,24 +186,24 @@ public class Builder {
         };
     }
 
-    /**
-     * name(...)
-     *
-     * TODO: is this the same as this.name(...) ? -> NO, not in closure
-     */
-    public Expression functionCall(final String name, Expression... argExps) {
-        final Expression args = evalArgs(argExps);
-        return new Expression() {
-            public Next eval(final Env e, final Continuation k) {
-                return args.eval(e,new Continuation() {
-                    public Next receive(Object args) {
-                        final Function f = e.resolveFunction(name);
-                        return f.invoke((List)args,k);
-                    }
-                });
-            }
-        };
-    }
+//    /**
+//     * name(...)
+//     *
+//     * TODO: is this the same as this.name(...) ? -> NO, not in closure
+//     */
+//    public Expression functionCall(final String name, Expression... argExps) {
+//        final Expression args = evalArgs(argExps);
+//        return new Expression() {
+//            public Next eval(final Env e, final Continuation k) {
+//                return args.eval(e,new Continuation() {
+//                    public Next receive(Object args) {
+//                        final Function f = e.resolveFunction(name);
+//                        return f.invoke((List)args,k);
+//                    }
+//                });
+//            }
+//        };
+//    }
 
     /**
      * Returns an expression that evaluates all the arguments and return it as a {@link List}.
@@ -227,6 +227,17 @@ public class Builder {
                     });
                 }
                 return n;
+            }
+        };
+    }
+
+    /**
+     * return exp;
+     */
+    public Expression _return(final Expression exp) {
+        return new Expression() {
+            public Next eval(Env e, Continuation k) {
+                return new Next(exp,e, e.returnAddress);
             }
         };
     }

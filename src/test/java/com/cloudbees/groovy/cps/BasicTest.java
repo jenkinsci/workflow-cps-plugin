@@ -4,15 +4,18 @@ import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.junit.Assert;
 import org.junit.Test;
 
+import static java.util.Arrays.*;
+
 /**
  * @author Kohsuke Kawaguchi
  */
-public class TestProgram extends Assert {
+public class BasicTest extends Assert {
     Builder b = new Builder();
 
     // useful fragment of expressions
     Expression $x = b.getLocalVariable("x");
     Expression $y = b.getLocalVariable("y");
+    Expression $z = b.getLocalVariable("z");
 
 
     // 3    => 3
@@ -63,8 +66,28 @@ public class TestProgram extends Assert {
         ));
     }
 
+    @Test
+    public void asyncCallingAsync() {
+        class Op {
+            public Function add(int x, int y) {
+                return new Function(asList("x", "y"),
+                        b.sequence(
+                            b.setLocalVariable("z",b.functionCall($x,"plus",$y)),
+                            b._return($z)
+                        ));
+            }
+        }
+
+        //  z=5; new Op().add(1,2)+z   => 8
+        assertEquals(3, run(
+                b.setLocalVariable("z", b.constant(0)),     // part of the test is to ensure this 'z' is separated from 'z' in the add function
+                b.plus(
+                        b.functionCall(b.constant(new Op()), "add", b.constant(1), b.constant(2)),
+                        $z)));
+    }
+
     private Object run(Expression... bodies) {
-        Next p = new Next(b.sequence(bodies), new EnvImpl(null), Continuation.HALT);
+        Next p = new Next(b.sequence(bodies), new Env(null), Continuation.HALT);
         return p.resume().yield;
     }
 }
