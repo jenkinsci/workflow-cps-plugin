@@ -66,6 +66,21 @@ public class BasicTest extends Assert {
         ));
     }
 
+    /**
+     * Makes sure the return statement prevents the rest of the code from executing.
+     *
+     * x=0; return x; x+=1;     => 0
+     */
+    @Test
+    public void returnStatement() {
+        assertEquals(0, run(
+                b.setLocalVariable("x", b.constant(0)),
+                b._return($x),
+                b.localVariableAssignOp("x", "plus", b.constant(1)),
+                b.plus($x, $y)
+        ));
+    }
+
     @Test
     public void asyncCallingAsync() {
         class Op {
@@ -87,7 +102,9 @@ public class BasicTest extends Assert {
     }
 
     private Object run(Expression... bodies) {
-        Next p = new Next(b.sequence(bodies), new Env(null), Continuation.HALT);
+        Env e = new Env(null);
+        e.returnAddress = Continuation.HALT;
+        Next p = new Next(b.sequence(bodies), e, Continuation.HALT);
         return p.resume().yield;
     }
 }
