@@ -78,7 +78,7 @@ public class Builder {
     /**
      * if (...) { ... } else { ... }
      */
-    public Expression _if(final Expression cond, final Expression then, final Expression els) {
+    public Expression if_(final Expression cond, final Expression then, final Expression els) {
         return new Expression() {
             public Next eval(final Env e, final Continuation k) {
                 return cond.eval(e,new Continuation() {
@@ -234,7 +234,7 @@ public class Builder {
     /**
      * return exp;
      */
-    public Expression _return(final Expression exp) {
+    public Expression return_(final Expression exp) {
         return new Expression() {
             public Next eval(Env e, Continuation k) {
                 return new Next(exp,e, e.returnAddress);

@@ -75,9 +75,34 @@ public class BasicTest extends Assert {
     public void returnStatement() {
         assertEquals(0, run(
                 b.setLocalVariable("x", b.constant(0)),
-                b._return($x),
+                b.return_($x),
                 b.localVariableAssignOp("x", "plus", b.constant(1)),
                 b.plus($x, $y)
+        ));
+    }
+
+    /**
+     * x = 0;
+     * if (true) {
+     *     x = 1;
+     * } else {
+     *     x = 2;
+     * }
+     * x        => 1
+     */
+    @Test
+    public void ifTrue() {
+        if_(true, 1);
+        if_(false, 2);
+    }
+
+    private void if_(boolean cond, int expected) {
+        assertEquals(expected, run(
+                b.setLocalVariable("x", b.constant(0)),
+                b.if_( b.constant(cond),
+                        b.setLocalVariable("x",b.constant(1)),
+                        b.setLocalVariable("x",b.constant(2))),
+                $x
         ));
     }
 
@@ -88,7 +113,7 @@ public class BasicTest extends Assert {
                 return new Function(asList("x", "y"),
                         b.sequence(
                             b.setLocalVariable("z",b.functionCall($x,"plus",$y)),
-                            b._return($z)
+                            b.return_($z)
                         ));
             }
         }
