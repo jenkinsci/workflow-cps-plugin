@@ -1,11 +1,13 @@
 package com.cloudbees.groovy.cps;
 
-import static com.cloudbees.groovy.cps.Expression.NOOP;
+import static com.cloudbees.groovy.cps.Expression.*;
 
 /**
  * @author Kohsuke Kawaguchi
  */
 public interface Continuation {
+    // this method cannot evaluate any expression on its own
+    // TODO: does 'env' makes sense here?
     Next receive(Env e, Object o);
 
     /**

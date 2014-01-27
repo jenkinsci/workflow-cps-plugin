@@ -17,7 +17,7 @@ public class Constant implements Expression {
         this.value = value;
     }
 
-    public Next eval(Env e, Continuation k, Object... args) {
+    public Next eval(Env e, Continuation k) {
         return k.receive(e,value);
     }
 }
