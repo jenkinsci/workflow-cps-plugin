@@ -14,5 +14,10 @@ public interface Env {
     Object get(String name);
     void set(String name, Object value);
 
-
+    /**
+     * Creates a new block scope, which doesn't hide current variables, but newly declared variables
+     * will be local to the new environment.
+     */
+    Env newBlockScope();
+    // TODO: How do we correctly assign local variables to its scope?
 }

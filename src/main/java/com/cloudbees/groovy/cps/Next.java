@@ -1,7 +1,5 @@
 package com.cloudbees.groovy.cps;
 
-import static com.cloudbees.groovy.cps.Continuation.*;
-
 /**
  * Remaining computation to execute. To work around the lack of tail-call optimization
  *
@@ -22,10 +20,6 @@ public class Next {
         this.f = f;
         this.e = e;
         this.k = k;
-    }
-
-    public static Next start(Expression f) {
-        return new Next(f,new Env(), HALT);
     }
 
     /**

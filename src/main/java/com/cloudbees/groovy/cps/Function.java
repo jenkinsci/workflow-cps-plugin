@@ -51,5 +51,10 @@ public class Function {
         public void set(String name, Object value) {
             locals.put(name,value);
         }
+
+        public Env newBlockScope() {
+            // TODO
+            return this;
+        }
     }
 }
