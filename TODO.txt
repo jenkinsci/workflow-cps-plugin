@@ -1,4 +1,4 @@
-- Continuation shouldn't probably take Env
-- function call needs to correctly identify the receiver,
-  and if the receiver is synchronous, it needs to call it like one
-    maybe by rewriting an asynchronous function to a synchronous function that returns a 'Function' object
+- exception handling
+- block creates a new scope
+- variables are resolved lexically
+- workflow functions calling each other
