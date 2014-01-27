@@ -206,6 +206,34 @@ public class Builder {
 //    }
 
     /**
+     * Object instantiation.
+     */
+    public Expression new_(final Class type, Expression... argExps) {
+        final CallSite callSite = fakeCallSite("<init>");
+        final Expression args = evalArgs(argExps);
+
+        return new Expression() {
+            public Next eval(final Env e, final Continuation k) {
+                return args.eval(e,new Continuation() {
+                    public Next receive(Object _args) {
+                        List args = (List) _args;
+
+                        Object v;
+                        try {
+                            v = callSite.callConstructor(type, args.toArray(new Object[args.size()]));
+                        } catch (Throwable t) {
+                            throw new UnsupportedOperationException(t);     // TODO: exception handling
+                        }
+
+                        // constructor cannot be an asynchronous function
+                        return k.receive(v);
+                    }
+                });
+            }
+        };
+    }
+
+    /**
      * Returns an expression that evaluates all the arguments and return it as a {@link List}.
      */
     private Expression evalArgs(final Expression... argExps) {

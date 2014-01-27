@@ -126,10 +126,31 @@ public class BasicTest extends Assert {
                         $z)));
     }
 
-    private Object run(Expression... bodies) {
+    public static class InstantiationTest {
+        int v;
+        public InstantiationTest(int x, int y) {
+            v = x+y;
+        }
+        public InstantiationTest(int x) {
+            v = x;
+        }
+    }
+
+    @Test
+    public void newInstance() {
+        InstantiationTest v;
+
+        v = run(b.new_(InstantiationTest.class, b.constant(3)));
+        assertEquals(3, v.v);
+
+        v = run(b.new_(InstantiationTest.class, b.constant(3), b.constant(4)));
+        assertEquals(7, v.v);
+    }
+
+    private <T> T run(Expression... bodies) {
         Env e = new Env(null);
         e.returnAddress = Continuation.HALT;
         Next p = new Next(b.sequence(bodies), e, Continuation.HALT);
-        return p.resume().yield;
+        return (T)p.resume().yield;
     }
 }

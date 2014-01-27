@@ -1,4 +1,10 @@
 - exception handling
+  - both throwing and catching
 - block creates a new scope
 - variables are resolved lexically
-- workflow functions calling each other
+- async functions calling each other
+
+
+Tests to be written:
+    - verify a proper method overload resolution
+    - trying to make constructor a workflow should be detected and rejected
