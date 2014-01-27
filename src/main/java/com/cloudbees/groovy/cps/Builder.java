@@ -2,6 +2,8 @@ package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.Constant;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
+import org.codehaus.groovy.runtime.callsite.CallSite;
+import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -128,28 +130,56 @@ public class Builder {
     }
 
     /**
-     * Constant to represent function invocation without LHS.
-     */
-    private static final Object NO_LHS = "NO LHS";
-
-    /**
      * LHS.name(...)
      */
     public Expression functionCall(final Expression lhs, final String name, Expression... argExps) {
+        final CallSite callSite = fakeCallSite(name);
         final Expression args = evalArgs(argExps);
+
         return new Expression() {
             public Next eval(final Env e, final Continuation k) {
                 return new Next(lhs,e, new Continuation() {// evaluate lhs
                     public Next receive(Env _, final Object lhs) {
-
-                        // TODO: does this happen before or after the arguments are evaluated?
-                        final Function f = null;   // TODO: resolve (lhs,name) -> Function
-
                         return args.eval(e,new Continuation() {
-                            public Next receive(Env _, Object args) {
-                                return f.invoke((List)args,k);
+                            public Next receive(Env _, Object _args) {
+                                List args = (List) _args;
+
+                                Object v;
+                                try {
+                                    v = callSite.call(lhs, args.toArray(new Object[args.size()]));
+                                } catch (Throwable t) {
+                                    throw new UnsupportedOperationException(t);     // TODO: exception handling
+                                }
+
+                                if (v instanceof Function) {
+                                    // if this is a workflow function, it'd return a Function object instead
+                                    // of actually executing the function, so execute it in the CPS
+                                    return ((Function)v).invoke(args,k);
+                                } else {
+                                    // if this was a normal function, the method had just executed synchronously
+                                    return k.receive(e,v);
+                                }
                             }
                         });
+                    }
+                });
+            }
+        };
+    }
+
+    /**
+     * name(...)
+     */
+    public Expression functionCall(final String name, Expression... argExps) {
+        final Expression args = evalArgs(argExps);
+        return new Expression() {
+            public Next eval(final Env e, final Continuation k) {
+                // TODO: does this happen before or after the arguments are evaluated?
+                final Function f = e.resolveFunction(name);
+
+                return args.eval(e,new Continuation() {
+                    public Next receive(Env _, Object args) {
+                        return f.invoke((List)args,k);
                     }
                 });
             }
@@ -182,5 +212,9 @@ public class Builder {
         };
     }
 
-
+    /*TODO: specify the proper owner value (to the script that includes the call site) */
+    private static CallSite fakeCallSite(String method) {
+        CallSiteArray csa = new CallSiteArray(Builder.class, new String[]{method});
+        return csa.array[0];
+    }
 }

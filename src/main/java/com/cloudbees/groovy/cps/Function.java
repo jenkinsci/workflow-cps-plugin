@@ -18,7 +18,7 @@ public class Function {
         this.parameters = ImmutableList.copyOf(parameters);
     }
 
-    public Next invoke(List<Object> args, Continuation k) {
+    public Next invoke(List<?> args, Continuation k) {
         return new Next(body, new EnvImpl(null,args), k);
     }
 
@@ -30,7 +30,7 @@ public class Function {
         // TODO: delegate?
         final Map<String,Object> locals = new HashMap<String, Object>();
 
-        EnvImpl(Object _this, List<Object> args) {
+        EnvImpl(Object _this, List<?> args) {
             this._this = _this;
             assert args.size()==parameters.size();  // TODO: varargs
 
