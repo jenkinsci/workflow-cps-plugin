@@ -15,24 +15,24 @@ public class TestProgram extends Assert {
     Expression $y = b.getLocalVariable("y");
 
 
+    // 3    => 3
     @Test
     public void constant() {
-        // constant 3 should evaluate to '3'
         assertEquals(3, run(b.constant(3)));
     }
 
+    // 1==1, aka ScriptBytecodeAdapter.compareEqual(1,1)    => true
     @Test
     public void onePlusOne() {
-        // 1==1, aka ScriptBytecodeAdapter.compareEqual(1,1)
         assertEquals(true, run(
                 b.staticCall(ScriptBytecodeAdapter.class, "compareEqual",
                     b.constant(1),
                     b.constant(1))));
     }
 
+    // x=1; y=2; x+y    =>  3
     @Test
     public void variable() {
-        // x=1; y=2; x+y    =>  3
         assertEquals(3, run(
                 b.setLocalVariable("x", b.constant(1)),
                 b.setLocalVariable("y", b.constant(2)),
@@ -40,33 +40,27 @@ public class TestProgram extends Assert {
         ));
     }
 
+    /*
+        sum = 0;
+        for (x=0; x<10; x++) {
+            sum += x;
+        }
+        sum     =>      45;
+     */
     @Test
     public void forLoop() {
-        /*
-            sum = 0;
-            for (x=0; x<10; x++) {
-                sum += x;
-            }
-            sum     =>      55;
-         */
         assertEquals(45, run(
                 b.setLocalVariable("sum", b.constant(0)),
-                b._for(
-                        b.setLocalVariable("x",b.constant(0)),
-                        b.lessThan($x,b.constant(10)),
+                b.forLoop(
+                        b.setLocalVariable("x", b.constant(0)),
+                        b.lessThan($x, b.constant(10)),
                         b.localVariableAssignOp("x", "plus", b.constant(1)),
 
                         b.sequence(// for loop body
-                            b.localVariableAssignOp("sum", "plus", $x)
+                                b.localVariableAssignOp("sum", "plus", $x)
                         )),
                 b.getLocalVariable("sum")
         ));
-
-//        b.sequence(
-//            b.setLocalVariable("sum", b.constant(0)),
-//            b._for( b.setLocalVariable("x",b.constant(1)), null, )
-//
-
     }
 
     private Object run(Expression... bodies) {

@@ -93,7 +93,7 @@ public class Builder {
     /**
      * for (e1; e2; e3) { ... }
      */
-    public Expression _for(final Expression e1, final Expression e2, final Expression e3, final Expression body) {
+    public Expression forLoop(final Expression e1, final Expression e2, final Expression e3, final Expression body) {
         return new Expression() {
             public Next eval(Env _e, final Continuation loopEnd) {
                 final Env e = _e.newBlockScope();   // a for-loop creates a new scope for variables declared in e1,e2, & e3
