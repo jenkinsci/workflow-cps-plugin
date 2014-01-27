@@ -69,6 +69,13 @@ public class Builder {
     }
 
     /**
+     * Assignment operator to a local variable, such as "x += 3"
+     */
+    public Expression localVariableAssignOp(String name, String operator, Expression rhs) {
+        return setLocalVariable(name, functionCall(getLocalVariable(name),operator,rhs));
+    }
+
+    /**
      * if (...) { ... } else { ... }
      */
     public Expression _if(final Expression cond, final Expression then, final Expression els) {
@@ -131,6 +138,14 @@ public class Builder {
 
     public Expression staticCall(Class lhs, String name, Expression... argExps) {
         return functionCall(constant(lhs),name,argExps);
+    }
+
+    public Expression plus(Expression lhs, Expression rhs) {
+        return functionCall(lhs,"plus",rhs);
+    }
+
+    public Expression lessThan(Expression lhs, Expression rhs) {
+        return staticCall(ScriptBytecodeAdapter.class,"compareLessThan",lhs,rhs);
     }
 
     /**
