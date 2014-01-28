@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static java.util.Arrays.*;
+import static java.util.Collections.emptyList;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -276,17 +277,23 @@ public class Builder {
                     public Next receive(final Object lhs) {
                         return new Next(property,e,new Continuation() {
                             public Next receive(Object property) {
-                                Object p;
+                                Object v;
                                 try {
                                     // TODO: verify the behaviour of Groovy if the property expression evaluates to non-String
-                                    p = ScriptBytecodeAdapter.getProperty(null/*Groovy doesn't use this parameter*/,
+                                    v = ScriptBytecodeAdapter.getProperty(null/*Groovy doesn't use this parameter*/,
                                             lhs, (String) property);
                                 } catch (Throwable t) {
                                     throw new UnsupportedOperationException(t);     // TODO: exception handling
                                 }
 
-                                // TODO: the above doesn't handle the case correctly if the get method is an async method
-                                return k.receive(p);
+                                if (v instanceof Function) {
+                                    // if this is a workflow function, it'd return a Function object instead
+                                    // of actually executing the function, so execute it in the CPS
+                                    return ((Function)v).invoke(e, emptyList(),k);
+                                } else {
+                                    // if this was a normal property, we get the value as-is.
+                                    return k.receive(v);
+                                }
                             }
                         });
                     }
@@ -328,7 +335,7 @@ public class Builder {
      */
     private Expression evalArgs(final Expression... argExps) {
         if (argExps.length==0)  // no arguments to evaluate
-            return new Constant(Collections.emptyList());
+            return new Constant(emptyList());
 
         return new Expression() {
             public Next eval(final Env e, final Continuation k) {
