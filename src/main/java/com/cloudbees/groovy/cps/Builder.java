@@ -1,6 +1,5 @@
 package com.cloudbees.groovy.cps;
 
-import com.cloudbees.groovy.cps.impl.Constant;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
@@ -50,7 +49,7 @@ public class Builder {
     public Expression getLocalVariable(final String name) {
         return new Expression() {
             public Next eval(Env e, Continuation k) {
-                return k.receive(e.get(name));
+                return k.receive(e.getLocalVariable(name));
             }
         };
     }
@@ -60,7 +59,7 @@ public class Builder {
             public Next eval(final Env e, final Continuation k) {
                 return rhs.eval(e,new Continuation() {
                     public Next receive(Object o) {
-                        e.set(name,o);
+                        e.setLocalVariable(name, o);
                         return k.receive(o);
                     }
                 });
@@ -96,7 +95,7 @@ public class Builder {
     public Expression forLoop(final Expression e1, final Expression e2, final Expression e3, final Expression body) {
         return new Expression() {
             public Next eval(Env _e, final Continuation loopEnd) {
-                final Env e = _e.newBlockScope();   // a for-loop creates a new scope for variables declared in e1,e2, & e3
+                final Env e = new BlockScopeEnv(_e);   // a for-loop creates a new scope for variables declared in e1,e2, & e3
 
                 final Continuation loopHead = new Continuation() {
                     final Continuation _loopHead = this;    // because 'loopHead' cannot be referenced from within the definition
@@ -265,7 +264,7 @@ public class Builder {
     public Expression return_(final Expression exp) {
         return new Expression() {
             public Next eval(Env e, Continuation k) {
-                return new Next(exp,e, e.returnAddress);
+                return new Next(exp,e, e.getReturnAddress());
             }
         };
     }

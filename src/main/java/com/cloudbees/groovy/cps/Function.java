@@ -17,14 +17,12 @@ public class Function {
     }
 
     public Next invoke(List<?> args, Continuation k) {
-        Env e = new Env(null);
+        Env e = new FunctionCallEnv(null,k);
         assert args.size()== parameters.size();  // TODO: varargs
 
         for (int i=0; i< parameters.size(); i++) {
-            e.set(parameters.get(i), args.get(i));
+            e.setLocalVariable(parameters.get(i), args.get(i));
         }
-
-        e.returnAddress = k;
 
         return new Next(body, e, k);
     }

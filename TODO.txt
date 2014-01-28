@@ -1,9 +1,10 @@
 - exception handling
   - both throwing and catching
+  - I can make it a part of Env -> requires an interface and chaining
+  - or I can make it a separate parameter
 - block creates a new scope
 - variables are resolved lexically
 - async functions calling each other
-
 
 Tests to be written:
     - verify a proper method overload resolution
