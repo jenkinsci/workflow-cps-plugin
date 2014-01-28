@@ -265,6 +265,36 @@ public class Builder {
 //        };
 //    }
 
+    public Expression getProperty(Expression lhs, String property) {
+        return getProperty(lhs,constant(property));
+    }
+
+    public Expression getProperty(final Expression lhs, final Expression property) {
+        return new Expression() {
+            public Next eval(final Env e, final Continuation k) {
+                return lhs.eval(e,new Continuation() {
+                    public Next receive(final Object lhs) {
+                        return new Next(property,e,new Continuation() {
+                            public Next receive(Object property) {
+                                Object p;
+                                try {
+                                    // TODO: verify the behaviour of Groovy if the property expression evaluates to non-String
+                                    p = ScriptBytecodeAdapter.getProperty(null/*Groovy doesn't use this parameter*/,
+                                            lhs, (String) property);
+                                } catch (Throwable t) {
+                                    throw new UnsupportedOperationException(t);     // TODO: exception handling
+                                }
+
+                                // TODO: the above doesn't handle the case correctly if the get method is an async method
+                                return k.receive(p);
+                            }
+                        });
+                    }
+                });
+            }
+        };
+    }
+
     /**
      * Object instantiation.
      */
