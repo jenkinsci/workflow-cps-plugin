@@ -136,6 +136,10 @@ public class BasicTest extends Assert {
         }
     }
 
+    /**
+     * new InstantiationTest(3)     => ...
+     * new InstantiationTest(3,4)   => ...
+     */
     @Test
     public void newInstance() {
         InstantiationTest v;
@@ -145,6 +149,30 @@ public class BasicTest extends Assert {
 
         v = run(b.new_(InstantiationTest.class, b.constant(3), b.constant(4)));
         assertEquals(7, v.v);
+    }
+
+    /**
+     * try {
+     *     throw new RuntimeException("foo");
+     *     return null;
+     * } catch (Exception e) {
+     *     return e.getMessage();
+     * }
+     */
+    @Test
+    public void localExceptionHandling() {
+        assertEquals("foo",run(
+                b.tryCatch(
+                        b.sequence(
+                                b.throw_(b.new_(RuntimeException.class, b.constant("foo"))),
+                                b.return_(b.null_())
+                        ),
+
+                        new CatchExpression(Exception.class, "e", b.sequence(
+                            b.return_(b.functionCall(b.getLocalVariable("e"),"getMessage"))
+                        ))
+                )
+        ));
     }
 
     private <T> T run(Expression... bodies) {

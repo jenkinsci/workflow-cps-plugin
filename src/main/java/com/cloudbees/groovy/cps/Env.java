@@ -20,6 +20,10 @@ public interface Env {
 
     /**
      * Finds the exception handler that catches a {@link Throwable} instance of this type.
+     *
+     * @return
+     *      never null. Even if there's no user-specified exception handler, the default 'unhandled exception handler'
+     *      must be returned.
      */
     Continuation getExceptionHandler(Class<? extends Throwable> type);
 }

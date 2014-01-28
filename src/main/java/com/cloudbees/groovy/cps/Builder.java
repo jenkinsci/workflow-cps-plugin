@@ -5,16 +5,19 @@ import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+
+import static java.util.Arrays.*;
 
 /**
  * @author Kohsuke Kawaguchi
  */
 public class Builder {
-    private static final Expression NOOP = new Constant(null);
+    private static final Expression NULL = new Constant(null);
 
-    public Expression noop() {
-        return NOOP;
+    public Expression null_() {
+        return NULL;
     }
 
     public Expression constant(Object o) {
@@ -22,7 +25,7 @@ public class Builder {
     }
 
     public Expression sequence(Expression... bodies) {
-        if (bodies.length==0)   return NOOP;
+        if (bodies.length==0)   return NULL;
 
         Expression e = bodies[0];
         for (int i=1; i<bodies.length; i++)
@@ -120,6 +123,64 @@ public class Builder {
                 };
 
                 return e1.eval(e,loopHead);
+            }
+        };
+    }
+
+
+    public Expression tryCatch(Expression body, CatchExpression... catches) {
+        return tryCatch(body, asList(catches));
+    }
+
+    /**
+     * try {
+     *     ...
+     * } catch (T v) {
+     *     ...
+     * } catch (T v) {
+     *     ...
+     * }
+     */
+    public Expression tryCatch(final Expression body, final List<CatchExpression> catches) {
+        return new Expression() {
+            public Next eval(final Env e, final Continuation k) {
+                final TryBlockEnv f = new TryBlockEnv(e);
+                for (final CatchExpression c : catches) {
+                    f.addHandler(c.type, new Continuation() {
+                        public Next receive(Object t) {
+                            BlockScopeEnv b = new BlockScopeEnv(e);
+                            b.declareVariable(c.name);
+                            b.setLocalVariable(c.name, t);
+
+                            return new Next(c.handler, b, k);
+                        }
+                    });
+                }
+
+                // evaluate the body with the new environment
+                return new Next(body,f,k);
+            }
+        };
+    }
+
+    /**
+     * throw exp;
+     */
+    public Expression throw_(final Expression exp) {
+        return new Expression() {
+            public Next eval(final Env e, Continuation k) {
+                return new Next(exp,e,new Continuation() {
+                    public Next receive(Object t) {
+                        if (t==null) {
+                            t = new NullPointerException();
+                        }
+                        // TODO: fake the stack trace information
+                        // TODO: what if 't' is not Throwable?
+
+                        Continuation v = e.getExceptionHandler(Throwable.class.cast(t).getClass());
+                        return v.receive(t);
+                    }
+                });
             }
         };
     }
@@ -236,6 +297,9 @@ public class Builder {
      * Returns an expression that evaluates all the arguments and return it as a {@link List}.
      */
     private Expression evalArgs(final Expression... argExps) {
+        if (argExps.length==0)  // no arguments to evaluate
+            return new Constant(Collections.emptyList());
+
         return new Expression() {
             public Next eval(final Env e, final Continuation k) {
                 final List<Object> args = new ArrayList<Object>(argExps.length); // this is where we build up actual arguments

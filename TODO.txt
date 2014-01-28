@@ -1,3 +1,4 @@
+- property access
 - exception handling
   - both throwing and catching
   - I can make it a part of Env -> requires an interface and chaining
