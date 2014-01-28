@@ -148,7 +148,7 @@ public class BasicTest extends Assert {
     }
 
     private <T> T run(Expression... bodies) {
-        Env e = new FunctionCallEnv(null,Continuation.HALT);
+        Env e = new FunctionCallEnv(null,null,Continuation.HALT);
         Next p = new Next(b.sequence(bodies), e, Continuation.HALT);
         return (T)p.resume().yield;
     }

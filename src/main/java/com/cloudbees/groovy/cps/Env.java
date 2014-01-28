@@ -17,4 +17,9 @@ public interface Env {
      * Where should the return statement return to?
      */
     Continuation getReturnAddress();
+
+    /**
+     * Finds the exception handler that catches a {@link Throwable} instance of this type.
+     */
+    Continuation getExceptionHandler(Class<? extends Throwable> type);
 }

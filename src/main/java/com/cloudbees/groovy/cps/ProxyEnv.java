@@ -25,4 +25,8 @@ abstract class ProxyEnv implements Env {
     public Continuation getReturnAddress() {
         return parent.getReturnAddress();
     }
+
+    public Continuation getExceptionHandler(Class<? extends Throwable> type) {
+        return parent.getExceptionHandler(type);
+    }
 }

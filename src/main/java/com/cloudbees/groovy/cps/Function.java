@@ -16,8 +16,8 @@ public class Function {
         this.parameters = ImmutableList.copyOf(parameters);
     }
 
-    public Next invoke(List<?> args, Continuation k) {
-        Env e = new FunctionCallEnv(null,k);
+    public Next invoke(Env caller, List<?> args, Continuation k) {
+        Env e = new FunctionCallEnv(caller, null,k);
         assert args.size()== parameters.size();  // TODO: varargs
 
         for (int i=0; i< parameters.size(); i++) {
