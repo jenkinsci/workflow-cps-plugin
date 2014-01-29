@@ -5,11 +5,10 @@ import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static java.util.Arrays.*;
-import static java.util.Collections.emptyList;
+import static java.util.Collections.*;
 
 /**
  * @author Kohsuke Kawaguchi

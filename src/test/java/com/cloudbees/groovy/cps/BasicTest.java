@@ -175,6 +175,18 @@ public class BasicTest extends Assert {
         ));
     }
 
+    /**
+     * x = new Exception("foo");
+     * new String(x.message.bytes)      =>  "foo"
+     */
+    @Test
+    public void propertyAccess() {
+        assertEquals("foo",run(
+                b.setLocalVariable("x", b.new_(Exception.class, b.constant("foo"))),
+                b.new_(String.class, b.getProperty(b.getProperty($x,"message"),"bytes"))
+        ));
+    }
+
     private <T> T run(Expression... bodies) {
         Env e = new FunctionCallEnv(null,null,Continuation.HALT);
         Next p = new Next(b.sequence(bodies), e, Continuation.HALT);
