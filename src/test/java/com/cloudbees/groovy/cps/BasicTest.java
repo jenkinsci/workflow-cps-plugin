@@ -30,16 +30,16 @@ public class BasicTest extends Assert {
     public void onePlusOne() {
         assertEquals(true, run(
                 b.staticCall(ScriptBytecodeAdapter.class, "compareEqual",
-                    b.constant(1),
-                    b.constant(1))));
+                    b.one(),
+                    b.one())));
     }
 
     // x=1; y=2; x+y    =>  3
     @Test
     public void variable() {
         assertEquals(3, run(
-                b.setLocalVariable("x", b.constant(1)),
-                b.setLocalVariable("y", b.constant(2)),
+                b.setLocalVariable("x", b.one()),
+                b.setLocalVariable("y", b.two()),
                 b.plus($x, $y)
         ));
     }
@@ -54,11 +54,11 @@ public class BasicTest extends Assert {
     @Test
     public void forLoop() {
         assertEquals(45, run(
-                b.setLocalVariable("sum", b.constant(0)),
+                b.setLocalVariable("sum", b.zero()),
                 b.forLoop(
-                        b.setLocalVariable("x", b.constant(0)),
+                        b.setLocalVariable("x", b.zero()),
                         b.lessThan($x, b.constant(10)),
-                        b.localVariableAssignOp("x", "plus", b.constant(1)),
+                        b.localVariableAssignOp("x", "plus", b.one()),
 
                         b.sequence(// for loop body
                                 b.localVariableAssignOp("sum", "plus", $x)
@@ -75,9 +75,9 @@ public class BasicTest extends Assert {
     @Test
     public void returnStatement() {
         assertEquals(0, run(
-                b.setLocalVariable("x", b.constant(0)),
+                b.setLocalVariable("x", b.zero()),
                 b.return_($x),
-                b.localVariableAssignOp("x", "plus", b.constant(1)),
+                b.localVariableAssignOp("x", "plus", b.one()),
                 b.plus($x, $y)
         ));
     }
@@ -99,10 +99,10 @@ public class BasicTest extends Assert {
 
     private void if_(boolean cond, int expected) {
         assertEquals(expected, run(
-                b.setLocalVariable("x", b.constant(0)),
+                b.setLocalVariable("x", b.zero()),
                 b.if_( b.constant(cond),
-                        b.setLocalVariable("x",b.constant(1)),
-                        b.setLocalVariable("x",b.constant(2))),
+                        b.setLocalVariable("x",b.one()),
+                        b.setLocalVariable("x",b.two())),
                 $x
         ));
     }
@@ -124,9 +124,9 @@ public class BasicTest extends Assert {
 
         //  z=5; new Op().add(1,2)+z   => 8
         assertEquals(3, run(
-                b.setLocalVariable("z", b.constant(0)),     // part of the test is to ensure this 'z' is separated from 'z' in the add function
+                b.setLocalVariable("z", b.zero()),     // part of the test is to ensure this 'z' is separated from 'z' in the add function
                 b.plus(
-                        b.functionCall(b.constant(new Op()), "add", b.constant(1), b.constant(2)),
+                        b.functionCall(b.constant(new Op()), "add", b.one(), b.two()),
                         $z)));
     }
 
@@ -195,8 +195,8 @@ public class BasicTest extends Assert {
                 Expression $depth = b.getLocalVariable("depth");
                 return new Function(asList("depth", "message"),
                         b.sequence(
-                            b.if_(b.lessThan(b.constant(0), $depth),
-                                    b.functionCall(b.this_(), "throw_", b.minus($depth,b.constant(1)), b.getLocalVariable("message")),
+                            b.if_(b.lessThan(b.zero(), $depth),
+                                    b.functionCall(b.this_(), "throw_", b.minus($depth,b.one()), b.getLocalVariable("message")),
                                 // else
                                     b.throw_(b.new_(IllegalArgumentException.class, b.getLocalVariable("message")))
                             )
@@ -215,12 +215,12 @@ public class BasicTest extends Assert {
             }
          */
         assertEquals("hello1", run(
-                b.setLocalVariable("x", b.constant(0)),     // part of the test is to ensure this 'z' is separated from 'z' in the add function
+                b.setLocalVariable("x", b.zero()),     // part of the test is to ensure this 'z' is separated from 'z' in the add function
                 b.tryCatch(
                         b.sequence(
-                                b.setLocalVariable("x", b.constant(1)),
+                                b.setLocalVariable("x", b.one()),
                                 b.functionCall(b.constant(new Op()), "throw_", b.constant(3), b.constant("hello")),
-                                b.setLocalVariable("x", b.constant(2))
+                                b.setLocalVariable("x", b.two())
                         ),
                         new CatchExpression(Exception.class, "e",
                                 b.return_(b.plus(
@@ -265,8 +265,8 @@ public class BasicTest extends Assert {
         PropertyTest p = new PropertyTest();
         run(
                 b.setLocalVariable("x", b.constant(p)),
-                b.setProperty($x,"x", b.constant(1)),
-                b.setProperty($x,"y", b.constant(2))
+                b.setProperty($x,"x", b.one()),
+                b.setProperty($x,"y", b.two())
         );
         assertEquals(p.x,1);
         assertEquals(p.y,2);

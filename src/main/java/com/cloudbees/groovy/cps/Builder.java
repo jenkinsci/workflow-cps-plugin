@@ -24,6 +24,18 @@ public class Builder {
         return new Constant(o);
     }
 
+    public Expression zero() {
+        return constant(0);
+    }
+
+    public Expression one() {
+        return constant(1);
+    }
+
+    public Expression two() {
+        return constant(2);
+    }
+
     public Expression sequence(Expression... bodies) {
         if (bodies.length==0)   return NULL;
 
