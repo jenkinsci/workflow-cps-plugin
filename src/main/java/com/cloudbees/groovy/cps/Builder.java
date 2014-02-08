@@ -241,7 +241,7 @@ public class Builder {
                                 if (v instanceof Function) {
                                     // if this is a workflow function, it'd return a Function object instead
                                     // of actually executing the function, so execute it in the CPS
-                                    return ((Function)v).invoke(e,args,k);
+                                    return ((Function)v).invoke(e,lhs,args,k);
                                 } else {
                                     // if this was a normal function, the method had just executed synchronously
                                     return k.receive(v);
@@ -296,7 +296,7 @@ public class Builder {
                                 if (v instanceof Function) {
                                     // if this is a workflow function, it'd return a Function object instead
                                     // of actually executing the function, so execute it in the CPS
-                                    return ((Function)v).invoke(e, emptyList(),k);
+                                    return ((Function)v).invoke(e, lhs, emptyList(),k);
                                 } else {
                                     // if this was a normal property, we get the value as-is.
                                     return k.receive(v);
