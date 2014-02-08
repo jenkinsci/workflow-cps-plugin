@@ -218,6 +218,14 @@ public class BasicTest extends Assert {
         assertEquals(p.y,2);
     }
 
+    /**
+     * return null;
+     */
+    @Test
+    public void yieldNull() {
+        assertNull(run(b.return_(b.null_())));
+    }
+
     private <T> T run(Expression... bodies) {
         Env e = new FunctionCallEnv(null,null,Continuation.HALT);
         Next p = new Next(b.sequence(bodies), e, Continuation.HALT);
