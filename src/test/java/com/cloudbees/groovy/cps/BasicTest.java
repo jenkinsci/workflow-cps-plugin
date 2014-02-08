@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps;
 
+import org.codehaus.groovy.classgen.asm.OptimizingStatementWriter.ClassNodeSkip;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.junit.Assert;
 import org.junit.Test;
@@ -106,6 +107,9 @@ public class BasicTest extends Assert {
         ));
     }
 
+    /**
+     * A CPS function calling another CPS function.
+     */
     @Test
     public void asyncCallingAsync() {
         class Op {
@@ -173,6 +177,53 @@ public class BasicTest extends Assert {
                         ))
                 )
         ));
+    }
+
+    /**
+     * An exception thrown in a function caught by another function
+     */
+    @Test
+    public void exceptionStackUnwinding() {
+        class Op {
+            /**
+             * if (0<depth)
+             *      throw_(depth-1,message);
+             * else
+             *      throw new IllegalArgumentException(message)
+             */
+            public Function throw_(int depth, String message) {
+                Expression $depth = b.getLocalVariable("depth");
+                return new Function(asList("depth", "message"),
+                        b.sequence(
+                            b.if_(b.lessThan(b.constant(0), $depth),
+                                    b.functionCall(b.this_(), "throw_", b.minus($depth,b.constant(1)), b.getLocalVariable("message")),
+                                // else
+                                    b.throw_(b.new_(IllegalArgumentException.class, b.getLocalVariable("message")))
+                            )
+                        ));
+            }
+        }
+
+        /*
+            int x;
+            try {
+                x = 1;
+                new Op().throw_(3,"hello")
+                x = 2; // make sure this line gets skipped
+            } catch (Exception e) {
+                return e.message;
+            }
+         */
+        assertEquals("hello", run(
+                b.setLocalVariable("x", b.constant(0)),     // part of the test is to ensure this 'z' is separated from 'z' in the add function
+                b.tryCatch(
+                        b.sequence(
+                                b.setLocalVariable("x", b.constant(1)),
+                                b.functionCall(b.constant(new Op()), "throw_", b.constant(3), b.constant("hello")),
+                                b.setLocalVariable("x", b.constant(2))
+                        ),
+                        new CatchExpression(Exception.class, "e", b.return_(b.getProperty(b.getLocalVariable("e"), "message")))
+                )));
     }
 
     /**

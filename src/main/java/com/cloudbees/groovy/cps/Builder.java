@@ -70,6 +70,10 @@ public class Builder {
         };
     }
 
+    public Expression this_() {
+        return getLocalVariable("this");
+    }
+
     /**
      * Assignment operator to a local variable, such as "x += 3"
      */
@@ -202,6 +206,10 @@ public class Builder {
 
     public Expression plus(Expression lhs, Expression rhs) {
         return functionCall(lhs,"plus",rhs);
+    }
+
+    public Expression minus(Expression lhs, Expression rhs) {
+        return functionCall(lhs,"minus",rhs);
     }
 
     public Expression lessThan(Expression lhs, Expression rhs) {
