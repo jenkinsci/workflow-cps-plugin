@@ -211,10 +211,10 @@ public class BasicTest extends Assert {
                 new Op().throw_(3,"hello")
                 x = 2; // make sure this line gets skipped
             } catch (Exception e) {
-                return e.message;
+                return e.message + x;
             }
          */
-        assertEquals("hello", run(
+        assertEquals("hello1", run(
                 b.setLocalVariable("x", b.constant(0)),     // part of the test is to ensure this 'z' is separated from 'z' in the add function
                 b.tryCatch(
                         b.sequence(
@@ -222,7 +222,10 @@ public class BasicTest extends Assert {
                                 b.functionCall(b.constant(new Op()), "throw_", b.constant(3), b.constant("hello")),
                                 b.setLocalVariable("x", b.constant(2))
                         ),
-                        new CatchExpression(Exception.class, "e", b.return_(b.getProperty(b.getLocalVariable("e"), "message")))
+                        new CatchExpression(Exception.class, "e",
+                                b.return_(b.plus(
+                                        b.getProperty(b.getLocalVariable("e"), "message"),
+                                        b.getLocalVariable("x"))))
                 )));
     }
 
