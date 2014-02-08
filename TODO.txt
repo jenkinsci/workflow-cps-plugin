@@ -1,6 +1,8 @@
 - array access (trivial, so can be done later)
 - block creates a new scope
 - variables are resolved lexically
+- closure
+- how to avoid anonymous classes?
 
 Tests to be written:
     - verify a proper method overload resolution
