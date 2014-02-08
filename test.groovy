@@ -1,0 +1,2 @@
+int x;
+println x;

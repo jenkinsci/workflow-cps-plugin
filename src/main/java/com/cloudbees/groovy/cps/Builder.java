@@ -7,6 +7,7 @@ import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.cloudbees.groovy.cps.Expression.NOOP;
 import static java.util.Arrays.*;
 import static java.util.Collections.*;
 
@@ -36,13 +37,35 @@ public class Builder {
         return constant(2);
     }
 
+    public Expression true_() {
+        return constant(true);
+    }
+
+    public Expression false_() {
+        return constant(false);
+    }
+
     public Expression sequence(Expression... bodies) {
         if (bodies.length==0)   return NULL;
 
         Expression e = bodies[0];
         for (int i=1; i<bodies.length; i++)
             e = sequence(e,bodies[i]);
-        return e;
+
+        return blockScoped(e);
+    }
+
+    /**
+     * Creates a block scope of variables around the given expression
+     */
+    private Expression blockScoped(final Expression exp) {
+        return new Expression() {
+            public Next eval(Env _e, final Continuation k) {
+                final Env e = new BlockScopeEnv(_e); // block statement creates a new scope
+
+                return new Next(exp,e,k);
+            }
+        };
     }
 
     public Expression sequence(final Expression exp1, final Expression exp2) {
@@ -82,6 +105,16 @@ public class Builder {
         };
     }
 
+    public Expression declareVariable(final String name) {
+        return new Expression() {
+            public Next eval(final Env e, final Continuation k) {
+                e.declareVariable(name);
+                return k.receive(null);
+            }
+        };
+    }
+
+
     public Expression this_() {
         return getLocalVariable("this");
     }
@@ -106,6 +139,10 @@ public class Builder {
                 });
             }
         };
+    }
+
+    public Expression if_(Expression cond, Expression then) {
+        return if_(cond,then, NOOP);
     }
 
     /**

@@ -1,6 +1,5 @@
 package com.cloudbees.groovy.cps;
 
-import org.codehaus.groovy.classgen.asm.OptimizingStatementWriter.ClassNodeSkip;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.junit.Assert;
 import org.junit.Test;
@@ -278,6 +277,26 @@ public class BasicTest extends Assert {
     @Test
     public void yieldNull() {
         assertNull(run(b.return_(b.null_())));
+    }
+
+    /**
+     * if (true) {
+     *     int x = 1;
+     * }
+     * int x;
+     * return x;
+     */
+    @Test
+    public void blockScopedVariable() {
+        assertEquals(0,run(
+                b.if_(b.true_(), b.sequence(
+                        b.declareVariable("x"),
+                        b.setLocalVariable("x", b.one())
+                )),
+                b.declareVariable("x"),
+                b.return_($x)
+        ));
+        // TODO: variable has to have a type for initialization
     }
 
     private <T> T run(Expression... bodies) {
