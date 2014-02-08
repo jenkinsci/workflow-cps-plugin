@@ -180,16 +180,47 @@ public class BasicTest extends Assert {
      * new String(x.message.bytes)      =>  "foo"
      */
     @Test
-    public void propertyAccess() {
+    public void propertyGetAccess() {
         assertEquals("foo",run(
                 b.setLocalVariable("x", b.new_(Exception.class, b.constant("foo"))),
                 b.new_(String.class, b.getProperty(b.getProperty($x,"message"),"bytes"))
         ));
     }
 
+    public static class PropertyTest {
+        private int x=0;
+
+        public int getX() {
+            return x;
+        }
+
+        public void setX(int x) {
+            this.x = x;
+        }
+
+        public int y=0;
+    }
+
+    /**
+     * x = new PropertyTest();
+     * x.x = 1;
+     * x.y = 2;
+     */
+    @Test
+    public void propertySetAccess() {
+        PropertyTest p = new PropertyTest();
+        run(
+                b.setLocalVariable("x", b.constant(p)),
+                b.setProperty($x,"x", b.constant(1)),
+                b.setProperty($x,"y", b.constant(2))
+        );
+        assertEquals(p.x,1);
+        assertEquals(p.y,2);
+    }
+
     private <T> T run(Expression... bodies) {
         Env e = new FunctionCallEnv(null,null,Continuation.HALT);
         Next p = new Next(b.sequence(bodies), e, Continuation.HALT);
-        return (T)p.resume().yield;
+        return (T)p.resume().yieldedValue();
     }
 }

@@ -13,8 +13,10 @@ public class Next {
     /**
      * If the program getting executed wants to yield a value and suspend its execution,
      * this value is set to non-null.
+     *
+     * {@link #NULL} is used to yield null.
      */
-    Object yield;
+    private Object yield;
 
     public Next(Expression f, Env e, Continuation k) {
         this.f = f;
@@ -32,4 +34,17 @@ public class Next {
         } while(n.yield==null);
         return n;
     }
+
+    /*package*/ void yield(Object v) {
+        if (v==null)  v = NULL;
+        this.yield = v;
+    }
+
+    /*package*/ Object yieldedValue() {
+        if (yield==NULL)    return null;
+        return yield;
+    }
+
+    private static final class Null {}
+    private static final Null NULL = new Null();
 }

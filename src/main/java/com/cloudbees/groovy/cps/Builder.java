@@ -301,6 +301,38 @@ public class Builder {
         };
     }
 
+    public Expression setProperty(Expression lhs, String property, Expression rhs) {
+        return setProperty(lhs, constant(property), rhs);
+    }
+
+    public Expression setProperty(final Expression lhs, final Expression property, final Expression rhs) {
+        return new Expression() {
+            public Next eval(final Env e, final Continuation k) {
+                return lhs.eval(e,new Continuation() {
+                    public Next receive(final Object lhs) {
+                        return new Next(property,e,new Continuation() {
+                            public Next receive(final Object property) {
+                                return new Next(rhs,e,new Continuation() {
+                                    public Next receive(Object rhs) {
+                                        try {
+                                            // TODO: verify the behaviour of Groovy if the property expression evaluates to non-String
+                                            ScriptBytecodeAdapter.setProperty(rhs,
+                                                    null/*Groovy doesn't use this parameter*/,
+                                                    lhs, (String) property);
+                                        } catch (Throwable t) {
+                                            throw new UnsupportedOperationException(t);     // TODO: exception handling
+                                        }
+                                        return k.receive(null);
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+        };
+    }
+
     /**
      * Object instantiation.
      */

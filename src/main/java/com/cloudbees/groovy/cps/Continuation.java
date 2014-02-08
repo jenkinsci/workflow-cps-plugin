@@ -15,7 +15,7 @@ public interface Continuation {
     final static Continuation HALT = new Continuation() {
         public Next receive(Object o) {
             Next next = new Next(NOOP, null, HALT);
-            next.yield = o;
+            next.yield(o);
             return next;
         }
     };
