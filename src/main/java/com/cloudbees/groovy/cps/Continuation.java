@@ -7,7 +7,7 @@ import static com.cloudbees.groovy.cps.Block.*;
  *
  * <p>
  * To maintain backward compatibility with serialized {@link Continuation} objects, it is preferable
- * to avoid anonymous single-method classes that implement {@link Continuation}. See {@link ContinuationGroup}
+ * to avoid anonymous single-method classes that implement {@link Continuation}. See {@link com.cloudbees.groovy.cps.impl.ContinuationGroup}
  * for how to do this.
  *
  * @author Kohsuke Kawaguchi

@@ -1,4 +1,9 @@
-package com.cloudbees.groovy.cps;
+package com.cloudbees.groovy.cps.impl;
+
+import com.cloudbees.groovy.cps.Block;
+import com.cloudbees.groovy.cps.Continuation;
+import com.cloudbees.groovy.cps.Env;
+import com.cloudbees.groovy.cps.Next;
 
 /**
  * for (e1; e2; e3) { ... body ... }

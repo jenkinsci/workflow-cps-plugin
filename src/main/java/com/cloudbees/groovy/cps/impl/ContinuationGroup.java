@@ -1,5 +1,9 @@
-package com.cloudbees.groovy.cps;
+package com.cloudbees.groovy.cps.impl;
 
+import com.cloudbees.groovy.cps.Block;
+import com.cloudbees.groovy.cps.Continuation;
+import com.cloudbees.groovy.cps.Env;
+import com.cloudbees.groovy.cps.Next;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
 /**

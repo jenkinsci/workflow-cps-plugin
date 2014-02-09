@@ -1,5 +1,10 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.impl.BlockScopeEnv;
+import com.cloudbees.groovy.cps.impl.Constant;
+import com.cloudbees.groovy.cps.impl.ForLoopBlock;
+import com.cloudbees.groovy.cps.impl.IfBlock;
+import com.cloudbees.groovy.cps.impl.TryBlockEnv;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;

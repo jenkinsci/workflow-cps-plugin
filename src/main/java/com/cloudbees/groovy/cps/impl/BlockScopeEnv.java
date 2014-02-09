@@ -1,4 +1,6 @@
-package com.cloudbees.groovy.cps;
+package com.cloudbees.groovy.cps.impl;
+
+import com.cloudbees.groovy.cps.Env;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -8,7 +10,8 @@ import java.util.Map;
  *
  * @author Kohsuke Kawaguchi
  */
-class BlockScopeEnv extends ProxyEnv {
+// TODO: should be package local once all the impls move into this class
+public class BlockScopeEnv extends ProxyEnv {
     private final Map<String,Object> locals = new HashMap<String, Object>();
 
     public BlockScopeEnv(Env parent) {

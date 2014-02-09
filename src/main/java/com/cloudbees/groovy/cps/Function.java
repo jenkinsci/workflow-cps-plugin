@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import com.google.common.collect.ImmutableList;
 
 import java.util.List;

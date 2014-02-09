@@ -1,4 +1,7 @@
-package com.cloudbees.groovy.cps;
+package com.cloudbees.groovy.cps.impl;
+
+import com.cloudbees.groovy.cps.Continuation;
+import com.cloudbees.groovy.cps.Env;
 
 /**
  * @author Kohsuke Kawaguchi

@@ -1,4 +1,7 @@
-package com.cloudbees.groovy.cps;
+package com.cloudbees.groovy.cps.impl;
+
+import com.cloudbees.groovy.cps.Continuation;
+import com.cloudbees.groovy.cps.Env;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -7,17 +10,18 @@ import java.util.Map.Entry;
 /**
  * @author Kohsuke Kawaguchi
  */
-class TryBlockEnv extends ProxyEnv {
+// TODO: should be package local once all the impls move into this class
+public class TryBlockEnv extends ProxyEnv {
     private final Map<Class,Continuation> handlers = new LinkedHashMap<Class, Continuation>();
 
-    TryBlockEnv(Env parent) {
+    public TryBlockEnv(Env parent) {
         super(parent);
     }
 
     /**
      * Handlers can be only added immediately after instantiation.
      */
-    void addHandler(Class<? extends Throwable> type, Continuation k) {
+    public void addHandler(Class<? extends Throwable> type, Continuation k) {
         handlers.put(type,k);
     }
 

@@ -1,4 +1,7 @@
-package com.cloudbees.groovy.cps;
+package com.cloudbees.groovy.cps.impl;
+
+import com.cloudbees.groovy.cps.Continuation;
+import com.cloudbees.groovy.cps.Env;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -6,7 +9,8 @@ import java.util.Map;
 /**
  * @author Kohsuke Kawaguchi
  */
-class FunctionCallEnv implements Env {
+// TODO: should be package local once all the impls move into this class
+public class FunctionCallEnv implements Env {
     // TODO: How do we correctly assign local variables to its scope?
 
     // TODO: delegate?
@@ -25,7 +29,7 @@ class FunctionCallEnv implements Env {
      * @param caller
      *      The environment of the call site. Can be null but only if the caller is outside CPS execution.
      */
-    FunctionCallEnv(Env caller, Object _this, Continuation returnAddress) {
+    public FunctionCallEnv(Env caller, Object _this, Continuation returnAddress) {
         this.caller = caller;
         this.returnAddress = returnAddress;
         locals.put("this",_this);

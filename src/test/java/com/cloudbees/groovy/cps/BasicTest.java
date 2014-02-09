@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.junit.Assert;
 import org.junit.Test;
