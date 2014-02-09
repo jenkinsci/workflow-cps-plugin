@@ -2,6 +2,7 @@ package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.BlockScopeEnv;
 import com.cloudbees.groovy.cps.impl.Constant;
+import com.cloudbees.groovy.cps.impl.ForInLoopBlock;
 import com.cloudbees.groovy.cps.impl.ForLoopBlock;
 import com.cloudbees.groovy.cps.impl.IfBlock;
 import com.cloudbees.groovy.cps.impl.TryBlockEnv;
@@ -11,7 +12,6 @@ import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -156,45 +156,9 @@ public class Builder {
     /**
      * for (x in col) { ... }
      */
-    public Block forInLoop(final Class type, final String variable, final Block collection, final Block body) {
-        return new Block() {
-            public Next eval(Env _e, final Continuation loopEnd) {
-                final Env e = new BlockScopeEnv(_e);    // for the loop variable
-                e.declareVariable(type,variable);
-
-                return collection.eval(e,new Continuation() {
-                    public Next receive(Object col) {
-                        final Iterator itr;
-                        try {
-                            itr = (Iterator) ScriptBytecodeAdapter.invokeMethod0(null/*unused*/, col, "iterator");
-                        } catch (Throwable e) {
-                            // TODO: exception handling
-                            e.printStackTrace();
-                            return loopEnd.receive(null);
-                        }
-
-                        final Continuation loopHead = new Continuation() {
-                            final Continuation _loopHead = this;    // because 'loopHead' cannot be referenced from within the definition
-
-                            public Next receive(Object __) {
-                                if (itr.hasNext()) {
-                                    // one more iteration
-                                    e.setLocalVariable(variable,itr.next());
-                                    return body.eval(e,_loopHead);
-                                } else {
-                                    // exit loop
-                                    return loopEnd.receive(null);
-                                }
-                            }
-                        };
-
-                        return loopHead.receive(null);
-                    }
-                });
-            }
-        };
+    public Block forInLoop(Class type, String variable, Block collection, Block body) {
+        return new ForInLoopBlock(type,variable,collection,body);
     }
-
 
     public Block tryCatch(Block body, CatchExpression... catches) {
         return tryCatch(body, asList(catches));
