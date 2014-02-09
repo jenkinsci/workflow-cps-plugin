@@ -6,7 +6,7 @@ package com.cloudbees.groovy.cps;
  * @author Kohsuke Kawaguchi
  */
 public class Next {
-    Expression f;
+    Block f;
     Env e;
     Continuation k;
 
@@ -18,7 +18,7 @@ public class Next {
      */
     private Object yield;
 
-    public Next(Expression f, Env e, Continuation k) {
+    public Next(Block f, Env e, Continuation k) {
         this.f = f;
         this.e = e;
         this.k = k;

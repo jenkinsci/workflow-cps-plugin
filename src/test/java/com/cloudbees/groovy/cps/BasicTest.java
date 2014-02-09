@@ -13,9 +13,9 @@ public class BasicTest extends Assert {
     Builder b = new Builder();
 
     // useful fragment of expressions
-    Expression $x = b.getLocalVariable("x");
-    Expression $y = b.getLocalVariable("y");
-    Expression $z = b.getLocalVariable("z");
+    Block $x = b.getLocalVariable("x");
+    Block $y = b.getLocalVariable("y");
+    Block $z = b.getLocalVariable("z");
 
 
     // 3    => 3
@@ -191,7 +191,7 @@ public class BasicTest extends Assert {
              *      throw new IllegalArgumentException(message)
              */
             public Function throw_(int depth, String message) {
-                Expression $depth = b.getLocalVariable("depth");
+                Block $depth = b.getLocalVariable("depth");
                 return new Function(asList("depth", "message"),
                         b.sequence(
                             b.if_(b.lessThan(b.zero(), $depth),
@@ -299,7 +299,7 @@ public class BasicTest extends Assert {
         // TODO: variable has to have a type for initialization
     }
 
-    private <T> T run(Expression... bodies) {
+    private <T> T run(Block... bodies) {
         Env e = new FunctionCallEnv(null,null,Continuation.HALT);
         Next p = new Next(b.sequence(bodies), e, Continuation.HALT);
         return (T)p.resume().yieldedValue();

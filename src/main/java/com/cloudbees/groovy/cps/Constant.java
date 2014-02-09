@@ -5,7 +5,7 @@ package com.cloudbees.groovy.cps;
  *
  * @author Kohsuke Kawaguchi
  */
-class Constant implements Expression {
+class Constant implements Block {
     public final Object value;
 
     public Constant(Object value) {

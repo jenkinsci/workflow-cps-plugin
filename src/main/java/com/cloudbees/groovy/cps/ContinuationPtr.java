@@ -15,7 +15,7 @@ import java.lang.reflect.Method;
  * parameter is given to the {@link #bind(Object)} method. This allows {@link ContinuationPtr}s to be
  * created as static singletons.
  *
- * @see ContinuationGroup#then(Expression, Env, ContinuationPtr)
+ * @see ContinuationGroup#then(Block, Env, ContinuationPtr)
  * @author Kohsuke Kawaguchi
  */
 class ContinuationPtr {

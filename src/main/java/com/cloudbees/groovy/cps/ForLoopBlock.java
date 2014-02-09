@@ -5,10 +5,10 @@ package com.cloudbees.groovy.cps;
  *
  * @author Kohsuke Kawaguchi
  */
-public class ForLoopBlock implements Expression {
-    final Expression e1, e2, e3, body;
+public class ForLoopBlock implements Block {
+    final Block e1, e2, e3, body;
 
-    public ForLoopBlock(Expression e1, Expression e2, Expression e3, Expression body) {
+    public ForLoopBlock(Block e1, Block e2, Block e3, Block body) {
         this.e1 = e1;
         this.e2 = e2;
         this.e3 = e3;

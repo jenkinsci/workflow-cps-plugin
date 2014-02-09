@@ -1,9 +1,9 @@
 package com.cloudbees.groovy.cps;
 
-import static com.cloudbees.groovy.cps.Expression.*;
+import static com.cloudbees.groovy.cps.Block.*;
 
 /**
- * Represents the remaining computation that receives the result of {@link Expression}.
+ * Represents the remaining computation that receives the result of {@link Block}.
  *
  * <p>
  * To maintain backward compatibility with serialized {@link Continuation} objects, it is preferable

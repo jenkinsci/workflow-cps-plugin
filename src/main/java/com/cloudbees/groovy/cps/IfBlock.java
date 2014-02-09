@@ -5,10 +5,10 @@ package com.cloudbees.groovy.cps;
  *
  * @author Kohsuke Kawaguchi
  */
-public class IfBlock implements Expression {
-    final Expression cond, then, els;
+public class IfBlock implements Block {
+    final Block cond, then, els;
 
-    public IfBlock(Expression cond, Expression then, Expression els) {
+    public IfBlock(Block cond, Block then, Block els) {
         this.cond = cond;
         this.then = then;
         this.els = els;

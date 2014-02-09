@@ -8,10 +8,10 @@ import java.util.List;
  * @author Kohsuke Kawaguchi
  */
 public class Function {
-    final Expression body;
+    final Block body;
     final ImmutableList<String> parameters;
 
-    public Function(List<String> parameters, Expression body) {
+    public Function(List<String> parameters, Block body) {
         this.body = body;
         this.parameters = ImmutableList.copyOf(parameters);
     }

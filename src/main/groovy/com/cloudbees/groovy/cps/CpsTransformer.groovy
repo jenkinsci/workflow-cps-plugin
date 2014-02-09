@@ -104,7 +104,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      * Makes an AST fragment that calls {@link Builder} with specific method.
      *
      * @param args
-     *      Can be closure for building argument nodes, Expression, or List of Expressions.
+     *      Can be closure for building argument nodes, Block, or List of Expressions.
      */
     private void makeNode(String methodName, Object args) {
         if (args instanceof Closure) {

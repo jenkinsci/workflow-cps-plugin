@@ -6,7 +6,7 @@ import java.util.List;
  * Catch block in a try/catch statement.
  *
  * @author Kohsuke Kawaguchi
- * @see Builder#tryCatch(Expression, List)
+ * @see Builder#tryCatch(Block, List)
  */
 public class CatchExpression {
     /**
@@ -22,9 +22,9 @@ public class CatchExpression {
     /**
      * Code that executes up on receiving an exception.
      */
-    public final Expression handler;
+    public final Block handler;
 
-    public CatchExpression(Class<? extends Throwable> type, String name, Expression handler) {
+    public CatchExpression(Class<? extends Throwable> type, String name, Block handler) {
         this.name = name;
         this.handler = handler;
         this.type = type;

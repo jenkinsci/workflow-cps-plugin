@@ -10,7 +10,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static com.cloudbees.groovy.cps.Expression.*;
+import static com.cloudbees.groovy.cps.Block.*;
 import static java.util.Arrays.*;
 import static java.util.Collections.*;
 
@@ -18,40 +18,40 @@ import static java.util.Collections.*;
  * @author Kohsuke Kawaguchi
  */
 public class Builder {
-    private static final Expression NULL = new Constant(null);
+    private static final Block NULL = new Constant(null);
 
-    public Expression null_() {
+    public Block null_() {
         return NULL;
     }
 
-    public Expression constant(Object o) {
+    public Block constant(Object o) {
         return new Constant(o);
     }
 
-    public Expression zero() {
+    public Block zero() {
         return constant(0);
     }
 
-    public Expression one() {
+    public Block one() {
         return constant(1);
     }
 
-    public Expression two() {
+    public Block two() {
         return constant(2);
     }
 
-    public Expression true_() {
+    public Block true_() {
         return constant(true);
     }
 
-    public Expression false_() {
+    public Block false_() {
         return constant(false);
     }
 
-    public Expression sequence(Expression... bodies) {
+    public Block sequence(Block... bodies) {
         if (bodies.length==0)   return NULL;
 
-        Expression e = bodies[0];
+        Block e = bodies[0];
         for (int i=1; i<bodies.length; i++)
             e = sequence(e,bodies[i]);
 
@@ -61,8 +61,8 @@ public class Builder {
     /**
      * Creates a block scope of variables around the given expression
      */
-    private Expression blockScoped(final Expression exp) {
-        return new Expression() {
+    private Block blockScoped(final Block exp) {
+        return new Block() {
             public Next eval(Env _e, final Continuation k) {
                 final Env e = new BlockScopeEnv(_e); // block statement creates a new scope
 
@@ -71,8 +71,8 @@ public class Builder {
         };
     }
 
-    public Expression sequence(final Expression exp1, final Expression exp2) {
-        return new Expression() {
+    public Block sequence(final Block exp1, final Block exp2) {
+        return new Block() {
             public Next eval(final Env e, final Continuation k) {
                 return new Next(exp1,e,new Continuation() {
                     public Next receive(Object __) {
@@ -83,20 +83,20 @@ public class Builder {
         };
     }
 
-//    public Expression compareLessThan(final Expression lhs, final Expression rhs) {
+//    public Block compareLessThan(final Block lhs, final Block rhs) {
 //
 //    }
 
-    public Expression getLocalVariable(final String name) {
-        return new Expression() {
+    public Block getLocalVariable(final String name) {
+        return new Block() {
             public Next eval(Env e, Continuation k) {
                 return k.receive(e.getLocalVariable(name));
             }
         };
     }
 
-    public Expression setLocalVariable(final String name, final Expression rhs) {
-        return new Expression() {
+    public Block setLocalVariable(final String name, final Block rhs) {
+        return new Block() {
             public Next eval(final Env e, final Continuation k) {
                 return rhs.eval(e,new Continuation() {
                     public Next receive(Object o) {
@@ -108,8 +108,8 @@ public class Builder {
         };
     }
 
-    public Expression declareVariable(final Class type, final String name) {
-        return new Expression() {
+    public Block declareVariable(final Class type, final String name) {
+        return new Block() {
             public Next eval(final Env e, final Continuation k) {
                 e.declareVariable(type,name);
                 e.setLocalVariable(name,defaultPrimitiveValue.get(type));
@@ -119,40 +119,40 @@ public class Builder {
     }
 
 
-    public Expression this_() {
+    public Block this_() {
         return getLocalVariable("this");
     }
 
     /**
      * Assignment operator to a local variable, such as "x += 3"
      */
-    public Expression localVariableAssignOp(String name, String operator, Expression rhs) {
+    public Block localVariableAssignOp(String name, String operator, Block rhs) {
         return setLocalVariable(name, functionCall(getLocalVariable(name),operator,rhs));
     }
 
     /**
      * if (...) { ... } else { ... }
      */
-    public Expression if_(Expression cond, Expression then, Expression els) {
+    public Block if_(Block cond, Block then, Block els) {
         return new IfBlock(cond,then,els);
     }
 
-    public Expression if_(Expression cond, Expression then) {
+    public Block if_(Block cond, Block then) {
         return if_(cond,then, NOOP);
     }
 
     /**
      * for (e1; e2; e3) { ... }
      */
-    public Expression forLoop(Expression e1, Expression e2, Expression e3, Expression body) {
+    public Block forLoop(Block e1, Block e2, Block e3, Block body) {
         return new ForLoopBlock(e1,e2,e3,body);
     }
 
     /**
      * for (x in col) { ... }
      */
-    public Expression forInLoop(final Class type, final String variable, final Expression collection, final Expression body) {
-        return new Expression() {
+    public Block forInLoop(final Class type, final String variable, final Block collection, final Block body) {
+        return new Block() {
             public Next eval(Env _e, final Continuation loopEnd) {
                 final Env e = new BlockScopeEnv(_e);    // for the loop variable
                 e.declareVariable(type,variable);
@@ -191,7 +191,7 @@ public class Builder {
     }
 
 
-    public Expression tryCatch(Expression body, CatchExpression... catches) {
+    public Block tryCatch(Block body, CatchExpression... catches) {
         return tryCatch(body, asList(catches));
     }
 
@@ -204,8 +204,8 @@ public class Builder {
      *     ...
      * }
      */
-    public Expression tryCatch(final Expression body, final List<CatchExpression> catches) {
-        return new Expression() {
+    public Block tryCatch(final Block body, final List<CatchExpression> catches) {
+        return new Block() {
             public Next eval(final Env e, final Continuation k) {
                 final TryBlockEnv f = new TryBlockEnv(e);
                 for (final CatchExpression c : catches) {
@@ -229,8 +229,8 @@ public class Builder {
     /**
      * throw exp;
      */
-    public Expression throw_(final Expression exp) {
-        return new Expression() {
+    public Block throw_(final Block exp) {
+        return new Block() {
             public Next eval(final Env e, Continuation k) {
                 return new Next(exp,e,new Continuation() {
                     public Next receive(Object t) {
@@ -248,51 +248,51 @@ public class Builder {
         };
     }
 
-    public Expression staticCall(Class lhs, String name, Expression... argExps) {
+    public Block staticCall(Class lhs, String name, Block... argExps) {
         return functionCall(constant(lhs),name,argExps);
     }
 
-    public Expression plus(Expression lhs, Expression rhs) {
+    public Block plus(Block lhs, Block rhs) {
         return functionCall(lhs,"plus",rhs);
     }
 
-    public Expression minus(Expression lhs, Expression rhs) {
+    public Block minus(Block lhs, Block rhs) {
         return functionCall(lhs,"minus",rhs);
     }
 
-    public Expression compareEqual(Expression lhs, Expression rhs) {
+    public Block compareEqual(Block lhs, Block rhs) {
         return staticCall(ScriptBytecodeAdapter.class,"compareEqual",lhs,rhs);
     }
 
-    public Expression compareNotEqual(Expression lhs, Expression rhs) {
+    public Block compareNotEqual(Block lhs, Block rhs) {
         return staticCall(ScriptBytecodeAdapter.class,"compareNotEqual",lhs,rhs);
     }
 
-    public Expression compareTo(Expression lhs, Expression rhs) {
+    public Block compareTo(Block lhs, Block rhs) {
         return staticCall(ScriptBytecodeAdapter.class,"compareTo",lhs,rhs);
     }
 
-    public Expression lessThan(Expression lhs, Expression rhs) {
+    public Block lessThan(Block lhs, Block rhs) {
         return staticCall(ScriptBytecodeAdapter.class,"compareLessThan",lhs,rhs);
     }
 
-    public Expression lessThanEqual(Expression lhs, Expression rhs) {
+    public Block lessThanEqual(Block lhs, Block rhs) {
         return staticCall(ScriptBytecodeAdapter.class,"compareLessThanEqual",lhs,rhs);
     }
 
-    public Expression greaterThan(Expression lhs, Expression rhs) {
+    public Block greaterThan(Block lhs, Block rhs) {
         return staticCall(ScriptBytecodeAdapter.class,"compareGreaterThan",lhs,rhs);
     }
 
-    public Expression greaterThanEqual(Expression lhs, Expression rhs) {
+    public Block greaterThanEqual(Block lhs, Block rhs) {
         return staticCall(ScriptBytecodeAdapter.class,"compareGreaterThanEqual",lhs,rhs);
     }
 
     /**
      * lhs && rhs
      */
-    public Expression logicalAnd(final Expression lhs, final Expression rhs) {
-        return new Expression() {
+    public Block logicalAnd(final Block lhs, final Block rhs) {
+        return new Block() {
             public Next eval(final Env e, final Continuation k) {
                 return new Next(lhs, e, new Continuation() {
                     public Next receive(Object lhs) {
@@ -314,11 +314,11 @@ public class Builder {
     /**
      * LHS.name(...)
      */
-    public Expression functionCall(final Expression lhs, final String name, Expression... argExps) {
+    public Block functionCall(final Block lhs, final String name, Block... argExps) {
         final CallSite callSite = fakeCallSite(name); // name is statically determined
-        final Expression args = evalArgs(argExps);
+        final Block args = evalArgs(argExps);
 
-        return new Expression() {
+        return new Block() {
             public Next eval(final Env e, final Continuation k) {
                 return new Next(lhs,e, new Continuation() {// evaluate lhs
                     public Next receive(final Object lhs) {
@@ -349,17 +349,17 @@ public class Builder {
         };
     }
 
-    public Expression functionCall(final Expression lhs, final Expression name, Expression... argExps) {
+    public Block functionCall(final Block lhs, final Block name, Block... argExps) {
         if (name instanceof Constant) {
             // method name statically known. this common path enables a bit of optimization
             return functionCall(lhs,((Constant)name).value.toString(),argExps);
         }
 
-        final Expression args = evalArgs(argExps);
+        final Block args = evalArgs(argExps);
 
         // TODO: what is the correct evaluation order?
 
-        return new Expression() {
+        return new Block() {
             public Next eval(final Env e, final Continuation k) {
                 return new Next(lhs,e, new Continuation() {// evaluate lhs
                     public Next receive(final Object lhs) {
@@ -400,9 +400,9 @@ public class Builder {
 //     *
 //     * TODO: is this the same as this.name(...) ? -> NO, not in closure
 //     */
-//    public Expression functionCall(final String name, Expression... argExps) {
-//        final Expression args = evalArgs(argExps);
-//        return new Expression() {
+//    public Block functionCall(final String name, Block... argExps) {
+//        final Block args = evalArgs(argExps);
+//        return new Block() {
 //            public Next eval(final Env e, final Continuation k) {
 //                return args.eval(e,new Continuation() {
 //                    public Next receive(Object args) {
@@ -414,12 +414,12 @@ public class Builder {
 //        };
 //    }
 
-    public Expression getProperty(Expression lhs, String property) {
+    public Block getProperty(Block lhs, String property) {
         return getProperty(lhs,constant(property));
     }
 
-    public Expression getProperty(final Expression lhs, final Expression property) {
-        return new Expression() {
+    public Block getProperty(final Block lhs, final Block property) {
+        return new Block() {
             public Next eval(final Env e, final Continuation k) {
                 return lhs.eval(e,new Continuation() {
                     public Next receive(final Object lhs) {
@@ -450,12 +450,12 @@ public class Builder {
         };
     }
 
-    public Expression setProperty(Expression lhs, String property, Expression rhs) {
+    public Block setProperty(Block lhs, String property, Block rhs) {
         return setProperty(lhs, constant(property), rhs);
     }
 
-    public Expression setProperty(final Expression lhs, final Expression property, final Expression rhs) {
-        return new Expression() {
+    public Block setProperty(final Block lhs, final Block property, final Block rhs) {
+        return new Block() {
             public Next eval(final Env e, final Continuation k) {
                 return lhs.eval(e,new Continuation() {
                     public Next receive(final Object lhs) {
@@ -485,11 +485,11 @@ public class Builder {
     /**
      * Object instantiation.
      */
-    public Expression new_(final Class type, Expression... argExps) {
+    public Block new_(final Class type, Block... argExps) {
         final CallSite callSite = fakeCallSite("<init>");
-        final Expression args = evalArgs(argExps);
+        final Block args = evalArgs(argExps);
 
-        return new Expression() {
+        return new Block() {
             public Next eval(final Env e, final Continuation k) {
                 return args.eval(e,new Continuation() {
                     public Next receive(Object _args) {
@@ -513,11 +513,11 @@ public class Builder {
     /**
      * Returns an expression that evaluates all the arguments and return it as a {@link List}.
      */
-    private Expression evalArgs(final Expression... argExps) {
+    private Block evalArgs(final Block... argExps) {
         if (argExps.length==0)  // no arguments to evaluate
             return new Constant(emptyList());
 
-        return new Expression() {
+        return new Block() {
             public Next eval(final Env e, final Continuation k) {
                 final List<Object> args = new ArrayList<Object>(argExps.length); // this is where we build up actual arguments
 
@@ -542,8 +542,8 @@ public class Builder {
     /**
      * return exp;
      */
-    public Expression return_(final Expression exp) {
-        return new Expression() {
+    public Block return_(final Block exp) {
+        return new Block() {
             public Next eval(Env e, Continuation k) {
                 return new Next(exp,e, e.getReturnAddress());
             }
