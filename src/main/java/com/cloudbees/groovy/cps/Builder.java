@@ -272,7 +272,7 @@ public class Builder {
      * LHS.name(...)
      */
     public Expression functionCall(final Expression lhs, final String name, Expression... argExps) {
-        final CallSite callSite = fakeCallSite(name);
+        final CallSite callSite = fakeCallSite(name); // name is statically determined
         final Expression args = evalArgs(argExps);
 
         return new Expression() {
@@ -298,6 +298,52 @@ public class Builder {
                                     // if this was a normal function, the method had just executed synchronously
                                     return k.receive(v);
                                 }
+                            }
+                        });
+                    }
+                });
+            }
+        };
+    }
+
+    public Expression functionCall(final Expression lhs, final Expression name, Expression... argExps) {
+        if (name instanceof Constant) {
+            // method name statically known. this common path enables a bit of optimization
+            return functionCall(lhs,((Constant)name).value.toString(),argExps);
+        }
+
+        final Expression args = evalArgs(argExps);
+
+        // TODO: what is the correct evaluation order?
+
+        return new Expression() {
+            public Next eval(final Env e, final Continuation k) {
+                return new Next(lhs,e, new Continuation() {// evaluate lhs
+                    public Next receive(final Object lhs) {
+                        return new Next(name, e, new Continuation() {
+                            public Next receive(final Object name) {
+                                return args.eval(e,new Continuation() {
+                                    public Next receive(Object _args) {
+                                        List args = (List) _args;
+
+                                        Object v;
+                                        try {
+                                            CallSite callSite = fakeCallSite(name.toString());
+                                            v = callSite.call(lhs, args.toArray(new Object[args.size()]));
+                                        } catch (Throwable t) {
+                                            throw new UnsupportedOperationException(t);     // TODO: exception handling
+                                        }
+
+                                        if (v instanceof Function) {
+                                            // if this is a workflow function, it'd return a Function object instead
+                                            // of actually executing the function, so execute it in the CPS
+                                            return ((Function)v).invoke(e,lhs,args,k);
+                                        } else {
+                                            // if this was a normal function, the method had just executed synchronously
+                                            return k.receive(v);
+                                        }
+                                    }
+                                });
                             }
                         });
                     }

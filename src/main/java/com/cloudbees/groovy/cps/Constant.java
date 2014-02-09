@@ -6,7 +6,7 @@ package com.cloudbees.groovy.cps;
  * @author Kohsuke Kawaguchi
  */
 class Constant implements Expression {
-    private final Object value;
+    public final Object value;
 
     public Constant(Object value) {
         this.value = value;

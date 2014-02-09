@@ -5,8 +5,6 @@ import org.codehaus.groovy.control.customizers.ImportCustomizer
 import org.junit.Before
 import org.junit.Test
 
-import java.awt.Point
-
 /**
  *
  *
@@ -18,13 +16,6 @@ class CpsTransformerTest {
 
     @Before
     void setUp() {
-        binding.foo = "FOO"
-        binding.bar = "BAR"
-        binding.zot = 5
-        binding.point = new Point(1,2)
-        binding.points = [new Point(1,2),new Point(3,4)]
-        binding.intArray = [0,1,2,3,4] as int[]
-
         def cc = new CompilerConfiguration()
         cc.addCompilationCustomizers(new ImportCustomizer().addImports(CpsTransformerTest.class.name))
         cc.addCompilationCustomizers(new CpsTransformer())
@@ -33,6 +24,9 @@ class CpsTransformerTest {
 
     @Test
     void helloWorld() {
-        sh.evaluate("'hello world'.length()")
+        Function f = sh.evaluate("'hello world'.length()")
+        def p = f.invoke(null, null, [], Continuation.HALT)
+
+        assert p.resume().yieldedValue()==11;
     }
 }
