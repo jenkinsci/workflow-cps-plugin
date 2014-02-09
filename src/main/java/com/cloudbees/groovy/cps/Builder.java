@@ -133,16 +133,8 @@ public class Builder {
     /**
      * if (...) { ... } else { ... }
      */
-    public Expression if_(final Expression cond, final Expression then, final Expression els) {
-        return new Expression() {
-            public Next eval(final Env e, final Continuation k) {
-                return cond.eval(e,new Continuation() {
-                    public Next receive(Object o) {
-                        return (asBoolean(o) ? then : els).eval(e,k);
-                    }
-                });
-            }
-        };
+    public Expression if_(Expression cond, Expression then, Expression els) {
+        return new IfBlock(cond,then,els);
     }
 
     public Expression if_(Expression cond, Expression then) {
@@ -254,17 +246,6 @@ public class Builder {
                 });
             }
         };
-    }
-
-
-    private boolean asBoolean(Object o) {
-        try {
-            return (Boolean)ScriptBytecodeAdapter.asType(o,Boolean.class);
-        } catch (Throwable e) {
-            // TODO: exception handling
-            e.printStackTrace();
-            return false;
-        }
     }
 
     public Expression staticCall(Class lhs, String name, Expression... argExps) {

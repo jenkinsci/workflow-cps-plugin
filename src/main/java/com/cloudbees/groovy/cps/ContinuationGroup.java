@@ -16,6 +16,13 @@ abstract class ContinuationGroup {
         return new Next(exp,e,ptr.bind(this));
     }
 
+    public Next then(Expression exp, Env e, Continuation k) {
+        return new Next(exp,e,k);
+    }
+
+    /**
+     * Casts the value to boolean by following the Groovy semantics.
+     */
     protected final boolean asBoolean(Object o) {
         try {
             return (Boolean) ScriptBytecodeAdapter.asType(o, Boolean.class);

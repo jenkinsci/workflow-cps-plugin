@@ -16,7 +16,8 @@ public class ForLoopBlock implements Expression {
     }
 
     public Next eval(Env e, Continuation k) {
-        return new ContinuationImpl(e,k).then(e1,e,loopHead);
+        ContinuationImpl c = new ContinuationImpl(e, k);
+        return c.then(e1, c.e, loopHead);
     }
 
     class ContinuationImpl extends ContinuationGroup {
