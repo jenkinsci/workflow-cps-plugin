@@ -242,6 +242,16 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             (COMPARE_LESS_THAN_EQUAL)       :"lessThanEqual",
             (LOGICAL_AND)                   :"logicanAnd",
             (LOGICAL_OR)                    :"logicanOr",
+            (BITWISE_AND)                   :"bitwiseAnd",
+            (BITWISE_OR)                    :"bitwiseOr",
+            (BITWISE_XOR)                   :"bitwiseXor",
+            (PLUS)                          :"plus",
+            (MINUS)                         :"minus",
+            (MULTIPLY)                      :"multiply",
+            (DIVIDE)                        :"div",
+            (INTDIV)                        :"intdiv",
+            (MOD)                           :"mod",
+            (POWER)                         :"power",
     ]
 
     /**
@@ -259,63 +269,35 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             return;
         }
 
-/* TODO:
+/* TODO: from BinaryExpressionHelper
         // other unique cases
         switch (exp.operation.type) {
         case EQUAL: // = assignment
             throw new UnsupportedOperationException();
             break;
 
-        case BITWISE_AND:
-            evaluateBinaryExpression("and", exp);
-            break;
-
         case BITWISE_AND_EQUAL:
             evaluateBinaryExpressionWithAssignment("and", exp);
-            break;
-
-        case BITWISE_OR:
-            evaluateBinaryExpression("or", exp);
             break;
 
         case BITWISE_OR_EQUAL:
             evaluateBinaryExpressionWithAssignment("or", exp);
             break;
 
-        case BITWISE_XOR:
-            evaluateBinaryExpression("xor", exp);
-            break;
-
         case BITWISE_XOR_EQUAL:
             evaluateBinaryExpressionWithAssignment("xor", exp);
-            break;
-
-        case PLUS:
-            evaluateBinaryExpression("plus", exp);
             break;
 
         case PLUS_EQUAL:
             evaluateBinaryExpressionWithAssignment("plus", exp);
             break;
 
-        case MINUS:
-            evaluateBinaryExpression("minus", exp);
-            break;
-
         case MINUS_EQUAL:
             evaluateBinaryExpressionWithAssignment("minus", exp);
             break;
 
-        case MULTIPLY:
-            evaluateBinaryExpression("multiply", exp);
-            break;
-
         case MULTIPLY_EQUAL:
             evaluateBinaryExpressionWithAssignment("multiply", exp);
-            break;
-
-        case DIVIDE:
-            evaluateBinaryExpression("div", exp);
             break;
 
         case DIVIDE_EQUAL:
@@ -324,24 +306,12 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             evaluateBinaryExpressionWithAssignment("div", exp);
             break;
 
-        case INTDIV:
-            evaluateBinaryExpression("intdiv", exp);
-            break;
-
         case INTDIV_EQUAL:
             evaluateBinaryExpressionWithAssignment("intdiv", exp);
             break;
 
-        case MOD:
-            evaluateBinaryExpression("mod", exp);
-            break;
-
         case MOD_EQUAL:
             evaluateBinaryExpressionWithAssignment("mod", exp);
-            break;
-
-        case POWER:
-            evaluateBinaryExpression("power", exp);
             break;
 
         case POWER_EQUAL:

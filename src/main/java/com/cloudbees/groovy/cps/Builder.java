@@ -230,6 +230,26 @@ public class Builder {
         return functionCall(lhs,"minus",rhs);
     }
 
+    public Block multiply(Block lhs, Block rhs) {
+        return functionCall(lhs,"multiply",rhs);
+    }
+
+    public Block div(Block lhs, Block rhs) {
+        return functionCall(lhs,"div",rhs);
+    }
+
+    public Block intdiv(Block lhs, Block rhs) {
+        return functionCall(lhs,"intdiv",rhs);
+    }
+
+    public Block mod(Block lhs, Block rhs) {
+        return functionCall(lhs,"mod",rhs);
+    }
+
+    public Block power(Block lhs, Block rhs) {
+        return functionCall(lhs,"power",rhs);
+    }
+
     public Block compareEqual(Block lhs, Block rhs) {
         return staticCall(ScriptBytecodeAdapter.class,"compareEqual",lhs,rhs);
     }
@@ -261,15 +281,27 @@ public class Builder {
     /**
      * lhs && rhs
      */
-    public Block logicalAnd(final Block lhs, final Block rhs) {
+    public Block logicalAnd(Block lhs, Block rhs) {
         return new LogicalOpBlock(lhs,rhs,true);
     }
 
     /**
      * lhs || rhs
      */
-    public Block logicalOr(final Block lhs, final Block rhs) {
+    public Block logicalOr(Block lhs, Block rhs) {
         return new LogicalOpBlock(lhs,rhs,false);
+    }
+
+    public Block bitwiseAnd(Block lhs, Block rhs) {
+        return functionCall(lhs,"and",rhs);
+    }
+
+    public Block bitwiseOr(Block lhs, Block rhs) {
+        return functionCall(lhs,"or",rhs);
+    }
+
+    public Block bitwiseXor(Block lhs, Block rhs) {
+        return functionCall(lhs,"xor",rhs);
     }
 
     /**
