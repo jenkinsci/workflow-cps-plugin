@@ -31,7 +31,7 @@ class FunctionCallEnv implements Env {
         locals.put("this",_this);
     }
 
-    public void declareVariable(String name) {
+    public void declareVariable(Class type, String name) {
         // no-op
     }
 

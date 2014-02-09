@@ -5,7 +5,9 @@ import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.cloudbees.groovy.cps.Expression.NOOP;
 import static java.util.Arrays.*;
@@ -105,10 +107,11 @@ public class Builder {
         };
     }
 
-    public Expression declareVariable(final String name) {
+    public Expression declareVariable(final Class type, final String name) {
         return new Expression() {
             public Next eval(final Env e, final Continuation k) {
-                e.declareVariable(name);
+                e.declareVariable(type,name);
+                e.setLocalVariable(name,defaultPrimitiveValue.get(type));
                 return k.receive(null);
             }
         };
@@ -202,7 +205,7 @@ public class Builder {
                     f.addHandler(c.type, new Continuation() {
                         public Next receive(Object t) {
                             BlockScopeEnv b = new BlockScopeEnv(e);
-                            b.declareVariable(c.name);
+                            b.declareVariable(c.type, c.name);
                             b.setLocalVariable(c.name, t);
 
                             return new Next(c.handler, b, k);
@@ -462,5 +465,13 @@ public class Builder {
     private static CallSite fakeCallSite(String method) {
         CallSiteArray csa = new CallSiteArray(Builder.class, new String[]{method});
         return csa.array[0];
+    }
+
+    private static final Map<Class,Object> defaultPrimitiveValue = new HashMap<Class, Object>();
+    static {
+        defaultPrimitiveValue.put(boolean.class,false);
+        defaultPrimitiveValue.put(int.class,0);
+        defaultPrimitiveValue.put(long.class,0L);
+        // TODO: complete the rest
     }
 }

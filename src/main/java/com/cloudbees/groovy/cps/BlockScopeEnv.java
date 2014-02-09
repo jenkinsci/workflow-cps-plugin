@@ -15,7 +15,7 @@ class BlockScopeEnv extends ProxyEnv {
         super(parent);
     }
 
-    public void declareVariable(String name) {
+    public void declareVariable(Class type, String name) {
         locals.put(name,null);
     }
 

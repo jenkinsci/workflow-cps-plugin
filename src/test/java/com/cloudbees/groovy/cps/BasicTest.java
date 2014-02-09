@@ -290,10 +290,10 @@ public class BasicTest extends Assert {
     public void blockScopedVariable() {
         assertEquals(0,run(
                 b.if_(b.true_(), b.sequence(
-                        b.declareVariable("x"),
+                        b.declareVariable(int.class,"x"),
                         b.setLocalVariable("x", b.one())
                 )),
-                b.declareVariable("x"),
+                b.declareVariable(int.class,"x"),
                 b.return_($x)
         ));
         // TODO: variable has to have a type for initialization

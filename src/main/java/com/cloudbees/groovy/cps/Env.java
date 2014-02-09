@@ -8,7 +8,7 @@ package com.cloudbees.groovy.cps;
 public interface Env {
     // TODO: How do we correctly assign local variables to its scope?
 
-    void declareVariable(String name);
+    void declareVariable(Class type, String name);
 
     Object getLocalVariable(String name);
     void setLocalVariable(String name, Object value);

@@ -10,8 +10,8 @@ abstract class ProxyEnv implements Env {
         this.parent = parent;
     }
 
-    public void declareVariable(String name) {
-        parent.declareVariable(name);
+    public void declareVariable(Class type, String name) {
+        parent.declareVariable(type, name);
     }
 
     public Object getLocalVariable(String name) {
