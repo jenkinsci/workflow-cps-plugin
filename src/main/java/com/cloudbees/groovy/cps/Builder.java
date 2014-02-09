@@ -1,6 +1,5 @@
 package com.cloudbees.groovy.cps;
 
-import org.codehaus.groovy.classgen.asm.MethodCaller;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
@@ -11,7 +10,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static com.cloudbees.groovy.cps.Expression.NOOP;
+import static com.cloudbees.groovy.cps.Expression.*;
 import static java.util.Arrays.*;
 import static java.util.Collections.*;
 
@@ -153,36 +152,8 @@ public class Builder {
     /**
      * for (e1; e2; e3) { ... }
      */
-    public Expression forLoop(final Expression e1, final Expression e2, final Expression e3, final Expression body) {
-        return new Expression() {
-            public Next eval(Env _e, final Continuation loopEnd) {
-                final Env e = new BlockScopeEnv(_e);   // a for-loop creates a new scope for variables declared in e1,e2, & e3
-
-                final Continuation loopHead = new Continuation() {
-                    final Continuation _loopHead = this;    // because 'loopHead' cannot be referenced from within the definition
-
-                    public Next receive(Object __) {
-                        return new Next(e2,e,new Continuation() {// evaluate e2
-                            public Next receive(Object v2) {
-                                if (asBoolean(v2)) {
-                                    // loop
-                                    return new Next(body,e,new Continuation() {
-                                        public Next receive(Object o) {
-                                            return new Next(e3,e,_loopHead);
-                                        }
-                                    });
-                                } else {
-                                    // exit loop
-                                    return loopEnd.receive(null);
-                                }
-                            }
-                        });
-                    }
-                };
-
-                return e1.eval(e,loopHead);
-            }
-        };
+    public Expression forLoop(Expression e1, Expression e2, Expression e3, Expression body) {
+        return new ForLoopBlock(e1,e2,e3,body);
     }
 
     /**
@@ -334,6 +305,29 @@ public class Builder {
 
     public Expression greaterThanEqual(Expression lhs, Expression rhs) {
         return staticCall(ScriptBytecodeAdapter.class,"compareGreaterThanEqual",lhs,rhs);
+    }
+
+    /**
+     * lhs && rhs
+     */
+    public Expression logicalAnd(final Expression lhs, final Expression rhs) {
+        return new Expression() {
+            public Next eval(final Env e, final Continuation k) {
+                return new Next(lhs, e, new Continuation() {
+                    public Next receive(Object lhs) {
+                        Boolean o;
+                        try {
+                            o = (Boolean) ScriptBytecodeAdapter.castToType(lhs, boolean.class);
+                        } catch (Throwable t) {
+                            throw new UnsupportedOperationException(t);     // TODO: exception handling
+                        }
+                        if (!o) return k.receive(false);
+
+                        return new Next(rhs, e, k);
+                    }
+                });
+            }
+        };
     }
 
     /**
