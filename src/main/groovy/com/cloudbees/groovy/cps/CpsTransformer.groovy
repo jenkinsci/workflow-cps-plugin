@@ -82,17 +82,52 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      * Should this method be transformed?
      */
     private boolean shouldBeTransformed(MethodNode node) {
+        if (node.name=="run" && node.returnType.name==Object.class.name && extendsFromScript(node.declaringClass))
+            return true;    // default body of the script
         return node.annotations.find { it.classNode.name==WorkflowMethod.class.name } != null;
     }
 
-    public void visitMethod(MethodNode node) {
-        if (!shouldBeTransformed(node))
+    private boolean extendsFromScript(ClassNode c) {
+        while (c!=null) {
+            if (c.name==Script.class.name)
+                return true;
+            c = c.superClass
+        }
+        return false;
+    }
+
+    /**
+     * Transforms asynchronous workflow method.
+     *
+     * From:
+     *
+     * ReturnT foo( T1 arg1, T2 arg2, ...) {
+     *    ... body ...
+     * }
+     *
+     * To:
+     *
+     * Function foo( T1 arg1, T2 arg2, ...) {
+     *   return new Function(['arg1','arg2','arg3',...], CPS-transformed-method-body)
+     * }
+     */
+    public void visitMethod(MethodNode m) {
+        if (!shouldBeTransformed(m))
             return;
 
         // function shall now return the Function object
-        node.returnType = FUNCTION_TYPE;
+        m.returnType = FUNCTION_TYPE;
 
-        node.code.visit(this)
+        def body;
+
+        // transform the body
+        parent = { e -> body=e }
+        m.code.visit(this)
+
+        def params = new ListExpression();
+        m.parameters.each { params.addExpression(new ConstantExpression(it.name))}
+
+        m.code = new ReturnStatement(new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params,body)));
     }
 
     /**
@@ -117,12 +152,12 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      * @param args
      *      Can be closure for building argument nodes, Expression, or List of Expressions.
      */
-    private MethodCallExpression makeNode(String methodName, Object args) {
+    private void makeNode(String methodName, Object args) {
         if (args instanceof Closure) {
             def argExps = []
             def old = parent;
             try {
-                parent = { a -> argExps.addExpression(a) }
+                parent = { a -> argExps.add(a) }
 
                 args(); // evaluate arguments
                 args = argExps;
@@ -143,8 +178,10 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         }
     }
 
-    void visitBlockStatement(BlockStatement statement) {
-        throw new UnsupportedOperationException();
+    void visitBlockStatement(BlockStatement b) {
+        makeNode("sequence") {
+            visit(b.statements)
+        }
     }
 
     void visitForLoop(ForStatement forLoop) {
@@ -164,7 +201,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     void visitExpressionStatement(ExpressionStatement statement) {
-        throw new UnsupportedOperationException();
+        visit(statement.expression)
     }
 
     void visitReturnStatement(ReturnStatement statement) {

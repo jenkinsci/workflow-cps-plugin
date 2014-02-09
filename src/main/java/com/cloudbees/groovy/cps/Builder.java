@@ -467,6 +467,11 @@ public class Builder {
         return csa.array[0];
     }
 
+    /**
+     * Used for building AST from transformed code.
+     */
+    public static Builder INSTANCE = new Builder();
+
     private static final Map<Class,Object> defaultPrimitiveValue = new HashMap<Class, Object>();
     static {
         defaultPrimitiveValue.put(boolean.class,false);
