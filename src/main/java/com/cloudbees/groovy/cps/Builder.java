@@ -5,6 +5,7 @@ import com.cloudbees.groovy.cps.impl.Constant;
 import com.cloudbees.groovy.cps.impl.ForInLoopBlock;
 import com.cloudbees.groovy.cps.impl.ForLoopBlock;
 import com.cloudbees.groovy.cps.impl.IfBlock;
+import com.cloudbees.groovy.cps.impl.LogicalOpBlock;
 import com.cloudbees.groovy.cps.impl.TryBlockEnv;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
@@ -261,23 +262,14 @@ public class Builder {
      * lhs && rhs
      */
     public Block logicalAnd(final Block lhs, final Block rhs) {
-        return new Block() {
-            public Next eval(final Env e, final Continuation k) {
-                return new Next(lhs, e, new Continuation() {
-                    public Next receive(Object lhs) {
-                        Boolean o;
-                        try {
-                            o = (Boolean) ScriptBytecodeAdapter.castToType(lhs, boolean.class);
-                        } catch (Throwable t) {
-                            throw new UnsupportedOperationException(t);     // TODO: exception handling
-                        }
-                        if (!o) return k.receive(false);
+        return new LogicalOpBlock(lhs,rhs,true);
+    }
 
-                        return new Next(rhs, e, k);
-                    }
-                });
-            }
-        };
+    /**
+     * lhs || rhs
+     */
+    public Block logicalOr(final Block lhs, final Block rhs) {
+        return new LogicalOpBlock(lhs,rhs,false);
     }
 
     /**

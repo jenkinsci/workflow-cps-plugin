@@ -240,6 +240,8 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             (COMPARE_GREATER_THAN_EQUAL)    :"greaterThanEqual",
             (COMPARE_LESS_THAN)             :"lessThan",
             (COMPARE_LESS_THAN_EQUAL)       :"lessThanEqual",
+            (LOGICAL_AND)                   :"logicanAnd",
+            (LOGICAL_OR)                    :"logicanOr",
     ]
 
     /**
@@ -262,14 +264,6 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         switch (exp.operation.type) {
         case EQUAL: // = assignment
             throw new UnsupportedOperationException();
-            break;
-
-        case LOGICAL_AND:
-            evaluateLogicalAndExpression(exp);
-            break;
-
-        case LOGICAL_OR:
-            evaluateLogicalOrExpression(exp);
             break;
 
         case BITWISE_AND:

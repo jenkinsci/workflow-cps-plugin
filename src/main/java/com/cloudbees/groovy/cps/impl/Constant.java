@@ -6,7 +6,7 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 
 /**
- *
+ * Constant value.
  *
  * @author Kohsuke Kawaguchi
  */
