@@ -37,14 +37,24 @@ class CpsTransformerTest {
         sh = new GroovyShell(binding,cc);
     }
 
-    @Test
-    void helloWorld() {
-        Script s = csh.parse("'hello world'.length()")
+    Object evalCPS(String script) {
+        Script s = csh.parse(script)
         Function f = s.run();
         def p = f.invoke(null, s, [], Continuation.HALT)
 
-        assert p.resume().yieldedValue()==11;
+        def v = p.resume().yieldedValue()
 
-        assert sh.evaluate("'hello world'.length()")==11;
+        assert v==sh.evaluate(script);
+        return v;
+    }
+
+    @Test
+    void helloWorld() {
+        assert evalCPS("'hello world'.length()")==11
+    }
+
+    @Test
+    void forInLoop() {
+        assert evalCPS("x=0; for (i in [1,2,3,4,5]) x+=i; return x;")==15;
     }
 }

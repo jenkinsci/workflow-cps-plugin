@@ -6,6 +6,7 @@ import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -179,6 +180,48 @@ public class Builder {
                 };
 
                 return e1.eval(e,loopHead);
+            }
+        };
+    }
+
+    /**
+     * for (x in col) { ... }
+     */
+    public Expression forInLoop(final Class type, final String variable, final Expression collection, final Expression body) {
+        return new Expression() {
+            public Next eval(Env _e, final Continuation loopEnd) {
+                final Env e = new BlockScopeEnv(_e);    // for the loop variable
+                e.declareVariable(type,variable);
+
+                return collection.eval(e,new Continuation() {
+                    public Next receive(Object col) {
+                        final Iterator itr;
+                        try {
+                            itr = (Iterator) ScriptBytecodeAdapter.invokeMethod0(null/*unused*/, col, "iterator");
+                        } catch (Throwable e) {
+                            // TODO: exception handling
+                            e.printStackTrace();
+                            return loopEnd.receive(null);
+                        }
+
+                        final Continuation loopHead = new Continuation() {
+                            final Continuation _loopHead = this;    // because 'loopHead' cannot be referenced from within the definition
+
+                            public Next receive(Object __) {
+                                if (itr.hasNext()) {
+                                    // one more iteration
+                                    e.setLocalVariable(variable,itr.next());
+                                    return body.eval(e,_loopHead);
+                                } else {
+                                    // exit loop
+                                    return loopEnd.receive(null);
+                                }
+                            }
+                        };
+
+                        return loopHead.receive(null);
+                    }
+                });
             }
         };
     }

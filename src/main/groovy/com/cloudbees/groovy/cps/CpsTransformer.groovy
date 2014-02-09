@@ -169,6 +169,17 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         parent(new MethodCallExpression(BUILDER, methodName, new TupleExpression(args)));
     }
 
+    /**
+     * Used in the closure block of {@link #makeNode(String, Object)} to create a literal string argument.
+     */
+    private void literal(String s) {
+        parent(new ConstantExpression(s))
+    }
+
+    private void literal(ClassNode c) {
+        parent(new ClassExpression(s))
+    }
+
     void visitMethodCallExpression(MethodCallExpression call) {
         makeNode("functionCall") {
             visit(call.objectExpression);
@@ -185,7 +196,12 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     void visitForLoop(ForStatement forLoop) {
-        throw new UnsupportedOperationException();
+        makeNode("forInLoop") {
+            literal(forLoop.variableType)
+            literal(forLoop.variable.name)
+            visit(forLoop.collectionExpression)
+            visit(forLoop.loopBlock)
+        }
     }
 
     void visitWhileLoop(WhileStatement loop) {
