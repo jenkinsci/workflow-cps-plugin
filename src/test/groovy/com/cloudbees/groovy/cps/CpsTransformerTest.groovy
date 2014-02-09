@@ -54,6 +54,18 @@ class CpsTransformerTest {
     }
 
     @Test
+    void comparison() {
+        for(int i in [1,2,3]) {
+            for (int j in [1,2,3]) {
+                assert evalCPS("${i} < ${j}") == (i<j);
+                assert evalCPS("${i} <= ${j}")== (i<=j);
+                assert evalCPS("${i} > ${j}") == (i>j);
+                assert evalCPS("${i} >= ${j}")== (i>=j);
+            }
+        }
+    }
+
+    @Test
     void forInLoop() {
         assert evalCPS("x=0; for (i in [1,2,3,4,5]) x+=i; return x;")==15;
     }

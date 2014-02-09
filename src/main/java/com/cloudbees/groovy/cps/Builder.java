@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps;
 
+import org.codehaus.groovy.classgen.asm.MethodCaller;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
@@ -307,8 +308,32 @@ public class Builder {
         return functionCall(lhs,"minus",rhs);
     }
 
+    public Expression compareEqual(Expression lhs, Expression rhs) {
+        return staticCall(ScriptBytecodeAdapter.class,"compareEqual",lhs,rhs);
+    }
+
+    public Expression compareNotEqual(Expression lhs, Expression rhs) {
+        return staticCall(ScriptBytecodeAdapter.class,"compareNotEqual",lhs,rhs);
+    }
+
+    public Expression compareTo(Expression lhs, Expression rhs) {
+        return staticCall(ScriptBytecodeAdapter.class,"compareTo",lhs,rhs);
+    }
+
     public Expression lessThan(Expression lhs, Expression rhs) {
         return staticCall(ScriptBytecodeAdapter.class,"compareLessThan",lhs,rhs);
+    }
+
+    public Expression lessThanEqual(Expression lhs, Expression rhs) {
+        return staticCall(ScriptBytecodeAdapter.class,"compareLessThanEqual",lhs,rhs);
+    }
+
+    public Expression greaterThan(Expression lhs, Expression rhs) {
+        return staticCall(ScriptBytecodeAdapter.class,"compareGreaterThan",lhs,rhs);
+    }
+
+    public Expression greaterThanEqual(Expression lhs, Expression rhs) {
+        return staticCall(ScriptBytecodeAdapter.class,"compareGreaterThanEqual",lhs,rhs);
     }
 
     /**

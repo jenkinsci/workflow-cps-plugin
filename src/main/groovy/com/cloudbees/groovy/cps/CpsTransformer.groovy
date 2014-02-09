@@ -1,61 +1,15 @@
 package com.cloudbees.groovy.cps
 
 import org.codehaus.groovy.ast.*
-import org.codehaus.groovy.ast.expr.ArgumentListExpression
-import org.codehaus.groovy.ast.expr.ArrayExpression
-import org.codehaus.groovy.ast.expr.AttributeExpression
-import org.codehaus.groovy.ast.expr.BinaryExpression
-import org.codehaus.groovy.ast.expr.BitwiseNegationExpression
-import org.codehaus.groovy.ast.expr.BooleanExpression
-import org.codehaus.groovy.ast.expr.CastExpression
-import org.codehaus.groovy.ast.expr.ClassExpression
-import org.codehaus.groovy.ast.expr.ClosureExpression
-import org.codehaus.groovy.ast.expr.ClosureListExpression
-import org.codehaus.groovy.ast.expr.ConstantExpression
-import org.codehaus.groovy.ast.expr.ConstructorCallExpression
-import org.codehaus.groovy.ast.expr.DeclarationExpression
-import org.codehaus.groovy.ast.expr.ElvisOperatorExpression
-import org.codehaus.groovy.ast.expr.FieldExpression
-import org.codehaus.groovy.ast.expr.GStringExpression
-import org.codehaus.groovy.ast.expr.ListExpression
-import org.codehaus.groovy.ast.expr.MapEntryExpression
-import org.codehaus.groovy.ast.expr.MapExpression
-import org.codehaus.groovy.ast.expr.MethodCallExpression
-import org.codehaus.groovy.ast.expr.MethodPointerExpression
-import org.codehaus.groovy.ast.expr.NotExpression
-import org.codehaus.groovy.ast.expr.PostfixExpression
-import org.codehaus.groovy.ast.expr.PrefixExpression
-import org.codehaus.groovy.ast.expr.PropertyExpression
-import org.codehaus.groovy.ast.expr.RangeExpression
-import org.codehaus.groovy.ast.expr.SpreadExpression
-import org.codehaus.groovy.ast.expr.SpreadMapExpression
-import org.codehaus.groovy.ast.expr.StaticMethodCallExpression
-import org.codehaus.groovy.ast.expr.TernaryExpression
-import org.codehaus.groovy.ast.expr.TupleExpression
-import org.codehaus.groovy.ast.expr.UnaryMinusExpression
-import org.codehaus.groovy.ast.expr.UnaryPlusExpression
-import org.codehaus.groovy.ast.expr.VariableExpression
-import org.codehaus.groovy.ast.stmt.AssertStatement
-import org.codehaus.groovy.ast.stmt.BlockStatement
-import org.codehaus.groovy.ast.stmt.BreakStatement
-import org.codehaus.groovy.ast.stmt.CaseStatement
-import org.codehaus.groovy.ast.stmt.CatchStatement
-import org.codehaus.groovy.ast.stmt.ContinueStatement
-import org.codehaus.groovy.ast.stmt.DoWhileStatement
-import org.codehaus.groovy.ast.stmt.ExpressionStatement
-import org.codehaus.groovy.ast.stmt.ForStatement
-import org.codehaus.groovy.ast.stmt.IfStatement
-import org.codehaus.groovy.ast.stmt.ReturnStatement
-import org.codehaus.groovy.ast.stmt.SwitchStatement
-import org.codehaus.groovy.ast.stmt.SynchronizedStatement
-import org.codehaus.groovy.ast.stmt.ThrowStatement
-import org.codehaus.groovy.ast.stmt.TryCatchStatement
-import org.codehaus.groovy.ast.stmt.WhileStatement
+import org.codehaus.groovy.ast.expr.*
+import org.codehaus.groovy.ast.stmt.*
 import org.codehaus.groovy.classgen.BytecodeExpression
 import org.codehaus.groovy.classgen.GeneratorContext
 import org.codehaus.groovy.control.CompilePhase
 import org.codehaus.groovy.control.SourceUnit
 import org.codehaus.groovy.control.customizers.CompilationCustomizer
+
+import static org.codehaus.groovy.syntax.Types.*
 
 /**
  *
@@ -278,8 +232,178 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         throw new UnsupportedOperationException();
     }
 
-    void visitBinaryExpression(BinaryExpression expression) {
-        throw new UnsupportedOperationException();
+    private static Map<Integer,String> BINARY_OP_TO_BUILDER_METHOD = [
+            (COMPARE_EQUAL)                 :"compareEqual",
+            (COMPARE_NOT_EQUAL)             :"compareNotEqual",
+            (COMPARE_TO)                    :"compareTo",
+            (COMPARE_GREATER_THAN)          :"greaterThan",
+            (COMPARE_GREATER_THAN_EQUAL)    :"greaterThanEqual",
+            (COMPARE_LESS_THAN)             :"lessThan",
+            (COMPARE_LESS_THAN_EQUAL)       :"lessThanEqual",
+    ]
+
+    /**
+     * @see org.codehaus.groovy.classgen.asm.BinaryExpressionHelper#eval(BinaryExpression)
+     */
+    void visitBinaryExpression(BinaryExpression exp) {
+        def body = {// for building CPS tree for two expressions
+            visit(exp.leftExpression)
+            visit(exp.rightExpression)
+        }
+
+        def name = BINARY_OP_TO_BUILDER_METHOD[exp.operation.type]
+        if (name!=null) {
+            makeNode(name,body)
+            return;
+        }
+
+/* TODO:
+        // other unique cases
+        switch (exp.operation.type) {
+        case EQUAL: // = assignment
+            throw new UnsupportedOperationException();
+            break;
+
+        case LOGICAL_AND:
+            evaluateLogicalAndExpression(exp);
+            break;
+
+        case LOGICAL_OR:
+            evaluateLogicalOrExpression(exp);
+            break;
+
+        case BITWISE_AND:
+            evaluateBinaryExpression("and", exp);
+            break;
+
+        case BITWISE_AND_EQUAL:
+            evaluateBinaryExpressionWithAssignment("and", exp);
+            break;
+
+        case BITWISE_OR:
+            evaluateBinaryExpression("or", exp);
+            break;
+
+        case BITWISE_OR_EQUAL:
+            evaluateBinaryExpressionWithAssignment("or", exp);
+            break;
+
+        case BITWISE_XOR:
+            evaluateBinaryExpression("xor", exp);
+            break;
+
+        case BITWISE_XOR_EQUAL:
+            evaluateBinaryExpressionWithAssignment("xor", exp);
+            break;
+
+        case PLUS:
+            evaluateBinaryExpression("plus", exp);
+            break;
+
+        case PLUS_EQUAL:
+            evaluateBinaryExpressionWithAssignment("plus", exp);
+            break;
+
+        case MINUS:
+            evaluateBinaryExpression("minus", exp);
+            break;
+
+        case MINUS_EQUAL:
+            evaluateBinaryExpressionWithAssignment("minus", exp);
+            break;
+
+        case MULTIPLY:
+            evaluateBinaryExpression("multiply", exp);
+            break;
+
+        case MULTIPLY_EQUAL:
+            evaluateBinaryExpressionWithAssignment("multiply", exp);
+            break;
+
+        case DIVIDE:
+            evaluateBinaryExpression("div", exp);
+            break;
+
+        case DIVIDE_EQUAL:
+            //SPG don't use divide since BigInteger implements directly
+            //and we want to dispatch through DefaultGroovyMethods to get a BigDecimal result
+            evaluateBinaryExpressionWithAssignment("div", exp);
+            break;
+
+        case INTDIV:
+            evaluateBinaryExpression("intdiv", exp);
+            break;
+
+        case INTDIV_EQUAL:
+            evaluateBinaryExpressionWithAssignment("intdiv", exp);
+            break;
+
+        case MOD:
+            evaluateBinaryExpression("mod", exp);
+            break;
+
+        case MOD_EQUAL:
+            evaluateBinaryExpressionWithAssignment("mod", exp);
+            break;
+
+        case POWER:
+            evaluateBinaryExpression("power", exp);
+            break;
+
+        case POWER_EQUAL:
+            evaluateBinaryExpressionWithAssignment("power", exp);
+            break;
+
+        case LEFT_SHIFT:
+            evaluateBinaryExpression("leftShift", exp);
+            break;
+
+        case LEFT_SHIFT_EQUAL:
+            evaluateBinaryExpressionWithAssignment("leftShift", exp);
+            break;
+
+        case RIGHT_SHIFT:
+            evaluateBinaryExpression("rightShift", exp);
+            break;
+
+        case RIGHT_SHIFT_EQUAL:
+            evaluateBinaryExpressionWithAssignment("rightShift", exp);
+            break;
+
+        case RIGHT_SHIFT_UNSIGNED:
+            evaluateBinaryExpression("rightShiftUnsigned", exp);
+            break;
+
+        case RIGHT_SHIFT_UNSIGNED_EQUAL:
+            evaluateBinaryExpressionWithAssignment("rightShiftUnsigned", exp);
+            break;
+
+        case KEYWORD_INSTANCEOF:
+            evaluateInstanceof(exp);
+            break;
+
+        case FIND_REGEX:
+            evaluateCompareExpression(findRegexMethod, exp);
+            break;
+
+        case MATCH_REGEX:
+            evaluateCompareExpression(matchRegexMethod, exp);
+            break;
+
+        case LEFT_SQUARE_BRACKET:
+            if (controller.getCompileStack().isLHS()) {
+                evaluateEqual(exp, false);
+            } else {
+                evaluateBinaryExpression("getAt", exp);
+            }
+            break;
+
+        case KEYWORD_IN:
+            evaluateCompareExpression(isCaseMethod, exp);
+            break;
+*/
+
+        throw new UnsupportedOperationException("Operation: " + exp.operation + " not supported");
     }
 
     void visitPrefixExpression(PrefixExpression expression) {
