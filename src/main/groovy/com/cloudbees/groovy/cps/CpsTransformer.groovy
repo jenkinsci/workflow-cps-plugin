@@ -8,6 +8,7 @@ import org.codehaus.groovy.classgen.GeneratorContext
 import org.codehaus.groovy.control.CompilePhase
 import org.codehaus.groovy.control.SourceUnit
 import org.codehaus.groovy.control.customizers.CompilationCustomizer
+import org.codehaus.groovy.syntax.Types
 
 import static org.codehaus.groovy.syntax.Types.*
 
@@ -386,12 +387,25 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         throw new UnsupportedOperationException("Operation: " + exp.operation + " not supported");
     }
 
-    void visitPrefixExpression(PrefixExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitPrefixExpression(PrefixExpression exp) {
+        makeNode("prefix"+ prepostfixOperatorSuffix(exp)) {
+            visit(exp.expression)
+        }
     }
 
-    void visitPostfixExpression(PostfixExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitPostfixExpression(PostfixExpression exp) {
+        makeNode("postfix"+ prepostfixOperatorSuffix(exp)) {
+            visit(exp.expression)
+        }
+    }
+
+    private String prepostfixOperatorSuffix(Expression exp) {
+        switch (exp.operation.type) {
+        case PLUS_PLUS:   return "Inc";
+        case MINUS_MINUS: return "Dec";
+        default:
+            throw new UnsupportedOperationException("Unknown operator:" + exp.operation.text)
+        }
     }
 
     void visitBooleanExpression(BooleanExpression expression) {

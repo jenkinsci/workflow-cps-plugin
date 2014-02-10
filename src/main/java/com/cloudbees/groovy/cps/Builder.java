@@ -5,6 +5,7 @@ import com.cloudbees.groovy.cps.impl.BlockScopeEnv;
 import com.cloudbees.groovy.cps.impl.BreakBlock;
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.ContinueBlock;
+import com.cloudbees.groovy.cps.impl.ExcrementOperatorBlock;
 import com.cloudbees.groovy.cps.impl.ForInLoopBlock;
 import com.cloudbees.groovy.cps.impl.ForLoopBlock;
 import com.cloudbees.groovy.cps.impl.IfBlock;
@@ -331,6 +332,34 @@ public class Builder {
 
     public Block bitwiseXor(Block lhs, Block rhs) {
         return functionCall(lhs,"xor",rhs);
+    }
+
+    /**
+     * ++x
+     */
+    public Block prefixInc(LValueBlock body) {
+        return new ExcrementOperatorBlock("next",true,body);
+    }
+
+    /**
+     * --x
+     */
+    public Block prefixDec(LValueBlock body) {
+        return new ExcrementOperatorBlock("previous",true,body);
+    }
+
+    /**
+     * x++
+     */
+    public Block postfixInc(LValueBlock body) {
+        return new ExcrementOperatorBlock("next",false,body);
+    }
+
+    /**
+     * x--
+     */
+    public Block postfixDec(LValueBlock body) {
+        return new ExcrementOperatorBlock("previous",false,body);
     }
 
     /**

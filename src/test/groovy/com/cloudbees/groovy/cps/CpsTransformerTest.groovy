@@ -85,6 +85,26 @@ class CpsTransformerTest {
     }
 
     @Test
+    void increment() {
+        assert evalCPS("""
+            x=0;
+            y = x++;
+            z = ++x;
+            return x+"."+y+"."+z;
+        """)=="2.0.2";
+    }
+
+    @Test
+    void decrement() {
+        assert evalCPS("""
+            x=5;
+            y = x--;
+            z = --x;
+            return x+"."+y+"."+z;
+        """)=="3.5.3";
+    }
+
+    @Test
     void break_() {
         assert evalCPS("""
             x=0;
