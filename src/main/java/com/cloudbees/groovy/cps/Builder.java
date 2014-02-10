@@ -2,7 +2,7 @@ package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.AssignmentBlock;
 import com.cloudbees.groovy.cps.impl.BlockScopeEnv;
-import com.cloudbees.groovy.cps.impl.Constant;
+import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.ForInLoopBlock;
 import com.cloudbees.groovy.cps.impl.ForLoopBlock;
 import com.cloudbees.groovy.cps.impl.IfBlock;
@@ -26,14 +26,14 @@ import static java.util.Collections.*;
  * @author Kohsuke Kawaguchi
  */
 public class Builder {
-    private static final Block NULL = new Constant(null);
+    private static final Block NULL = new ConstantBlock(null);
 
     public Block null_() {
         return NULL;
     }
 
     public Block constant(Object o) {
-        return new Constant(o);
+        return new ConstantBlock(o);
     }
 
     public Block zero() {
@@ -345,9 +345,9 @@ public class Builder {
     }
 
     public Block functionCall(final Block lhs, final Block name, Block... argExps) {
-        if (name instanceof Constant) {
+        if (name instanceof ConstantBlock) {
             // method name statically known. this common path enables a bit of optimization
-            return functionCall(lhs,((Constant)name).value.toString(),argExps);
+            return functionCall(lhs,((ConstantBlock)name).value.toString(),argExps);
         }
 
         final Block args = evalArgs(argExps);
@@ -443,7 +443,7 @@ public class Builder {
      */
     private Block evalArgs(final Block... argExps) {
         if (argExps.length==0)  // no arguments to evaluate
-            return new Constant(emptyList());
+            return new ConstantBlock(emptyList());
 
         return new Block() {
             public Next eval(final Env e, final Continuation k) {

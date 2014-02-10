@@ -10,10 +10,10 @@ import com.cloudbees.groovy.cps.Next;
  *
  * @author Kohsuke Kawaguchi
  */
-public class Constant implements Block {
+public class ConstantBlock implements Block {
     public final Object value;
 
-    public Constant(Object value) {
+    public ConstantBlock(Object value) {
         this.value = value;
     }
 
