@@ -38,5 +38,4 @@ public class IfBlock implements Block {
     }
 
     static final ContinuationPtr jump = new ContinuationPtr(ContinuationImpl.class,"jump");
-
 }

@@ -1,11 +1,13 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.impl.AssignmentBlock;
 import com.cloudbees.groovy.cps.impl.BlockScopeEnv;
 import com.cloudbees.groovy.cps.impl.Constant;
 import com.cloudbees.groovy.cps.impl.ForInLoopBlock;
 import com.cloudbees.groovy.cps.impl.ForLoopBlock;
 import com.cloudbees.groovy.cps.impl.IfBlock;
 import com.cloudbees.groovy.cps.impl.LogicalOpBlock;
+import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
 import com.cloudbees.groovy.cps.impl.TryBlockEnv;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
@@ -133,7 +135,7 @@ public class Builder {
      * Assignment operator to a local variable, such as "x += 3"
      */
     public Block localVariableAssignOp(String name, String operator, Block rhs) {
-        return setLocalVariable(name, functionCall(getLocalVariable(name),operator,rhs));
+        return setLocalVariable(name, functionCall(getLocalVariable(name), operator, rhs));
     }
 
     /**
@@ -388,91 +390,24 @@ public class Builder {
         };
     }
 
-//    /**
-//     * name(...)
-//     *
-//     * TODO: is this the same as this.name(...) ? -> NO, not in closure
-//     */
-//    public Block functionCall(final String name, Block... argExps) {
-//        final Block args = evalArgs(argExps);
-//        return new Block() {
-//            public Next eval(final Env e, final Continuation k) {
-//                return args.eval(e,new Continuation() {
-//                    public Next receive(Object args) {
-//                        final Function f = e.resolveFunction(name);
-//                        return f.invoke((List)args,k);
-//                    }
-//                });
-//            }
-//        };
-//    }
+    public Block assign(LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(lhs,rhs);
+    }
 
     public Block getProperty(Block lhs, String property) {
         return getProperty(lhs,constant(property));
     }
 
-    public Block getProperty(final Block lhs, final Block property) {
-        return new Block() {
-            public Next eval(final Env e, final Continuation k) {
-                return lhs.eval(e,new Continuation() {
-                    public Next receive(final Object lhs) {
-                        return new Next(property,e,new Continuation() {
-                            public Next receive(Object property) {
-                                Object v;
-                                try {
-                                    // TODO: verify the behaviour of Groovy if the property expression evaluates to non-String
-                                    v = ScriptBytecodeAdapter.getProperty(null/*Groovy doesn't use this parameter*/,
-                                            lhs, (String) property);
-                                } catch (Throwable t) {
-                                    throw new UnsupportedOperationException(t);     // TODO: exception handling
-                                }
-
-                                if (v instanceof Function) {
-                                    // if this is a workflow function, it'd return a Function object instead
-                                    // of actually executing the function, so execute it in the CPS
-                                    return ((Function)v).invoke(e, lhs, emptyList(),k);
-                                } else {
-                                    // if this was a normal property, we get the value as-is.
-                                    return k.receive(v);
-                                }
-                            }
-                        });
-                    }
-                });
-            }
-        };
+    public Block getProperty(Block lhs, Block property) {
+        return new PropertyAccessBlock(lhs,property);
     }
 
     public Block setProperty(Block lhs, String property, Block rhs) {
         return setProperty(lhs, constant(property), rhs);
     }
 
-    public Block setProperty(final Block lhs, final Block property, final Block rhs) {
-        return new Block() {
-            public Next eval(final Env e, final Continuation k) {
-                return lhs.eval(e,new Continuation() {
-                    public Next receive(final Object lhs) {
-                        return new Next(property,e,new Continuation() {
-                            public Next receive(final Object property) {
-                                return new Next(rhs,e,new Continuation() {
-                                    public Next receive(Object rhs) {
-                                        try {
-                                            // TODO: verify the behaviour of Groovy if the property expression evaluates to non-String
-                                            ScriptBytecodeAdapter.setProperty(rhs,
-                                                    null/*Groovy doesn't use this parameter*/,
-                                                    lhs, (String) property);
-                                        } catch (Throwable t) {
-                                            throw new UnsupportedOperationException(t);     // TODO: exception handling
-                                        }
-                                        return k.receive(null);
-                                    }
-                                });
-                            }
-                        });
-                    }
-                });
-            }
-        };
+    public Block setProperty(Block lhs, Block property, Block rhs) {
+        return assign(new PropertyAccessBlock(lhs,property),rhs);
     }
 
     /**
