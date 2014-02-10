@@ -146,6 +146,13 @@ class CpsTransformerTest {
     }
 
     @Test
+    void functionCall0arg() {
+        assert evalCPS("""
+            123.toString()
+        """)=="123";
+    }
+
+    @Test
     void constructorCall() {
         assert evalCPS("""
             new String("abc"+"def")
