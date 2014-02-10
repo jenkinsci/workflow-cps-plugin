@@ -26,6 +26,10 @@ import static com.cloudbees.groovy.cps.Block.*;
 import static java.util.Arrays.*;
 
 /**
+ * Builder pattern for constructing {@link Block}s into a tree.
+ *
+ * For example, to build a {@link Block} that represents "1+1", you'd call {@code plus(one(),one())}
+ *
  * @author Kohsuke Kawaguchi
  */
 public class Builder {

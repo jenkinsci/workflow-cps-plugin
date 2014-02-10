@@ -8,12 +8,51 @@ import org.codehaus.groovy.classgen.GeneratorContext
 import org.codehaus.groovy.control.CompilePhase
 import org.codehaus.groovy.control.SourceUnit
 import org.codehaus.groovy.control.customizers.CompilationCustomizer
-import org.codehaus.groovy.syntax.Types
 
 import static org.codehaus.groovy.syntax.Types.*
 
 /**
+ * Performs CPS transformation of Groovy methods.
  *
+ * <p>
+ * Every method annotated with {@link WorkflowMethod} gets rewritten. The general strategy of CPS transformation is
+ * as follows:
+ *
+ * <p>
+ * Before:
+ * <pre>
+ * Object foo(int x, int y) {
+ *   return x+y;
+ * }
+ * </pre>
+ *
+ * <p>
+ * After:
+ * <pre>
+ * Function foo(int x, int y) {
+ *   return foo$workflow;
+ * }
+ * static Function foo$workflow = new Function(["x","y"], B.plus(B.localVariable("x"), B.localVariable("y"));
+ * </pre>
+ * ("B" refers to {@link Builder#INSTANCE} for brevity)
+ *
+ * <p>
+ * That is, we transform a Groovy AST of the method body into a tree of {@link Block}s by using {@link Builder#INSTANCE},
+ * then the method just returns this function object and expect the caller to evaluate it, instead of executing the method
+ * synchronously before it returns.
+ *
+ * <p>
+ * This class achieves this transformation by implementing {@link GroovyCodeVisitor} and traverse Groovy AST tree
+ * in the in-order. As we traverse this tree, we produce another Groovy AST tree that invokes {@link Builder}.
+ * Note that we aren't calling Builder directly here; that's supposed to happen when the Groovy code under transformation
+ * actually runs.
+ *
+ * <p>
+ * Groovy AST that calls {@link Builder} is a tree of function call, so we build {@link MethodCallExpression}s
+ * in the top-down manner. We do this by {@link #makeNode(String)}, which creates a call to {@code Builder.xxx(...)},
+ * then supply the closure that fills in the arguments to this call by walking down the original Groovy AST tree.
+ * This walk-down is done by calling {@link #visit(ASTNode)} (to recursively visit ASTs), or by calling {@link #literal(Object)}
+ * methods, which generate string/class/etc literals, as sometimes {@link Builder} methods need them as well.
  *
  * @author Kohsuke Kawaguchi
  */
