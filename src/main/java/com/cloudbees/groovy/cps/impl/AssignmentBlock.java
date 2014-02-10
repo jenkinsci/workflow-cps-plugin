@@ -15,7 +15,6 @@ import java.util.Collections;
  * Assignment operator {@code exp=rhs}
  *
  * TODO: tuple assignment
- * TODO: assignment operators like x+=y
  *
  * @author Kohsuke Kawaguchi
  */
