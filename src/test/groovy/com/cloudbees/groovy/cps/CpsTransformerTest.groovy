@@ -165,4 +165,17 @@ class CpsTransformerTest {
             new String()
         """)=="";
     }
+
+    @Test
+    void workflowCallingWorkflow() {
+        assert evalCPS("""
+            def fib(int x) {
+              if (x==0)     return 0;
+              if (x==1)     return 1;
+              x = fib(x-1)+fib(x-2);    // assignment to make sure x is treated as local variable
+              return x;
+            }
+            fib(10);
+        """)==55
+    }
 }

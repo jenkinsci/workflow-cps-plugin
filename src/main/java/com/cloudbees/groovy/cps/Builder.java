@@ -30,6 +30,7 @@ import static java.util.Arrays.*;
  */
 public class Builder {
     private static final Block NULL = new ConstantBlock(null);
+    private static final LValueBlock THIS = new LocalVariableBlock("this");
 
     public Block null_() {
         return NULL;
@@ -141,7 +142,7 @@ public class Builder {
 
 
     public Block this_() {
-        return localVariable("this");
+        return THIS;
     }
 
     /**

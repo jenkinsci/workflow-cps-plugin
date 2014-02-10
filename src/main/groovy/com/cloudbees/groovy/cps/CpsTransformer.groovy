@@ -479,7 +479,18 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
                 literal(exp.name)
             }
         } else
-            throw new UnsupportedOperationException("Unexpected variable type: ${ref.class}");
+        if (exp.name=="this") {
+            /* Kohsuke: TODO: I don't really understand the 'true' block of the code, so I'm missing something
+                if (controller.isStaticMethod() || (!controller.getCompileStack().isImplicitThis() && controller.isStaticContext())) {
+                    if (controller.isInClosure()) classNode = controller.getOutermostClass();
+                    visitClassExpression(new ClassExpression(classNode));
+                } else {
+                    loadThis();
+                }
+             */
+            makeNode("this_")
+        } else
+            throw new UnsupportedOperationException("Unexpected variable type: ${ref}");
     }
 
     void visitDeclarationExpression(DeclarationExpression exp) {
