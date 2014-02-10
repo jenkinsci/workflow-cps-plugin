@@ -29,6 +29,14 @@ abstract class ProxyEnv implements Env {
         return parent.getReturnAddress();
     }
 
+    public Continuation getBreakAddress(String label) {
+        return parent.getBreakAddress(label);
+    }
+
+    public Continuation getContinueAddress(String label) {
+        return parent.getContinueAddress(label);
+    }
+
     public Continuation getExceptionHandler(Class<? extends Throwable> type) {
         return parent.getExceptionHandler(type);
     }

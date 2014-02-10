@@ -51,6 +51,14 @@ public class FunctionCallEnv implements Env {
         return returnAddress;
     }
 
+    public Continuation getBreakAddress(String label) {
+        throw new IllegalStateException("unexpected break statement");
+    }
+
+    public Continuation getContinueAddress(String label) {
+        throw new IllegalStateException("unexpected continue statement");
+    }
+
     public Continuation getExceptionHandler(Class<? extends Throwable> type) {
         if (caller==null) {
             // TODO: maybe define a mechanism so that the resume() or start() kinda method will return

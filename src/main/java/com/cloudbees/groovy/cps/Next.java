@@ -30,9 +30,16 @@ public class Next {
     public Next resume() {
         Next n = this;
         do {
-            n = n.f.eval(n.e, n.k);
+            n = n.step();
         } while(n.yield==null);
         return n;
+    }
+
+    /**
+     * Executes one step
+     */
+    public Next step() {
+        return f.eval(e,k);
     }
 
     /*package*/ void yield(Object v) {

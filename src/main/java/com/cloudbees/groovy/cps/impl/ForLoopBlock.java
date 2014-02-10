@@ -12,8 +12,10 @@ import com.cloudbees.groovy.cps.Next;
  */
 public class ForLoopBlock implements Block {
     final Block e1, e2, e3, body;
+    final String label;
 
-    public ForLoopBlock(Block e1, Block e2, Block e3, Block body) {
+    public ForLoopBlock(String label, Block e1, Block e2, Block e3, Block body) {
+        this.label = label;
         this.e1 = e1;
         this.e2 = e2;
         this.e3 = e3;
@@ -30,7 +32,7 @@ public class ForLoopBlock implements Block {
         final Env e;
 
         ContinuationImpl(Env e, Continuation loopEnd) {
-            this.e = new BlockScopeEnv(e);
+            this.e = new LoopBlockScopeEnv(e, label, loopEnd, increment.bind(this));
             this.loopEnd = loopEnd;
         }
 

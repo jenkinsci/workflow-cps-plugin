@@ -2,7 +2,9 @@ package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.AssignmentBlock;
 import com.cloudbees.groovy.cps.impl.BlockScopeEnv;
+import com.cloudbees.groovy.cps.impl.BreakBlock;
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
+import com.cloudbees.groovy.cps.impl.ContinueBlock;
 import com.cloudbees.groovy.cps.impl.ForInLoopBlock;
 import com.cloudbees.groovy.cps.impl.ForLoopBlock;
 import com.cloudbees.groovy.cps.impl.IfBlock;
@@ -163,15 +165,25 @@ public class Builder {
     /**
      * for (e1; e2; e3) { ... }
      */
-    public Block forLoop(Block e1, Block e2, Block e3, Block body) {
-        return new ForLoopBlock(e1,e2,e3,body);
+    public Block forLoop(String label, Block e1, Block e2, Block e3, Block body) {
+        return new ForLoopBlock(label, e1,e2,e3,body);
     }
 
     /**
      * for (x in col) { ... }
      */
-    public Block forInLoop(Class type, String variable, Block collection, Block body) {
-        return new ForInLoopBlock(type,variable,collection,body);
+    public Block forInLoop(String label, Class type, String variable, Block collection, Block body) {
+        return new ForInLoopBlock(label,type,variable,collection,body);
+    }
+
+    public Block break_(String label) {
+        if (label==null)    return BreakBlock.INSTANCE;
+        return new BreakBlock(label);
+    }
+
+    public Block continue_(String label) {
+        if (label==null)    return ContinueBlock.INSTANCE;
+        return new ContinueBlock(label);
     }
 
     public Block tryCatch(Block body, CatchExpression... catches) {

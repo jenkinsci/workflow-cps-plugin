@@ -17,6 +17,22 @@ public interface Env {
     Continuation getReturnAddress();
 
     /**
+     * If we see a break statement, where should we go?
+     *
+     * @param label
+     *      Specifies the loop to break from. null for nearest loop.
+     */
+    Continuation getBreakAddress(String label);
+
+    /**
+     * If we see a continue statement, where should we go?
+     *
+     * @param label
+     *      Specifies the loop to repeat. null for nearest loop.
+     */
+    Continuation getContinueAddress(String label);
+
+    /**
      * Finds the exception handler that catches a {@link Throwable} instance of this type.
      *
      * @return

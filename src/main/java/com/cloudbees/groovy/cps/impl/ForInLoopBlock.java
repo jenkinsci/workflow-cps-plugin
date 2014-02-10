@@ -14,12 +14,14 @@ import java.util.Iterator;
  * @author Kohsuke Kawaguchi
  */
 public class ForInLoopBlock implements Block {
+    final String label;
     final Class type;
     final String variable;
     final Block collection;
     final Block body;
 
-    public ForInLoopBlock(Class type, String variable, Block collection, Block body) {
+    public ForInLoopBlock(String label, Class type, String variable, Block collection, Block body) {
+        this.label = label;
         this.type = type;
         this.variable = variable;
         this.collection = collection;
@@ -38,7 +40,7 @@ public class ForInLoopBlock implements Block {
         Iterator itr;
 
         ContinuationImpl(Env _e, Continuation loopEnd) {
-            this.e = new BlockScopeEnv(_e);
+            this.e = new LoopBlockScopeEnv(_e,label,loopEnd,increment.bind(this));
             this.e.declareVariable(type,variable);
             this.loopEnd = loopEnd;
         }

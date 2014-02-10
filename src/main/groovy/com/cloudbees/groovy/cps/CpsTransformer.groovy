@@ -157,11 +157,25 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     void visitForLoop(ForStatement forLoop) {
-        makeNode("forInLoop") {
-            literal(forLoop.variableType)
-            literal(forLoop.variable.name)
-            visit(forLoop.collectionExpression)
-            visit(forLoop.loopBlock)
+        if (forLoop.variable==ForStatement.FOR_LOOP_DUMMY) {
+            // for ( e1; e2; e3 ) { ... }
+            ClosureListExpression loop = forLoop.collectionExpression
+            assert loop.expressions.size()==3;
+
+            makeNode("forLoop") {
+                literal(forLoop.statementLabel)
+                visit(loop.expressions)
+                visit(forLoop.loopBlock)
+            }
+        } else {
+            // for (x in col) { ... }
+            makeNode("forInLoop") {
+                literal(forLoop.statementLabel)
+                literal(forLoop.variableType)
+                literal(forLoop.variable.name)
+                visit(forLoop.collectionExpression)
+                visit(forLoop.loopBlock)
+            }
         }
     }
 
@@ -204,11 +218,11 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     void visitBreakStatement(BreakStatement statement) {
-        throw new UnsupportedOperationException();
+        makeNode("break_");
     }
 
     void visitContinueStatement(ContinueStatement statement) {
-        throw new UnsupportedOperationException();
+        makeNode("continue_");
     }
 
     void visitThrowStatement(ThrowStatement statement) {

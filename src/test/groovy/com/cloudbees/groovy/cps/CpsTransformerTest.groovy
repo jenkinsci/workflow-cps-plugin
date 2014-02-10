@@ -79,4 +79,17 @@ class CpsTransformerTest {
     void localVariable() {
         assert evalCPS("int x=3; x+=2; return x;")==5;
     }
+
+    @Test
+    void break_() {
+        assert evalCPS("""
+            x=0;
+            int i=0;
+            for (i=0; i<5; i+=1) {
+                break;
+                x+=1;
+            }
+            return i+x;
+        """)==0;
+    }
 }

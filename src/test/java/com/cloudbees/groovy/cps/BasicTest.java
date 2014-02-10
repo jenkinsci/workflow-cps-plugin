@@ -55,7 +55,7 @@ public class BasicTest extends Assert {
     public void forLoop() {
         assertEquals(45, run(
                 b.setLocalVariable("sum", b.zero()),
-                b.forLoop(
+                b.forLoop(null,
                         b.setLocalVariable("x", b.zero()),
                         b.lessThan($x, b.constant(10)),
                         b.localVariableAssignOp("x", "plus", b.one()),
