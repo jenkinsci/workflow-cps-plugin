@@ -151,7 +151,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     void visitBlockStatement(BlockStatement b) {
-        makeNode("sequence") {
+        makeNode("block") {
             visit(b.statements)
         }
     }
@@ -451,8 +451,30 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             throw new UnsupportedOperationException("Unexpected variable type: ${ref.class}");
     }
 
-    void visitDeclarationExpression(DeclarationExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitDeclarationExpression(DeclarationExpression exp) {
+        if (exp.isMultipleAssignmentDeclaration()) {
+            // def (a,b)=list
+            makeNode("sequence") {
+                for (VariableExpression v in exp.tupleExpression.expressions) {
+                    makeNode("declareVariable") {
+                        literal(v.type)
+                        literal(v.name)
+                    }
+                }
+                makeNode("assign") {
+                    visit(exp.leftExpression)
+                    visit(exp.rightExpression)
+                }
+            }
+        } else {
+            // def x=v;
+            makeNode("declareVariable") {
+                def v = exp.variableExpression
+                literal(v.type)
+                literal(v.name)
+                visit(exp.rightExpression) // this will not produce anything if this is EmptyExpression
+            }
+        }
     }
 
     void visitGStringExpression(GStringExpression expression) {

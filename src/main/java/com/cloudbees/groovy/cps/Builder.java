@@ -57,7 +57,10 @@ public class Builder {
         return constant(false);
     }
 
-    public Block sequence(Block... bodies) {
+    /**
+     * { ... }
+     */
+    public Block block(Block... bodies) {
         if (bodies.length==0)   return NULL;
 
         Block e = bodies[0];
@@ -80,6 +83,20 @@ public class Builder {
         };
     }
 
+    /**
+     * Like {@link #block(Block...)} but it doesn't create a new scope.
+     *
+     */
+    public Block sequence(Block... bodies) {
+        if (bodies.length==0)   return NULL;
+
+        Block e = bodies[0];
+        for (int i=1; i<bodies.length; i++)
+            e = sequence(e,bodies[i]);
+
+        return e;
+    }
+
     public Block sequence(final Block exp1, final Block exp2) {
         return new Block() {
             public Next eval(final Env e, final Continuation k) {
@@ -90,6 +107,10 @@ public class Builder {
                 });
             }
         };
+    }
+
+    public Block sequence(Block b) {
+        return b;
     }
 
     public LValueBlock localVariable(String name) {
@@ -108,6 +129,12 @@ public class Builder {
                 return k.receive(null);
             }
         };
+    }
+
+    public Block declareVariable(Class type, String name, Block init) {
+        return sequence(
+            declareVariable(type,name),
+            setLocalVariable(name, init));
     }
 
 

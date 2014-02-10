@@ -74,4 +74,9 @@ class CpsTransformerTest {
     void variableAssignment() {
         assert evalCPS("x=3; x+=2; return x;")==5;
     }
+
+    @Test
+    void localVariable() {
+        assert evalCPS("int x=3; x+=2; return x;")==5;
+    }
 }

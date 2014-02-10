@@ -60,7 +60,7 @@ public class BasicTest extends Assert {
                         b.lessThan($x, b.constant(10)),
                         b.localVariableAssignOp("x", "plus", b.one()),
 
-                        b.sequence(// for loop body
+                        b.block(// for loop body
                                 b.localVariableAssignOp("sum", "plus", $x)
                         )),
                 b.localVariable("sum")
@@ -172,8 +172,8 @@ public class BasicTest extends Assert {
                                 b.return_(b.null_())
                         ),
 
-                        new CatchExpression(Exception.class, "e", b.sequence(
-                            b.return_(b.functionCall(b.localVariable("e"),"getMessage"))
+                        new CatchExpression(Exception.class, "e", b.block(
+                                b.return_(b.functionCall(b.localVariable("e"), "getMessage"))
                         ))
                 )
         ));
@@ -194,12 +194,12 @@ public class BasicTest extends Assert {
             public Function throw_(int depth, String message) {
                 Block $depth = b.localVariable("depth");
                 return new Function(asList("depth", "message"),
-                        b.sequence(
-                            b.if_(b.lessThan(b.zero(), $depth),
-                                    b.functionCall(b.this_(), "throw_", b.minus($depth,b.one()), b.localVariable("message")),
-                                // else
-                                    b.throw_(b.new_(IllegalArgumentException.class, b.localVariable("message")))
-                            )
+                        b.block(
+                                b.if_(b.lessThan(b.zero(), $depth),
+                                        b.functionCall(b.this_(), "throw_", b.minus($depth, b.one()), b.localVariable("message")),
+                                        // else
+                                        b.throw_(b.new_(IllegalArgumentException.class, b.localVariable("message")))
+                                )
                         ));
             }
         }
@@ -217,7 +217,7 @@ public class BasicTest extends Assert {
         assertEquals("hello1", run(
                 b.setLocalVariable("x", b.zero()),     // part of the test is to ensure this 'z' is separated from 'z' in the add function
                 b.tryCatch(
-                        b.sequence(
+                        b.block(
                                 b.setLocalVariable("x", b.one()),
                                 b.functionCall(b.constant(new Op()), "throw_", b.constant(3), b.constant("hello")),
                                 b.setLocalVariable("x", b.two())
@@ -302,7 +302,7 @@ public class BasicTest extends Assert {
 
     private <T> T run(Block... bodies) {
         Env e = new FunctionCallEnv(null,null,Continuation.HALT);
-        Next p = new Next(b.sequence(bodies), e, Continuation.HALT);
+        Next p = new Next(b.block(bodies), e, Continuation.HALT);
         return (T)p.resume().yieldedValue();
     }
 }
