@@ -45,4 +45,12 @@ abstract class ContinuationGroup {
         return csa.array[0];
     }
 
+    protected Object methodCall(Object receiver, String methodName, Object arg1) {
+        try {
+            CallSite callSite = fakeCallSite(methodName);
+            return callSite.call(receiver, arg1);
+        } catch (Throwable t) {
+            throw new UnsupportedOperationException(t);     // TODO: exception handling
+        }
+    }
 }

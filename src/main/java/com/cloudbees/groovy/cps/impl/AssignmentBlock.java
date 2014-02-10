@@ -82,13 +82,7 @@ public class AssignmentBlock implements Block {
          */
         public Next fixRhs(Object rhs) {
 
-            Object v;
-            try {
-                CallSite callSite = fakeCallSite(compoundOp);
-                v = callSite.call(this.cur, rhs);
-            } catch (Throwable t) {
-                throw new UnsupportedOperationException(t);     // TODO: exception handling
-            }
+            Object v = methodCall(this.cur, compoundOp, rhs);
 
             if (v instanceof Function) {
                 // if this is a workflow function, it'd return a Function object instead
