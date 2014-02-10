@@ -3,10 +3,13 @@ package com.cloudbees.groovy.cps.impl;
 import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
+import com.cloudbees.groovy.cps.Function;
 import com.cloudbees.groovy.cps.Next;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
+
+import java.util.Arrays;
 
 /**
  * Base class for defining a series of {@link Continuation} methods that share the same set of contextual values.
@@ -45,21 +48,26 @@ abstract class ContinuationGroup {
         return csa.array[0];
     }
 
-    protected Object methodCall(Object receiver, String methodName) {
+    /**
+     * Evaluates a function (possibly a workflow function), then pass the result to the continuation
+     * represented by {@link ContinuationPtr} on this instance.
+     */
+    protected Next methodCall(Env e, ContinuationPtr k, Object receiver, String methodName, Object... args) {
+        Object v;
         try {
             CallSite callSite = fakeCallSite(methodName);
-            return callSite.call(receiver);
+            v = callSite.call(receiver,args);
         } catch (Throwable t) {
             throw new UnsupportedOperationException(t);     // TODO: exception handling
         }
-    }
 
-    protected Object methodCall(Object receiver, String methodName, Object arg1) {
-        try {
-            CallSite callSite = fakeCallSite(methodName);
-            return callSite.call(receiver, arg1);
-        } catch (Throwable t) {
-            throw new UnsupportedOperationException(t);     // TODO: exception handling
+        if (v instanceof Function) {
+            // if this is a workflow function, it'd return a Function object instead
+            // of actually executing the function, so execute it in the CPS
+            return ((Function)v).invoke(e, receiver, Arrays.asList(args), k.bind(this));
+        } else {
+            // if this was a normal function, the method had just executed synchronously
+            return k.bind(this).receive(v);
         }
     }
 }

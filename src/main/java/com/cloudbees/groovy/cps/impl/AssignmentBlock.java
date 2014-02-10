@@ -3,13 +3,9 @@ package com.cloudbees.groovy.cps.impl;
 import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
-import com.cloudbees.groovy.cps.Function;
 import com.cloudbees.groovy.cps.LValue;
 import com.cloudbees.groovy.cps.LValueBlock;
 import com.cloudbees.groovy.cps.Next;
-import org.codehaus.groovy.runtime.callsite.CallSite;
-
-import java.util.Collections;
 
 /**
  * Assignment operator {@code exp=rhs}
@@ -81,17 +77,7 @@ public class AssignmentBlock implements Block {
          * Invoke the operator
          */
         public Next fixRhs(Object rhs) {
-
-            Object v = methodCall(this.cur, compoundOp, rhs);
-
-            if (v instanceof Function) {
-                // if this is a workflow function, it'd return a Function object instead
-                // of actually executing the function, so execute it in the CPS
-                return ((Function)v).invoke(e,cur, Collections.singletonList(rhs), assignAndDone.bind(this));
-            } else {
-                // if this was a normal function, the method had just executed synchronously
-                return assignAndDone(v);
-            }
+            return methodCall(e, assignAndDone, this.cur, compoundOp, rhs);
         }
     }
 
