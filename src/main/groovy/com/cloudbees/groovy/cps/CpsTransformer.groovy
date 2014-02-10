@@ -106,7 +106,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      * @param methodName
      *      Method on {@link Builder} to call.
      * @param args
-     *      Can be closure for building argument nodes, Block, or List of Expressions.
+     *      Can be closure for building argument nodes, Expression, or List of Expressions.
      */
     private void makeNode(String methodName, Object args) {
         if (args instanceof Closure) {
@@ -218,11 +218,11 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     void visitBreakStatement(BreakStatement statement) {
-        makeNode("break_");
+        makeNode("break_", new ConstantExpression(statement.label));
     }
 
     void visitContinueStatement(ContinueStatement statement) {
-        makeNode("continue_");
+        makeNode("continue_", new ConstantExpression(statement.label));
     }
 
     void visitThrowStatement(ThrowStatement statement) {

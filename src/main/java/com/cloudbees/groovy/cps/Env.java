@@ -21,6 +21,9 @@ public interface Env {
      *
      * @param label
      *      Specifies the loop to break from. null for nearest loop.
+     * @return
+     *      For semantically correct Groovy code, the return value is never null, because not having the matching label
+     *      is a compile-time error.
      */
     Continuation getBreakAddress(String label);
 
@@ -29,6 +32,9 @@ public interface Env {
      *
      * @param label
      *      Specifies the loop to repeat. null for nearest loop.
+     * @return
+     *      For semantically correct Groovy code, the return value is never null, because not having the matching label
+     *      is a compile-time error.
      */
     Continuation getContinueAddress(String label);
 

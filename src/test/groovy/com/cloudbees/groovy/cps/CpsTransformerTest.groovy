@@ -38,14 +38,18 @@ class CpsTransformerTest {
     }
 
     Object evalCPS(String script) {
+        Object v = evalCPSonly(script)
+        assert v==sh.evaluate(script); // make sure that regular non-CPS execution reports the same result
+        return v;
+    }
+
+    Object evalCPSonly(String script) {
         Script s = csh.parse(script)
         Function f = s.run();
         def p = f.invoke(null, s, [], Continuation.HALT)
 
         def v = p.resume().yieldedValue()
-
-        assert v==sh.evaluate(script);
-        return v;
+        v
     }
 
     @Test
@@ -91,5 +95,25 @@ class CpsTransformerTest {
             }
             return i+x;
         """)==0;
+    }
+
+    @Test
+    void globalBreak_() {
+        assert evalCPS("""
+            x=0;
+            int i=0;
+            int j=0;
+
+            I:
+            for (i=0; i<5; i+=1) {
+                J:
+                for (j=0; j<5; j+=1) {
+                  break I;
+                  x+=1;
+                }
+                x+=1;
+            }
+            return i+"."+j+"."+x;
+        """)=="0.0.0";
     }
 }

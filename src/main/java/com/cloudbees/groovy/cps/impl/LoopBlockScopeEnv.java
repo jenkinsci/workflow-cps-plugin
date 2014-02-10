@@ -22,13 +22,13 @@ class LoopBlockScopeEnv extends BlockScopeEnv {
     @Override
     public Continuation getBreakAddress(String label) {
         if (labelMatch(label))  return break_;
-        else                    return null;
+        else                    return super.getBreakAddress(label);
     }
 
     @Override
     public Continuation getContinueAddress(String label) {
         if (labelMatch(label))  return continue_;
-        else                    return null;
+        else                    return super.getContinueAddress(label);
     }
 
     private boolean labelMatch(String given) {
