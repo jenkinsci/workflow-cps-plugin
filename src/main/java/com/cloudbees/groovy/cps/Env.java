@@ -6,8 +6,6 @@ package com.cloudbees.groovy.cps;
  * @author Kohsuke Kawaguchi
  */
 public interface Env {
-    // TODO: How do we correctly assign local variables to its scope?
-
     void declareVariable(Class type, String name);
 
     Object getLocalVariable(String name);
