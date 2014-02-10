@@ -8,6 +8,7 @@ import com.cloudbees.groovy.cps.impl.ContinueBlock;
 import com.cloudbees.groovy.cps.impl.ExcrementOperatorBlock;
 import com.cloudbees.groovy.cps.impl.ForInLoopBlock;
 import com.cloudbees.groovy.cps.impl.ForLoopBlock;
+import com.cloudbees.groovy.cps.impl.FunctionCallBlock;
 import com.cloudbees.groovy.cps.impl.IfBlock;
 import com.cloudbees.groovy.cps.impl.LocalVariableBlock;
 import com.cloudbees.groovy.cps.impl.LogicalOpBlock;
@@ -160,7 +161,7 @@ public class Builder {
     }
 
     public Block if_(Block cond, Block then) {
-        return if_(cond,then, NOOP);
+        return if_(cond, then, NOOP);
     }
 
     /**
@@ -281,11 +282,11 @@ public class Builder {
     }
 
     public Block compareEqual(Block lhs, Block rhs) {
-        return staticCall(ScriptBytecodeAdapter.class,"compareEqual",lhs,rhs);
+        return staticCall(ScriptBytecodeAdapter.class, "compareEqual", lhs, rhs);
     }
 
     public Block compareNotEqual(Block lhs, Block rhs) {
-        return staticCall(ScriptBytecodeAdapter.class,"compareNotEqual",lhs,rhs);
+        return staticCall(ScriptBytecodeAdapter.class, "compareNotEqual", lhs, rhs);
     }
 
     public Block compareTo(Block lhs, Block rhs) {
@@ -365,85 +366,12 @@ public class Builder {
     /**
      * LHS.name(...)
      */
-    public Block functionCall(final Block lhs, final String name, Block... argExps) {
-        final CallSite callSite = fakeCallSite(name); // name is statically determined
-        final Block args = evalArgs(argExps);
-
-        return new Block() {
-            public Next eval(final Env e, final Continuation k) {
-                return new Next(lhs,e, new Continuation() {// evaluate lhs
-                    public Next receive(final Object lhs) {
-                        return args.eval(e,new Continuation() {
-                            public Next receive(Object _args) {
-                                List args = (List) _args;
-
-                                Object v;
-                                try {
-                                    v = callSite.call(lhs, args.toArray(new Object[args.size()]));
-                                } catch (Throwable t) {
-                                    throw new UnsupportedOperationException(t);     // TODO: exception handling
-                                }
-
-                                if (v instanceof Function) {
-                                    // if this is a workflow function, it'd return a Function object instead
-                                    // of actually executing the function, so execute it in the CPS
-                                    return ((Function)v).invoke(e,lhs,args,k);
-                                } else {
-                                    // if this was a normal function, the method had just executed synchronously
-                                    return k.receive(v);
-                                }
-                            }
-                        });
-                    }
-                });
-            }
-        };
+    public Block functionCall(Block lhs, String name, Block... argExps) {
+        return new FunctionCallBlock(lhs,constant(name),argExps);
     }
 
-    public Block functionCall(final Block lhs, final Block name, Block... argExps) {
-        if (name instanceof ConstantBlock) {
-            // method name statically known. this common path enables a bit of optimization
-            return functionCall(lhs,((ConstantBlock)name).value.toString(),argExps);
-        }
-
-        final Block args = evalArgs(argExps);
-
-        // TODO: what is the correct evaluation order?
-
-        return new Block() {
-            public Next eval(final Env e, final Continuation k) {
-                return new Next(lhs,e, new Continuation() {// evaluate lhs
-                    public Next receive(final Object lhs) {
-                        return new Next(name, e, new Continuation() {
-                            public Next receive(final Object name) {
-                                return args.eval(e,new Continuation() {
-                                    public Next receive(Object _args) {
-                                        List args = (List) _args;
-
-                                        Object v;
-                                        try {
-                                            CallSite callSite = fakeCallSite(name.toString());
-                                            v = callSite.call(lhs, args.toArray(new Object[args.size()]));
-                                        } catch (Throwable t) {
-                                            throw new UnsupportedOperationException(t);     // TODO: exception handling
-                                        }
-
-                                        if (v instanceof Function) {
-                                            // if this is a workflow function, it'd return a Function object instead
-                                            // of actually executing the function, so execute it in the CPS
-                                            return ((Function)v).invoke(e,lhs,args,k);
-                                        } else {
-                                            // if this was a normal function, the method had just executed synchronously
-                                            return k.receive(v);
-                                        }
-                                    }
-                                });
-                            }
-                        });
-                    }
-                });
-            }
-        };
+    public Block functionCall(Block lhs, Block name, Block... argExps) {
+        return new FunctionCallBlock(lhs,name,argExps);
     }
 
     public Block assign(LValueBlock lhs, Block rhs) {

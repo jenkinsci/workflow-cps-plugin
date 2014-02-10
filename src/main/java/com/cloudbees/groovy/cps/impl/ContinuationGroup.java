@@ -48,11 +48,14 @@ abstract class ContinuationGroup {
         return csa.array[0];
     }
 
-    /**
-     * Evaluates a function (possibly a workflow function), then pass the result to the continuation
-     * represented by {@link ContinuationPtr} on this instance.
-     */
     protected Next methodCall(Env e, ContinuationPtr k, Object receiver, String methodName, Object... args) {
+        return methodCall(e,k.bind(this),receiver,methodName,args);
+    }
+
+    /**
+     * Evaluates a function (possibly a workflow function), then pass the result to the given continuation.
+     */
+    protected Next methodCall(Env e, Continuation k, Object receiver, String methodName, Object... args) {
         Object v;
         try {
             CallSite callSite = fakeCallSite(methodName);
@@ -64,10 +67,10 @@ abstract class ContinuationGroup {
         if (v instanceof Function) {
             // if this is a workflow function, it'd return a Function object instead
             // of actually executing the function, so execute it in the CPS
-            return ((Function)v).invoke(e, receiver, Arrays.asList(args), k.bind(this));
+            return ((Function)v).invoke(e, receiver, Arrays.asList(args), k);
         } else {
             // if this was a normal function, the method had just executed synchronously
-            return k.bind(this).receive(v);
+            return k.receive(v);
         }
     }
 }
