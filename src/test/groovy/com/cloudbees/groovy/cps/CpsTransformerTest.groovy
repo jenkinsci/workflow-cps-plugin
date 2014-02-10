@@ -69,4 +69,9 @@ class CpsTransformerTest {
     void forInLoop() {
         assert evalCPS("x=0; for (i in [1,2,3,4,5]) x+=i; return x;")==15;
     }
+
+    @Test
+    void variableAssignment() {
+        assert evalCPS("x=3; x+=2; return x;")==5;
+    }
 }
