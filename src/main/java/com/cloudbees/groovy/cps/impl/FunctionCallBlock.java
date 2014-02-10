@@ -15,7 +15,8 @@ public class FunctionCallBlock implements Block {
     private final Block lhsExp;
 
     /**
-     * Method name
+     * Method name.
+     * "&lt;init>" to call constructor
      */
     private final Block nameExp;
 
@@ -69,8 +70,21 @@ public class FunctionCallBlock implements Block {
         private Next dispatchOrArg() {
             if (args.length>idx)
                 return then(argExps[idx],e,fixArg);
-            else
-                return methodCall(e,k,lhs,name,args);
+            else {
+                if (name.equals("<init>")) {
+                    // constructor call
+                    Object v;
+                    try {
+                        v = fakeCallSite("<init>").callConstructor(lhs,args);
+                    } catch (Throwable t) {
+                        throw new UnsupportedOperationException(t);     // TODO: exception handling
+                    }
+                    return k.receive(v);
+                } else {
+                    // regular method call
+                    return methodCall(e,k,lhs,name,args);
+                }
+            }
         }
     }
 

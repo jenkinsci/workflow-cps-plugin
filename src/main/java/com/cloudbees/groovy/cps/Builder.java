@@ -18,14 +18,12 @@ import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.cloudbees.groovy.cps.Block.*;
 import static java.util.Arrays.*;
-import static java.util.Collections.*;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -391,64 +389,18 @@ public class Builder {
     }
 
     public Block setProperty(Block lhs, Block property, Block rhs) {
-        return assign(property(lhs,property),rhs);
+        return assign(property(lhs, property), rhs);
     }
 
     /**
      * Object instantiation.
      */
-    public Block new_(final Class type, Block... argExps) {
-        final CallSite callSite = fakeCallSite("<init>");
-        final Block args = evalArgs(argExps);
-
-        return new Block() {
-            public Next eval(final Env e, final Continuation k) {
-                return args.eval(e,new Continuation() {
-                    public Next receive(Object _args) {
-                        List args = (List) _args;
-
-                        Object v;
-                        try {
-                            v = callSite.callConstructor(type, args.toArray(new Object[args.size()]));
-                        } catch (Throwable t) {
-                            throw new UnsupportedOperationException(t);     // TODO: exception handling
-                        }
-
-                        // constructor cannot be an asynchronous function
-                        return k.receive(v);
-                    }
-                });
-            }
-        };
+    public Block new_(Class type, Block... argExps) {
+        return new_(constant(type),argExps);
     }
 
-    /**
-     * Returns an expression that evaluates all the arguments and return it as a {@link List}.
-     */
-    private Block evalArgs(final Block... argExps) {
-        if (argExps.length==0)  // no arguments to evaluate
-            return new ConstantBlock(emptyList());
-
-        return new Block() {
-            public Next eval(final Env e, final Continuation k) {
-                final List<Object> args = new ArrayList<Object>(argExps.length); // this is where we build up actual arguments
-
-                Next n = null;
-                for (int i = argExps.length - 1; i >= 0; i--) {
-                    final Next nn = n;
-                    n = new Next(argExps[i], e, new Continuation() {
-                        public Next receive(Object o) {
-                            args.add(o);
-                            if (nn != null)
-                                return nn;
-                            else
-                                return k.receive(args);
-                        }
-                    });
-                }
-                return n;
-            }
-        };
+    public Block new_(Block type, Block... argExps) {
+        return new FunctionCallBlock(type,constant("<init>"),argExps);
     }
 
     /**
