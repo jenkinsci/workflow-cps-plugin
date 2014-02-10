@@ -14,9 +14,9 @@ public class BasicTest extends Assert {
     Builder b = new Builder();
 
     // useful fragment of expressions
-    Block $x = b.getLocalVariable("x");
-    Block $y = b.getLocalVariable("y");
-    Block $z = b.getLocalVariable("z");
+    Block $x = b.localVariable("x");
+    Block $y = b.localVariable("y");
+    Block $z = b.localVariable("z");
 
 
     // 3    => 3
@@ -63,7 +63,7 @@ public class BasicTest extends Assert {
                         b.sequence(// for loop body
                                 b.localVariableAssignOp("sum", "plus", $x)
                         )),
-                b.getLocalVariable("sum")
+                b.localVariable("sum")
         ));
     }
 
@@ -173,7 +173,7 @@ public class BasicTest extends Assert {
                         ),
 
                         new CatchExpression(Exception.class, "e", b.sequence(
-                            b.return_(b.functionCall(b.getLocalVariable("e"),"getMessage"))
+                            b.return_(b.functionCall(b.localVariable("e"),"getMessage"))
                         ))
                 )
         ));
@@ -192,13 +192,13 @@ public class BasicTest extends Assert {
              *      throw new IllegalArgumentException(message)
              */
             public Function throw_(int depth, String message) {
-                Block $depth = b.getLocalVariable("depth");
+                Block $depth = b.localVariable("depth");
                 return new Function(asList("depth", "message"),
                         b.sequence(
                             b.if_(b.lessThan(b.zero(), $depth),
-                                    b.functionCall(b.this_(), "throw_", b.minus($depth,b.one()), b.getLocalVariable("message")),
+                                    b.functionCall(b.this_(), "throw_", b.minus($depth,b.one()), b.localVariable("message")),
                                 // else
-                                    b.throw_(b.new_(IllegalArgumentException.class, b.getLocalVariable("message")))
+                                    b.throw_(b.new_(IllegalArgumentException.class, b.localVariable("message")))
                             )
                         ));
             }
@@ -224,8 +224,8 @@ public class BasicTest extends Assert {
                         ),
                         new CatchExpression(Exception.class, "e",
                                 b.return_(b.plus(
-                                        b.getProperty(b.getLocalVariable("e"), "message"),
-                                        b.getLocalVariable("x"))))
+                                        b.property(b.localVariable("e"), "message"),
+                                        b.localVariable("x"))))
                 )));
     }
 
@@ -237,7 +237,7 @@ public class BasicTest extends Assert {
     public void propertyGetAccess() {
         assertEquals("foo",run(
                 b.setLocalVariable("x", b.new_(Exception.class, b.constant("foo"))),
-                b.new_(String.class, b.getProperty(b.getProperty($x,"message"),"bytes"))
+                b.new_(String.class, b.property(b.property($x, "message"), "bytes"))
         ));
     }
 

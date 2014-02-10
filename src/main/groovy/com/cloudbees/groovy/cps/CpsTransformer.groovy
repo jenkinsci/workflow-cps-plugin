@@ -103,6 +103,8 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     /**
      * Makes an AST fragment that calls {@link Builder} with specific method.
      *
+     * @param methodName
+     *      Method on {@link Builder} to call.
      * @param args
      *      Can be closure for building argument nodes, Block, or List of Expressions.
      */
@@ -120,7 +122,12 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             }
         }
 
-        parent(new MethodCallExpression(BUILDER, methodName, new TupleExpression(args)));
+        def tuple = args==null ? new TupleExpression() : new TupleExpression(args)
+        parent(new MethodCallExpression(BUILDER, methodName, tuple));
+    }
+
+    private void makeNode(String methodName) {
+        makeNode(methodName,null)
     }
 
     /**
@@ -425,8 +432,23 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         makeNode("constant", expression)
     }
 
-    void visitVariableExpression(VariableExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitVariableExpression(VariableExpression exp) {
+        def ref = exp.accessedVariable
+        if (ref instanceof VariableExpression /* local variable */
+        ||  ref instanceof Parameter) {
+            makeNode("localVariable") {
+                literal(exp.name)
+            }
+        } else
+        if (ref instanceof DynamicVariable
+        ||  ref instanceof PropertyNode
+        ||  ref instanceof FieldNode) {
+            makeNode("property") {
+                makeNode("this_")
+                literal(exp.name)
+            }
+        } else
+            throw new UnsupportedOperationException("Unexpected variable type: ${ref.class}");
     }
 
     void visitDeclarationExpression(DeclarationExpression expression) {

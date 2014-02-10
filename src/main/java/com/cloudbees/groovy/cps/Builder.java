@@ -6,6 +6,7 @@ import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.ForInLoopBlock;
 import com.cloudbees.groovy.cps.impl.ForLoopBlock;
 import com.cloudbees.groovy.cps.impl.IfBlock;
+import com.cloudbees.groovy.cps.impl.LocalVariableBlock;
 import com.cloudbees.groovy.cps.impl.LogicalOpBlock;
 import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
 import com.cloudbees.groovy.cps.impl.TryBlockEnv;
@@ -91,29 +92,12 @@ public class Builder {
         };
     }
 
-//    public Block compareLessThan(final Block lhs, final Block rhs) {
-//
-//    }
-
-    public Block getLocalVariable(final String name) {
-        return new Block() {
-            public Next eval(Env e, Continuation k) {
-                return k.receive(e.getLocalVariable(name));
-            }
-        };
+    public LValueBlock localVariable(String name) {
+        return new LocalVariableBlock(name);
     }
 
     public Block setLocalVariable(final String name, final Block rhs) {
-        return new Block() {
-            public Next eval(final Env e, final Continuation k) {
-                return rhs.eval(e,new Continuation() {
-                    public Next receive(Object o) {
-                        e.setLocalVariable(name, o);
-                        return k.receive(o);
-                    }
-                });
-            }
-        };
+        return assign(localVariable(name),rhs);
     }
 
     public Block declareVariable(final Class type, final String name) {
@@ -128,14 +112,14 @@ public class Builder {
 
 
     public Block this_() {
-        return getLocalVariable("this");
+        return localVariable("this");
     }
 
     /**
      * Assignment operator to a local variable, such as "x += 3"
      */
     public Block localVariableAssignOp(String name, String operator, Block rhs) {
-        return setLocalVariable(name, functionCall(getLocalVariable(name), operator, rhs));
+        return setLocalVariable(name, functionCall(localVariable(name), operator, rhs));
     }
 
     /**
@@ -398,11 +382,11 @@ public class Builder {
         return new AssignmentBlock(lhs,rhs, null);
     }
 
-    public Block getProperty(Block lhs, String property) {
-        return getProperty(lhs,constant(property));
+    public LValueBlock property(Block lhs, String property) {
+        return property(lhs, constant(property));
     }
 
-    public Block getProperty(Block lhs, Block property) {
+    public LValueBlock property(Block lhs, Block property) {
         return new PropertyAccessBlock(lhs,property);
     }
 
@@ -411,7 +395,7 @@ public class Builder {
     }
 
     public Block setProperty(Block lhs, Block property, Block rhs) {
-        return assign(new PropertyAccessBlock(lhs,property),rhs);
+        return assign(property(lhs,property),rhs);
     }
 
     /**

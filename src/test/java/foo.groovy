@@ -10,7 +10,7 @@ class foo {
             println y();
             println prop;
 
-            println this; // inside the closure 'this' gets resolved as getProperty('this') so it doesn't point to the closure object itself
+            println this; // inside the closure 'this' gets resolved as property('this') so it doesn't point to the closure object itself
             println this.y();
             println this.prop;
         }
