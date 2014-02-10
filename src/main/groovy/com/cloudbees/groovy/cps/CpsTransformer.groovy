@@ -138,7 +138,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     private void literal(ClassNode c) {
-        parent(new ClassExpression(s))
+        parent(new ClassExpression(c))
     }
 
     void visitMethodCallExpression(MethodCallExpression call) {
