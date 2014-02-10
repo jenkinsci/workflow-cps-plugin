@@ -246,6 +246,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             (BITWISE_OR)                    :"bitwiseOr",
             (BITWISE_XOR)                   :"bitwiseXor",
             (PLUS)                          :"plus",
+            (PLUS_EQUAL)                    :"plusEqual",
             (MINUS)                         :"minus",
             (MULTIPLY)                      :"multiply",
             (DIVIDE)                        :"div",
@@ -284,10 +285,6 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
         case BITWISE_XOR_EQUAL:
             evaluateBinaryExpressionWithAssignment("xor", exp);
-            break;
-
-        case PLUS_EQUAL:
-            evaluateBinaryExpressionWithAssignment("plus", exp);
             break;
 
         case MINUS_EQUAL:

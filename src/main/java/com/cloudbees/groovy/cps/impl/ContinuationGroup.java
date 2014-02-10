@@ -5,6 +5,8 @@ import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
+import org.codehaus.groovy.runtime.callsite.CallSite;
+import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 
 /**
  * Base class for defining a series of {@link Continuation} methods that share the same set of contextual values.
@@ -36,4 +38,11 @@ abstract class ContinuationGroup {
             return false;
         }
     }
+
+    /*TODO: specify the proper owner value (to the script that includes the call site) */
+    protected static CallSite fakeCallSite(String method) {
+        CallSiteArray csa = new CallSiteArray(ContinuationGroup.class, new String[]{method});
+        return csa.array[0];
+    }
+
 }

@@ -228,6 +228,10 @@ public class Builder {
         return functionCall(lhs,"plus",rhs);
     }
 
+    public Block plusEqual(LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(lhs,rhs, "plus");
+    }
+
     public Block minus(Block lhs, Block rhs) {
         return functionCall(lhs,"minus",rhs);
     }
@@ -391,7 +395,7 @@ public class Builder {
     }
 
     public Block assign(LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(lhs,rhs);
+        return new AssignmentBlock(lhs,rhs, null);
     }
 
     public Block getProperty(Block lhs, String property) {
