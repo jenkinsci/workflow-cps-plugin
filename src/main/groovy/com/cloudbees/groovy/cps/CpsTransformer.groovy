@@ -252,6 +252,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             (INTDIV)                        :"intdiv",
             (MOD)                           :"mod",
             (POWER)                         :"power",
+            (EQUAL)                         :"assign",
     ]
 
     /**
@@ -272,9 +273,6 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 /* TODO: from BinaryExpressionHelper
         // other unique cases
         switch (exp.operation.type) {
-        case EQUAL: // = assignment
-            throw new UnsupportedOperationException();
-            break;
 
         case BITWISE_AND_EQUAL:
             evaluateBinaryExpressionWithAssignment("and", exp);
