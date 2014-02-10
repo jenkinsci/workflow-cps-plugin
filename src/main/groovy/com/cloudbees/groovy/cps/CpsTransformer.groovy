@@ -242,8 +242,11 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         throw new UnsupportedOperationException();
     }
 
-    void visitConstructorCallExpression(ConstructorCallExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitConstructorCallExpression(ConstructorCallExpression call) {
+        makeNode("new_") {
+            literal(call.type)
+            visit(((TupleExpression)call.arguments).expressions)
+        }
     }
 
     void visitTernaryExpression(TernaryExpression expression) {

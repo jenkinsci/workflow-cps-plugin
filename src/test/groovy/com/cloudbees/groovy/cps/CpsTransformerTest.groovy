@@ -136,4 +136,26 @@ class CpsTransformerTest {
             return i+"."+j+"."+x;
         """)=="0.0.0";
     }
+
+    @Test
+    void functionCall() {
+        assert evalCPS("""
+            int i=1;
+            i.plus(2)
+        """)==3;
+    }
+
+    @Test
+    void constructorCall() {
+        assert evalCPS("""
+            new String("abc"+"def")
+        """)=="abcdef";
+    }
+
+    @Test
+    void constructorCall0arg() {
+        assert evalCPS("""
+            new String()
+        """)=="";
+    }
 }
