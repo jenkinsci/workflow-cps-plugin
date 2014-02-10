@@ -10,6 +10,7 @@ import com.cloudbees.groovy.cps.impl.ForInLoopBlock;
 import com.cloudbees.groovy.cps.impl.ForLoopBlock;
 import com.cloudbees.groovy.cps.impl.FunctionCallBlock;
 import com.cloudbees.groovy.cps.impl.IfBlock;
+import com.cloudbees.groovy.cps.impl.ListBlock;
 import com.cloudbees.groovy.cps.impl.LocalVariableBlock;
 import com.cloudbees.groovy.cps.impl.LogicalOpBlock;
 import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
@@ -143,7 +144,6 @@ public class Builder {
             declareVariable(type,name),
             setLocalVariable(name, init));
     }
-
 
     public Block this_() {
         return THIS;
@@ -417,6 +417,13 @@ public class Builder {
                 return new Next(exp,e, e.getReturnAddress());
             }
         };
+    }
+
+    /**
+     * [a,b,c,d] that creates a List.
+     */
+    public Block list(Block... args) {
+        return new ListBlock(args);
     }
 
     /*TODO: specify the proper owner value (to the script that includes the call site) */
