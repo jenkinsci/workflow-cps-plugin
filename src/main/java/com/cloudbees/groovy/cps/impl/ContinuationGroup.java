@@ -61,7 +61,7 @@ abstract class ContinuationGroup {
             CallSite callSite = fakeCallSite(methodName);
             v = callSite.call(receiver,args);
         } catch (Throwable t) {
-            throw new UnsupportedOperationException(t);     // TODO: exception handling
+            return e.getExceptionHandler(t.getClass()).receive(t);
         }
 
         if (v instanceof Function) {
