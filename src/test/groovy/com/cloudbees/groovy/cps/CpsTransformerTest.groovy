@@ -178,4 +178,23 @@ class CpsTransformerTest {
             fib(10);
         """)==55
     }
+
+    /**
+     *
+     */
+    @Test
+    void exceptionFromNonCpsCodeShouldBeCaughtByCatchBlockInCpsCode() {
+        assert evalCPS("""
+            def foo() {
+              "abc".substring(5); // will caught exception
+              return "fail";
+            }
+
+            try {
+              return foo();
+            } catch(StringIndexOutOfBoundsException e) {
+              return e.message;
+            }
+        """)=="String index out of range: -2"
+    }
 }

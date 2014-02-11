@@ -149,6 +149,25 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      *      Can be closure for building argument nodes, Expression, or List of Expressions.
      */
     private void makeNode(String methodName, Object args) {
+        parent(new MethodCallExpression(BUILDER, methodName, makeChildren(args)));
+    }
+
+    /**
+     * Makes an AST fragment that instantiates a new instance of the  given type.
+     *
+     * @param args
+     *      Can be closure for building argument nodes, Expression, or List of Expressions.
+     */
+    private void makeNode(ClassNode type, Object args) {
+        parent(new ConstructorCallExpression(type, makeChildren(args)));
+    }
+
+    /**
+     * Given closure, {@link Expression} or a list of them, package them up into
+     * {@link TupleExpression}
+     */
+    private TupleExpression makeChildren(args) {
+        if (args==null)     return new TupleExpression();
         if (args instanceof Closure) {
             def argExps = []
             def old = parent;
@@ -162,8 +181,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             }
         }
 
-        def tuple = args==null ? new TupleExpression() : new TupleExpression(args)
-        parent(new MethodCallExpression(BUILDER, methodName, tuple));
+        return new TupleExpression(args);
     }
 
     private void makeNode(String methodName) {
@@ -245,8 +263,12 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         throw new UnsupportedOperationException();
     }
 
-    void visitTryCatchFinally(TryCatchStatement finally1) {
-        throw new UnsupportedOperationException();
+    void visitTryCatchFinally(TryCatchStatement stmt) {
+        // TODO: finally block
+        makeNode("tryCatch") {
+            visit(stmt.tryStatement)
+            visit(stmt.catchStatements)
+        }
     }
 
     void visitSwitch(SwitchStatement statement) {
@@ -273,8 +295,12 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         throw new UnsupportedOperationException();
     }
 
-    void visitCatchStatement(CatchStatement statement) {
-        throw new UnsupportedOperationException();
+    void visitCatchStatement(CatchStatement stmt) {
+        makeNode(CATCH_EXPRESSION_TYPE) {
+            literal(stmt.exceptionType)
+            literal(stmt.variable.name)
+            visit(stmt.code)
+        }
     }
 
     void visitStaticMethodCallExpression(StaticMethodCallExpression expression) {
@@ -480,8 +506,12 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         throw new UnsupportedOperationException();
     }
 
-    void visitPropertyExpression(PropertyExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitPropertyExpression(PropertyExpression exp) {
+        // TODO: spread and safe
+        makeNode("property") {
+            visit(exp.objectExpression)
+            visit(exp.property)
+        }
     }
 
     void visitAttributeExpression(AttributeExpression attributeExpression) {
@@ -609,6 +639,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     private static final ClassNode FUNCTION_TYPE = ClassHelper.makeCached(Function.class);
+    private static final ClassNode CATCH_EXPRESSION_TYPE = ClassHelper.makeCached(CatchExpression.class);
     private static final ClassNode BUILDER_TYPE = ClassHelper.makeCached(Builder.class);
     private static final PropertyExpression BUILDER = new PropertyExpression(new ClassExpression(BUILDER_TYPE), "INSTANCE")
 }
