@@ -245,8 +245,12 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         throw new UnsupportedOperationException();
     }
 
-    void visitIfElse(IfStatement ifElse) {
-        throw new UnsupportedOperationException();
+    void visitIfElse(IfStatement stmt) {
+        makeNode("if_") {
+            visit(stmt.booleanExpression)
+            visit(stmt.ifBlock)
+            visit(stmt.elseBlock)
+        }
     }
 
     void visitExpressionStatement(ExpressionStatement statement) {

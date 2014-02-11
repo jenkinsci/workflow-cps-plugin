@@ -4,6 +4,7 @@
 - handle exceptions thrown from Block impls properly
 - "synchronized" block
 - finally block
+- how do we handle multi-threading?
 
 Tests to be written:
     - verify a proper method overload resolution
