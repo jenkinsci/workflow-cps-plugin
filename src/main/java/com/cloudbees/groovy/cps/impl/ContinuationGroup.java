@@ -61,7 +61,7 @@ abstract class ContinuationGroup {
             CallSite callSite = fakeCallSite(methodName);
             v = callSite.call(receiver,args);
         } catch (Throwable t) {
-            return e.getExceptionHandler(t.getClass()).receive(t);
+            return throwException(e, t);
         }
 
         if (v instanceof Function) {
@@ -72,5 +72,16 @@ abstract class ContinuationGroup {
             // if this was a normal function, the method had just executed synchronously
             return k.receive(v);
         }
+    }
+
+    /**
+     * Throws an exception into the CPS code by finding a suitable exception handler
+     * and resuming the execution from that point.
+     *
+     * We use this method to receive an exception thrown from the normal code and "rethrow"
+     * into the CPS code.
+     */
+    protected Next throwException(Env e, Throwable t) {
+        return e.getExceptionHandler(t.getClass()).receive(t);
     }
 }

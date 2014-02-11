@@ -77,7 +77,7 @@ public class FunctionCallBlock implements Block {
                     try {
                         v = fakeCallSite("<init>").callConstructor(lhs,args);
                     } catch (Throwable t) {
-                        throw new UnsupportedOperationException(t);     // TODO: exception handling
+                        return throwException(e, t);
                     }
                     return k.receive(v);
                 } else {

@@ -48,10 +48,8 @@ public class ForInLoopBlock implements Block {
         public Next loopHead(Object col) {
             try {
                 itr = (Iterator) ScriptBytecodeAdapter.invokeMethod0(null/*unused*/, col, "iterator");
-            } catch (Throwable e) {
-                // TODO: exception handling
-                e.printStackTrace();
-                return loopEnd.receive(null);
+            } catch (Throwable t) {
+                return throwException(e, t);
             }
 
             return increment(null);

@@ -57,7 +57,7 @@ public class PropertyAccessBlock extends LValueBlock {
             try {
                 v = ScriptBytecodeAdapter.getProperty(null/*Groovy doesn't use this parameter*/, lhs, name);
             } catch (Throwable t) {
-                throw new UnsupportedOperationException(t);     // TODO: exception handling
+                return throwException(e, t);
             }
 
             if (v instanceof Function) {
@@ -76,7 +76,7 @@ public class PropertyAccessBlock extends LValueBlock {
             try {
                 ScriptBytecodeAdapter.setProperty(v, null/*Groovy doesn't use this parameter*/, lhs, name);
             } catch (Throwable t) {
-                throw new UnsupportedOperationException(t);     // TODO: exception handling
+                return throwException(e, t);
             }
 
             return k.receive(null);
