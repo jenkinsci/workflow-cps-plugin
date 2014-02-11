@@ -1,6 +1,7 @@
 - array access (trivial, so can be done later)
 - closure
-- continue and break
+- debug information and stack trace fixup
+- handle exceptions thrown from Block impls properly
 
 Tests to be written:
     - verify a proper method overload resolution
