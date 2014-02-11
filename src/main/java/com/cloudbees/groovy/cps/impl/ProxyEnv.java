@@ -40,4 +40,6 @@ abstract class ProxyEnv implements Env {
     public Continuation getExceptionHandler(Class<? extends Throwable> type) {
         return parent.getExceptionHandler(type);
     }
+
+    private static final long serialVersionUID = 1L;
 }

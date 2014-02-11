@@ -85,4 +85,6 @@ public class AssignmentBlock implements Block {
     static final ContinuationPtr assignAndDone = new ContinuationPtr(ContinuationImpl.class,"assignAndDone");
     static final ContinuationPtr fixCur = new ContinuationPtr(ContinuationImpl.class,"fixCur");
     static final ContinuationPtr fixRhs = new ContinuationPtr(ContinuationImpl.class,"fixRhs");
+
+    private static final long serialVersionUID = 1L;
 }

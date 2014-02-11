@@ -46,4 +46,6 @@ public class LogicalOpBlock implements Block {
     }
 
     static final ContinuationPtr decide = new ContinuationPtr(ContinuationImpl.class,"decide");
+
+    private static final long serialVersionUID = 1L;
 }

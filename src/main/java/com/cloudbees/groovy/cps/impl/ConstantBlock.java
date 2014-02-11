@@ -20,4 +20,6 @@ public class ConstantBlock implements Block {
     public Next eval(Env e, Continuation k) {
         return k.receive(value);
     }
+
+    private static final long serialVersionUID = 1L;
 }

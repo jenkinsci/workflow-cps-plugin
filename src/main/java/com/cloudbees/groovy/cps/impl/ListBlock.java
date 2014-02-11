@@ -57,4 +57,6 @@ public class ListBlock implements Block {
     }
 
     static final ContinuationPtr item = new ContinuationPtr(ContinuationImpl.class,"item");
+
+    private static final long serialVersionUID = 1L;
 }

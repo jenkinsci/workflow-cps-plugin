@@ -22,4 +22,6 @@ public class BreakBlock implements Block {
     }
 
     public static final BreakBlock INSTANCE = new BreakBlock(null);
+
+    private static final long serialVersionUID = 1L;
 }

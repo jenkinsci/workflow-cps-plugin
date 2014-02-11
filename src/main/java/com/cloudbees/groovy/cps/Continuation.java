@@ -1,5 +1,7 @@
 package com.cloudbees.groovy.cps;
 
+import java.io.Serializable;
+
 import static com.cloudbees.groovy.cps.Block.*;
 
 /**
@@ -12,7 +14,7 @@ import static com.cloudbees.groovy.cps.Block.*;
  *
  * @author Kohsuke Kawaguchi
  */
-public interface Continuation {
+public interface Continuation extends Serializable {
     // this method cannot evaluate any expression on its own
     Next receive(Object o);
 

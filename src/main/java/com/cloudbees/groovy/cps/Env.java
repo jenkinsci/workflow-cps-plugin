@@ -1,11 +1,13 @@
 package com.cloudbees.groovy.cps;
 
+import java.io.Serializable;
+
 /**
  * For variable lookup. This is local variables.
  *
  * @author Kohsuke Kawaguchi
  */
-public interface Env {
+public interface Env extends Serializable {
     void declareVariable(Class type, String name);
 
     Object getLocalVariable(String name);

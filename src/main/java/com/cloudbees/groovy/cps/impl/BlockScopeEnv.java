@@ -35,4 +35,6 @@ public class BlockScopeEnv extends ProxyEnv {
         else
             parent.setLocalVariable(name, value);
     }
+
+    private static final long serialVersionUID = 1L;
 }

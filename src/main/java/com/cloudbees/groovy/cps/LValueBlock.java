@@ -29,6 +29,8 @@ public abstract class LValueBlock implements Block {
         public Next receive(Object l) {
             return ((LValue)l).get(k);
         }
+
+        private static final long serialVersionUID = 1L;
     }
 
     /**
@@ -52,5 +54,9 @@ public abstract class LValueBlock implements Block {
         public Next eval(Env e, Continuation k) {
             return evalLValue(e,k);
         }
+
+        private static final long serialVersionUID = 1L;
     }
+
+    private static final long serialVersionUID = 1L;
 }

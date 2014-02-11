@@ -1,11 +1,13 @@
 package com.cloudbees.groovy.cps;
 
+import java.io.Serializable;
+
 /**
  * AST Node of Groovy for CPS execution.
  *
  * @author Kohsuke Kawaguchi
  */
-public interface Block {
+public interface Block extends Serializable {
     /**
      * Executes this expression, then pass the result to the given continuation when it's available.
      *

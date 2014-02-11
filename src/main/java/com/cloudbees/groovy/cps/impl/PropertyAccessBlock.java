@@ -85,4 +85,6 @@ public class PropertyAccessBlock extends LValueBlock {
 
     static final ContinuationPtr fixLhs = new ContinuationPtr(ContinuationImpl.class,"fixLhs");
     static final ContinuationPtr fixName = new ContinuationPtr(ContinuationImpl.class,"fixName");
+
+    private static final long serialVersionUID = 1L;
 }

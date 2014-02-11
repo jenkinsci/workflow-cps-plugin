@@ -90,4 +90,6 @@ public class ExcrementOperatorBlock implements Block {
     static final ContinuationPtr fixCur = new ContinuationPtr(ContinuationImpl.class,"fixCur");
     static final ContinuationPtr calc = new ContinuationPtr(ContinuationImpl.class,"calc");
     static final ContinuationPtr done = new ContinuationPtr(ContinuationImpl.class,"done");
+
+    private static final long serialVersionUID = 1L;
 }

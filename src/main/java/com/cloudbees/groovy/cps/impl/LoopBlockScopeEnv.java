@@ -34,4 +34,6 @@ class LoopBlockScopeEnv extends BlockScopeEnv {
     private boolean labelMatch(String given) {
         return given==null || given.equals(label);
     }
+
+    private static final long serialVersionUID = 1L;
 }

@@ -22,4 +22,6 @@ public class ContinueBlock implements Block {
     }
 
     public static final ContinueBlock INSTANCE = new ContinueBlock(null);
+
+    private static final long serialVersionUID = 1L;
 }

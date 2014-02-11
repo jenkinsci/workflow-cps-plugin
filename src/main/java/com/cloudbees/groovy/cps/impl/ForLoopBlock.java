@@ -59,4 +59,5 @@ public class ForLoopBlock implements Block {
     static final ContinuationPtr loopCond = new ContinuationPtr(ContinuationImpl.class,"loopCond");
     static final ContinuationPtr increment = new ContinuationPtr(ContinuationImpl.class,"increment");
 
+    private static final long serialVersionUID = 1L;
 }

@@ -30,4 +30,6 @@ public class LocalVariableBlock extends LValueBlock {
             }
         });
     }
+
+    private static final long serialVersionUID = 1L;
 }

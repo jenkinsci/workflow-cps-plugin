@@ -34,4 +34,6 @@ public class TryBlockEnv extends ProxyEnv {
 
         return super.getExceptionHandler(type);
     }
+
+    private static final long serialVersionUID = 1L;
 }
