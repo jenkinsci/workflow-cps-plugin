@@ -306,7 +306,6 @@ public class BasicTest extends Assert {
                 b.declareVariable(int.class,"x"),
                 b.return_($x)
         ));
-        // TODO: variable has to have a type for initialization
     }
 
 }
