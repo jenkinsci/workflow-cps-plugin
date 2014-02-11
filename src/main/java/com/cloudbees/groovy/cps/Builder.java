@@ -16,8 +16,6 @@ import com.cloudbees.groovy.cps.impl.LogicalOpBlock;
 import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
 import com.cloudbees.groovy.cps.impl.TryBlockEnv;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
-import org.codehaus.groovy.runtime.callsite.CallSite;
-import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 
 import java.util.HashMap;
 import java.util.List;
@@ -281,7 +279,7 @@ public class Builder {
     }
 
     public Block power(Block lhs, Block rhs) {
-        return functionCall(lhs,"power",rhs);
+        return functionCall(lhs, "power", rhs);
     }
 
     public Block compareEqual(Block lhs, Block rhs) {
@@ -424,12 +422,6 @@ public class Builder {
      */
     public Block list(Block... args) {
         return new ListBlock(args);
-    }
-
-    /*TODO: specify the proper owner value (to the script that includes the call site) */
-    private static CallSite fakeCallSite(String method) {
-        CallSiteArray csa = new CallSiteArray(Builder.class, new String[]{method});
-        return csa.array[0];
     }
 
     /**
