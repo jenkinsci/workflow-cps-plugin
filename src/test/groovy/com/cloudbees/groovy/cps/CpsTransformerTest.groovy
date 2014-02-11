@@ -25,7 +25,9 @@ class CpsTransformerTest {
 
     @Before
     void setUp() {
-        def imports = new ImportCustomizer().addImports(CpsTransformerTest.class.name)
+        def imports = new ImportCustomizer()
+                .addImports(CpsTransformerTest.class.name)
+                .addImports(WorkflowMethod.class.name)
 
         def cc = new CompilerConfiguration()
         cc.addCompilationCustomizers(imports)
@@ -169,6 +171,7 @@ class CpsTransformerTest {
     @Test
     void workflowCallingWorkflow() {
         assert evalCPS("""
+            @WorkflowMethod
             def fib(int x) {
               if (x==0)     return 0;
               if (x==1)     return 1;
@@ -185,6 +188,7 @@ class CpsTransformerTest {
     @Test
     void exceptionFromNonCpsCodeShouldBeCaughtByCatchBlockInCpsCode() {
         assert evalCPS("""
+            @WorkflowMethod
             def foo() {
               "abc".substring(5); // will caught exception
               return "fail";
@@ -196,5 +200,33 @@ class CpsTransformerTest {
               return e.message;
             }
         """)=="String index out of range: -2"
+    }
+
+    /**
+     * while loop that evaluates to false and doesn't go through the body
+     */
+    @Test
+    void whileLoop() {
+        assert evalCPS("""
+            int x=1;
+            while (false) {
+                x++;
+            }
+            return x;
+        """)==1
+    }
+
+    /**
+     * while loop that goes through several iterations.
+     */
+    @Test
+    void whileLoop5() {
+        assert evalCPS("""
+            int x=1;
+            while (x<5) {
+                x++;
+            }
+            return x;
+        """)==5
     }
 }

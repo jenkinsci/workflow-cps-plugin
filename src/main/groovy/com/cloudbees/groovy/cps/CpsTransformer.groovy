@@ -238,7 +238,11 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     void visitWhileLoop(WhileStatement loop) {
-        throw new UnsupportedOperationException();
+        makeNode("while_") {
+            literal(loop.statementLabel)
+            visit(loop.booleanExpression)
+            visit(loop.loopBlock)
+        }
     }
 
     void visitDoWhileLoop(DoWhileStatement loop) {
@@ -480,8 +484,8 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         }
     }
 
-    void visitBooleanExpression(BooleanExpression expression) {
-        visit(expression);
+    void visitBooleanExpression(BooleanExpression exp) {
+        visit(exp.expression);
     }
 
     void visitClosureExpression(ClosureExpression expression) {

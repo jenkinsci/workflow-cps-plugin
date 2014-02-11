@@ -15,6 +15,7 @@ import com.cloudbees.groovy.cps.impl.LocalVariableBlock;
 import com.cloudbees.groovy.cps.impl.LogicalOpBlock;
 import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
 import com.cloudbees.groovy.cps.impl.TryBlockEnv;
+import com.cloudbees.groovy.cps.impl.WhileBlock;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
 import java.util.HashMap;
@@ -187,6 +188,10 @@ public class Builder {
     public Block continue_(String label) {
         if (label==null)    return ContinueBlock.INSTANCE;
         return new ContinueBlock(label);
+    }
+
+    public Block while_(String label, Block cond, Block body) {
+        return new WhileBlock(label,cond,body);
     }
 
     public Block tryCatch(Block body, CatchExpression... catches) {
