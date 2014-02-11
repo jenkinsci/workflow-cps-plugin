@@ -18,6 +18,15 @@ public class BasicTest extends Assert {
     Block $y = b.localVariable("y");
     Block $z = b.localVariable("z");
 
+    /**
+     * Evaluates the given body and return the yielded value.
+     */
+    private <T> T run(Block... bodies) {
+        Env e = new FunctionCallEnv(null,null,Continuation.HALT);
+        Next p = new Next(b.block(bodies), e, Continuation.HALT);
+        return (T)p.resume().yieldedValue();
+    }
+
 
     // 3    => 3
     @Test
@@ -300,9 +309,4 @@ public class BasicTest extends Assert {
         // TODO: variable has to have a type for initialization
     }
 
-    private <T> T run(Block... bodies) {
-        Env e = new FunctionCallEnv(null,null,Continuation.HALT);
-        Next p = new Next(b.block(bodies), e, Continuation.HALT);
-        return (T)p.resume().yieldedValue();
-    }
 }
