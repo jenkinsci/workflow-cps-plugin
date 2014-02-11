@@ -2,6 +2,8 @@
 - closure
 - debug information and stack trace fixup
 - handle exceptions thrown from Block impls properly
+- "synchronized" block
+- finally block
 
 Tests to be written:
     - verify a proper method overload resolution
