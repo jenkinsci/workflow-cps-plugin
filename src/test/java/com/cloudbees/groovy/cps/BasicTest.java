@@ -122,8 +122,8 @@ public class BasicTest extends Assert {
     @Test
     public void asyncCallingAsync() {
         class Op {
-            public Function add(int x, int y) {
-                return new Function(asList("x", "y"),
+            public CpsFunction add(int x, int y) {
+                return new CpsFunction(asList("x", "y"),
                         b.sequence(
                             b.setLocalVariable("z",b.functionCall($x,"plus",$y)),
                             b.return_($z)
@@ -200,9 +200,9 @@ public class BasicTest extends Assert {
              * else
              *      throw new IllegalArgumentException(message)
              */
-            public Function throw_(int depth, String message) {
+            public CpsFunction throw_(int depth, String message) {
                 Block $depth = b.localVariable("depth");
-                return new Function(asList("depth", "message"),
+                return new CpsFunction(asList("depth", "message"),
                         b.block(
                                 b.if_(b.lessThan(b.zero(), $depth),
                                         b.functionCall(b.this_(), "throw_", b.minus($depth, b.one()), b.localVariable("message")),

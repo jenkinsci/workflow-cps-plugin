@@ -3,7 +3,7 @@ package com.cloudbees.groovy.cps.impl;
 import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
-import com.cloudbees.groovy.cps.Function;
+import com.cloudbees.groovy.cps.CpsFunction;
 import com.cloudbees.groovy.cps.LValue;
 import com.cloudbees.groovy.cps.LValueBlock;
 import com.cloudbees.groovy.cps.Next;
@@ -60,10 +60,10 @@ public class PropertyAccessBlock extends LValueBlock {
                 return throwException(e, t);
             }
 
-            if (v instanceof Function) {
-                // if this is a workflow function, it'd return a Function object instead
+            if (v instanceof CpsFunction) {
+                // if this is a workflow function, it'd return a CpsFunction object instead
                 // of actually executing the function, so execute it in the CPS
-                return ((Function)v).invoke(e, lhs, emptyList(),k);
+                return ((CpsFunction)v).invoke(e, lhs, emptyList(),k);
             } else {
                 // if this was a normal property, we get the value as-is.
                 return k.receive(v);

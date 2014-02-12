@@ -48,7 +48,7 @@ class CpsTransformerTest {
 
     Object evalCPSonly(String script) {
         Script s = csh.parse(script)
-        Function f = s.run();
+        CpsFunction f = s.run();
         def p = f.invoke(null, s, [], Continuation.HALT)
 
         def v = p.resume().yieldedValue()

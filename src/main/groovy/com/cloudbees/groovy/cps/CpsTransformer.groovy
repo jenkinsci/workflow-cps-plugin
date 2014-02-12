@@ -31,10 +31,10 @@ import static org.codehaus.groovy.syntax.Types.*
  * <p>
  * After:
  * <pre>
- * Function foo(int x, int y) {
+ * CpsFunction foo(int x, int y) {
  *   return foo$workflow;
  * }
- * static Function foo$workflow = new Function(["x","y"], B.plus(B.localVariable("x"), B.localVariable("y"));
+ * static CpsFunction foo$workflow = new CpsFunction(["x","y"], B.plus(B.localVariable("x"), B.localVariable("y"));
  * </pre>
  * ("B" refers to {@link Builder#INSTANCE} for brevity)
  *
@@ -105,15 +105,15 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      *
      * To:
      *
-     * Function foo( T1 arg1, T2 arg2, ...) {
-     *   return new Function(['arg1','arg2','arg3',...], CPS-transformed-method-body)
+     * CpsFunction foo( T1 arg1, T2 arg2, ...) {
+     *   return new CpsFunction(['arg1','arg2','arg3',...], CPS-transformed-method-body)
      * }
      */
     public void visitMethod(MethodNode m) {
         if (!shouldBeTransformed(m))
             return;
 
-        // function shall now return the Function object
+        // function shall now return the CpsFunction object
         m.returnType = FUNCTION_TYPE;
 
         def body;
@@ -655,7 +655,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         throw new UnsupportedOperationException();
     }
 
-    private static final ClassNode FUNCTION_TYPE = ClassHelper.makeCached(Function.class);
+    private static final ClassNode FUNCTION_TYPE = ClassHelper.makeCached(CpsFunction.class);
     private static final ClassNode CATCH_EXPRESSION_TYPE = ClassHelper.makeCached(CatchExpression.class);
     private static final ClassNode BUILDER_TYPE = ClassHelper.makeCached(Builder.class);
     private static final ClassNode WORKFLOW_TRANSFORMED_TYPE = ClassHelper.makeCached(WorkflowTransformed.class);

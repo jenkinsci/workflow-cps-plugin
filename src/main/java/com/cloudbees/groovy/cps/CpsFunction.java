@@ -6,13 +6,15 @@ import com.google.common.collect.ImmutableList;
 import java.util.List;
 
 /**
+ * Represents a CPS-transformed function.
+ *
  * @author Kohsuke Kawaguchi
  */
-public class Function {
+public class CpsFunction {
     final Block body;
     final ImmutableList<String> parameters;
 
-    public Function(List<String> parameters, Block body) {
+    public CpsFunction(List<String> parameters, Block body) {
         this.body = body;
         this.parameters = ImmutableList.copyOf(parameters);
     }
