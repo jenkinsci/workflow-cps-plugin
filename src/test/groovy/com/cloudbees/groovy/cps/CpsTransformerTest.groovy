@@ -290,4 +290,13 @@ class CpsTransformerTest {
             return r;
         """)=="0.3.5"
     }
+
+    @Test
+    void closureHasImplicitItVariable() {
+        assert evalCPS("""
+            c = { it+1 }
+
+            c(3);
+        """)==4
+    }
 }
