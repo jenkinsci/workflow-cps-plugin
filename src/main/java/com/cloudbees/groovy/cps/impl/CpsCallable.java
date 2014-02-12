@@ -40,8 +40,8 @@ abstract class CpsCallable {
     abstract Next invoke(Env caller, Object receiver, List<?> args, Continuation k);
 
     protected final void assignArguments(List<?> args, Env e) {
-        assert args.size()== parameters.size();  // TODO: varargs
-        for (int i=0; i< parameters.size(); i++) {
+        // TODO: var args
+        for (int i=0; i< Math.min(args.size(),parameters.size()); i++) {
             e.setLocalVariable(parameters.get(i), args.get(i));
         }
     }
