@@ -9,6 +9,8 @@ import org.codehaus.groovy.control.CompilePhase
 import org.codehaus.groovy.control.SourceUnit
 import org.codehaus.groovy.control.customizers.CompilationCustomizer
 
+import java.lang.annotation.Annotation
+
 import static org.codehaus.groovy.syntax.Types.*
 
 /**
@@ -63,8 +65,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
     @Override
     void call(SourceUnit source, GeneratorContext context, ClassNode classNode) {
-//        def ast = source.getAST();
-//        ast.methods?.each { visitMethod(it) }
+        source.ast.methods?.each { visitMethod(it) }
         classNode?.declaredConstructors?.each { visitMethod(it) }
         classNode?.methods?.each { visitMethod(it) }
 //        classNode?.objectInitializerStatements?.each { it.visit(visitor) }
@@ -77,7 +78,11 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     private boolean shouldBeTransformed(MethodNode node) {
         if (node.name=="run" && node.returnType.name==Object.class.name && extendsFromScript(node.declaringClass))
             return true;    // default body of the script
-        return node.annotations.find { it.classNode.name==WorkflowMethod.class.name } != null;
+        return hasAnnotation(node, WorkflowMethod.class) && !hasAnnotation(node, WorkflowTransformed.class);
+    }
+
+    private boolean hasAnnotation(MethodNode node, Class<? extends Annotation> a) {
+        node.annotations.find { it.classNode.name == a.name } != null
     }
 
     private boolean extendsFromScript(ClassNode c) {
@@ -121,6 +126,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         m.parameters.each { params.addExpression(new ConstantExpression(it.name))}
 
         m.code = new ReturnStatement(new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params,body)));
+        m.addAnnotation(new AnnotationNode(WORKFLOW_TRANSFORMED_TYPE));
     }
 
     /**
@@ -652,5 +658,6 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     private static final ClassNode FUNCTION_TYPE = ClassHelper.makeCached(Function.class);
     private static final ClassNode CATCH_EXPRESSION_TYPE = ClassHelper.makeCached(CatchExpression.class);
     private static final ClassNode BUILDER_TYPE = ClassHelper.makeCached(Builder.class);
+    private static final ClassNode WORKFLOW_TRANSFORMED_TYPE = ClassHelper.makeCached(WorkflowTransformed.class);
     private static final PropertyExpression BUILDER = new PropertyExpression(new ClassExpression(BUILDER_TYPE), "INSTANCE")
 }
