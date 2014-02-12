@@ -269,4 +269,25 @@ class CpsTransformerTest {
             return x();
         """)==5
     }
+
+    @Test
+    void closureShouldCaptureLiveVariables() {
+        assert evalCPS("""
+            def c1,c2;
+
+            { ->
+                def x = 0;
+                c1 = { return x; }
+                c2 = { v -> x=v; }
+            }();
+
+            r = ""+c1();
+            c2(3);
+            r += "."+c1();
+            c2(5);
+            r += "."+c1();
+
+            return r;
+        """)=="0.3.5"
+    }
 }
