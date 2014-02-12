@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps
 
+import com.cloudbees.groovy.cps.impl.CpsFunction
 import org.codehaus.groovy.ast.*
 import org.codehaus.groovy.ast.expr.*
 import org.codehaus.groovy.ast.stmt.*

@@ -25,6 +25,10 @@ abstract class ProxyEnv implements Env {
         parent.setLocalVariable(name, value);
     }
 
+    public Object closureOwner() {
+        return parent.closureOwner();
+    }
+
     public Continuation getReturnAddress() {
         return parent.getReturnAddress();
     }

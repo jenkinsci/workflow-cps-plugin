@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps
 
+import com.cloudbees.groovy.cps.impl.CpsFunction
 import org.codehaus.groovy.control.CompilerConfiguration
 import org.codehaus.groovy.control.customizers.ImportCustomizer
 import org.junit.Before

@@ -3,6 +3,7 @@ package com.cloudbees.groovy.cps;
 import com.cloudbees.groovy.cps.impl.AssignmentBlock;
 import com.cloudbees.groovy.cps.impl.BlockScopeEnv;
 import com.cloudbees.groovy.cps.impl.BreakBlock;
+import com.cloudbees.groovy.cps.impl.ClosureBlock;
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.ContinueBlock;
 import com.cloudbees.groovy.cps.impl.DoWhileBlock;
@@ -119,6 +120,10 @@ public class Builder {
 
     public Block sequence(Block b) {
         return b;
+    }
+
+    public Block closure(List<String> parameters, Block body) {
+        return new ClosureBlock(parameters,body);
     }
 
     public LValueBlock localVariable(String name) {

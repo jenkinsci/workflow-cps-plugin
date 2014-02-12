@@ -1,5 +1,7 @@
 package com.cloudbees.groovy.cps;
 
+import groovy.lang.Closure;
+
 import java.io.Serializable;
 
 /**
@@ -12,6 +14,14 @@ public interface Env extends Serializable {
 
     Object getLocalVariable(String name);
     void setLocalVariable(String name, Object value);
+
+    /**
+     * Closure or 'this' object that surrounds the currently executing code.
+     * If a new closure instantiation is encountered, this is th object that becomes
+     * {@linkplain Closure#getOwner() the owner} of that closure.
+     */
+    Object closureOwner();
+
 
     /**
      * Where should the return statement return to?

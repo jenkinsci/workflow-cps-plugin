@@ -1,7 +1,9 @@
-package com.cloudbees.groovy.cps;
+package com.cloudbees.groovy.cps.impl;
 
-import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
-import com.google.common.collect.ImmutableList;
+import com.cloudbees.groovy.cps.Block;
+import com.cloudbees.groovy.cps.Continuation;
+import com.cloudbees.groovy.cps.Env;
+import com.cloudbees.groovy.cps.Next;
 
 import java.util.List;
 
@@ -17,12 +19,7 @@ public class CpsFunction extends CpsCallable {
 
     public Next invoke(Env caller, Object receiver, List<?> args, Continuation k) {
         Env e = new FunctionCallEnv(caller, receiver, k);
-        assert args.size()== parameters.size();  // TODO: varargs
-
-        for (int i=0; i< parameters.size(); i++) {
-            e.setLocalVariable(parameters.get(i), args.get(i));
-        }
-
+        assignArguments(args,e);
         return new Next(body, e, k);
     }
 }

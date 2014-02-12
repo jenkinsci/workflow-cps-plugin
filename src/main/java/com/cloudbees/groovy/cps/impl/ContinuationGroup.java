@@ -3,7 +3,6 @@ package com.cloudbees.groovy.cps.impl;
 import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
-import com.cloudbees.groovy.cps.CpsFunction;
 import com.cloudbees.groovy.cps.Next;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
@@ -64,10 +63,10 @@ abstract class ContinuationGroup {
             return throwException(e, t);
         }
 
-        if (v instanceof CpsFunction) {
-            // if this is a workflow function, it'd return a CpsFunction object instead
-            // of actually executing the function, so execute it in the CPS
-            return ((CpsFunction)v).invoke(e, receiver, Arrays.asList(args), k);
+        if (v instanceof CpsCallable) {
+            // if this is a workflow function or a closure, it'd return a CpsCallable object instead
+            // of actually executing the code, so execute it in the CPS
+            return ((CpsCallable)v).invoke(e, receiver, Arrays.asList(args), k);
         } else {
             // if this was a normal function, the method had just executed synchronously
             return k.receive(v);

@@ -1,5 +1,9 @@
-package com.cloudbees.groovy.cps;
+package com.cloudbees.groovy.cps.impl;
 
+import com.cloudbees.groovy.cps.Block;
+import com.cloudbees.groovy.cps.Continuation;
+import com.cloudbees.groovy.cps.Env;
+import com.cloudbees.groovy.cps.Next;
 import com.google.common.collect.ImmutableList;
 import groovy.lang.Closure;
 
@@ -34,4 +38,11 @@ abstract class CpsCallable {
      *      The result of the function/closure call will be eventually passed to this continuation.
      */
     abstract Next invoke(Env caller, Object receiver, List<?> args, Continuation k);
+
+    protected final void assignArguments(List<?> args, Env e) {
+        assert args.size()== parameters.size();  // TODO: varargs
+        for (int i=0; i< parameters.size(); i++) {
+            e.setLocalVariable(parameters.get(i), args.get(i));
+        }
+    }
 }

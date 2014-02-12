@@ -3,7 +3,6 @@ package com.cloudbees.groovy.cps.impl;
 import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
-import com.cloudbees.groovy.cps.CpsFunction;
 import com.cloudbees.groovy.cps.LValue;
 import com.cloudbees.groovy.cps.LValueBlock;
 import com.cloudbees.groovy.cps.Next;
