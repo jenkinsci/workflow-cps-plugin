@@ -235,6 +235,7 @@ class CpsTransformerTest {
      * do-while loop that evaluates to false immediately
      */
     @Test
+    @Ignore
     void doWhileLoop() {
         assert evalCPS("""
             int x=1;
@@ -249,6 +250,7 @@ class CpsTransformerTest {
      * do/while loop that goes through several iterations.
      */
     @Test
+    @Ignore
     void dowhileLoop5() {
         assert evalCPS("""
             int x=1;
