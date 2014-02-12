@@ -5,6 +5,7 @@ import com.cloudbees.groovy.cps.impl.BlockScopeEnv;
 import com.cloudbees.groovy.cps.impl.BreakBlock;
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.ContinueBlock;
+import com.cloudbees.groovy.cps.impl.DoWhileBlock;
 import com.cloudbees.groovy.cps.impl.ExcrementOperatorBlock;
 import com.cloudbees.groovy.cps.impl.ForInLoopBlock;
 import com.cloudbees.groovy.cps.impl.ForLoopBlock;
@@ -192,6 +193,10 @@ public class Builder {
 
     public Block while_(String label, Block cond, Block body) {
         return new WhileBlock(label,cond,body);
+    }
+
+    public Block doWhile(String label, Block body, Block cond) {
+        return new DoWhileBlock(label,body,cond);
     }
 
     public Block tryCatch(Block body, CatchExpression... catches) {

@@ -246,7 +246,11 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     void visitDoWhileLoop(DoWhileStatement loop) {
-        throw new UnsupportedOperationException();
+        makeNode("doWhile") {
+            literal(loop.statementLabel)
+            visit(loop.booleanExpression)
+            visit(loop.loopBlock)
+        }
     }
 
     void visitIfElse(IfStatement stmt) {

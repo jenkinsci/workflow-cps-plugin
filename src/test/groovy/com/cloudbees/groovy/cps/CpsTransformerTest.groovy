@@ -3,6 +3,7 @@ package com.cloudbees.groovy.cps
 import org.codehaus.groovy.control.CompilerConfiguration
 import org.codehaus.groovy.control.customizers.ImportCustomizer
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Test
 
 /**
@@ -226,6 +227,34 @@ class CpsTransformerTest {
             while (x<5) {
                 x++;
             }
+            return x;
+        """)==5
+    }
+
+    /**
+     * do-while loop that evaluates to false immediately
+     */
+    @Test
+    void doWhileLoop() {
+        assert evalCPS("""
+            int x=1;
+            do {
+                x++;
+            } while (false);
+            return x;
+        """)==2
+    }
+
+    /**
+     * do/while loop that goes through several iterations.
+     */
+    @Test
+    void dowhileLoop5() {
+        assert evalCPS("""
+            int x=1;
+            do {
+                x++;
+            } while (x<5);
             return x;
         """)==5
     }
