@@ -261,4 +261,12 @@ class CpsTransformerTest {
             return x;
         """)==5
     }
+
+    @Test
+    void helloClosure() {
+        assert evalCPS("""
+            x = { -> 5 }
+            return x();
+        """)==5
+    }
 }

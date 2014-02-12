@@ -1,6 +1,10 @@
 package com.cloudbees.groovy.cps.impl;
 
+import com.cloudbees.groovy.cps.Block;
+import com.cloudbees.groovy.cps.Env;
 import groovy.lang.Closure;
+
+import java.util.List;
 
 /**
  * {@link Closure} whose code is CPS-transformed.
@@ -10,9 +14,9 @@ import groovy.lang.Closure;
 public class CpsClosure extends Closure {
     private final CpsClosureDef def;
 
-    public CpsClosure(Object owner, Object thisObject, CpsClosureDef def) {
+    public CpsClosure(Object owner, Object thisObject, List<String> parameters, Block body, Env capture) {
         super(owner, thisObject);
-        this.def = def;
+        this.def = new CpsClosureDef(parameters,body,capture,this);
         // TODO: parameterTypes and maximumNumberOfParameters
     }
 

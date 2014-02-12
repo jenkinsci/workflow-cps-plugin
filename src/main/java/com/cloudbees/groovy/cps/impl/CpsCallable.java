@@ -31,7 +31,7 @@ abstract class CpsCallable {
      *      we might have to use this environment to find where to dispatch that exception.
      * @param receiver
      *      For functions, this is the left hand side of the expression that becomes 'this' object.
-     *      For closures, this is the {@link Closure} object itself.
+     *      This parameter is meaningless for closures because it's not invoked with a LHS object.
      * @param args
      *      Arguments to the call that match up with {@link #parameters}.
      * @param k

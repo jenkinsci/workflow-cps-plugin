@@ -22,8 +22,7 @@ public class ClosureBlock implements Block {
     }
 
     public Next eval(Env e, Continuation k) {
-        return k.receive(new CpsClosure(e.closureOwner(), e.getLocalVariable("this"),
-                new CpsClosureDef(parameters,body,e)));
+        return k.receive(new CpsClosure(e.closureOwner(), e.getLocalVariable("this"), parameters,body,e));
     }
 
     private static final long serialVersionUID = 1L;

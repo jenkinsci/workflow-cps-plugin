@@ -16,14 +16,17 @@ class CpsClosureDef extends CpsCallable {
      */
     private final Env capture;
 
-    public CpsClosureDef(List<String> parameters, Block body, Env capture) {
+    private final CpsClosure self;
+
+    CpsClosureDef(List<String> parameters, Block body, Env capture, CpsClosure self) {
         super(parameters, body);
         this.capture = capture;
+        this.self = self;
     }
 
     @Override
     Next invoke(Env caller, Object receiver, List<?> args, Continuation k) {
-        Env e = new ClosureCallEnv(caller, k, capture, (CpsClosure)receiver);
+        Env e = new ClosureCallEnv(caller, k, capture, self);
 
         assignArguments(args, e);
 

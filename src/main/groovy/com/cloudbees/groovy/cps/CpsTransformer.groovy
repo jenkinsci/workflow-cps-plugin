@@ -498,8 +498,23 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         visit(exp.expression);
     }
 
-    void visitClosureExpression(ClosureExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitClosureExpression(ClosureExpression exp) {
+        makeNode("closure") {
+            def params = new ListExpression();
+
+            // the interpretation of the 'parameters' is messed up. According to ClosureWriter,
+            // when the user explicitly defines no parameter "{ -> foo() }" then this is null,
+            // when the user doesn't define any parameter explicitly { foo() }, then this is empty,
+            if (exp.parameters==null) {
+            } else
+            if (exp.parameters.length==0) {
+                params.addExpression(new ConstantExpression("it"));
+            } else {
+                exp.parameters.each { params.addExpression(new ConstantExpression(it.name)) }
+            }
+            parent(params)
+            visit(exp.code)
+        }
     }
 
     void visitTupleExpression(TupleExpression expression) {
@@ -661,4 +676,9 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     private static final ClassNode BUILDER_TYPE = ClassHelper.makeCached(Builder.class);
     private static final ClassNode WORKFLOW_TRANSFORMED_TYPE = ClassHelper.makeCached(WorkflowTransformed.class);
     private static final PropertyExpression BUILDER = new PropertyExpression(new ClassExpression(BUILDER_TYPE), "INSTANCE")
+
+    /**
+     * Closure's default "it" parameter.
+     */
+    private static final Parameter IT = new Parameter(ClassHelper.OBJECT_TYPE, "it", ConstantExpression.NULL);
 }
