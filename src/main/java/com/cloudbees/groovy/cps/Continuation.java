@@ -21,11 +21,23 @@ public interface Continuation extends Serializable {
     /**
      * Indicates the end of a program.
      */
-    final static Continuation HALT = new Continuation() {
+    final static Continuation HALT = new Halt();
+
+    /**
+     * Singleton implementation that maintains the singleton-ness across serialization
+     */
+    final class Halt implements Continuation {
+        private Halt() {
+        }
+
         public Next receive(Object o) {
             Next next = new Next(NOOP, null, HALT);
             next.yield(o);
             return next;
         }
-    };
+
+        public Object readResolve() {
+            return HALT;
+        }
+    }
 }
