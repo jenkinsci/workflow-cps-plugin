@@ -21,9 +21,17 @@ public interface Block extends Serializable {
     /**
      * A function that does nothing.
      */
-    final static Block NOOP = new Block() {
+    final static Block NOOP = new Noop();
+
+    final class Noop implements Block {
+        private Noop() {}
+
         public Next eval(Env e, Continuation k) {
             return k.receive(null);
         }
-    };
+
+        public Object readResolve() {
+            return NOOP;
+        }
+    }
 }
