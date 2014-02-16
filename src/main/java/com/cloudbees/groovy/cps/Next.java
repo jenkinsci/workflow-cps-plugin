@@ -52,6 +52,29 @@ public class Next {
         return yield;
     }
 
+    /**
+     * Returns this object as a {@link Continuation} that ignores the argument.
+     */
+    public Continuation asContinuation() {
+        if (isEnd())    return Continuation.HALT;   // so that the caller can tell when it has terminated.
+        else            return new ConstContinuation();
+    }
+
+    /**
+     * Does this represent the end of the program?
+     */
+    public boolean isEnd() {
+        return k==Continuation.HALT && e==Block.NOOP;
+    }
+
     private static final class Null {}
     private static final Null NULL = new Null();
+
+    private class ConstContinuation implements Continuation {
+        public Next receive(Object o) {
+            return Next.this;
+        }
+
+        private static final long serialVersionUID = 1L;
+    }
 }
