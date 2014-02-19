@@ -1,7 +1,7 @@
 package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.AssignmentBlock;
-import com.cloudbees.groovy.cps.impl.BlockScopeEnv;
+import com.cloudbees.groovy.cps.impl.BlockScopedBlock;
 import com.cloudbees.groovy.cps.impl.BreakBlock;
 import com.cloudbees.groovy.cps.impl.ClosureBlock;
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
@@ -16,13 +16,14 @@ import com.cloudbees.groovy.cps.impl.ListBlock;
 import com.cloudbees.groovy.cps.impl.LocalVariableBlock;
 import com.cloudbees.groovy.cps.impl.LogicalOpBlock;
 import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
-import com.cloudbees.groovy.cps.impl.TryBlockEnv;
+import com.cloudbees.groovy.cps.impl.ReturnBlock;
+import com.cloudbees.groovy.cps.impl.ThrowBlock;
+import com.cloudbees.groovy.cps.impl.TryCatchBlock;
+import com.cloudbees.groovy.cps.impl.VariableDeclBlock;
 import com.cloudbees.groovy.cps.impl.WhileBlock;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static com.cloudbees.groovy.cps.Block.*;
 import static java.util.Arrays.*;
@@ -83,13 +84,7 @@ public class Builder {
      * Creates a block scope of variables around the given expression
      */
     private Block blockScoped(final Block exp) {
-        return new Block() {
-            public Next eval(Env _e, final Continuation k) {
-                final Env e = new BlockScopeEnv(_e); // block statement creates a new scope
-
-                return new Next(exp,e,k);
-            }
-        };
+        return new BlockScopedBlock(exp);
     }
 
     /**
@@ -135,13 +130,7 @@ public class Builder {
     }
 
     public Block declareVariable(final Class type, final String name) {
-        return new Block() {
-            public Next eval(final Env e, final Continuation k) {
-                e.declareVariable(type,name);
-                e.setLocalVariable(name,defaultPrimitiveValue.get(type));
-                return k.receive(null);
-            }
-        };
+        return new VariableDeclBlock(type, name);
     }
 
     public Block declareVariable(Class type, String name, Block init) {
@@ -218,47 +207,14 @@ public class Builder {
      * }
      */
     public Block tryCatch(final Block body, final List<CatchExpression> catches) {
-        return new Block() {
-            public Next eval(final Env e, final Continuation k) {
-                final TryBlockEnv f = new TryBlockEnv(e);
-                for (final CatchExpression c : catches) {
-                    f.addHandler(c.type, new Continuation() {
-                        public Next receive(Object t) {
-                            BlockScopeEnv b = new BlockScopeEnv(e);
-                            b.declareVariable(c.type, c.name);
-                            b.setLocalVariable(c.name, t);
-
-                            return new Next(c.handler, b, k);
-                        }
-                    });
-                }
-
-                // evaluate the body with the new environment
-                return new Next(body,f,k);
-            }
-        };
+        return new TryCatchBlock(catches, body);
     }
 
     /**
      * throw exp;
      */
     public Block throw_(final Block exp) {
-        return new Block() {
-            public Next eval(final Env e, Continuation k) {
-                return new Next(exp,e,new Continuation() {
-                    public Next receive(Object t) {
-                        if (t==null) {
-                            t = new NullPointerException();
-                        }
-                        // TODO: fake the stack trace information
-                        // TODO: what if 't' is not Throwable?
-
-                        Continuation v = e.getExceptionHandler(Throwable.class.cast(t).getClass());
-                        return v.receive(t);
-                    }
-                });
-            }
-        };
+        return new ThrowBlock(exp);
     }
 
     public Block staticCall(Class lhs, String name, Block... argExps) {
@@ -425,11 +381,7 @@ public class Builder {
      * return exp;
      */
     public Block return_(final Block exp) {
-        return new Block() {
-            public Next eval(Env e, Continuation k) {
-                return new Next(exp,e, e.getReturnAddress());
-            }
-        };
+        return new ReturnBlock(exp);
     }
 
     /**
@@ -443,12 +395,4 @@ public class Builder {
      * Used for building AST from transformed code.
      */
     public static Builder INSTANCE = new Builder();
-
-    private static final Map<Class,Object> defaultPrimitiveValue = new HashMap<Class, Object>();
-    static {
-        defaultPrimitiveValue.put(boolean.class,false);
-        defaultPrimitiveValue.put(int.class,0);
-        defaultPrimitiveValue.put(long.class,0L);
-        // TODO: complete the rest
-    }
 }
