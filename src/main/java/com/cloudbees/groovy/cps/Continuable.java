@@ -18,6 +18,10 @@ public class Continuable implements Serializable {
         this.program = program;
     }
 
+    public Continuable(Next program) {
+        this(program.asContinuation());
+    }
+
     /**
      * Creates a {@link Continuable} that executes the block of code.
      */

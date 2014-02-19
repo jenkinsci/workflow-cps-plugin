@@ -34,6 +34,7 @@ class CpsTransformerTest {
         def cc = new CompilerConfiguration()
         cc.addCompilationCustomizers(imports)
         cc.addCompilationCustomizers(new CpsTransformer())
+        cc.scriptBaseClass = SerializableScript.class.name
         csh = new GroovyShell(binding,cc);
 
         cc = new CompilerConfiguration()
@@ -298,5 +299,24 @@ class CpsTransformerTest {
 
             c(3);
         """)==4
+    }
+
+    @Test
+    void serialization() {
+        Script s = csh.parse("""
+            @WorkflowMethod
+            def plus3(int x) {
+                return x+3;
+            }
+
+            1+plus3(3*2)
+        """)
+        CpsFunction f = s.run();
+
+        def baos = new ByteArrayOutputStream()
+        new ObjectOutputStream(baos).writeObject(new Continuable(f.invoke(null,s,[],Continuation.HALT)));
+
+        Continuable cx = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray())).readObject()
+        assert 10==cx.run(null)
     }
 }

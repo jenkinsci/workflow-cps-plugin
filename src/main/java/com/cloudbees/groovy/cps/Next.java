@@ -1,11 +1,13 @@
 package com.cloudbees.groovy.cps;
 
+import java.io.Serializable;
+
 /**
  * Remaining computation to execute. To work around the lack of tail-call optimization
  *
  * @author Kohsuke Kawaguchi
  */
-public class Next {
+public class Next implements Serializable {
     Block f;
     Env e;
     Continuation k;
@@ -77,4 +79,6 @@ public class Next {
 
         private static final long serialVersionUID = 1L;
     }
+
+    private static final long serialVersionUID = 1L;
 }
