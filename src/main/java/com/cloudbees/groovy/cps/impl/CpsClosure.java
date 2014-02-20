@@ -23,16 +23,16 @@ public class CpsClosure extends Closure {
     // returning CpsCallable lets the caller know that it needs to do CPS evaluation of this closure.
     @Override
     public Object call() {
-        return def;
+        throw new CpsCallableInvocation(def,this);
     }
 
     @Override
     public Object call(Object... args) {
-        return def;
+        throw new CpsCallableInvocation(def,this,args);
     }
 
     @Override
     public Object call(Object arguments) {
-        return def;
+        throw new CpsCallableInvocation(def,this,arguments);
     }
 }

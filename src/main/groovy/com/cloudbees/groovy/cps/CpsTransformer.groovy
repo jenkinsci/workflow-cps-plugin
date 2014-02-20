@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps
 
+import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import com.cloudbees.groovy.cps.impl.CpsFunction
 import org.codehaus.groovy.ast.*
 import org.codehaus.groovy.ast.expr.*
@@ -11,6 +12,7 @@ import org.codehaus.groovy.control.SourceUnit
 import org.codehaus.groovy.control.customizers.CompilationCustomizer
 
 import java.lang.annotation.Annotation
+import java.lang.reflect.Modifier
 
 import static org.codehaus.groovy.syntax.Types.*
 
@@ -60,6 +62,8 @@ import static org.codehaus.groovy.syntax.Types.*
  * @author Kohsuke Kawaguchi
  */
 class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor {
+    private int iota=0;
+
     CpsTransformer() {
         super(CompilePhase.CANONICALIZATION)
     }
@@ -106,16 +110,14 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      *
      * To:
      *
-     * CpsFunction foo( T1 arg1, T2 arg2, ...) {
-     *   return new CpsFunction(['arg1','arg2','arg3',...], CPS-transformed-method-body)
+     * private static CpsFunction ___cps___N = new CpsFunction(['arg1','arg2','arg3',...], CPS-transformed-method-body)
+     * ReturnT foo( T1 arg1, T2 arg2, ...) {
+     *   throw new CpsCallableInvocation(___cps___N, this, arg1, arg2, ...)
      * }
      */
     public void visitMethod(MethodNode m) {
         if (!shouldBeTransformed(m))
             return;
-
-        // function shall now return the CpsFunction object
-        m.returnType = FUNCTION_TYPE;
 
         def body;
 
@@ -126,7 +128,14 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         def params = new ListExpression();
         m.parameters.each { params.addExpression(new ConstantExpression(it.name))}
 
-        m.code = new ReturnStatement(new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params,body)));
+        def f = m.declaringClass.addField("___cps___${iota++}", Modifier.STATIC, FUNCTION_TYPE,
+                new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body)));
+
+        def args = new TupleExpression(new VariableExpression(f), THIS);
+        m.parameters.each { args.addExpression(new VariableExpression(it)) }
+
+        m.code = new ThrowStatement(new ConstructorCallExpression(CPSCALLINVK_TYPE,args));
+
         m.addAnnotation(new AnnotationNode(WORKFLOW_TRANSFORMED_TYPE));
     }
 
@@ -691,8 +700,10 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     private static final ClassNode FUNCTION_TYPE = ClassHelper.makeCached(CpsFunction.class);
     private static final ClassNode CATCH_EXPRESSION_TYPE = ClassHelper.makeCached(CatchExpression.class);
     private static final ClassNode BUILDER_TYPE = ClassHelper.makeCached(Builder.class);
+    private static final ClassNode CPSCALLINVK_TYPE = ClassHelper.makeCached(CpsCallableInvocation.class);
     private static final ClassNode WORKFLOW_TRANSFORMED_TYPE = ClassHelper.makeCached(WorkflowTransformed.class);
     private static final PropertyExpression BUILDER = new PropertyExpression(new ClassExpression(BUILDER_TYPE), "INSTANCE")
+    private static final VariableExpression THIS = new VariableExpression("this");
 
     /**
      * Closure's default "it" parameter.

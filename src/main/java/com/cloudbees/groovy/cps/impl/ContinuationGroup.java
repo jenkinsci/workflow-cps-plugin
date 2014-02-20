@@ -55,21 +55,15 @@ abstract class ContinuationGroup {
      * Evaluates a function (possibly a workflow function), then pass the result to the given continuation.
      */
     protected Next methodCall(Env e, Continuation k, Object receiver, String methodName, Object... args) {
-        Object v;
         try {
             CallSite callSite = fakeCallSite(methodName);
-            v = callSite.call(receiver,args);
-        } catch (Throwable t) {
-            return throwException(e, t);
-        }
-
-        if (v instanceof CpsCallable) {
-            // if this is a workflow function or a closure, it'd return a CpsCallable object instead
-            // of actually executing the code, so execute it in the CPS
-            return ((CpsCallable)v).invoke(e, receiver, Arrays.asList(args), k);
-        } else {
+            Object v = callSite.call(receiver,args);
             // if this was a normal function, the method had just executed synchronously
             return k.receive(v);
+        } catch (CpsCallableInvocation inv) {
+            return inv.invoke(e,k);
+        } catch (Throwable t) {
+            return throwException(e, t);
         }
     }
 

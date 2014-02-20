@@ -1,8 +1,9 @@
 package com.cloudbees.groovy.cps
 
-import com.cloudbees.groovy.cps.impl.CpsFunction
+import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import org.codehaus.groovy.control.CompilerConfiguration
 import org.codehaus.groovy.control.customizers.ImportCustomizer
+import org.junit.Assert
 import org.junit.Before
 
 /**
@@ -10,7 +11,7 @@ import org.junit.Before
  *
  * @author Kohsuke Kawaguchi
  */
-abstract class AbstractGroovyCpsTest {
+abstract class AbstractGroovyCpsTest extends Assert {
     /**
      * CPS-transforming shelll
      */
@@ -47,12 +48,17 @@ abstract class AbstractGroovyCpsTest {
     }
 
     Object evalCPSonly(String script) {
-        Script s = csh.parse(script)
-        CpsFunction f = s.run();
-        def p = f.invoke(null, s, [], Continuation.HALT)
+        return  parseCps(script).invoke(null, Continuation.HALT).resume().yieldedValue()
+    }
 
-        def v = p.resume().yieldedValue()
-        v
+    CpsCallableInvocation parseCps(String script) {
+        Script s = csh.parse(script)
+        try {
+            s.run();
+            fail "Expecting CPS transformation"
+        } catch (CpsCallableInvocation inv) {
+            return inv;
+        }
     }
 
 }

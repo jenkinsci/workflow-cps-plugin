@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.CpsFunction;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 

@@ -1,9 +1,6 @@
 package com.cloudbees.groovy.cps
 
-import com.cloudbees.groovy.cps.impl.CpsFunction
-import org.codehaus.groovy.control.CompilerConfiguration
-import org.codehaus.groovy.control.customizers.ImportCustomizer
-import org.junit.Before
+import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import org.junit.Ignore
 import org.junit.Test
 
@@ -259,7 +256,7 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     void serialization() {
-        Script s = csh.parse("""
+        CpsCallableInvocation s = parseCps("""
             @WorkflowMethod
             def plus3(int x) {
                 return x+3;
@@ -275,12 +272,13 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             }
             1+plus3(3*2)
         """)
-        CpsFunction f = s.run();
 
         def baos = new ByteArrayOutputStream()
-        new ObjectOutputStream(baos).writeObject(new Continuable(f.invoke(null,s,[],Continuation.HALT)));
+        new ObjectOutputStream(baos).writeObject(new Continuable(s.invoke(null,Continuation.HALT)));
 
-        Continuable cx = new ObjectInputStreamWithLoader(new ByteArrayInputStream(baos.toByteArray()),s.class.classLoader).readObject()
+        Continuable cx = new ObjectInputStreamWithLoader(
+                new ByteArrayInputStream(baos.toByteArray()),
+                s.receiver.class.classLoader).readObject()
         assert 10==cx.run(null)
     }
 }
