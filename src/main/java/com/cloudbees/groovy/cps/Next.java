@@ -44,9 +44,18 @@ public class Next implements Serializable {
         return f.eval(e,k);
     }
 
-    public void yield(Object v) {
+    /**
+     * Creates a {@link Next} object that
+     * causes the interpreter loop to exit with the specified value, then optionally allow the interpreter
+     * to resume with the specified {@link Continuation}.
+     */
+    public static Next yield(Object v, Continuation k) {
+        Next n = new Next(null,null,k);
+
         if (v==null)  v = NULL;
-        this.yield = v;
+        n.yield = v;
+
+        return n;
     }
 
     /*package*/ Object yieldedValue() {

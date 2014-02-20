@@ -31,9 +31,7 @@ public interface Continuation extends Serializable {
         }
 
         public Next receive(Object o) {
-            Next next = new Next(NOOP, null, HALT);
-            next.yield(o);
-            return next;
+            return Next.yield(o,HALT);
         }
 
         public Object readResolve() {
