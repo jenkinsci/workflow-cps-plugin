@@ -3,8 +3,6 @@
 - "synchronized" block
 - finally block
 - how do we handle multi-threading?
-- instead of return Function, throw it, and report the arguments and so on to check direct/indirect
-- serialization
 
 Tests to be written:
     - verify a proper method overload resolution
