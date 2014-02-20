@@ -53,6 +53,8 @@ public class ForLoopBlock implements Block {
         public Next increment(Object _) {
             return then(e3,e,loopHead);
         }
+
+        private static final long serialVersionUID = 1L;
     }
 
     static final ContinuationPtr loopHead = new ContinuationPtr(ContinuationImpl.class,"loopHead");

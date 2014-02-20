@@ -54,6 +54,8 @@ public class ListBlock implements Block {
                 return k.receive(list);
             }
         }
+
+        private static final long serialVersionUID = 1L;
     }
 
     static final ContinuationPtr item = new ContinuationPtr(ContinuationImpl.class,"item");

@@ -35,6 +35,8 @@ public class IfBlock implements Block {
         public Next jump(Object cond) {
             return then(asBoolean(cond) ? then : els,e,k);
         }
+
+        private static final long serialVersionUID = 1L;
     }
 
     static final ContinuationPtr jump = new ContinuationPtr(ContinuationImpl.class,"jump");

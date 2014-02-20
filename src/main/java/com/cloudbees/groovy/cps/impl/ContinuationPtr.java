@@ -8,6 +8,7 @@ import com.cloudbees.groovy.cps.Next;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
@@ -26,7 +27,7 @@ import java.lang.reflect.Method;
  * @see ContinuationGroup#then(Block, Env, ContinuationPtr)
  * @author Kohsuke Kawaguchi
  */
-class ContinuationPtr {
+class ContinuationPtr implements Serializable {
     private transient  /*final except serialization*/ Method m;
 
     ContinuationPtr(Class<?> type, String methodName) {

@@ -79,6 +79,8 @@ public class AssignmentBlock implements Block {
         public Next fixRhs(Object rhs) {
             return methodCall(e, assignAndDone, this.cur, compoundOp, rhs);
         }
+
+        private static final long serialVersionUID = 1L;
     }
 
     static final ContinuationPtr fixLhs = new ContinuationPtr(ContinuationImpl.class,"fixLhs");

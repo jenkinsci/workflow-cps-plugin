@@ -86,6 +86,8 @@ public class FunctionCallBlock implements Block {
                 }
             }
         }
+
+        private static final long serialVersionUID = 1L;
     }
 
     static final ContinuationPtr fixLhs = new ContinuationPtr(ContinuationImpl.class,"fixLhs");

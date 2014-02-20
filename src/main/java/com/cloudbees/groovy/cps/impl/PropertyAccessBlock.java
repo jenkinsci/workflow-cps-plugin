@@ -80,6 +80,8 @@ public class PropertyAccessBlock extends LValueBlock {
 
             return k.receive(null);
         }
+
+        private static final long serialVersionUID = 1L;
     }
 
     static final ContinuationPtr fixLhs = new ContinuationPtr(ContinuationImpl.class,"fixLhs");

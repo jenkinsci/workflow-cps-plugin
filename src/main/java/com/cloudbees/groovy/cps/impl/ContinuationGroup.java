@@ -8,6 +8,7 @@ import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 
+import java.io.Serializable;
 import java.util.Arrays;
 
 /**
@@ -19,7 +20,7 @@ import java.util.Arrays;
  * @see ContinuationPtr
  * @author Kohsuke Kawaguchi
  */
-abstract class ContinuationGroup {
+abstract class ContinuationGroup implements Serializable {
     public Next then(Block exp, Env e, ContinuationPtr ptr) {
         return new Next(exp,e,ptr.bind(this));
     }
@@ -77,4 +78,6 @@ abstract class ContinuationGroup {
     protected Next throwException(Env e, Throwable t) {
         return e.getExceptionHandler(t.getClass()).receive(t);
     }
+
+    private static final long serialVersionUID = 1L;
 }

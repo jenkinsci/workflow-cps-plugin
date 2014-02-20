@@ -51,6 +51,8 @@ public class DoWhileBlock implements Block {
                 return loopEnd.receive(null);
             }
         }
+
+        private static final long serialVersionUID = 1L;
     }
 
     static final ContinuationPtr loopHead = new ContinuationPtr(ContinuationImpl.class,"loopHead");
