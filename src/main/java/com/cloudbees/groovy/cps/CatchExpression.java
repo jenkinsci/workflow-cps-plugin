@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -8,7 +9,7 @@ import java.util.List;
  * @author Kohsuke Kawaguchi
  * @see Builder#tryCatch(Block, List)
  */
-public class CatchExpression {
+public class CatchExpression implements Serializable {
     /**
      * Type of the exception to catch.
      */
@@ -29,4 +30,6 @@ public class CatchExpression {
         this.handler = handler;
         this.type = type;
     }
+
+    private static final long serialVersionUID = 1L;
 }

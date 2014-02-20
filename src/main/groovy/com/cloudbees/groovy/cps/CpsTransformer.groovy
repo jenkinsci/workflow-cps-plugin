@@ -137,12 +137,21 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     private Closure parent;
 
     private void visit(ASTNode e) {
-        e.visit(this);
+        if (e instanceof EmptyExpression) {
+            // working around a bug in EmptyExpression.visit() that doesn't call any method
+            visitEmptyExpression(e);
+        } else
+        if (e instanceof EmptyStatement) {
+            // working around a bug in EmptyStatement.visit() that doesn't call any method
+            visitEmptyStatement(e);
+        } else {
+            e.visit(this);
+        }
     }
 
     private void visit(Collection<? extends ASTNode> col) {
         for (def e : col) {
-            e.visit(this);
+            visit(e);
         }
     }
 
@@ -203,6 +212,14 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
     private void literal(ClassNode c) {
         parent(new ClassExpression(c))
+    }
+
+    void visitEmptyExpression(EmptyExpression e) {
+        makeNode("noop")
+    }
+
+    void visitEmptyStatement(EmptyStatement e) {
+        makeNode("noop")
     }
 
     void visitMethodCallExpression(MethodCallExpression call) {

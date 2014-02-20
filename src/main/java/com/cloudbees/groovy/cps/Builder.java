@@ -44,6 +44,10 @@ public class Builder {
         return NULL;
     }
 
+    public Block noop() {
+        return NOOP;
+    }
+
     public Block constant(Object o) {
         return new ConstantBlock(o);
     }

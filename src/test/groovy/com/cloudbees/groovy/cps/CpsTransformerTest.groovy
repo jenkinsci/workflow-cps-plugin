@@ -309,6 +309,14 @@ class CpsTransformerTest {
                 return x+3;
             }
 
+            for (int x=0; x<10; x++) {// meaningless code to cram as much coding construct as possible
+                try {
+                    while (false)
+                        ;
+                } catch(Exception e) {
+                    ;
+                }
+            }
             1+plus3(3*2)
         """)
         CpsFunction f = s.run();
