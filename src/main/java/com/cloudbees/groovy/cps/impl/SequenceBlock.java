@@ -10,7 +10,7 @@ import com.cloudbees.groovy.cps.Next;
  *
  * @author Kohsuke Kawaguchi
  */
-class SequenceBlock implements Block {
+public class SequenceBlock implements Block {
     private final Block exp1;
     private final Block exp2;
 

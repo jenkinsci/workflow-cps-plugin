@@ -17,6 +17,7 @@ import com.cloudbees.groovy.cps.impl.LocalVariableBlock;
 import com.cloudbees.groovy.cps.impl.LogicalOpBlock;
 import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
 import com.cloudbees.groovy.cps.impl.ReturnBlock;
+import com.cloudbees.groovy.cps.impl.SequenceBlock;
 import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import com.cloudbees.groovy.cps.impl.TryCatchBlock;
 import com.cloudbees.groovy.cps.impl.VariableDeclBlock;
