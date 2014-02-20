@@ -44,7 +44,7 @@ public class Next implements Serializable {
         return f.eval(e,k);
     }
 
-    /*package*/ void yield(Object v) {
+    public void yield(Object v) {
         if (v==null)  v = NULL;
         this.yield = v;
     }

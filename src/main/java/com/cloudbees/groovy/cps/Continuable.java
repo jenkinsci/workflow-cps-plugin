@@ -1,8 +1,8 @@
 package com.cloudbees.groovy.cps;
 
-import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.CpsFunction;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
+import com.cloudbees.groovy.cps.impl.YieldBlock;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -55,13 +55,7 @@ public class Continuable implements Serializable {
      * When the execution is resumed,
      */
     public static Object suspend(final Object v) {
-        return new CpsFunction(Arrays.asList("v"),new Block() {
-            public Next eval(Env e, Continuation k) {
-                Next next = new Next(NOOP, null, k);
-                next.yield(v);
-                return next;
-            }
-        });
+        return new CpsFunction(Arrays.asList("v"), new YieldBlock(v));
     }
 
     private static final long serialVersionUID = 1L;
