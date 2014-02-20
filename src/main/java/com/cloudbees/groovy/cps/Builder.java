@@ -102,15 +102,7 @@ public class Builder {
     }
 
     public Block sequence(final Block exp1, final Block exp2) {
-        return new Block() {
-            public Next eval(final Env e, final Continuation k) {
-                return new Next(exp1,e,new Continuation() {
-                    public Next receive(Object __) {
-                        return new Next(exp2,e,k);
-                    }
-                });
-            }
-        };
+        return new SequenceBlock(exp1, exp2);
     }
 
     public Block sequence(Block b) {
@@ -395,4 +387,5 @@ public class Builder {
      * Used for building AST from transformed code.
      */
     public static Builder INSTANCE = new Builder();
+
 }
