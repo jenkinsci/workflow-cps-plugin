@@ -316,7 +316,7 @@ class CpsTransformerTest {
         def baos = new ByteArrayOutputStream()
         new ObjectOutputStream(baos).writeObject(new Continuable(f.invoke(null,s,[],Continuation.HALT)));
 
-        Continuable cx = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray())).readObject()
+        Continuable cx = new ObjectInputStreamWithLoader(new ByteArrayInputStream(baos.toByteArray()),s.class.classLoader).readObject()
         assert 10==cx.run(null)
     }
 }
