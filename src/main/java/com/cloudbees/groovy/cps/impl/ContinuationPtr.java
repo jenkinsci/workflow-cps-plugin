@@ -5,6 +5,9 @@ import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
@@ -24,9 +27,13 @@ import java.lang.reflect.Method;
  * @author Kohsuke Kawaguchi
  */
 class ContinuationPtr {
-    private final Method m;
+    private transient  /*final except serialization*/ Method m;
 
     ContinuationPtr(Class<?> type, String methodName) {
+        resolveMethod(type, methodName);
+    }
+
+    private void resolveMethod(Class<?> type, String methodName) {
         try {
             m = type.getMethod(methodName,Object.class);
         } catch (NoSuchMethodException e) {
@@ -38,21 +45,44 @@ class ContinuationPtr {
      * Binds the pointer to a continuation method to a specific receiver instance.
      */
     Continuation bind(final Object target) {
-        return new Continuation() {
-            public Next receive(Object o) {
-                try {
-                    return (Next)m.invoke(target,o);
-                } catch (IllegalAccessException e) {
-                    throw (IllegalAccessError)new IllegalAccessError().initCause(e);
-                } catch (InvocationTargetException e) {
-                    Throwable t = e.getTargetException();
-                    if (t instanceof Error)
-                        throw (Error) t;
-                    if (t instanceof RuntimeException)
-                        throw (RuntimeException) t;
-                    throw new Error(e);
-                }
-            }
-        };
+        return new ContinuationImpl(target);
     }
+
+    private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+        Class c = (Class)ois.readObject();
+        String methodName = ois.readUTF();
+        resolveMethod(c,methodName);
+    }
+
+    private void writeObject(ObjectOutputStream oos) throws IOException {
+        oos.writeObject(m.getDeclaringClass());
+        oos.writeUTF(m.getName());
+    }
+
+    private class ContinuationImpl implements Continuation {
+        private final Object target;
+
+        public ContinuationImpl(Object target) {
+            this.target = target;
+        }
+
+        public Next receive(Object o) {
+            try {
+                return (Next)m.invoke(target,o);
+            } catch (IllegalAccessException e) {
+                throw (IllegalAccessError)new IllegalAccessError().initCause(e);
+            } catch (InvocationTargetException e) {
+                Throwable t = e.getTargetException();
+                if (t instanceof Error)
+                    throw (Error) t;
+                if (t instanceof RuntimeException)
+                    throw (RuntimeException) t;
+                throw new Error(e);
+            }
+        }
+
+        private static final long serialVersionUID = 1L;
+    }
+
+    private static final long serialVersionUID = 1L;
 }
