@@ -60,4 +60,15 @@ abstract class AbstractGroovyCpsTest extends Assert {
         }
     }
 
+    public <T> T roundtripSerialization(T cx) {
+        def baos = new ByteArrayOutputStream()
+
+        new ObjectOutputStream(baos).writeObject(cx);
+
+        def ois = new ObjectInputStreamWithLoader(
+                new ByteArrayInputStream(baos.toByteArray()),
+                csh.classLoader)
+
+        return ois.readObject()
+    }
 }

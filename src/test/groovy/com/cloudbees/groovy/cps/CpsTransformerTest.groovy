@@ -272,13 +272,8 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             }
             1+plus3(3*2)
         """)
-
-        def baos = new ByteArrayOutputStream()
-        new ObjectOutputStream(baos).writeObject(new Continuable(s.invoke(null,Continuation.HALT)));
-
-        Continuable cx = new ObjectInputStreamWithLoader(
-                new ByteArrayInputStream(baos.toByteArray()),
-                s.receiver.class.classLoader).readObject()
+        def cx = new Continuable(s.invoke(null, Continuation.HALT))
+        cx = roundtripSerialization(cx)
         assert 10==cx.run(null)
     }
 }
