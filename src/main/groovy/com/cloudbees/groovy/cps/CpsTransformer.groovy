@@ -67,7 +67,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     @Override
     void call(SourceUnit source, GeneratorContext context, ClassNode classNode) {
         source.ast.methods?.each { visitMethod(it) }
-        classNode?.declaredConstructors?.each { visitMethod(it) }
+//        classNode?.declaredConstructors?.each { visitMethod(it) } // can't transform constructor
         classNode?.methods?.each { visitMethod(it) }
 //        classNode?.objectInitializerStatements?.each { it.visit(visitor) }
 //        classNode?.fields?.each { visitor.visitField(it) }
