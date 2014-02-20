@@ -29,7 +29,7 @@ public class Next implements Serializable {
     /**
      * Resumes the execution of this program state, until it yields a value or finishes computation.
      */
-    public Next resume() {
+    public Next run() {
         Next n = this;
         do {
             n = n.step();

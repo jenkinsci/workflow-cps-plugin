@@ -47,7 +47,7 @@ abstract class AbstractGroovyCpsTest extends Assert {
     }
 
     Object evalCPSonly(String script) {
-        return  parseCps(script).invoke(null, Continuation.HALT).resume().yieldedValue()
+        return  parseCps(script).invoke(null, Continuation.HALT).run().yieldedValue()
     }
 
     CpsCallableInvocation parseCps(String script) {

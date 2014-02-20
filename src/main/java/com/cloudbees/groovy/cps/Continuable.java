@@ -49,7 +49,7 @@ public class Continuable implements Serializable {
      * Runs this program until it suspends the next time.
      */
     public Object run(Object arg) {
-        Next n = program.receive(arg).resume();
+        Next n = program.receive(arg).run();
         // when yielding, we resume from the continuation so that we can pass in the value.
         // see Next#yield
         program = n.k;

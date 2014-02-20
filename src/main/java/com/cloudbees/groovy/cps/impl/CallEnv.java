@@ -41,7 +41,7 @@ import com.cloudbees.groovy.cps.Env;
 
     public final Continuation getExceptionHandler(Class<? extends Throwable> type) {
         if (caller==null) {
-            // TODO: maybe define a mechanism so that the resume() or start() kinda method will return
+            // TODO: maybe define a mechanism so that the run() or start() kinda method will return
             // by having this exception thrown?
             return Continuation.HALT;
         } else {

@@ -25,7 +25,7 @@ public class BasicTest extends Assert {
     private <T> T run(Block... bodies) {
         Env e = new FunctionCallEnv(null,null,Continuation.HALT);
         Next p = new Next(b.block(bodies), e, Continuation.HALT);
-        return (T)p.resume().yieldedValue();
+        return (T)p.run().yieldedValue();
     }
 
 
