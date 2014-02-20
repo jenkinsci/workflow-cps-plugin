@@ -27,8 +27,7 @@ abstract class AbstractGroovyCpsTest extends Assert {
     @Before
     void setUp() {
         def imports = new ImportCustomizer()
-                .addImports(CpsTransformerTest.class.name)
-                .addImports(WorkflowMethod.class.name)
+                .addImports(CpsTransformerTest.class.name, Continuable.class.name, WorkflowMethod.class.name)
 
         def cc = new CompilerConfiguration()
         cc.addCompilationCustomizers(imports)
