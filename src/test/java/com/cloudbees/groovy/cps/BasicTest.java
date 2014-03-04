@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.CpsFunction;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
@@ -123,12 +124,13 @@ public class BasicTest extends Assert {
     @Test
     public void asyncCallingAsync() {
         class Op {
-            public CpsFunction add(int x, int y) {
-                return new CpsFunction(asList("x", "y"),
+            public int add(int x, int y) {
+                CpsFunction f = new CpsFunction(asList("x", "y"),
                         b.sequence(
-                            b.setLocalVariable("z",b.functionCall($x,"plus",$y)),
-                            b.return_($z)
+                                b.setLocalVariable("z", b.functionCall($x, "plus", $y)),
+                                b.return_($z)
                         ));
+                throw new CpsCallableInvocation(f,this,x,y);
             }
         }
 
