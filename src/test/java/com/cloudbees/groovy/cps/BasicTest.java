@@ -203,9 +203,9 @@ public class BasicTest extends Assert {
              * else
              *      throw new IllegalArgumentException(message)
              */
-            public CpsFunction throw_(int depth, String message) {
+            public void throw_(int depth, String message) {
                 Block $depth = b.localVariable("depth");
-                return new CpsFunction(asList("depth", "message"),
+                CpsFunction f = new CpsFunction(asList("depth", "message"),
                         b.block(
                                 b.if_(b.lessThan(b.zero(), $depth),
                                         b.functionCall(b.this_(), "throw_", b.minus($depth, b.one()), b.localVariable("message")),
@@ -213,6 +213,7 @@ public class BasicTest extends Assert {
                                         b.throw_(b.new_(IllegalArgumentException.class, b.localVariable("message")))
                                 )
                         ));
+                throw new CpsCallableInvocation(f,this,depth,message);
             }
         }
 
