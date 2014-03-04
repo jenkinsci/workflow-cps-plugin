@@ -10,13 +10,13 @@ import org.junit.Test
 class ContinuableTest extends AbstractGroovyCpsTest {
     @Test
     void resumeAndSuspend() {
-        def inv = parseCps("""
+        def s = csh.parse("""
             int x = 1;
             x = Continuable.suspend(x+1)
             return x+1;
         """)
 
-        def c = new Continuable(inv.invoke(null,Continuation.HALT));
+        def c = new Continuable(s);
         assert c.isResumable()
 
         def v = c.run(null);
@@ -34,7 +34,7 @@ class ContinuableTest extends AbstractGroovyCpsTest {
 
     @Test
     void serializeComplexContinuable() {
-        def inv = parseCps("""
+        def s = csh.parse("""
             @WorkflowMethod
             def foo(int x) {
                 return Continuable.suspend(x);
@@ -58,7 +58,7 @@ class ContinuableTest extends AbstractGroovyCpsTest {
             return y;
         """)
 
-        def c = new Continuable(inv.invoke(null,Continuation.HALT));
+        def c = new Continuable(s);
         assert c.run(null)==5 : "suspension within a subroutine";
 
         c = roundtripSerialization(c);  // at this point there's a fairly non-trivial Continuation, so try to serialize it

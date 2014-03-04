@@ -4,8 +4,11 @@ import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.CpsFunction;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import com.cloudbees.groovy.cps.impl.YieldBlock;
+import groovy.lang.GroovyShell;
+import groovy.lang.Script;
 
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 
 /**
@@ -34,6 +37,28 @@ public class Continuable implements Serializable {
         this(new Next(block,
                 new FunctionCallEnv(null,null,Continuation.HALT),
                 Continuation.HALT).asContinuation());
+    }
+
+    /**
+     * Takes a {@link Script} compiled from CPS-transforming {@link GroovyShell} and
+     * wraps that into a {@link Continuable}.
+     */
+    public Continuable(Script cpsTransformedScript) {
+        this(wrap(cpsTransformedScript));
+    }
+
+    private static Next wrap(Script s) {
+        try {
+            Method m = s.getClass().getMethod("run");
+            if (!m.isAnnotationPresent(WorkflowTransformed.class))
+                throw new IllegalArgumentException(s+" is not CPS-transformed");
+            s.run();
+            throw new AssertionError("I'm confused if Script is CPS-transformed or not!");
+        } catch (CpsCallableInvocation e) {
+            return e.invoke(null, Continuation.HALT);
+        } catch (NoSuchMethodException e) {
+            throw new AssertionError(e);
+        }
     }
 
     /**
