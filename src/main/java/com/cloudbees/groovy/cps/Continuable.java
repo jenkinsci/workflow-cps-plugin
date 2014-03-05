@@ -72,6 +72,8 @@ public class Continuable implements Serializable {
 
     /**
      * Runs this program until it suspends the next time.
+     *
+     * TODO: we also need a way to resume execution by throwing an exception
      */
     public Object run(Object arg) {
         Next n = program.receive(arg).run();
