@@ -70,6 +70,11 @@
       <groupId>org.codehaus.groovy</groupId>
       <artifactId>groovy</artifactId>
       <version>1.8.5</version>
+      <!--
+        let the user of this library select the right flavor of groovy,
+        including groovy vs groovy-all
+      -->
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>

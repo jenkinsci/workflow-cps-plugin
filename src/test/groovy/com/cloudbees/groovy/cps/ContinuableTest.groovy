@@ -66,4 +66,20 @@ class ContinuableTest extends AbstractGroovyCpsTest {
         assert c.isResumable()
         assert c.run(6)==9;
     }
+
+    @Test
+    void howComeBindingIsSerializable() {
+        def s = csh.parse("""
+                Continuable.suspend(42);
+                return value;
+""");
+        s.setProperty("value",15);
+        def c = new Continuable(s);
+        assert c.run(null)==42;
+
+        c = roundtripSerialization(c);
+
+        assert c.isResumable()
+        assert c.run(null)==15;
+    }
 }
