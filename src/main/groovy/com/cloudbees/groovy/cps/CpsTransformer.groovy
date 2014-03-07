@@ -7,6 +7,7 @@ import org.codehaus.groovy.ast.expr.*
 import org.codehaus.groovy.ast.stmt.*
 import org.codehaus.groovy.classgen.BytecodeExpression
 import org.codehaus.groovy.classgen.GeneratorContext
+import org.codehaus.groovy.classgen.Verifier
 import org.codehaus.groovy.control.CompilePhase
 import org.codehaus.groovy.control.SourceUnit
 import org.codehaus.groovy.control.customizers.CompilationCustomizer
@@ -75,6 +76,16 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         classNode?.methods?.each { visitMethod(it) }
 //        classNode?.objectInitializerStatements?.each { it.visit(visitor) }
 //        classNode?.fields?.each { visitor.visitField(it) }
+
+
+        // groovy puts timestamp of compilation into a class file, causing serialVersionUID to change.
+        // this tends to be undesirable for CPS involving persistence.
+        // set the timestamp to some bogus value will prevent Verifier from adding a field that encodes
+        // timestamp in the field name
+        // see http://stackoverflow.com/questions/15310136/neverhappen-variable-in-compiled-classes
+        if (classNode.getField(Verifier.__TIMESTAMP)==null)
+            classNode.addField(Verifier.__TIMESTAMP,Modifier.STATIC|Modifier.PRIVATE, ClassHelper.long_TYPE,
+            new ConstantExpression(0L));
     }
 
     /**
