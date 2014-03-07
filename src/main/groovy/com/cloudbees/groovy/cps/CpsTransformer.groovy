@@ -128,7 +128,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         def params = new ListExpression();
         m.parameters.each { params.addExpression(new ConstantExpression(it.name))}
 
-        def f = m.declaringClass.addField("___cps___${iota++}", Modifier.STATIC, FUNCTION_TYPE,
+        def f = m.declaringClass.addField("___cps___${iota++}", Modifier.STATIC|Modifier.STATIC, FUNCTION_TYPE,
                 new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body)));
 
         def args = new TupleExpression(new VariableExpression(f), THIS);
