@@ -20,10 +20,24 @@ public class SequenceBlock implements Block {
     }
 
     public Next eval(final Env e, final Continuation k) {
-        return new Next(exp1,e,new Continuation() {
-            public Next receive(Object __) {
-                return new Next(exp2,e,k);
-            }
-        });
+        return new Next(exp1,e, new ContinuationImpl(e, k, exp2));
+    }
+
+    private static class ContinuationImpl implements Continuation {
+        private final Env e;
+        private final Continuation k;
+        private final Block exp2;
+
+        public ContinuationImpl(Env e, Continuation k, Block exp2) {
+            this.e = e;
+            this.k = k;
+            this.exp2 = exp2;
+        }
+
+        public Next receive(Object _) {
+            return new Next(exp2, e, k);
+        }
+
+        private static final long serialVersionUID = 1L;
     }
 }
