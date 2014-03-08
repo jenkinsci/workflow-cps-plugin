@@ -1,6 +1,5 @@
 package com.cloudbees.groovy.cps;
 
-import com.cloudbees.groovy.cps.impl.Outcome;
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.CpsFunction;
@@ -43,12 +42,18 @@ public class Continuable implements Serializable {
     }
 
     /**
-     * Creates a {@link Continuable} that executes the block of code.
+     * Creates a {@link Continuable} that executes the block of code in a fresh empty environment.
      */
     public Continuable(Block block) {
-        this(new Next(block,
-                new FunctionCallEnv(null,null,Continuation.HALT),
-                Continuation.HALT));
+        this(block, new FunctionCallEnv(null,null,Continuation.HALT));
+    }
+
+    /**
+     * Creates a {link Continuable} that executes the block in the specified environment.
+     */
+    public Continuable(Block block, Env e) {
+        this.e = e;
+        this.k = new Next(block,e,Continuation.HALT);
     }
 
     /**

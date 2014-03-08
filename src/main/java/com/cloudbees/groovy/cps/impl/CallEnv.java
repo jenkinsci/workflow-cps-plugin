@@ -46,7 +46,7 @@ import com.cloudbees.groovy.cps.Next;
             // by having this exception thrown?
             return new Continuation() {
                 public Next receive(Object o) {
-                    return Next.terminate(new Outcome(null,(Throwable)o));
+                    return Next.unhandledException((Throwable)o);
                 }
             };
         } else {

@@ -1,7 +1,5 @@
 package com.cloudbees.groovy.cps;
 
-import com.cloudbees.groovy.cps.impl.Outcome;
-
 import java.io.Serializable;
 
 /**
