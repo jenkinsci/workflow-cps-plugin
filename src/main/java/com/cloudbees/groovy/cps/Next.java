@@ -1,7 +1,6 @@
 package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.Conclusion;
-import com.cloudbees.groovy.cps.impl.YieldContinuation;
 
 import java.io.Serializable;
 
@@ -20,9 +19,10 @@ public class Next implements Serializable {
     /**
      * If the program getting executed wants to yield a value and suspend its execution,
      * this value is set to non-null.
+     *
+     * This field and {@link #f} is mutually exclusive.
      */
     /*package*/ Conclusion yield;
-    /*package*/ Resumable resumable;
 
     public Next(Block f, Env e, Continuation k) {
         this.f = f;
@@ -53,12 +53,11 @@ public class Next implements Serializable {
      * causes the interpreter loop to exit with the specified value, then optionally allow the interpreter
      * to resume with the specified {@link Continuation}.
      */
-    public static Next yield(Conclusion v, Resumable r) {
+    public static Next yield(Conclusion v, Env e, Continuation k) {
         if (v==null)        throw new IllegalStateException("trying to yield null");
 
-        Next n = new Next(null,null,null);
+        Next n = new Next(null,e,k);
         n.yield = v;
-        n.resumable = r;
 
         return n;
     }
@@ -67,15 +66,15 @@ public class Next implements Serializable {
      * Creates a {@link Next} object that terminates the computation and either returns a value or throw an exception.
      */
     public static Next terminate(Conclusion v) {
-        return yield(v, null);
+        return yield(v, null, HALT);
     }
 
     /**
      * Returns this object as a {@link Continuation} that ignores the argument.
      */
-    public Resumable asResumable() {
+    public Continuation asContinuation() {
         if (isEnd())    return null;   // so that the caller can tell when it has terminated.
-        else            return new YieldContinuation(e,new ConstContinuation());
+        else            return new ConstContinuation();
     }
 
     /**

@@ -1,9 +1,11 @@
 package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.Conclusion;
+import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.CpsFunction;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
+import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import com.cloudbees.groovy.cps.impl.YieldBlock;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
@@ -20,16 +22,24 @@ import java.util.Arrays;
  */
 public class Continuable implements Serializable {
     /**
+     * When the program resumes with a value (in particular an exception thrown), what environment
+     * do we evaluate that in?
+     */
+    private Env e;
+
+    /**
      * Represents the remainder of the program to execute.
      */
-    private Resumable program;
+    private Continuation k;
 
-    public Continuable(Resumable program) {
-        this.program = program;
+    public Continuable(Continuable src) {
+        this.e = src.e;
+        this.k = src.k;
     }
 
-    public Continuable(Next program) {
-        this(program.asResumable());
+    public Continuable(Next n) {
+        this.e = n.e;
+        this.k = n.asContinuation();
     }
 
     /**
@@ -69,7 +79,7 @@ public class Continuable implements Serializable {
      * point to the exact same point of the program.
      */
     public Continuable fork() {
-        return new Continuable(program);
+        return new Continuable(this);
     }
 
     /**
@@ -86,12 +96,23 @@ public class Continuable implements Serializable {
         return run0(new Conclusion(null,arg));
     }
 
-    private Object run0(Conclusion arg) throws InvocationTargetException {
-        Next n = program.receive(arg).run();
-        // when yielding, we resume from the continuation so that we can pass in the value.
-        // see Next#yield
-        program = n.resumable;
-        return n.yield.eval();
+    private Object run0(Conclusion cn) throws InvocationTargetException {
+        Next n;
+        Throwable t = cn.getAbnormal();
+        if (t!=null) {
+            // resume program by throwing this exception
+            n = new Next(new ThrowBlock(new ConstantBlock(t)),e,null);
+        } else {
+            // resume program by passing the value
+            n = k.receive(cn.getNormal());
+        }
+
+        n = n.run();
+
+        e = n.e;
+        k = n.k;
+
+        return n.yield.replay();
     }
 
     /**
@@ -101,7 +122,7 @@ public class Continuable implements Serializable {
      * If this method returns false, it is illegal to call {@link #run(Object)}
      */
     public boolean isResumable() {
-        return program!=null;
+        return k!=Continuation.HALT;
     }
 
     /**

@@ -31,7 +31,7 @@ public interface Continuation extends Serializable {
         }
 
         public Next receive(Object o) {
-            return Next.yield(new Conclusion(o,null), null);
+            return Next.terminate(new Conclusion(o,null));
         }
 
         public Object readResolve() {

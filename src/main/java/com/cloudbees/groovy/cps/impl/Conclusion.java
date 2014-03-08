@@ -20,7 +20,7 @@ public final class Conclusion {
         this.abnormal = abnormal;
     }
 
-    public Object eval() throws InvocationTargetException {
+    public Object replay() throws InvocationTargetException {
         if (abnormal!=null)
             throw new InvocationTargetException(abnormal);
         else

@@ -19,8 +19,12 @@ public class YieldBlock implements Block {
         this.v = v;
     }
 
-    public Next eval(Env e, Continuation k) {
-        return Next.yield(new Conclusion(v,null), new YieldContinuation(e,k));
+    public Next eval(Env e, final Continuation k) {
+        return Next.yield(new Conclusion(v,null),e,new Continuation() {
+            public Next receive(Object o) {
+                return k.receive(o);
+            }
+        });
     }
 
     private static final long serialVersionUID = 1L;
