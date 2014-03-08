@@ -1,7 +1,9 @@
-package com.cloudbees.groovy.cps;
+package com.cloudbees.groovy.cps.green;
 
+import com.cloudbees.groovy.cps.Block;
+import com.cloudbees.groovy.cps.Continuable;
+import com.cloudbees.groovy.cps.impl.Outcome;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
-import com.cloudbees.groovy.cps.impl.CpsClosure;
 import groovy.lang.Closure;
 
 /**
@@ -13,7 +15,7 @@ public class GreenWorld {
      */
     public static Continuable create(Block b) {
         GreenDispatcher d = new GreenDispatcher(0, new GreenThread(b));
-        return new Continuable(d.asNext());
+        return new Continuable(d.asNext(null));
     }
 
     /**

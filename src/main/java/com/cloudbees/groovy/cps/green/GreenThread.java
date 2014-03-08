@@ -1,5 +1,10 @@
-package com.cloudbees.groovy.cps;
+package com.cloudbees.groovy.cps.green;
 
+import com.cloudbees.groovy.cps.Block;
+import com.cloudbees.groovy.cps.Continuable;
+import com.cloudbees.groovy.cps.Continuation;
+import com.cloudbees.groovy.cps.Next;
+import com.cloudbees.groovy.cps.impl.Outcome;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 
 import static com.cloudbees.groovy.cps.Continuation.*;
@@ -36,9 +41,7 @@ public class GreenThread {
      * Creates a {@link GreenThread} that's already dead.
      */
     public GreenThread(Outcome v) {
-        this(new Next(null,null,HALT));
-        assert v!=null;
-        n.yield = v;
+        this(new Next(null,HALT,v));
     }
 
     /**
@@ -46,7 +49,7 @@ public class GreenThread {
      * If it is dead, n.yield contains the outcome of the thread.
      */
     public boolean isDead() {
-        return n.k==Continuation.HALT && n.e==null;
+        return n.k== Continuation.HALT && n.e==null;
     }
 
 }

@@ -1,5 +1,7 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.impl.Outcome;
+
 import java.io.Serializable;
 
 /**
@@ -8,9 +10,9 @@ import java.io.Serializable;
  * @author Kohsuke Kawaguchi
  */
 public final class Next implements Serializable, Continuation {
-    final Block f;
-    final Env e;
-    final Continuation k;
+    public final Block f;
+    public final Env e;
+    public final Continuation k;
 
     /**
      * If the program getting executed wants to yield a value and suspend its execution,
@@ -18,12 +20,21 @@ public final class Next implements Serializable, Continuation {
      *
      * This field and {@link #f} is mutually exclusive.
      */
-    /*package*/ Outcome yield;
+    public final Outcome yield;
 
     public Next(Block f, Env e, Continuation k) {
         this.f = f;
         this.e = e;
         this.k = k;
+        this.yield = null;
+    }
+
+    public Next(Env e, Continuation k, Outcome yield) {
+        this.f = null;
+        this.e = e;
+        this.k = k;
+        this.yield = yield;
+        assert yield!=null;
     }
 
     /**
@@ -56,10 +67,7 @@ public final class Next implements Serializable, Continuation {
     private static Next yield0(Outcome v, Env e, Continuation k) {
         if (v==null)        throw new IllegalStateException("trying to yield null");
 
-        Next n = new Next(null,e,k);
-        n.yield = v;
-
-        return n;
+        return new Next(e,k,v);
     }
 
     /**

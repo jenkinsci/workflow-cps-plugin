@@ -1,4 +1,4 @@
-package com.cloudbees.groovy.cps;
+package com.cloudbees.groovy.cps.impl;
 
 import java.lang.reflect.InvocationTargetException;
 
@@ -10,28 +10,28 @@ import java.lang.reflect.InvocationTargetException;
  *
  * @author Kohsuke Kawaguchi
  */
-final class Outcome {
+public final class Outcome {
     private final Object normal;
     private final Throwable abnormal;
 
-    Outcome(Object normal, Throwable abnormal) {
+    public Outcome(Object normal, Throwable abnormal) {
         assert normal==null || abnormal==null;
         this.normal = normal;
         this.abnormal = abnormal;
     }
 
-    Object replay() throws InvocationTargetException {
+    public Object replay() throws InvocationTargetException {
         if (abnormal!=null)
             throw new InvocationTargetException(abnormal);
         else
             return normal;
     }
 
-    Object getNormal() {
+    public Object getNormal() {
         return normal;
     }
 
-    Throwable getAbnormal() {
+    public Throwable getAbnormal() {
         return abnormal;
     }
 }

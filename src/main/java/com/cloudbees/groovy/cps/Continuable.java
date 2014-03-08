@@ -4,6 +4,7 @@ import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.CpsFunction;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
+import com.cloudbees.groovy.cps.impl.Outcome;
 import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import com.cloudbees.groovy.cps.impl.YieldBlock;
 import groovy.lang.GroovyShell;

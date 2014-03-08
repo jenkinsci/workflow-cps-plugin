@@ -1,4 +1,7 @@
-package com.cloudbees.groovy.cps;
+package com.cloudbees.groovy.cps.green;
+
+import com.cloudbees.groovy.cps.Block;
+import com.cloudbees.groovy.cps.Continuable;
 
 /**
  * Pass in this value in {@link Continuable#suspend(Object)} to create a new green thread.

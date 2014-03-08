@@ -1,5 +1,11 @@
-package com.cloudbees.groovy.cps;
+package com.cloudbees.groovy.cps.green;
 
+import com.cloudbees.groovy.cps.Block;
+import com.cloudbees.groovy.cps.Continuable;
+import com.cloudbees.groovy.cps.Continuation;
+import com.cloudbees.groovy.cps.Env;
+import com.cloudbees.groovy.cps.Next;
+import com.cloudbees.groovy.cps.impl.Outcome;
 import com.cloudbees.groovy.cps.impl.ProxyEnv;
 
 /**
@@ -64,9 +70,7 @@ class GreenDispatcher {
         // we want to deliver that to the same thread, so we need to pick the current thread
         // otherwise schedule the next one
         GreenDispatcher d = new GreenDispatcher((y!=null ? cur + 1 : cur) % a.length, a);
-        Next n = d.asNext();
-        n.yield = y;
-        return n;
+        return d.asNext(y);
     }
 
     private final Continuation k = new Continuation() {
@@ -85,7 +89,8 @@ class GreenDispatcher {
         }
     };
 
-    Next asNext() {
-        return new Next(b,e,k);
+    Next asNext(Outcome y) {
+        if (y==null)    return new Next(b,e,k);
+        else            return new Next(e,k,y);
     }
 }
