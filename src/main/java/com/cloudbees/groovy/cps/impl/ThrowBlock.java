@@ -15,7 +15,7 @@ public class ThrowBlock implements Block {
         this.exp = exp;
     }
 
-    public Next eval(final Env e, Continuation k) {
+    public Next eval(final Env e, Continuation _) {
         return new Next(exp,e,new Continuation() {
             public Next receive(Object t) {
                 if (t==null) {
