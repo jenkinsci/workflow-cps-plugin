@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.impl.Conclusion;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.CpsFunction;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
@@ -21,14 +22,14 @@ public class Continuable implements Serializable {
     /**
      * Represents the remainder of the program to execute.
      */
-    private Continuation program;
+    private Resumable program;
 
-    public Continuable(Continuation program) {
+    public Continuable(Resumable program) {
         this.program = program;
     }
 
     public Continuable(Next program) {
-        this(program.asContinuation());
+        this(program.asResumable());
     }
 
     /**
@@ -37,7 +38,7 @@ public class Continuable implements Serializable {
     public Continuable(Block block) {
         this(new Next(block,
                 new FunctionCallEnv(null,null,Continuation.HALT),
-                Continuation.HALT).asContinuation());
+                Continuation.HALT));
     }
 
     /**
@@ -72,16 +73,24 @@ public class Continuable implements Serializable {
     }
 
     /**
-     * Runs this program until it suspends the next time.
+     * Starts/resumes this program until it suspends the next time.
      *
      * @throws InvocationTargetException
      *      if the program threw an exception that it didn't handle by itself.
      */
     public Object run(Object arg) throws InvocationTargetException {
+        return run0(new Conclusion(arg,null));
+    }
+
+    public Object runByThrow(Throwable arg) throws InvocationTargetException {
+        return run0(new Conclusion(null,arg));
+    }
+
+    private Object run0(Conclusion arg) throws InvocationTargetException {
         Next n = program.receive(arg).run();
         // when yielding, we resume from the continuation so that we can pass in the value.
         // see Next#yield
-        program = n.k;
+        program = n.resumable;
         return n.yield.eval();
     }
 
@@ -92,7 +101,7 @@ public class Continuable implements Serializable {
      * If this method returns false, it is illegal to call {@link #run(Object)}
      */
     public boolean isResumable() {
-        return program!=Continuation.HALT;
+        return program!=null;
     }
 
     /**
