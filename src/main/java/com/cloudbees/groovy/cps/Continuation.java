@@ -1,10 +1,6 @@
 package com.cloudbees.groovy.cps;
 
-import com.cloudbees.groovy.cps.impl.Conclusion;
-
 import java.io.Serializable;
-
-import static com.cloudbees.groovy.cps.Block.*;
 
 /**
  * Represents the remaining computation that receives the result of {@link Block}.

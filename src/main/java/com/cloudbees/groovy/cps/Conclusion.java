@@ -1,4 +1,4 @@
-package com.cloudbees.groovy.cps.impl;
+package com.cloudbees.groovy.cps;
 
 import java.lang.reflect.InvocationTargetException;
 
@@ -10,7 +10,7 @@ import java.lang.reflect.InvocationTargetException;
  *
  * @author Kohsuke Kawaguchi
  */
-public final class Conclusion {
+final class Conclusion {
     private final Object normal;
     private final Throwable abnormal;
 
