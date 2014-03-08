@@ -18,7 +18,7 @@ import static com.cloudbees.groovy.cps.Continuation.*;
  *
  * @author Kohsuke Kawaguchi
  */
-public class GreenThreadState {
+class GreenThreadState {
     /**
      * Remaining computation to execute on this thread.
      * The equivalent of a program counter.
