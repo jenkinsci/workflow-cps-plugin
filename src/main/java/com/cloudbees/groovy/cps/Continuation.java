@@ -29,7 +29,7 @@ public interface Continuation extends Serializable {
         }
 
         public Next receive(Object o) {
-            return Next.terminate(new Outcome(o, null));
+            return Next.terminate(o);
         }
 
         public Object readResolve() {
