@@ -4,14 +4,12 @@ import com.cloudbees.groovy.cps.impl.Conclusion;
 
 import java.io.Serializable;
 
-import static com.cloudbees.groovy.cps.Continuation.*;
-
 /**
  * Remaining computation to execute. To work around the lack of tail-call optimization
  *
  * @author Kohsuke Kawaguchi
  */
-public class Next implements Serializable {
+public class Next implements Serializable, Continuation {
     Block f;
     Env e;
     Continuation k;
@@ -35,9 +33,9 @@ public class Next implements Serializable {
      */
     public Next run() {
         Next n = this;
-        do {
+        while(n.yield==null) {
             n = n.step();
-        } while(n.yield==null);
+        }
         return n;
     }
 
@@ -70,26 +68,10 @@ public class Next implements Serializable {
     }
 
     /**
-     * Returns this object as a {@link Continuation} that ignores the argument.
+     * As a {@link Continuation}, just ignore the argument.
      */
-    public Continuation asContinuation() {
-        if (isEnd())    return null;   // so that the caller can tell when it has terminated.
-        else            return new ConstContinuation();
-    }
-
-    /**
-     * Does this represent the end of the program?
-     */
-    public boolean isEnd() {
-        return k== HALT && e==Block.NOOP;
-    }
-
-    private class ConstContinuation implements Continuation {
-        public Next receive(Object o) {
-            return Next.this;
-        }
-
-        private static final long serialVersionUID = 1L;
+    public Next receive(Object _) {
+        return this;
     }
 
     private static final long serialVersionUID = 1L;

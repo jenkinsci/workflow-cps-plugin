@@ -39,7 +39,7 @@ public class Continuable implements Serializable {
 
     public Continuable(Next n) {
         this.e = n.e;
-        this.k = n.asContinuation();
+        this.k = n;
     }
 
     /**
@@ -118,11 +118,9 @@ public class Continuable implements Serializable {
     /**
      * Checks if this {@link Continuable} is pointing at the end of the program which cannot
      * be resumed.
-     *
-     * If this method returns false, it is illegal to call {@link #run(Object)}
      */
     public boolean isResumable() {
-        return k!=Continuation.HALT;
+        return k!=Continuation.HALT || e!=null;
     }
 
     /**
