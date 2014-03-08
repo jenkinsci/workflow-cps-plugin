@@ -1,8 +1,33 @@
 package com.cloudbees.groovy.cps.green;
 
+import com.cloudbees.groovy.cps.Continuable;
+import com.cloudbees.groovy.cps.impl.Outcome;
+
 /**
  * @author Kohsuke Kawaguchi
  */
-abstract interface ThreadTask<T> {
-    T eval(GreenDispatcher d) throws Throwable;
+interface ThreadTask {
+    Result eval(GreenDispatcher d);
+}
+
+class Result<T> {
+    /**
+     * Next state of the world
+     */
+    final GreenDispatcher d;
+    /**
+     * value to be yielded or returned from suspension.
+     */
+    final Outcome value;
+    /**
+     * Should {@link #value} be yielded to the caller of {@link Continuable#run(Object)} (true)
+     * or should we immediately return from {@link Continuable#suspend(Object)}? (false)
+     */
+    final boolean suspend;
+
+    Result(GreenDispatcher d, Outcome value, boolean suspend) {
+        this.d = d;
+        this.value = value;
+        this.suspend = suspend;
+    }
 }

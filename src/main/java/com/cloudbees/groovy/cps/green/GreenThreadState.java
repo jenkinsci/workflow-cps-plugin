@@ -20,7 +20,7 @@ import static com.cloudbees.groovy.cps.Continuation.*;
  *
  * @author Kohsuke Kawaguchi
  */
-class GreenThreadState implements Serializable {
+final class GreenThreadState implements Serializable {
     /**
      * Remaining computation to execute on this thread.
      * The equivalent of a program counter.
@@ -32,9 +32,28 @@ class GreenThreadState implements Serializable {
      */
     final GreenThread g;
 
-    GreenThreadState(GreenThread g, Next n) {
+    final Monitor monitor;
+
+    /**
+     * If true, this thread is waiting until the green lock of this object is acquired.
+     */
+    final Object monitorEnter;
+
+    /**
+     * If true, this thread is waiting for a notification to be sent on this object.
+     */
+    final Object wait;
+
+    private GreenThreadState(GreenThread g, Next n, Monitor monitor, Object monitorEnter, Object wait) {
         this.g = g;
         this.n = n;
+        this.monitor = monitor;
+        this.monitorEnter = monitorEnter;
+        this.wait = wait;
+    }
+
+    private GreenThreadState(GreenThread g, Next n) {
+        this(g,n,null,null,null);
     }
 
     /**
@@ -51,6 +70,25 @@ class GreenThreadState implements Serializable {
     GreenThreadState(GreenThread g, Outcome v) {
         this(g,new Next(null,HALT,v));
     }
+
+// methods for changing one state at a time
+    GreenThreadState with(Next n) {
+        return new GreenThreadState(g,n,monitor, monitorEnter, wait);
+    }
+
+    GreenThreadState with(Monitor monitor) {
+        return new GreenThreadState(g,n,monitor, monitorEnter, wait);
+    }
+
+    GreenThreadState withMonitorEnter(Object monitorEnter) {
+        assert (monitorEnter==null) != (this.monitorEnter ==null);
+        return new GreenThreadState(g,n,monitor,monitorEnter,wait);
+    }
+
+    GreenThreadState withWait(Object wait) {
+        return new GreenThreadState(g,n,monitor,monitorEnter,wait);
+    }
+
 
     /**
      * Does this thread still have something to execute?
@@ -73,11 +111,21 @@ class GreenThreadState implements Serializable {
     }
 
     /*package*/ GreenThreadState resumeFrom(Outcome o) {
-        return new GreenThreadState(this.g, o.resumeFrom(n.e, n.k));
+        return with(o.resumeFrom(n.e, n.k));
     }
 
     /*package*/ GreenThreadState step() {
-        return new GreenThreadState(this.g, n.step());
+        return with(n.step());
+    }
+
+    /**
+     * Does this thread already have a lock on 'o'?
+     */
+    boolean hasLock(Object o) {
+        for (Monitor m = monitor; m!=null; m=m.next)
+            if (m.o==o)
+                return true;
+        return false;
     }
 
     private static final long serialVersionUID = 1L;

@@ -17,18 +17,58 @@ import java.io.Serializable;
  * @author Kohsuke Kawaguchi
  */
 class GreenDispatcher implements Serializable {
-    private final GreenThreadState[] t;
+    private final GreenThreadState[] threads;
     private final int cur;
     private final Env e;
 
-    public GreenDispatcher(int cur, GreenThreadState... t) {
-        this.t = t;
+    public GreenDispatcher(int cur, GreenThreadState... threads) {
+        this.threads = threads;
         this.cur = cur;
         this.e = new ProxyEnv(currentThread().n.e);
     }
 
     GreenThreadState currentThread() {
-        return t[cur];
+        return threads[cur];
+    }
+
+    GreenDispatcher withNewThread(GreenThreadState s) {
+        GreenThreadState[] a = new GreenThreadState[threads.length+1];
+        System.arraycopy(threads,0,a,0, threads.length);
+        a[threads.length] = s;
+        return new GreenDispatcher(cur,a);
+    }
+
+    /**
+     * Creates a new state by updating or removing the thread.
+     */
+    GreenDispatcher with(GreenThreadState s) {
+        int idx = -1;
+        for (int i = 0; i < threads.length; i++) {
+            if (threads[i].g==s.g) {
+                threads[i] = s;
+                idx = i;
+                break;
+            }
+        }
+        if (idx==-1)
+            throw new IllegalStateException("No such thread: "+s.g);
+
+        if (s.isDead()) {
+            GreenThreadState[] a = new GreenThreadState[threads.length-1];
+            System.arraycopy(threads,0,a,0,idx);
+            System.arraycopy(threads,idx+1,a,cur, threads.length-idx);
+
+            return new GreenDispatcher(idx<cur?cur-1:cur, a);
+        } else {
+            GreenThreadState[] a = new GreenThreadState[threads.length];
+            System.arraycopy(threads,0,a,0, threads.length);
+            a[idx] = s;
+            return new GreenDispatcher(cur,a);
+        }
+    }
+
+    GreenDispatcher withNewCur() {
+        return new GreenDispatcher(cur+1%threads.length,threads);
     }
 
     /**
@@ -37,61 +77,28 @@ class GreenDispatcher implements Serializable {
      * We'll build an updated {@link GreenDispatcher} then return it.
      */
     Next update(GreenThreadState g) {
-        GreenThreadState[] a;
+        GreenDispatcher d = this.with(g);
         Outcome y = g.n.yield;
+
+        if (y==null) {
+            // no yield. rotate to next thread and keep going
+            return d.withNewCur().asNext(null);
+        }
 
         if (y.getNormal() instanceof ThreadTask) {
             // execute the task and get it right back to the thread
             ThreadTask task = (ThreadTask)y.getNormal();
 
-            try {
-                y = new Outcome(task.eval(this),null);
-            } catch (Throwable t) {
-                y = new Outcome(null,t);
-            }
-
-            // get back to the calling thread right away with the result
-            return update(g.resumeFrom(y));
-        }
-
-        if (y.getNormal() instanceof GreenThreadCreation) {
-            GreenThreadCreation c = (GreenThreadCreation) y.getNormal();
-
-            // create a new thread
-            a = new GreenThreadState[t.length+1];
-            System.arraycopy(t,0,a,0,t.length);
-            GreenThreadState nt = new GreenThreadState(new GreenThread(),c.block);
-            a[t.length] = nt;
-
-            // let the creator thread receive the newly created thread
-            GreenDispatcher d = new GreenDispatcher(cur,a);
-            return d.k.receive(nt.g);
-        }
-
-        if (g.isDead()) {// the thread has died
-            if (t.length==1) {
-                // if all the thread has terminated, we are done.
-                return Next.terminate(y);
-            }
-
-            // remove this thread
-            a = new GreenThreadState[t.length-1];
-            System.arraycopy(t,0,a,0,cur);
-            System.arraycopy(t,cur+1,a,cur,t.length-cur);
-            y = null; // green thread exiting will not yield a value
+            Result r = task.eval(d);
+            d = r.d;
+            if (r.suspend)  // yield the value and come back to the current thread later
+                return d.asNext(r.value);
+            else
+                return d.update(g.resumeFrom(r.value));
         } else {
-            // replace the current slot
-            a = new GreenThreadState[t.length];
-            System.arraycopy(t,0,a,0,t.length);
-            a[cur] = g;
+            // other Outcome is for caller
+            return d.asNext(y);
         }
-
-        // pick the next thread to run.
-        // if the current thread has yielded a value, we want to suspend with that and when the response comes back
-        // we want to deliver that to the same thread, so we need to pick the current thread
-        // otherwise schedule the next one
-        GreenDispatcher d = new GreenDispatcher((y!=null ? cur + 1 : cur) % a.length, a);
-        return d.asNext(y);
     }
 
     private final Continuation k = new Continuation() {
@@ -106,13 +113,14 @@ class GreenDispatcher implements Serializable {
         }
     };
 
+
     Next asNext(Outcome y) {
         if (y==null)    return new Next(b,e,k);
         else            return new Next(e,k,y);
     }
 
     public GreenThreadState resolveThreadState(GreenThread g) {
-        for (GreenThreadState ts : t)
+        for (GreenThreadState ts : threads)
             if (ts.g==g)
                 return ts;
         throw new IllegalStateException("Invalid green thread: "+g);
