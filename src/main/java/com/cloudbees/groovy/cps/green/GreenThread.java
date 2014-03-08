@@ -25,23 +25,29 @@ public class GreenThread {
      */
     final Next n;
 
-    public GreenThread(Next n) {
+    /**
+     * Unique ID among other {@link GreenThread}s in {@link GreenDispatcher}
+     */
+    final int id;
+
+    GreenThread(int id, Next n) {
+        this.id = id;
         this.n = n;
     }
 
     /**
      * Creates a brand-new thread that evaluates 'b'.
      */
-    public GreenThread(Block b) {
+    GreenThread(int id, Block b) {
         // TODO: allow the caller to pass a value
-        this(new Next(b, new FunctionCallEnv(null, null, HALT), HALT));
+        this(id,new Next(b, new FunctionCallEnv(null, null, HALT), HALT));
     }
 
     /**
      * Creates a {@link GreenThread} that's already dead.
      */
-    public GreenThread(Outcome v) {
-        this(new Next(null,HALT,v));
+    GreenThread(int id, Outcome v) {
+        this(id,new Next(null,HALT,v));
     }
 
     /**
@@ -52,4 +58,16 @@ public class GreenThread {
         return n.k== Continuation.HALT && n.e==null;
     }
 
+    /**
+     * Runs one step in this thread and returns a new state.
+     */
+    /*package*/ GreenThread tick(Object o) {
+        Next n = this.n.k.receive(o);
+        return new GreenThread(id, n);
+    }
+
+    /*package*/ GreenThread step() {
+        Next n = this.n.step();
+        return new GreenThread(id, n);
+    }
 }

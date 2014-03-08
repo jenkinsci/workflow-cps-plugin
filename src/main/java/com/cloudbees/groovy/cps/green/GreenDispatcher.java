@@ -18,8 +18,13 @@ class GreenDispatcher {
     private final GreenThread[] t;
     private final int cur;
     private final Env e;
+    /**
+     * Used to generate new thread ID.
+     */
+    private final int iota;
 
-    public GreenDispatcher(int cur, GreenThread... t) {
+    public GreenDispatcher(int iota, int cur, GreenThread... t) {
+        this.iota = iota;
         this.t = t;
         this.cur = cur;
         this.e = new ProxyEnv(currentThread().n.e);
@@ -29,9 +34,15 @@ class GreenDispatcher {
         return t[cur];
     }
 
+    /**
+     * Called when we execute something in one of the member thread.
+     *
+     * We'll build an updated {@link GreenDispatcher} then return it.
+     */
     Next update(GreenThread g) {
         GreenThread[] a;
         Outcome y = g.n.yield;
+        int iota = this.iota;
 
         if (y.getNormal() instanceof GreenThreadCreation) {
             GreenThreadCreation c = (GreenThreadCreation) y.getNormal();
@@ -39,11 +50,11 @@ class GreenDispatcher {
             // create a new thread
             a = new GreenThread[t.length+1];
             System.arraycopy(t,0,a,0,cur);
-            GreenThread nt = new GreenThread(c.block);
+            GreenThread nt = new GreenThread(iota++,c.block);
             a[t.length] = nt;
 
             // let the creator thread receive the newly created thread
-            GreenDispatcher d = new GreenDispatcher(cur,a);
+            GreenDispatcher d = new GreenDispatcher(iota,cur,a);
             return d.k.receive(nt);
         }
 
@@ -69,23 +80,19 @@ class GreenDispatcher {
         // if the current thread has yielded a value, we want to suspend with that and when the response comes back
         // we want to deliver that to the same thread, so we need to pick the current thread
         // otherwise schedule the next one
-        GreenDispatcher d = new GreenDispatcher((y!=null ? cur + 1 : cur) % a.length, a);
+        GreenDispatcher d = new GreenDispatcher(iota,(y!=null ? cur + 1 : cur) % a.length, a);
         return d.asNext(y);
     }
 
     private final Continuation k = new Continuation() {
         public Next receive(Object o) {
-            Next n = currentThread().n.k.receive(o);
-            return update(new GreenThread(n));
+            return update(currentThread().tick(o));
         }
     };
 
     private final Block b = new Block() {
         public Next eval(Env e, Continuation k) {
-            assert e==GreenDispatcher.this.e;
-            assert k==GreenDispatcher.this.k;
-            GreenThread t = currentThread();
-            return t.n.f.eval(t.n.e, k);
+            return update(currentThread().step());
         }
     };
 
