@@ -558,8 +558,13 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         throw new UnsupportedOperationException();
     }
 
-    void visitMapExpression(MapExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitMapExpression(MapExpression exp) {
+        makeNode("map") {
+            exp.mapEntryExpressions.each { e ->
+                visit(e.keyExpression)
+                visit(e.valueExpression)
+            }
+        }
     }
 
     void visitMapEntryExpression(MapEntryExpression expression) {

@@ -15,6 +15,7 @@ import com.cloudbees.groovy.cps.impl.IfBlock;
 import com.cloudbees.groovy.cps.impl.ListBlock;
 import com.cloudbees.groovy.cps.impl.LocalVariableBlock;
 import com.cloudbees.groovy.cps.impl.LogicalOpBlock;
+import com.cloudbees.groovy.cps.impl.MapBlock;
 import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
 import com.cloudbees.groovy.cps.impl.ReturnBlock;
 import com.cloudbees.groovy.cps.impl.SequenceBlock;
@@ -24,6 +25,7 @@ import com.cloudbees.groovy.cps.impl.VariableDeclBlock;
 import com.cloudbees.groovy.cps.impl.WhileBlock;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static com.cloudbees.groovy.cps.Block.*;
@@ -212,6 +214,19 @@ public class Builder {
      */
     public Block throw_(final Block exp) {
         return new ThrowBlock(exp);
+    }
+
+    /**
+     * Map literal: [ a:b, c:d, e:f ] ...
+     *
+     * We expect arguments to be multiple of two.
+     */
+    public Block map(Block... blocks) {
+        return new MapBlock(blocks);
+    }
+
+    public Block map(List<Block> blocks) {
+        return map(blocks.toArray(new Block[blocks.size()]));
     }
 
     public Block staticCall(Class lhs, String name, Block... argExps) {
