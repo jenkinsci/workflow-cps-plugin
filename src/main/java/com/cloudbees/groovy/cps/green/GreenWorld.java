@@ -8,6 +8,7 @@ import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import groovy.lang.Closure;
 
 /**
+ * TODO: subsume this all into {@link GreenThread} like how {@link Thread} works.
  * @author Kohsuke Kawaguchi
  */
 public class GreenWorld {
