@@ -35,14 +35,19 @@ final class GreenThreadState implements Serializable {
     final Monitor monitor;
 
     /**
-     * If true, this thread is waiting until the green lock of this object is acquired.
+     * If non-null, this thread is waiting until the green lock of this object is acquired.
      */
     final Object monitorEnter;
 
     /**
-     * If true, this thread is waiting for a notification to be sent on this object.
+     * If non-null, this thread is waiting for a notification to be sent on this object.
      */
     final Object wait;
+
+    /**
+     * If non-null, this thread was notified after {@link #wait} and waiting for the lock to reappear.
+     */
+    final Object nofified;
 
     private GreenThreadState(GreenThread g, Next n, Monitor monitor, Object monitorEnter, Object wait) {
         this.g = g;
@@ -89,6 +94,28 @@ final class GreenThreadState implements Serializable {
         return new GreenThreadState(g,n,monitor,monitorEnter,wait);
     }
 
+    GreenThreadState withNotification() {
+        assert wait!=null;
+        return new GreenThreadState(g,n,monitor,monitorEnter,null,);
+    }
+
+    GreenThreadState pushMonitor(Object o) {
+        return with(new Monitor(monitor,o));
+    }
+
+    GreenThreadState popMonitor() {
+        return with(monitor.next);
+    }
+
+
+    /**
+     * Can this thread be scheduled for execution, or does it need to sleep (relative to other green threads)?
+     *
+     * Note that if a whole {@link Continuable} is suspended, the thread is considered still runnable.
+     */
+    boolean isRunnable() {
+        return wait==null && monitorEnter==null;
+    }
 
     /**
      * Does this thread still have something to execute?

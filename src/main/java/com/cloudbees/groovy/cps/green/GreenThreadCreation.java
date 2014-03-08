@@ -13,17 +13,16 @@ import com.cloudbees.groovy.cps.impl.Outcome;
  * @author Kohsuke Kawaguchi
  */
 class GreenThreadCreation implements ThreadTask {
+    final GreenThread g;
     final Block block;
 
-    public GreenThreadCreation(Block block) {
+    public GreenThreadCreation(GreenThread g, Block block) {
+        this.g = g;
         this.block = block;
     }
 
     public Result eval(GreenDispatcher d) {
-
-        GreenThread g = new GreenThread();
         d = d.withNewThread(new GreenThreadState(g,block));
-
         return new Result(d, new Outcome(g,null), false);
     }
 }

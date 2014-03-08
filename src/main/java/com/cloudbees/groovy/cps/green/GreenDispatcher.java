@@ -17,7 +17,7 @@ import java.io.Serializable;
  * @author Kohsuke Kawaguchi
  */
 class GreenDispatcher implements Serializable {
-    private final GreenThreadState[] threads;
+    final GreenThreadState[] threads;
     private final int cur;
     private final Env e;
 
@@ -39,7 +39,7 @@ class GreenDispatcher implements Serializable {
     }
 
     /**
-     * Creates a new state by updating or removing the thread.
+     * Updates the thread state. If the thread is dead, it'll be removed.
      */
     GreenDispatcher with(GreenThreadState s) {
         int idx = -1;
@@ -53,22 +53,44 @@ class GreenDispatcher implements Serializable {
         if (idx==-1)
             throw new IllegalStateException("No such thread: "+s.g);
 
+        GreenDispatcher d;
         if (s.isDead()) {
             GreenThreadState[] a = new GreenThreadState[threads.length-1];
             System.arraycopy(threads,0,a,0,idx);
             System.arraycopy(threads,idx+1,a,cur, threads.length-idx);
 
-            return new GreenDispatcher(idx<cur?cur-1:cur, a);
+            d = new GreenDispatcher(idx<cur?cur-1:cur, a);
         } else {
             GreenThreadState[] a = new GreenThreadState[threads.length];
             System.arraycopy(threads,0,a,0, threads.length);
             a[idx] = s;
-            return new GreenDispatcher(cur,a);
+
+            int cur = this.cur;
+
+            d = new GreenDispatcher(cur,a);
+        }
+
+        // if the current green thread isn't runnable, need to pick up a runnable green thread
+        for (int i=0; true; i++, d=d.withNewCur()) {
+            if (d.currentThread().isRunnable())
+                return d;
+            if (i==d.threads.length)
+                throw new IllegalStateException("No threads are runnable. Deadlock?");  // TODO: diagnose the lock
         }
     }
 
+    /**
+     * Switch to the next runnable thread.
+     */
     GreenDispatcher withNewCur() {
-        return new GreenDispatcher(cur+1%threads.length,threads);
+        int cur = this.cur+1;
+
+        for (int cnt=0; cnt<threads.length; cnt++) {
+            int i = cur % threads.length;
+            if (threads[i].isRunnable())
+                return new GreenDispatcher(i,threads);
+        }
+        throw new IllegalStateException("No threads are runnable. Deadlock?");  // TODO: diagnose the lock
     }
 
     /**
@@ -86,12 +108,12 @@ class GreenDispatcher implements Serializable {
         }
 
         if (y.getNormal() instanceof ThreadTask) {
-            // execute the task and get it right back to the thread
+            // a task that needs to update/access the state
             ThreadTask task = (ThreadTask)y.getNormal();
 
             Result r = task.eval(d);
             d = r.d;
-            if (r.suspend)  // yield the value and come back to the current thread later
+            if (r.suspend)  // yield the value, then come back to the current thread later
                 return d.asNext(r.value);
             else
                 return d.update(g.resumeFrom(r.value));
