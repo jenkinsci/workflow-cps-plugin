@@ -8,13 +8,15 @@ import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.impl.Outcome;
 import com.cloudbees.groovy.cps.impl.ProxyEnv;
 
+import java.io.Serializable;
+
 /**
  *
  * The whole thing has to be immutable because cloning {@link Continuable} is just shallow-copying its variables.
  *
  * @author Kohsuke Kawaguchi
  */
-class GreenDispatcher {
+class GreenDispatcher implements Serializable {
     private final GreenThreadState[] t;
     private final int cur;
     private final Env e;
@@ -115,4 +117,6 @@ class GreenDispatcher {
                 return ts;
         throw new IllegalStateException("Invalid green thread: "+g);
     }
+
+    private static final long serialVersionUID = 1L;
 }

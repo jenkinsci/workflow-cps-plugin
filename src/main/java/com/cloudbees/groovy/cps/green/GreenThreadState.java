@@ -7,6 +7,8 @@ import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import com.cloudbees.groovy.cps.impl.Outcome;
 
+import java.io.Serializable;
+
 import static com.cloudbees.groovy.cps.Continuation.*;
 
 /**
@@ -18,7 +20,7 @@ import static com.cloudbees.groovy.cps.Continuation.*;
  *
  * @author Kohsuke Kawaguchi
  */
-class GreenThreadState {
+class GreenThreadState implements Serializable {
     /**
      * Remaining computation to execute on this thread.
      * The equivalent of a program counter.
@@ -77,4 +79,6 @@ class GreenThreadState {
     /*package*/ GreenThreadState step() {
         return new GreenThreadState(this.g, n.step());
     }
+
+    private static final long serialVersionUID = 1L;
 }
