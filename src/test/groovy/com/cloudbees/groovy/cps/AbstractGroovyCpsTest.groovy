@@ -28,7 +28,7 @@ abstract class AbstractGroovyCpsTest extends Assert {
     @Before
     void setUp() {
         def imports = new ImportCustomizer()
-            .addStarImports(CpsTransformerTest.class.package.name, GreenThread.class.package.name)
+            .addStarImports([CpsTransformerTest.class, GreenThread.class]*.package*.name as String[])
 
         def cc = new CompilerConfiguration()
         cc.addCompilationCustomizers(imports)
