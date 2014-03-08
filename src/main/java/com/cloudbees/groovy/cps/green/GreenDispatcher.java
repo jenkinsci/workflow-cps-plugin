@@ -63,7 +63,7 @@ class GreenDispatcher {
 
             // let the creator thread receive the newly created thread
             GreenDispatcher d = new GreenDispatcher(cur,a);
-            return d.k.receive(nt);
+            return d.k.receive(nt.g);
         }
 
         if (g.isDead()) {// the thread has died

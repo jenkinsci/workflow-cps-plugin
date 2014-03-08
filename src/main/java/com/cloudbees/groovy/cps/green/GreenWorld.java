@@ -22,7 +22,7 @@ public class GreenWorld {
     /**
      * Creates a new green thread that executes the given closure.
      */
-    public static GreenThreadState startThread(Closure c) {
+    public static GreenThread startThread(Closure c) {
         Block b;
         try {
             Object r = c.call();
