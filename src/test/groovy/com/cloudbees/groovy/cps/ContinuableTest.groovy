@@ -110,6 +110,7 @@ class ContinuableTest extends AbstractGroovyCpsTest {
             c.run(null)
             fail("should have thrown exception")
         } catch (InvocationTargetException e) {
+            assert !c.isResumable()
             assert e.cause instanceof HelloException
         }
     }
