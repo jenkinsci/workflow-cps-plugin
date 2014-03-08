@@ -2,6 +2,7 @@ package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
+import com.cloudbees.groovy.cps.Next;
 
 /**
  * Common part between {@link FunctionCallEnv} and {@link ClosureCallEnv}.
@@ -43,7 +44,11 @@ import com.cloudbees.groovy.cps.Env;
         if (caller==null) {
             // TODO: maybe define a mechanism so that the run() or start() kinda method will return
             // by having this exception thrown?
-            return Continuation.HALT;
+            return new Continuation() {
+                public Next receive(Object o) {
+                    return Next.terminate(new Conclusion(null,(Throwable)o));
+                }
+            };
         } else {
             // propagate the exception to the caller
             return caller.getExceptionHandler(type);

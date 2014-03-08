@@ -8,6 +8,7 @@ import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
@@ -73,14 +74,15 @@ public class Continuable implements Serializable {
     /**
      * Runs this program until it suspends the next time.
      *
-     * TODO: we also need a way to resume execution by throwing an exception
+     * @throws InvocationTargetException
+     *      if the program threw an exception that it didn't handle by itself.
      */
-    public Object run(Object arg) {
+    public Object run(Object arg) throws InvocationTargetException {
         Next n = program.receive(arg).run();
         // when yielding, we resume from the continuation so that we can pass in the value.
         // see Next#yield
         program = n.k;
-        return n.yieldedValue();
+        return n.yield.eval();
     }
 
     /**

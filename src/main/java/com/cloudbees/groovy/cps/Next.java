@@ -1,6 +1,10 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.impl.Conclusion;
+
 import java.io.Serializable;
+
+import static com.cloudbees.groovy.cps.Continuation.*;
 
 /**
  * Remaining computation to execute. To work around the lack of tail-call optimization
@@ -15,10 +19,8 @@ public class Next implements Serializable {
     /**
      * If the program getting executed wants to yield a value and suspend its execution,
      * this value is set to non-null.
-     *
-     * {@link #NULL} is used to yield null.
      */
-    private Object yield;
+    /*package*/ Conclusion yield;
 
     public Next(Block f, Env e, Continuation k) {
         this.f = f;
@@ -49,25 +51,27 @@ public class Next implements Serializable {
      * causes the interpreter loop to exit with the specified value, then optionally allow the interpreter
      * to resume with the specified {@link Continuation}.
      */
-    public static Next yield(Object v, Continuation k) {
-        Next n = new Next(null,null,k);
+    public static Next yield(Conclusion v, Continuation k) {
+        if (v==null)        throw new IllegalStateException("trying to yield null");
 
-        if (v==null)  v = NULL;
+        Next n = new Next(null,null,k);
         n.yield = v;
 
         return n;
     }
 
-    /*package*/ Object yieldedValue() {
-        if (yield==NULL)    return null;
-        return yield;
+    /**
+     * Creates a {@link Next} object that terminates the computation and either returns a value or throw an exception.
+     */
+    public static Next terminate(Conclusion v) {
+        return yield(v, HALT);
     }
 
     /**
      * Returns this object as a {@link Continuation} that ignores the argument.
      */
     public Continuation asContinuation() {
-        if (isEnd())    return Continuation.HALT;   // so that the caller can tell when it has terminated.
+        if (isEnd())    return HALT;   // so that the caller can tell when it has terminated.
         else            return new ConstContinuation();
     }
 
@@ -75,11 +79,8 @@ public class Next implements Serializable {
      * Does this represent the end of the program?
      */
     public boolean isEnd() {
-        return k==Continuation.HALT && e==Block.NOOP;
+        return k== HALT && e==Block.NOOP;
     }
-
-    private static final class Null {}
-    private static final Null NULL = new Null();
 
     private class ConstContinuation implements Continuation {
         public Next receive(Object o) {

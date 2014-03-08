@@ -7,6 +7,8 @@ import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.lang.reflect.InvocationTargetException;
+
 import static java.util.Arrays.*;
 
 /**
@@ -24,9 +26,13 @@ public class BasicTest extends Assert {
      * Evaluates the given body and return the yielded value.
      */
     private <T> T run(Block... bodies) {
-        Env e = new FunctionCallEnv(null,null,Continuation.HALT);
-        Next p = new Next(b.block(bodies), e, Continuation.HALT);
-        return (T)p.run().yieldedValue();
+        try {
+            Env e = new FunctionCallEnv(null,null,Continuation.HALT);
+            Next p = new Next(b.block(bodies), e, Continuation.HALT);
+            return (T) p.run().yield.eval();
+        } catch (InvocationTargetException x) {
+            throw new AssertionError(x);
+        }
     }
 
 

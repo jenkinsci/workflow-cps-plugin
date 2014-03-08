@@ -1,5 +1,7 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.impl.Conclusion;
+
 import java.io.Serializable;
 
 import static com.cloudbees.groovy.cps.Block.*;
@@ -31,7 +33,7 @@ public interface Continuation extends Serializable {
         }
 
         public Next receive(Object o) {
-            return Next.yield(o,HALT);
+            return Next.yield(new Conclusion(o,null), HALT);
         }
 
         public Object readResolve() {
