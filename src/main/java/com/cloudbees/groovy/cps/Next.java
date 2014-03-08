@@ -7,10 +7,10 @@ import java.io.Serializable;
  *
  * @author Kohsuke Kawaguchi
  */
-public class Next implements Serializable, Continuation {
-    Block f;
-    Env e;
-    Continuation k;
+public final class Next implements Serializable, Continuation {
+    final Block f;
+    final Env e;
+    final Continuation k;
 
     /**
      * If the program getting executed wants to yield a value and suspend its execution,
@@ -50,7 +50,7 @@ public class Next implements Serializable, Continuation {
      * to resume with the specified {@link Continuation}.
      */
     public static Next yield(Object v, Env e, Continuation k) {
-        return yield0(new Outcome(v,null),e,k);
+        return yield0(new Outcome(v, null), e, k);
     }
 
     private static Next yield0(Outcome v, Env e, Continuation k) {
@@ -66,11 +66,15 @@ public class Next implements Serializable, Continuation {
      * Creates a {@link Next} object that terminates the computation and either returns a value or throw an exception.
      */
     public static Next terminate(Object v) {
-        return yield0(new Outcome(v, null), null, HALT);
+        return terminate(new Outcome(v, null));
     }
 
+    static Next terminate(Outcome v) {
+        return yield0(v,null,HALT);
+    }
+      
     public static Next unhandledException(Throwable t) {
-        return yield0(new Outcome(null, t), null, HALT);
+        return terminate(new Outcome(null, t));
     }
       
     /**

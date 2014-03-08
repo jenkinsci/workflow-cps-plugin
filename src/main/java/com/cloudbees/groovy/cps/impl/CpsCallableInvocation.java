@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps.impl;
 
+import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
@@ -28,5 +29,16 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
 
     public Next invoke(Env caller, Continuation k) {
         return call.invoke(caller,receiver,arguments,k);
+    }
+
+    /**
+     * Creates a {@link Block} that performs this invocation and pass the result to the given {@link Continuation}.
+     */
+    public Block asBlock() {
+        return new Block() {
+            public Next eval(Env e, Continuation k) {
+                return invoke(e,k);
+            }
+        };
     }
 }

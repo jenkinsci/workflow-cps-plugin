@@ -6,10 +6,10 @@ import com.cloudbees.groovy.cps.Env;
 /**
  * @author Kohsuke Kawaguchi
  */
-abstract class ProxyEnv implements Env {
+public class ProxyEnv implements Env {
     protected final Env parent;
 
-    protected ProxyEnv(Env parent) {
+    public ProxyEnv(Env parent) {
         this.parent = parent;
     }
 

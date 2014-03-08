@@ -14,7 +14,7 @@ import java.util.List;
  *
  * @author Kohsuke Kawaguchi
  */
-abstract class CpsCallable {
+public abstract class CpsCallable {
     final Block body;
     final ImmutableList<String> parameters;
 
