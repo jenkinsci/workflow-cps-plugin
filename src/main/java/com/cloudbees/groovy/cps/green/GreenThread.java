@@ -8,13 +8,7 @@ import com.cloudbees.groovy.cps.Continuable;
  * @author Kohsuke Kawaguchi
  */
 public class GreenThread {
-    /**
-     * Thread ID.
-     */
-    final int id;
-
-    GreenThread(int id) {
-        this.id = id;
+    GreenThread() {
     }
 
     /**
@@ -30,10 +24,14 @@ public class GreenThread {
         throw new AssertionError();
     }
 
+    private GreenThreadState stateAt(GreenDispatcher d) {
+        return d.resolveThreadState(this);
+    }
+
     public boolean isAlive() {
         return invoke(new ThreadTask<Boolean>() {
             public Boolean eval(GreenDispatcher d) {
-                return !d.resolveThreadState(id).isDead();
+                return !stateAt(d).isDead();
             }
         });
     }
@@ -41,7 +39,7 @@ public class GreenThread {
     public boolean isDead() {
         return invoke(new ThreadTask<Boolean>() {
             public Boolean eval(GreenDispatcher d) {
-                return d.resolveThreadState(id).isDead();
+                return stateAt(d).isDead();
             }
         });
     }

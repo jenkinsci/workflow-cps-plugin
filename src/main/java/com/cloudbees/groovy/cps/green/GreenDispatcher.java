@@ -18,13 +18,8 @@ class GreenDispatcher {
     private final GreenThreadState[] t;
     private final int cur;
     private final Env e;
-    /**
-     * Used to generate new thread ID.
-     */
-    private final int iota;
 
-    public GreenDispatcher(int iota, int cur, GreenThreadState... t) {
-        this.iota = iota;
+    public GreenDispatcher(int cur, GreenThreadState... t) {
         this.t = t;
         this.cur = cur;
         this.e = new ProxyEnv(currentThread().n.e);
@@ -42,7 +37,6 @@ class GreenDispatcher {
     Next update(GreenThreadState g) {
         GreenThreadState[] a;
         Outcome y = g.n.yield;
-        int iota = this.iota;
 
         if (y.getNormal() instanceof ThreadTask) {
             // execute the task and get it right back to the thread
@@ -64,11 +58,11 @@ class GreenDispatcher {
             // create a new thread
             a = new GreenThreadState[t.length+1];
             System.arraycopy(t,0,a,0,t.length);
-            GreenThreadState nt = new GreenThreadState(new GreenThread(iota++),c.block);
+            GreenThreadState nt = new GreenThreadState(new GreenThread(),c.block);
             a[t.length] = nt;
 
             // let the creator thread receive the newly created thread
-            GreenDispatcher d = new GreenDispatcher(iota,cur,a);
+            GreenDispatcher d = new GreenDispatcher(cur,a);
             return d.k.receive(nt);
         }
 
@@ -94,7 +88,7 @@ class GreenDispatcher {
         // if the current thread has yielded a value, we want to suspend with that and when the response comes back
         // we want to deliver that to the same thread, so we need to pick the current thread
         // otherwise schedule the next one
-        GreenDispatcher d = new GreenDispatcher(iota,(y!=null ? cur + 1 : cur) % a.length, a);
+        GreenDispatcher d = new GreenDispatcher((y!=null ? cur + 1 : cur) % a.length, a);
         return d.asNext(y);
     }
 
@@ -115,10 +109,10 @@ class GreenDispatcher {
         else            return new Next(e,k,y);
     }
 
-    public GreenThreadState resolveThreadState(int id) {
-        for (GreenThreadState g : t)
-            if (g.g.id==id)
-                return g;
-        throw new IllegalStateException("Invalid green thread ID: "+id);
+    public GreenThreadState resolveThreadState(GreenThread g) {
+        for (GreenThreadState ts : t)
+            if (ts.g==g)
+                return ts;
+        throw new IllegalStateException("Invalid green thread: "+g);
     }
 }

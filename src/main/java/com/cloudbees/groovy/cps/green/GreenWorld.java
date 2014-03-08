@@ -15,7 +15,7 @@ public class GreenWorld {
      * Creates a new {@link Continuable} that supports green threads inside the code to be evaluated.
      */
     public static Continuable create(Block b) {
-        GreenDispatcher d = new GreenDispatcher(1, 0, new GreenThreadState(new GreenThread(0), b));
+        GreenDispatcher d = new GreenDispatcher(0, new GreenThreadState(new GreenThread(), b));
         return new Continuable(d.asNext(null));
     }
 
