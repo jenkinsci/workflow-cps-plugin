@@ -10,11 +10,11 @@ import java.lang.reflect.InvocationTargetException;
  *
  * @author Kohsuke Kawaguchi
  */
-public final class Conclusion {
+public final class Outcome {
     private final Object normal;
     private final Throwable abnormal;
 
-    public Conclusion(Object normal, Throwable abnormal) {
+    public Outcome(Object normal, Throwable abnormal) {
         assert normal==null || abnormal==null;
         this.normal = normal;
         this.abnormal = abnormal;

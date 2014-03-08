@@ -1,6 +1,6 @@
 package com.cloudbees.groovy.cps;
 
-import com.cloudbees.groovy.cps.impl.Conclusion;
+import com.cloudbees.groovy.cps.impl.Outcome;
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.CpsFunction;
@@ -89,14 +89,14 @@ public class Continuable implements Serializable {
      *      if the program threw an exception that it didn't handle by itself.
      */
     public Object run(Object arg) throws InvocationTargetException {
-        return run0(new Conclusion(arg,null));
+        return run0(new Outcome(arg,null));
     }
 
     public Object runByThrow(Throwable arg) throws InvocationTargetException {
-        return run0(new Conclusion(null,arg));
+        return run0(new Outcome(null,arg));
     }
 
-    private Object run0(Conclusion cn) throws InvocationTargetException {
+    private Object run0(Outcome cn) throws InvocationTargetException {
         Next n;
         Throwable t = cn.getAbnormal();
         if (t!=null) {

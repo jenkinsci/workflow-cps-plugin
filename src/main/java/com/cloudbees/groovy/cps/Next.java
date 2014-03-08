@@ -1,6 +1,6 @@
 package com.cloudbees.groovy.cps;
 
-import com.cloudbees.groovy.cps.impl.Conclusion;
+import com.cloudbees.groovy.cps.impl.Outcome;
 
 import java.io.Serializable;
 
@@ -20,7 +20,7 @@ public class Next implements Serializable, Continuation {
      *
      * This field and {@link #f} is mutually exclusive.
      */
-    /*package*/ Conclusion yield;
+    /*package*/ Outcome yield;
 
     public Next(Block f, Env e, Continuation k) {
         this.f = f;
@@ -43,7 +43,7 @@ public class Next implements Serializable, Continuation {
      * Executes one step
      */
     public Next step() {
-        return f.eval(e,k);
+        return f.eval(e, k);
     }
 
     /**
@@ -51,7 +51,7 @@ public class Next implements Serializable, Continuation {
      * causes the interpreter loop to exit with the specified value, then optionally allow the interpreter
      * to resume with the specified {@link Continuation}.
      */
-    public static Next yield(Conclusion v, Env e, Continuation k) {
+    public static Next yield(Outcome v, Env e, Continuation k) {
         if (v==null)        throw new IllegalStateException("trying to yield null");
 
         Next n = new Next(null,e,k);
@@ -63,7 +63,7 @@ public class Next implements Serializable, Continuation {
     /**
      * Creates a {@link Next} object that terminates the computation and either returns a value or throw an exception.
      */
-    public static Next terminate(Conclusion v) {
+    public static Next terminate(Outcome v) {
         return yield(v, null, HALT);
     }
 
