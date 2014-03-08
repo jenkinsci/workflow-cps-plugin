@@ -2,6 +2,8 @@ package com.cloudbees.groovy.cps
 
 import org.junit.Test
 
+import java.lang.reflect.InvocationTargetException
+
 /**
  *
  *
@@ -94,4 +96,23 @@ class ContinuableTest extends AbstractGroovyCpsTest {
         c.run(null)
         assert !c.isResumable()
     }
+
+    /**
+     * Exception not handled in script will be thrown from Continuable.run
+     */
+    @Test
+    void unhandled_exception() {
+        def s = csh.parse("""
+            throw new ${ContinuableTest.class.name}.HelloException()
+        """)
+        def c = new Continuable(s)
+        try {
+            c.run(null)
+            fail("should have thrown exception")
+        } catch (InvocationTargetException e) {
+            assert e.cause instanceof HelloException
+        }
+    }
+
+    public static class HelloException extends Exception {}
 }

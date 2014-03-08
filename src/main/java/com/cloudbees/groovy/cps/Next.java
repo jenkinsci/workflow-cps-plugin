@@ -1,5 +1,7 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.impl.Conclusion;
+
 import java.io.Serializable;
 
 import static com.cloudbees.groovy.cps.Continuation.*;

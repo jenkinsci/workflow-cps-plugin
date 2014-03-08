@@ -342,8 +342,10 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         makeNode("continue_", new ConstantExpression(statement.label));
     }
 
-    void visitThrowStatement(ThrowStatement statement) {
-        throw new UnsupportedOperationException();
+    void visitThrowStatement(ThrowStatement st) {
+        makeNode("throw_") {
+            visit(st.expression)
+        }
     }
 
     void visitSynchronizedStatement(SynchronizedStatement statement) {
