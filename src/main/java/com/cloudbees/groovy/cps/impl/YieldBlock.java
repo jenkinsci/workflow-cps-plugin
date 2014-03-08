@@ -20,8 +20,33 @@ public class YieldBlock implements Block {
     }
 
     public Next eval(Env e, Continuation k) {
-        return Next.yield(v,k);
+        return Next.yield(v, new YieldContinuation(k));
     }
 
     private static final long serialVersionUID = 1L;
+
+    /**
+     * {@link Continuable#isResumable()} uses {@link #HALT} to determine
+     * the end of the program, and it gets confused if the end of the program
+     * follows immediately after the yield statement (or more likely {@link Continuable#suspend(Object)}
+     * since yield is not a language-reserved statement.)
+     *
+     * <p>
+     * So we don't want to just use 'k' in {@link YieldBlock#eval(Env, Continuation)} as the continuation.
+     * We want to insert one extra step to make sure that the {@link Continuable} executes the 2nd half
+     * of the yield block.
+     */
+    private static class YieldContinuation implements Continuation {
+        private final Continuation k;
+
+        public YieldContinuation(Continuation k) {
+            this.k = k;
+        }
+
+        public Next receive(Object o) {
+            return new Next(new ConstantBlock(o),null, k);
+        }
+
+        private static final long serialVersionUID = 1L;
+    }
 }

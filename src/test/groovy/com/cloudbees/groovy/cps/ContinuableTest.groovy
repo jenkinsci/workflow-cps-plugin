@@ -82,4 +82,16 @@ class ContinuableTest extends AbstractGroovyCpsTest {
         assert c.isResumable()
         assert c.run(null)==15;
     }
+
+    @Test
+    void suspend_at_the_end_should_still_count_as_resumable() {
+        def s = csh.parse("""
+                Continuable.suspend(5);
+        """);
+        def c = new Continuable(s);
+        assert c.run(null)==5;
+        assert c.isResumable()
+        c.run(null)
+        assert !c.isResumable()
+    }
 }
