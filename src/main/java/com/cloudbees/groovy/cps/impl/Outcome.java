@@ -1,5 +1,10 @@
 package com.cloudbees.groovy.cps.impl;
 
+import com.cloudbees.groovy.cps.Block;
+import com.cloudbees.groovy.cps.Continuation;
+import com.cloudbees.groovy.cps.Env;
+import com.cloudbees.groovy.cps.Next;
+
 import java.lang.reflect.InvocationTargetException;
 
 /**
@@ -20,9 +25,19 @@ public final class Outcome {
         this.abnormal = abnormal;
     }
 
-    public Object replay() throws InvocationTargetException {
+    /**
+     * Like {@link #replay()} but wraps the throwable into {@link InvocationTargetException}.
+     */
+    public Object wrapReplay() throws InvocationTargetException {
         if (abnormal!=null)
             throw new InvocationTargetException(abnormal);
+        else
+            return normal;
+    }
+
+    public Object replay() throws Throwable {
+        if (abnormal!=null)
+            throw abnormal;
         else
             return normal;
     }
@@ -34,4 +49,24 @@ public final class Outcome {
     public Throwable getAbnormal() {
         return abnormal;
     }
+
+    public Next resumeFrom(Env e, Continuation k) {
+        if (abnormal!=null) {
+            // resume program by throwing this exception
+            return new Next(new ThrowBlock(new ConstantBlock(abnormal)),e,null/*unused*/);
+        } else {
+            // resume program by passing the value
+            return k.receive(normal);
+        }
+    }
+
+//    public Block asBlock() {
+//        if (abnormal!=null) {
+//            // resume program by throwing this exception
+//            return new ThrowBlock(new ConstantBlock(abnormal));
+//        } else {
+//            // resume program by passing the value
+//            return new ConstantBlock(normal);
+//        }
+//    }
 }

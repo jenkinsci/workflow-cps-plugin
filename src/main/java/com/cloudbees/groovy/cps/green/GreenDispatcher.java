@@ -15,7 +15,7 @@ import com.cloudbees.groovy.cps.impl.ProxyEnv;
  * @author Kohsuke Kawaguchi
  */
 class GreenDispatcher {
-    private final GreenThread[] t;
+    private final GreenThreadState[] t;
     private final int cur;
     private final Env e;
     /**
@@ -23,14 +23,14 @@ class GreenDispatcher {
      */
     private final int iota;
 
-    public GreenDispatcher(int iota, int cur, GreenThread... t) {
+    public GreenDispatcher(int iota, int cur, GreenThreadState... t) {
         this.iota = iota;
         this.t = t;
         this.cur = cur;
         this.e = new ProxyEnv(currentThread().n.e);
     }
 
-    GreenThread currentThread() {
+    GreenThreadState currentThread() {
         return t[cur];
     }
 
@@ -39,18 +39,32 @@ class GreenDispatcher {
      *
      * We'll build an updated {@link GreenDispatcher} then return it.
      */
-    Next update(GreenThread g) {
-        GreenThread[] a;
+    Next update(GreenThreadState g) {
+        GreenThreadState[] a;
         Outcome y = g.n.yield;
         int iota = this.iota;
+
+        if (y.getNormal() instanceof ThreadTask) {
+            // execute the task and get it right back to the thread
+            ThreadTask task = (ThreadTask)y.getNormal();
+
+            try {
+                y = new Outcome(task.eval(this),null);
+            } catch (Throwable t) {
+                y = new Outcome(null,t);
+            }
+
+            // get back to the calling thread right away with the result
+            return update(g.resumeFrom(y));
+        }
 
         if (y.getNormal() instanceof GreenThreadCreation) {
             GreenThreadCreation c = (GreenThreadCreation) y.getNormal();
 
             // create a new thread
-            a = new GreenThread[t.length+1];
-            System.arraycopy(t,0,a,0,cur);
-            GreenThread nt = new GreenThread(iota++,c.block);
+            a = new GreenThreadState[t.length+1];
+            System.arraycopy(t,0,a,0,t.length);
+            GreenThreadState nt = new GreenThreadState(new GreenThread(iota++),c.block);
             a[t.length] = nt;
 
             // let the creator thread receive the newly created thread
@@ -65,13 +79,13 @@ class GreenDispatcher {
             }
 
             // remove this thread
-            a = new GreenThread[t.length-1];
+            a = new GreenThreadState[t.length-1];
             System.arraycopy(t,0,a,0,cur);
             System.arraycopy(t,cur+1,a,cur,t.length-cur);
             y = null; // green thread exiting will not yield a value
         } else {
             // replace the current slot
-            a = new GreenThread[t.length];
+            a = new GreenThreadState[t.length];
             System.arraycopy(t,0,a,0,t.length);
             a[cur] = g;
         }
@@ -99,5 +113,12 @@ class GreenDispatcher {
     Next asNext(Outcome y) {
         if (y==null)    return new Next(b,e,k);
         else            return new Next(e,k,y);
+    }
+
+    public GreenThreadState resolveThreadState(int id) {
+        for (GreenThreadState g : t)
+            if (g.g.id==id)
+                return g;
+        throw new IllegalStateException("Invalid green thread ID: "+id);
     }
 }

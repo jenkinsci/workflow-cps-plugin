@@ -29,7 +29,7 @@ public class BasicTest extends Assert {
         try {
             Env e = new FunctionCallEnv(null,null,Continuation.HALT);
             Next p = new Next(b.block(bodies), e, Continuation.HALT);
-            return (T) p.run().yield.replay();
+            return (T) p.run().yield.wrapReplay();
         } catch (InvocationTargetException x) {
             throw new AssertionError(x);
         }

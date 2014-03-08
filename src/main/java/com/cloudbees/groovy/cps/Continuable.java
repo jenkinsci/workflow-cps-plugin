@@ -103,22 +103,14 @@ public class Continuable implements Serializable {
     }
 
     private Object run0(Outcome cn) throws InvocationTargetException {
-        Next n;
-        Throwable t = cn.getAbnormal();
-        if (t!=null) {
-            // resume program by throwing this exception
-            n = new Next(new ThrowBlock(new ConstantBlock(t)),e,null);
-        } else {
-            // resume program by passing the value
-            n = k.receive(cn.getNormal());
-        }
+        Next n = cn.resumeFrom(e,k);
 
         n = n.run();
 
         e = n.e;
         k = n.k;
 
-        return n.yield.replay();
+        return n.yield.wrapReplay();
     }
 
     /**

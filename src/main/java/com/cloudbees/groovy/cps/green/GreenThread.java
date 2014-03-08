@@ -1,73 +1,68 @@
 package com.cloudbees.groovy.cps.green;
 
-import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuable;
-import com.cloudbees.groovy.cps.Continuation;
-import com.cloudbees.groovy.cps.Next;
-import com.cloudbees.groovy.cps.impl.Outcome;
-import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
-
-import static com.cloudbees.groovy.cps.Continuation.*;
 
 /**
- * Current state of a green thread.
- *
- * <p>
- * When we fork {@link Continuable}, we want to fork all threads, so this object is immutable,
- * and every time a thread moves forward, a new object gets created.
+ * Represents a green thread.
  *
  * @author Kohsuke Kawaguchi
  */
 public class GreenThread {
     /**
-     * Remaining computation to execute on this thread.
-     * The equivalent of a program counter.
-     */
-    final Next n;
-
-    /**
-     * Unique ID among other {@link GreenThread}s in {@link GreenDispatcher}
+     * Thread ID.
      */
     final int id;
 
-    GreenThread(int id, Next n) {
+    GreenThread(int id) {
         this.id = id;
-        this.n = n;
     }
 
     /**
-     * Creates a brand-new thread that evaluates 'b'.
+     * Executes the task and make its result available back to the caller.
+     *
+     * The type parameter and bogus return type helps us ensure that the resume value from the suspension
+     * and the return type of the method matches.
      */
-    GreenThread(int id, Block b) {
-        // TODO: allow the caller to pass a value
-        this(id,new Next(b, new FunctionCallEnv(null, null, HALT), HALT));
+    private static <T> T invoke(ThreadTask<T> task) {
+        Continuable.suspend(task);
+
+        // the code will never reach here
+        throw new AssertionError();
     }
 
-    /**
-     * Creates a {@link GreenThread} that's already dead.
-     */
-    GreenThread(int id, Outcome v) {
-        this(id,new Next(null,HALT,v));
+    public boolean isAlive() {
+        return invoke(new ThreadTask<Boolean>() {
+            public Boolean eval(GreenDispatcher d) {
+                return !d.resolveThreadState(id).isDead();
+            }
+        });
     }
 
-    /**
-     * Does this thread still have something to execute?
-     * If it is dead, n.yield contains the outcome of the thread.
-     */
     public boolean isDead() {
-        return n.k== Continuation.HALT && n.e==null;
+        return invoke(new ThreadTask<Boolean>() {
+            public Boolean eval(GreenDispatcher d) {
+                return d.resolveThreadState(id).isDead();
+            }
+        });
     }
 
-    /**
-     * Runs one step in this thread and returns a new state.
-     */
-    /*package*/ GreenThread tick(Object o) {
-        Next n = this.n.k.receive(o);
-        return new GreenThread(id, n);
-    }
+//    // TODO: this is not very useful because it doesn't block for the completion
+//    public Object getResult() throws InvocationTargetException {
+//        Continuable.suspend(new ThreadTask() {
+//            public Object eval(GreenDispatcher d) throws Throwable {
+//                return d.resolveThreadState(id).getResult().replay();
+//            }
+//        });
+//
+//        // the code will never reach here
+//        throw new AssertionError();
+//    }
 
-    /*package*/ GreenThread step() {
-        Next n = this.n.step();
-        return new GreenThread(id, n);
+    public static GreenThread currentThread() {
+        return invoke(new ThreadTask<GreenThread>() {
+            public GreenThread eval(GreenDispatcher d) throws Throwable {
+                return d.currentThread().g;
+            }
+        });
     }
 }
