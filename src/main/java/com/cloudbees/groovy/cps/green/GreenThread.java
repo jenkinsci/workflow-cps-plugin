@@ -127,19 +127,26 @@ public abstract class GreenThread implements Runnable {
                 final Object o = cur.monitor.o;
 
                 // the current thread will release the monitor.
-                w = w.with(cur.popMonitor());
+                cur=cur.popMonitor();
+                w = w.with(cur);
 
-                // if another thread is waiting for this monitor, he gets one right away
-                for (GreenThreadState t : w.threads) {
-                    if (t.cond==Cond.MONITOR_ENTER && t.wait==o) {
-                        // give the lock to this thread
-                        w = w.with(t.withCond(null,null).pushMonitor(o));
-                        break;
-                    }
-                    if (t.cond==Cond.NOTIFIED && t.wait==o) {
-                        // give the lock to this thread (but without new monitor)
-                        w = w.with(t.withCond(null,null));
-                        break;
+                if (!cur.hasMonitor(o)) {
+                    // this thread has fully released a monitor.
+                    // if another thread is waiting for this monitor, he gets one right away
+                    OUTER:
+                    for (GreenThreadState t : w.threads) {
+                        if (t.wait==o) {
+                            switch(t.cond) {
+                            case MONITOR_ENTER:
+                                // acquire a new monitor
+                                w = w.with(t.withCond(null,null).pushMonitor(o));
+                                break OUTER;
+                            case NOTIFIED:
+                                // reacquire a monitor
+                                w = w.with(t.withCond(null,null));
+                                break OUTER;
+                            }
+                        }
                     }
                 }
 
