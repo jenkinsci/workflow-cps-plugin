@@ -21,7 +21,7 @@ class GreenThreadCreation implements ThreadTask {
         this.block = block;
     }
 
-    public Result eval(GreenDispatcher d) {
+    public Result eval(GreenWorld d) {
         d = d.withNewThread(new GreenThreadState(g,block));
         return new Result(d, new Outcome(g,null), false);
     }

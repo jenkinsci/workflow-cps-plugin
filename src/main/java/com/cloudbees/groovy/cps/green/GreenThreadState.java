@@ -28,7 +28,7 @@ final class GreenThreadState implements Serializable {
     final Next n;
 
     /**
-     * Unique ID among other {@link GreenThreadState}s in {@link GreenDispatcher}
+     * Unique ID among other {@link GreenThreadState}s in {@link GreenWorld}
      */
     final GreenThread g;
 

@@ -52,13 +52,13 @@ public abstract class GreenThread implements Runnable {
         throw new AssertionError();
     }
 
-    private GreenThreadState stateAt(GreenDispatcher d) {
+    private GreenThreadState stateAt(GreenWorld d) {
         return d.resolveThreadState(this);
     }
 
     public boolean isAlive() {
         invoke(new ThreadTask() {
-            public Result eval(GreenDispatcher d) {
+            public Result eval(GreenWorld d) {
                 return new Result(d, new Outcome(!stateAt(d).isDead(),null), false);
             }
         });
@@ -67,7 +67,7 @@ public abstract class GreenThread implements Runnable {
 
 //    public boolean isDead() {
 //        return invoke(new ThreadTask<Boolean>() {
-//            public Boolean eval(GreenDispatcher d) {
+//            public Boolean eval(GreenWorld d) {
 //                return stateAt(d).isDead();
 //            }
 //        });
@@ -76,7 +76,7 @@ public abstract class GreenThread implements Runnable {
 //    // TODO: this is not very useful because it doesn't block for the completion
 //    public Object getResult() throws InvocationTargetException {
 //        Continuable.suspend(new ThreadTask() {
-//            public Object eval(GreenDispatcher d) throws Throwable {
+//            public Object eval(GreenWorld d) throws Throwable {
 //                return d.resolveThreadState(id).getResult().replay();
 //            }
 //        });
@@ -87,7 +87,7 @@ public abstract class GreenThread implements Runnable {
 
 //    public static GreenThread currentThread() {
 //        return invoke(new ThreadTask<GreenThread>() {
-//            public GreenThread eval(GreenDispatcher d) throws Throwable {
+//            public GreenThread eval(GreenWorld d) throws Throwable {
 //                return d.currentThread().g;
 //            }
 //        });
@@ -95,10 +95,10 @@ public abstract class GreenThread implements Runnable {
 
     public static void monitorEnter(final Object o) {
         invoke(new ThreadTask() {
-            public Result eval(GreenDispatcher d) {
+            public Result eval(GreenWorld d) {
                 return new Result(trans(d),null,false);
             }
-            public GreenDispatcher trans(GreenDispatcher d) {
+            public GreenWorld trans(GreenWorld d) {
                 GreenThreadState cur = d.currentThread();
                 for (GreenThreadState t : d.threads) {
                     if (t!=cur && t.hasMonitor(o)) {
@@ -116,7 +116,7 @@ public abstract class GreenThread implements Runnable {
 
     public static void monitorLeave() {
         invoke(new ThreadTask() {
-            public Result eval(GreenDispatcher d) {
+            public Result eval(GreenWorld d) {
                 GreenThreadState cur = d.currentThread();
                 final Object o = cur.monitor.o;
 
@@ -145,7 +145,7 @@ public abstract class GreenThread implements Runnable {
 
     public static void wait(final Object o) {
         invoke(new ThreadTask() {
-            public Result eval(GreenDispatcher d) {
+            public Result eval(GreenWorld d) {
                 GreenThreadState cur = d.currentThread();
 
                 if (!cur.hasMonitor(o))
@@ -162,7 +162,7 @@ public abstract class GreenThread implements Runnable {
 
     public static void notify(final Object o, final boolean all) {
         invoke(new ThreadTask() {
-            public Result eval(GreenDispatcher d) {
+            public Result eval(GreenWorld d) {
                 GreenThreadState cur = d.currentThread();
 
                 if (!cur.hasMonitor(o))
@@ -171,7 +171,7 @@ public abstract class GreenThread implements Runnable {
                 // let other waiting threads come back to life
                 for (GreenThreadState t : d.threads) {
                     if (t.wait==o) {
-                        d = d.with(t.withCond(Cond.NOTIFIED,o));
+                        d = d.with(t.withCond(Cond.NOTIFIED, o));
                         if (!all)
                             break;
                     }

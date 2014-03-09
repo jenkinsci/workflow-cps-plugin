@@ -11,17 +11,18 @@ import com.cloudbees.groovy.cps.impl.ProxyEnv;
 import java.io.Serializable;
 
 /**
+ * Immutable representation of the combined states of all {@link GreenThreadState}s.
  *
  * The whole thing has to be immutable because cloning {@link Continuable} is just shallow-copying its variables.
  *
  * @author Kohsuke Kawaguchi
  */
-class GreenDispatcher implements Serializable {
+class GreenWorld implements Serializable {
     final GreenThreadState[] threads;
     private final int cur;
     private final Env e;
 
-    public GreenDispatcher(int cur, GreenThreadState... threads) {
+    public GreenWorld(int cur, GreenThreadState... threads) {
         this.threads = threads;
         this.cur = cur;
         this.e = new ProxyEnv(currentThread().n.e);
@@ -31,17 +32,17 @@ class GreenDispatcher implements Serializable {
         return threads[cur];
     }
 
-    GreenDispatcher withNewThread(GreenThreadState s) {
+    GreenWorld withNewThread(GreenThreadState s) {
         GreenThreadState[] a = new GreenThreadState[threads.length+1];
         System.arraycopy(threads,0,a,0, threads.length);
         a[threads.length] = s;
-        return new GreenDispatcher(cur,a);
+        return new GreenWorld(cur,a);
     }
 
     /**
      * Updates the thread state. If the thread is dead, it'll be removed.
      */
-    GreenDispatcher with(GreenThreadState s) {
+    GreenWorld with(GreenThreadState s) {
         int idx = -1;
         for (int i = 0; i < threads.length; i++) {
             if (threads[i].g==s.g) {
@@ -53,13 +54,13 @@ class GreenDispatcher implements Serializable {
         if (idx==-1)
             throw new IllegalStateException("No such thread: "+s.g);
 
-        GreenDispatcher d;
+        GreenWorld d;
         if (s.isDead()) {
             GreenThreadState[] a = new GreenThreadState[threads.length-1];
             System.arraycopy(threads,0,a,0,idx);
             System.arraycopy(threads,idx+1,a,cur, threads.length-idx);
 
-            d = new GreenDispatcher(idx<cur?cur-1:cur, a);
+            d = new GreenWorld(idx<cur?cur-1:cur, a);
         } else {
             GreenThreadState[] a = new GreenThreadState[threads.length];
             System.arraycopy(threads,0,a,0, threads.length);
@@ -67,7 +68,7 @@ class GreenDispatcher implements Serializable {
 
             int cur = this.cur;
 
-            d = new GreenDispatcher(cur,a);
+            d = new GreenWorld(cur,a);
         }
 
         // if the current green thread isn't runnable, need to pick up a runnable green thread
@@ -82,13 +83,13 @@ class GreenDispatcher implements Serializable {
     /**
      * Switch to the next runnable thread.
      */
-    GreenDispatcher withNewCur() {
+    GreenWorld withNewCur() {
         int cur = this.cur+1;
 
         for (int cnt=0; cnt<threads.length; cnt++) {
             int i = cur % threads.length;
             if (threads[i].isRunnable())
-                return new GreenDispatcher(i,threads);
+                return new GreenWorld(i,threads);
         }
         throw new IllegalStateException("No threads are runnable. Deadlock?");  // TODO: diagnose the lock
     }
@@ -96,10 +97,10 @@ class GreenDispatcher implements Serializable {
     /**
      * Called when we execute something in one of the member thread.
      *
-     * We'll build an updated {@link GreenDispatcher} then return it.
+     * We'll build an updated {@link GreenWorld} then return it.
      */
     Next update(GreenThreadState g) {
-        GreenDispatcher d = this.with(g);
+        GreenWorld d = this.with(g);
         Outcome y = g.n.yield;
 
         if (y==null) {
