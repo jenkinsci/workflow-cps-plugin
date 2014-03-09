@@ -35,26 +35,24 @@ final class GreenThreadState implements Serializable {
     final Monitor monitor;
 
     /**
-     * If non-null, this thread is waiting until the green lock of this object is acquired.
+     * Meaning of the {@link #wait} field.
      */
-    final Object monitorEnter;
+    final Cond cond;
 
     /**
-     * If non-null, this thread is waiting for a notification to be sent on this object.
+     * Monitor that's causing us to block.
      */
     final Object wait;
 
-    /**
-     * If non-null, this thread was notified after {@link #wait} and waiting for the lock to reappear.
-     */
-    final Object nofified;
-
-    private GreenThreadState(GreenThread g, Next n, Monitor monitor, Object monitorEnter, Object wait) {
+    private GreenThreadState(GreenThread g, Next n, Monitor monitor, Cond cond, Object wait) {
         this.g = g;
         this.n = n;
         this.monitor = monitor;
-        this.monitorEnter = monitorEnter;
+        this.cond = cond;
         this.wait = wait;
+
+        // either both must be null or both must be non-null
+        assert (cond==null) == (wait==null);
     }
 
     private GreenThreadState(GreenThread g, Next n) {
@@ -78,25 +76,15 @@ final class GreenThreadState implements Serializable {
 
 // methods for changing one state at a time
     GreenThreadState with(Next n) {
-        return new GreenThreadState(g,n,monitor, monitorEnter, wait);
+        return new GreenThreadState(g,n,monitor,cond,wait);
     }
 
     GreenThreadState with(Monitor monitor) {
-        return new GreenThreadState(g,n,monitor, monitorEnter, wait);
+        return new GreenThreadState(g,n,monitor,cond,wait);
     }
 
-    GreenThreadState withMonitorEnter(Object monitorEnter) {
-        assert (monitorEnter==null) != (this.monitorEnter ==null);
-        return new GreenThreadState(g,n,monitor,monitorEnter,wait);
-    }
-
-    GreenThreadState withWait(Object wait) {
-        return new GreenThreadState(g,n,monitor,monitorEnter,wait);
-    }
-
-    GreenThreadState withNotification() {
-        assert wait!=null;
-        return new GreenThreadState(g,n,monitor,monitorEnter,null,);
+    GreenThreadState withCond(Cond cond, Object o) {
+        return new GreenThreadState(g,n,monitor,cond,o);
     }
 
     GreenThreadState pushMonitor(Object o) {
@@ -114,7 +102,7 @@ final class GreenThreadState implements Serializable {
      * Note that if a whole {@link Continuable} is suspended, the thread is considered still runnable.
      */
     boolean isRunnable() {
-        return wait==null && monitorEnter==null;
+        return cond==null;
     }
 
     /**
@@ -146,9 +134,14 @@ final class GreenThreadState implements Serializable {
     }
 
     /**
-     * Does this thread already have a lock on 'o'?
+     * Does this thread already own the monitor of 'o'?
      */
-    boolean hasLock(Object o) {
+    boolean hasMonitor(Object o) {
+        if (wait==o && (cond==Cond.WAIT || cond==Cond.NOTIFIED)) {
+            // this thread owns the monitor but it is released temporarily
+            return false;
+        }
+
         for (Monitor m = monitor; m!=null; m=m.next)
             if (m.o==o)
                 return true;

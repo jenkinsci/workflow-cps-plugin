@@ -101,9 +101,9 @@ public abstract class GreenThread implements Runnable {
             public GreenDispatcher trans(GreenDispatcher d) {
                 GreenThreadState cur = d.currentThread();
                 for (GreenThreadState t : d.threads) {
-                    if (t!=cur && t.hasLock(o)) {
+                    if (t!=cur && t.hasMonitor(o)) {
                         // someone else has lock, so we need to wait
-                        return d.with(cur.withMonitorEnter(o));
+                        return d.with(cur.withCond(Cond.MONITOR_ENTER, o));
                     }
                 }
                 // no one else has a lock, so we acquire the lock and move on
@@ -125,9 +125,14 @@ public abstract class GreenThread implements Runnable {
 
                 // if another thread is waiting for this monitor, he gets one right away
                 for (GreenThreadState t : d.threads) {
-                    if (t.monitorEnter==o) {
+                    if (t.cond==Cond.MONITOR_ENTER && t.wait==o) {
                         // give the lock to this thread
-                        d = d.with(t.withMonitorEnter(null).pushMonitor(o));
+                        d = d.with(t.withCond(null,null).pushMonitor(o));
+                        break;
+                    }
+                    if (t.cond==Cond.NOTIFIED && t.wait==o) {
+                        // give the lock to this thread (but without new monitor)
+                        d = d.with(t.withCond(null,null));
                         break;
                     }
                 }
@@ -143,11 +148,11 @@ public abstract class GreenThread implements Runnable {
             public Result eval(GreenDispatcher d) {
                 GreenThreadState cur = d.currentThread();
 
-                if (!cur.hasLock(o))
+                if (!cur.hasMonitor(o))
                     throw new IllegalStateException("Thread doesn't have a lock of "+o);
 
                 // wait for the notification to arrive
-                d = d.with(cur.withWait(o));
+                d = d.with(cur.withCond(Cond.WAIT, o));
 
                 return new Result(d,null,false);
             }
@@ -160,13 +165,13 @@ public abstract class GreenThread implements Runnable {
             public Result eval(GreenDispatcher d) {
                 GreenThreadState cur = d.currentThread();
 
-                if (!cur.hasLock(o))
+                if (!cur.hasMonitor(o))
                     throw new IllegalStateException("Thread doesn't have a lock of "+o);
 
                 // let other waiting threads come back to life
                 for (GreenThreadState t : d.threads) {
                     if (t.wait==o) {
-                        d = d.with(t.withoutWait());
+                        d = d.with(t.withCond(Cond.NOTIFIED,o));
                         if (!all)
                             break;
                     }
