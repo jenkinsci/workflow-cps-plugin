@@ -34,9 +34,15 @@ public abstract class GreenThread implements Runnable {
             b = new ThrowBlock(new ConstantBlock(t));
         }
 
-        Continuable.suspend(new GreenThreadCreation(this,b));
+        final Block bb = b;
+        invoke(new ThreadTask() {
+            public Result eval(GreenWorld d) {
+                d = d.withNewThread(new GreenThreadState(GreenThread.this,bb));
+                return new Result(d, new Outcome(GreenThread.this,null), false);
+            }
+        });
 
-        // thus the code will neve reach here
+        // thus the code will never reach here
         throw new AssertionError();
     }
 
@@ -85,13 +91,14 @@ public abstract class GreenThread implements Runnable {
 //        throw new AssertionError();
 //    }
 
-//    public static GreenThread currentThread() {
-//        return invoke(new ThreadTask<GreenThread>() {
-//            public GreenThread eval(GreenWorld d) throws Throwable {
-//                return d.currentThread().g;
-//            }
-//        });
-//    }
+    public static GreenThread currentThread() {
+        invoke(new ThreadTask() {
+            public Result eval(GreenWorld d) {
+                return new Result(d, new Outcome(d.currentThread().g,null), false);
+            }
+        });
+        throw new AssertionError();
+    }
 
     public static void monitorEnter(final Object o) {
         invoke(new ThreadTask() {
@@ -109,7 +116,6 @@ public abstract class GreenThread implements Runnable {
                 // no one else has a lock, so we acquire the lock and move on
                 return d.with(cur.pushMonitor(o));
             }
-
         });
         throw new AssertionError();
     }
