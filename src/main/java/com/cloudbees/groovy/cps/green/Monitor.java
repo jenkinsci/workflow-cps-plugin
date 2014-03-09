@@ -3,9 +3,10 @@ package com.cloudbees.groovy.cps.green;
 import java.io.Serializable;
 
 /**
- *
+ * Stack of monitors that a thread currently owns.
  *
  * @author Kohsuke Kawaguchi
+ * @see GreenThreadState#monitor
  */
 final class Monitor implements Serializable {
     /**
