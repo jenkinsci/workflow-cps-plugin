@@ -14,7 +14,7 @@ class Result<T> {
     /**
      * Next state of the world
      */
-    final GreenWorld d;
+    final GreenWorld w;
     /**
      * value to be yielded or returned from suspension.
      */
@@ -25,8 +25,8 @@ class Result<T> {
      */
     final boolean suspend;
 
-    Result(GreenWorld d, Outcome value, boolean suspend) {
-        this.d = d;
+    Result(GreenWorld w, Outcome value, boolean suspend) {
+        this.w = w;
         this.value = value;
         this.suspend = suspend;
     }

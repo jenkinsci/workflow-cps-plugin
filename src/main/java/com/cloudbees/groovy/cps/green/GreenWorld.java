@@ -113,7 +113,7 @@ class GreenWorld implements Serializable {
             ThreadTask task = (ThreadTask)y.getNormal();
 
             Result r = task.eval(d);
-            d = r.d;
+            d = r.w;
             if (r.suspend)  // yield the value, then come back to the current thread later
                 return d.asNext(r.value);
             else

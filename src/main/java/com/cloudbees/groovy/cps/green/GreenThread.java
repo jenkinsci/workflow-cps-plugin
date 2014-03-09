@@ -73,8 +73,8 @@ public abstract class GreenThread implements Runnable {
 
 //    public boolean isDead() {
 //        return invoke(new ThreadTask<Boolean>() {
-//            public Boolean eval(GreenWorld d) {
-//                return stateAt(d).isDead();
+//            public Boolean eval(GreenWorld w) {
+//                return stateAt(w).isDead();
 //            }
 //        });
 //    }
@@ -82,8 +82,8 @@ public abstract class GreenThread implements Runnable {
 //    // TODO: this is not very useful because it doesn't block for the completion
 //    public Object getResult() throws InvocationTargetException {
 //        Continuable.suspend(new ThreadTask() {
-//            public Object eval(GreenWorld d) throws Throwable {
-//                return d.resolveThreadState(id).getResult().replay();
+//            public Object eval(GreenWorld w) throws Throwable {
+//                return w.resolveThreadState(id).getResult().replay();
 //            }
 //        });
 //
