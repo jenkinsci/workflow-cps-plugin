@@ -36,9 +36,9 @@ public abstract class GreenThread implements Runnable {
 
         final Block bb = b;
         invoke(new ThreadTask() {
-            public Result eval(GreenWorld d) {
-                d = d.withNewThread(new GreenThreadState(GreenThread.this,bb));
-                return new Result(d, new Outcome(GreenThread.this,null), false);
+            public Result eval(GreenWorld w) {
+                w = w.withNewThread(new GreenThreadState(GreenThread.this,bb));
+                return new Result(w, new Outcome(GreenThread.this,null), false);
             }
         });
 
@@ -64,8 +64,8 @@ public abstract class GreenThread implements Runnable {
 
     public boolean isAlive() {
         invoke(new ThreadTask() {
-            public Result eval(GreenWorld d) {
-                return new Result(d, new Outcome(!stateAt(d).isDead(),null), false);
+            public Result eval(GreenWorld w) {
+                return new Result(w, new Outcome(!stateAt(w).isDead(),null), false);
             }
         });
         throw new AssertionError();
@@ -93,8 +93,8 @@ public abstract class GreenThread implements Runnable {
 
     public static GreenThread currentThread() {
         invoke(new ThreadTask() {
-            public Result eval(GreenWorld d) {
-                return new Result(d, new Outcome(d.currentThread().g,null), false);
+            public Result eval(GreenWorld w) {
+                return new Result(w, new Outcome(w.currentThread().g,null), false);
             }
         });
         throw new AssertionError();
@@ -102,8 +102,8 @@ public abstract class GreenThread implements Runnable {
 
     public static void monitorEnter(final Object o) {
         invoke(new ThreadTask() {
-            public Result eval(GreenWorld d) {
-                return new Result(trans(d),null,false);
+            public Result eval(GreenWorld w) {
+                return new Result(trans(w),null,false);
             }
             public GreenWorld trans(GreenWorld d) {
                 GreenThreadState cur = d.currentThread();
@@ -122,28 +122,28 @@ public abstract class GreenThread implements Runnable {
 
     public static void monitorLeave() {
         invoke(new ThreadTask() {
-            public Result eval(GreenWorld d) {
-                GreenThreadState cur = d.currentThread();
+            public Result eval(GreenWorld w) {
+                GreenThreadState cur = w.currentThread();
                 final Object o = cur.monitor.o;
 
                 // the current thread will release the monitor.
-                d = d.with(cur.popMonitor());
+                w = w.with(cur.popMonitor());
 
                 // if another thread is waiting for this monitor, he gets one right away
-                for (GreenThreadState t : d.threads) {
+                for (GreenThreadState t : w.threads) {
                     if (t.cond==Cond.MONITOR_ENTER && t.wait==o) {
                         // give the lock to this thread
-                        d = d.with(t.withCond(null,null).pushMonitor(o));
+                        w = w.with(t.withCond(null,null).pushMonitor(o));
                         break;
                     }
                     if (t.cond==Cond.NOTIFIED && t.wait==o) {
                         // give the lock to this thread (but without new monitor)
-                        d = d.with(t.withCond(null,null));
+                        w = w.with(t.withCond(null,null));
                         break;
                     }
                 }
 
-                return new Result(d,null,false);
+                return new Result(w,null,false);
             }
         });
         throw new AssertionError();
@@ -151,16 +151,16 @@ public abstract class GreenThread implements Runnable {
 
     public static void wait(final Object o) {
         invoke(new ThreadTask() {
-            public Result eval(GreenWorld d) {
-                GreenThreadState cur = d.currentThread();
+            public Result eval(GreenWorld w) {
+                GreenThreadState cur = w.currentThread();
 
                 if (!cur.hasMonitor(o))
                     throw new IllegalStateException("Thread doesn't have a lock of "+o);
 
                 // wait for the notification to arrive
-                d = d.with(cur.withCond(Cond.WAIT, o));
+                w = w.with(cur.withCond(Cond.WAIT, o));
 
-                return new Result(d,null,false);
+                return new Result(w,null,false);
             }
         });
         throw new AssertionError();
@@ -168,22 +168,22 @@ public abstract class GreenThread implements Runnable {
 
     public static void notify(final Object o, final boolean all) {
         invoke(new ThreadTask() {
-            public Result eval(GreenWorld d) {
-                GreenThreadState cur = d.currentThread();
+            public Result eval(GreenWorld w) {
+                GreenThreadState cur = w.currentThread();
 
                 if (!cur.hasMonitor(o))
                     throw new IllegalStateException("Thread doesn't have a lock of "+o);
 
                 // let other waiting threads come back to life
-                for (GreenThreadState t : d.threads) {
+                for (GreenThreadState t : w.threads) {
                     if (t.wait==o) {
-                        d = d.with(t.withCond(Cond.NOTIFIED, o));
+                        w = w.with(t.withCond(Cond.NOTIFIED, o));
                         if (!all)
                             break;
                     }
                 }
 
-                return new Result(d,null,false);
+                return new Result(w,null,false);
             }
         });
         throw new AssertionError();

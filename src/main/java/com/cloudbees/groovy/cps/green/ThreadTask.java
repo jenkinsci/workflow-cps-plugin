@@ -7,7 +7,7 @@ import com.cloudbees.groovy.cps.impl.Outcome;
  * @author Kohsuke Kawaguchi
  */
 interface ThreadTask {
-    Result eval(GreenWorld d);
+    Result eval(GreenWorld w);
 }
 
 class Result<T> {
