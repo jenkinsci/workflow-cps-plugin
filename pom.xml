@@ -10,8 +10,7 @@
   <artifactId>groovy-cps</artifactId>
   <version>1.0-SNAPSHOT</version>
 
-  <name>Groovy CPS Execcution</name>
-  <description></description>
+  <name>Groovy CPS Execution</name>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
