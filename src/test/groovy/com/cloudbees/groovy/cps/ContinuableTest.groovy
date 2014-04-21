@@ -116,4 +116,25 @@ class ContinuableTest extends AbstractGroovyCpsTest {
     }
 
     public static class HelloException extends Exception {}
+
+    /**
+     * Object passed to {@link Continuable#suspend(Object)} isn't accessible when Continuable
+     * resumes, so it shouldn't be a part of the persisted object graph.
+     */
+    @Test
+    void yieldObjectShouldNotBeInObjectGraph() {
+        def s = csh.parse("""
+                Continuable.suspend(new ContinuableTest.ThisObjectIsNotSerializable());
+        """);
+        def c = new Continuable(s);
+        def r = c.run(null)
+        assert r instanceof ThisObjectIsNotSerializable;
+
+        c = roundtripSerialization(c);
+
+        assert c.isResumable()
+        assert c.run(42)==42;
+    }
+
+    public static class ThisObjectIsNotSerializable {}
 }

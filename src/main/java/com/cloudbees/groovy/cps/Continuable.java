@@ -1,19 +1,15 @@
 package com.cloudbees.groovy.cps;
 
-import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
-import com.cloudbees.groovy.cps.impl.CpsFunction;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import com.cloudbees.groovy.cps.impl.Outcome;
-import com.cloudbees.groovy.cps.impl.ThrowBlock;
-import com.cloudbees.groovy.cps.impl.YieldBlock;
+import com.cloudbees.groovy.cps.impl.SuspendBlock;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 
 /**
  * Mutable representation of the program. This is the primary API of the groovy-cps library to the outside.
@@ -133,7 +129,7 @@ public class Continuable implements Serializable {
      * will become the return value from this method to the CPS-transformed program.
      */
     public static Object suspend(final Object v) {
-        throw new CpsCallableInvocation(new CpsFunction(Arrays.asList("v"), new YieldBlock(v)),null,v);
+        throw new CpsCallableInvocation(SuspendBlock.SUSPEND,null,v);
     }
 
     private static final long serialVersionUID = 1L;
