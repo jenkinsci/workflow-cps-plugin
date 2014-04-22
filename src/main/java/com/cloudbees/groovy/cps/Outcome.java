@@ -67,4 +67,10 @@ public final class Outcome {
 //            return new ConstantBlock(normal);
 //        }
 //    }
+
+    @Override
+    public String toString() {
+        if (abnormal!=null)     return "abnormal["+abnormal+']';
+        else                    return "normal["+normal+']';
+    }
 }
