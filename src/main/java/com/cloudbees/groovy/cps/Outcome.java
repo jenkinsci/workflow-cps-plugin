@@ -48,6 +48,14 @@ public final class Outcome {
         return abnormal;
     }
 
+    public boolean isSuccess() {
+        return abnormal==null;
+    }
+
+    public boolean isFailure() {
+        return abnormal!=null;
+    }
+
     public Next resumeFrom(Env e, Continuation k) {
         if (abnormal!=null) {
             // resume program by throwing this exception
