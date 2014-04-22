@@ -3,6 +3,7 @@ package com.cloudbees.groovy.cps;
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.ThrowBlock;
 
+import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 
 /**
@@ -13,7 +14,7 @@ import java.lang.reflect.InvocationTargetException;
  *
  * @author Kohsuke Kawaguchi
  */
-public final class Outcome {
+public final class Outcome implements Serializable {
     private final Object normal;
     private final Throwable abnormal;
 
@@ -81,4 +82,6 @@ public final class Outcome {
         if (abnormal!=null)     return "abnormal["+abnormal+']';
         else                    return "normal["+normal+']';
     }
+
+    private static final long serialVersionUID = 1L;
 }
