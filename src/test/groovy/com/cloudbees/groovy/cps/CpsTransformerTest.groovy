@@ -276,4 +276,32 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         cx = roundtripSerialization(cx)
         assert 10==cx.run(null)
     }
+
+    @Test
+    void assertion() {
+        // when assertion passes
+        assert evalCPS("""
+            assert true
+            assert true : "message"
+            return 3;
+        """)==3
+
+        try {
+            evalCPS("""
+                assert 1+2 == ((4));
+            """)
+            fail();
+        } catch (AssertionError e) {
+            assert e.message.contains("1+2 == ((4))")
+        }
+
+        try {
+            evalCPS("""
+                assert (1+2) == 4 : "with message";
+            """)
+            fail();
+        } catch (AssertionError e) {
+            assert e.message=="with message. Expression: assert (1+2) == 4 : \"with message\""
+        }
+    }
 }

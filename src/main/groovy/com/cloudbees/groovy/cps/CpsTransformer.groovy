@@ -9,8 +9,10 @@ import org.codehaus.groovy.classgen.BytecodeExpression
 import org.codehaus.groovy.classgen.GeneratorContext
 import org.codehaus.groovy.classgen.Verifier
 import org.codehaus.groovy.control.CompilePhase
+import org.codehaus.groovy.control.Janitor
 import org.codehaus.groovy.control.SourceUnit
 import org.codehaus.groovy.control.customizers.CompilationCustomizer
+import org.codehaus.groovy.runtime.powerassert.SourceText
 
 import java.lang.annotation.Annotation
 import java.lang.reflect.Modifier
@@ -64,6 +66,7 @@ import static org.codehaus.groovy.syntax.Types.*
  */
 class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor {
     private int iota=0;
+    private SourceUnit sourceUnit;
 
     CpsTransformer() {
         super(CompilePhase.CANONICALIZATION)
@@ -71,6 +74,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
     @Override
     void call(SourceUnit source, GeneratorContext context, ClassNode classNode) {
+        this.sourceUnit = source;
         source.ast.methods?.each { visitMethod(it) }
 //        classNode?.declaredConstructors?.each { visitMethod(it) } // can't transform constructor
         classNode?.methods?.each { visitMethod(it) }
@@ -315,7 +319,15 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     void visitAssertStatement(AssertStatement statement) {
-        throw new UnsupportedOperationException();
+        def j = new Janitor()
+        def text = new SourceText(statement, sourceUnit, j).normalizedText
+        j.cleanup()
+
+        makeNode("assert_") {
+            visit(statement.booleanExpression)
+            visit(statement.messageExpression)
+            literal(text)
+        }
     }
 
     void visitTryCatchFinally(TryCatchStatement stmt) {

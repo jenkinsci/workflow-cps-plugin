@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.impl.AssertBlock;
 import com.cloudbees.groovy.cps.impl.AssignmentBlock;
 import com.cloudbees.groovy.cps.impl.BlockScopedBlock;
 import com.cloudbees.groovy.cps.impl.BreakBlock;
@@ -25,7 +26,6 @@ import com.cloudbees.groovy.cps.impl.VariableDeclBlock;
 import com.cloudbees.groovy.cps.impl.WhileBlock;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
-import java.util.Arrays;
 import java.util.List;
 
 import static com.cloudbees.groovy.cps.Block.*;
@@ -401,6 +401,14 @@ public class Builder {
      */
     public Block list(Block... args) {
         return new ListBlock(args);
+    }
+
+    public Block assert_(Block cond, Block msg, String sourceText) {
+        return new AssertBlock(cond,msg,sourceText);
+    }
+
+    public Block assert_(Block cond, String sourceText) {
+        return assert_(cond,null_(),sourceText);
     }
 
     /**
