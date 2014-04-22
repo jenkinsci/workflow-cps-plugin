@@ -19,16 +19,26 @@ public class LocalVariableBlock extends LValueBlock {
     }
 
     public Next evalLValue(final Env e, Continuation k) {
-        return k.receive(new LValue() {
-            public Next get(Continuation k) {
-                return k.receive(e.getLocalVariable(name));
-            }
+        return k.receive(new LocalVariable(e));
+    }
 
-            public Next set(Object v, Continuation k) {
-                e.setLocalVariable(name,v);
-                return k.receive(null);
-            }
-        });
+    class LocalVariable implements LValue {
+        private final Env e;
+
+        LocalVariable(Env e) {
+            this.e = e;
+        }
+
+        public Next get(Continuation k) {
+            return k.receive(e.getLocalVariable(name));
+        }
+
+        public Next set(Object v, Continuation k) {
+            e.setLocalVariable(name,v);
+            return k.receive(null);
+        }
+
+        private static final long serialVersionUID = 1L;
     }
 
     private static final long serialVersionUID = 1L;
