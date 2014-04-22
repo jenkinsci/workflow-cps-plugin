@@ -4,7 +4,7 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
-import com.cloudbees.groovy.cps.impl.Outcome;
+import com.cloudbees.groovy.cps.Outcome;
 import com.cloudbees.groovy.cps.impl.ThrowBlock;
 
 /**

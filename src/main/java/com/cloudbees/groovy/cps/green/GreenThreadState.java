@@ -5,7 +5,7 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
-import com.cloudbees.groovy.cps.impl.Outcome;
+import com.cloudbees.groovy.cps.Outcome;
 
 import java.io.Serializable;
 

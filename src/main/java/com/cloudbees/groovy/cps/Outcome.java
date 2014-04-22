@@ -1,14 +1,12 @@
-package com.cloudbees.groovy.cps.impl;
+package com.cloudbees.groovy.cps;
 
-import com.cloudbees.groovy.cps.Block;
-import com.cloudbees.groovy.cps.Continuation;
-import com.cloudbees.groovy.cps.Env;
-import com.cloudbees.groovy.cps.Next;
+import com.cloudbees.groovy.cps.impl.ConstantBlock;
+import com.cloudbees.groovy.cps.impl.ThrowBlock;
 
 import java.lang.reflect.InvocationTargetException;
 
 /**
- * Result of the evaluation.
+ * Result of an evaluation.
  *
  * Either represents a value in case of a normal return, or a throwable object in case of abnormal return.
  * Note that both fields can be null, in which case it means a normal return of the value 'null'.

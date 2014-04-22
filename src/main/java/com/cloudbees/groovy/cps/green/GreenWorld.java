@@ -5,7 +5,7 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-import com.cloudbees.groovy.cps.impl.Outcome;
+import com.cloudbees.groovy.cps.Outcome;
 import com.cloudbees.groovy.cps.impl.ProxyEnv;
 
 import java.io.Serializable;

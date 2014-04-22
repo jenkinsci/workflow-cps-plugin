@@ -1,7 +1,7 @@
 package com.cloudbees.groovy.cps.green;
 
 import com.cloudbees.groovy.cps.Continuable;
-import com.cloudbees.groovy.cps.impl.Outcome;
+import com.cloudbees.groovy.cps.Outcome;
 
 /**
  * @author Kohsuke Kawaguchi

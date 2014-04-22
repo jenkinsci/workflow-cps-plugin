@@ -2,7 +2,6 @@ package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
-import com.cloudbees.groovy.cps.impl.Outcome;
 import com.cloudbees.groovy.cps.impl.SuspendBlock;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
