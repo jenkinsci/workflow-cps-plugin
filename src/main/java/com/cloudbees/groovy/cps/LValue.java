@@ -1,5 +1,7 @@
 package com.cloudbees.groovy.cps;
 
+import java.io.Serializable;
+
 /**
  * Represents a variable that's assignable, which is produced
  * by evaluating {@link LValueBlock}, such as "x[y]"
@@ -7,7 +9,7 @@ package com.cloudbees.groovy.cps;
  *
  * @author Kohsuke Kawaguchi
  */
-public interface LValue {
+public interface LValue extends Serializable {
     /**
      * Computes the value, and passes it to the given continuation when done.
      *
