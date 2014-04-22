@@ -97,7 +97,11 @@ public class Continuable implements Serializable {
         return run0(new Outcome(null,arg));
     }
 
-    private Object run0(Outcome cn) throws InvocationTargetException {
+    /**
+     * Resumes this program by either returning the value from {@link Continuable#suspend(Object)} or
+     * throwing an exception
+     */
+    public Object run0(Outcome cn) throws InvocationTargetException {
         Next n = cn.resumeFrom(e,k);
 
         n = n.run();
