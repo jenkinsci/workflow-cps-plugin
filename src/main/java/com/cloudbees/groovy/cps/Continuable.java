@@ -90,18 +90,18 @@ public class Continuable implements Serializable {
      *      if the program threw an exception that it didn't handle by itself.
      */
     public Object run(Object arg) throws InvocationTargetException {
-        return run0(new Outcome(arg,null));
+        return run0(new Outcome(arg,null)).wrapReplay();
     }
 
     public Object runByThrow(Throwable arg) throws InvocationTargetException {
-        return run0(new Outcome(null,arg));
+        return run0(new Outcome(null,arg)).wrapReplay();
     }
 
     /**
      * Resumes this program by either returning the value from {@link Continuable#suspend(Object)} or
      * throwing an exception
      */
-    public Object run0(Outcome cn) throws InvocationTargetException {
+    public Outcome run0(Outcome cn) {
         Next n = cn.resumeFrom(e,k);
 
         n = n.run();
@@ -109,7 +109,7 @@ public class Continuable implements Serializable {
         e = n.e;
         k = n.k;
 
-        return n.yield.wrapReplay();
+        return n.yield;
     }
 
     /**
