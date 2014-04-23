@@ -8,6 +8,8 @@ import com.cloudbees.groovy.cps.Next;
 import java.util.List;
 
 /**
+ * Represents an invokable CPS-transformed closure.
+ *
  * @author Kohsuke Kawaguchi
  */
 class CpsClosureDef extends CpsCallable {
