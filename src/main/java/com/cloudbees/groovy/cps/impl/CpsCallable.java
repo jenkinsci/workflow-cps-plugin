@@ -5,8 +5,8 @@ import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 import com.google.common.collect.ImmutableList;
-import groovy.lang.Closure;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -14,7 +14,7 @@ import java.util.List;
  *
  * @author Kohsuke Kawaguchi
  */
-public abstract class CpsCallable {
+public abstract class CpsCallable implements Serializable {
     final Block body;
     final ImmutableList<String> parameters;
 
@@ -45,4 +45,6 @@ public abstract class CpsCallable {
             e.setLocalVariable(parameters.get(i), args.get(i));
         }
     }
+
+    private static final long serialVersionUID = 1L;
 }

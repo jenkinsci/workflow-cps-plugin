@@ -36,4 +36,6 @@ class CpsClosureDef extends CpsCallable {
 
         return new Next(body, e, k);
     }
+
+    private static final long serialVersionUID = 1L;
 }

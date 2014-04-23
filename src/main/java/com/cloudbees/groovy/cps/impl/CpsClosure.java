@@ -35,4 +35,6 @@ public class CpsClosure extends Closure {
     public Object call(Object arguments) {
         throw new CpsCallableInvocation(def,this,arguments);
     }
+
+    private static final long serialVersionUID = 1L;
 }

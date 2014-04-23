@@ -22,4 +22,6 @@ public class CpsFunction extends CpsCallable {
         assignArguments(args,e);
         return new Next(body, e, k);
     }
+
+    private static final long serialVersionUID = 1L;
 }
