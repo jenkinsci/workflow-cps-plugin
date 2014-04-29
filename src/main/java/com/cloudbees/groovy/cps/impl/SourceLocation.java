@@ -23,4 +23,6 @@ public final class SourceLocation implements Serializable {
     }
 
     private static final long serialVersionUID = 1L;
+
+    public static final SourceLocation UNKNOWN = new SourceLocation(MethodLocation.UNKNOWN, -1);
 }
