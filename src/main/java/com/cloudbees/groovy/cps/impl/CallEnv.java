@@ -66,10 +66,11 @@ import java.util.List;
         }
     }
 
-    public void buildStackTraceElements(List<StackTraceElement> stack) {
+    public void buildStackTraceElements(List<StackTraceElement> stack, int depth) {
         if (callSiteLoc!=null)
             stack.add(callSiteLoc.toStackTrace());
-        caller.buildStackTraceElements(stack);
+        if (caller!=null && depth>1)
+            caller.buildStackTraceElements(stack, depth-1);
     }
 
     private static final long serialVersionUID = 1L;

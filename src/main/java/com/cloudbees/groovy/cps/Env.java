@@ -62,6 +62,9 @@ public interface Env extends Serializable {
 
     /**
      * Builds the current call stack information for {@link Throwable#getStackTrace()}.
+     *
+     * @param depth
+     *      Maximum depth of stack trace to obtain.
      */
-    void buildStackTraceElements(List<StackTraceElement> stack);
+    void buildStackTraceElements(List<StackTraceElement> stack, int depth);
 }

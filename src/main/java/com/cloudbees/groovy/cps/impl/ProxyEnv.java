@@ -47,8 +47,8 @@ public class ProxyEnv implements Env {
         return parent.getExceptionHandler(type);
     }
 
-    public void buildStackTraceElements(List<StackTraceElement> stack) {
-        parent.buildStackTraceElements(stack);
+    public void buildStackTraceElements(List<StackTraceElement> stack, int depth) {
+        parent.buildStackTraceElements(stack, depth);
     }
 
     private static final long serialVersionUID = 1L;
