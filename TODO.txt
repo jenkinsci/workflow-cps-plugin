@@ -13,10 +13,22 @@ Multi-threading TODO
 
 
 -----------
-How to set source location info in builder
-  - explicit call parameter on each method
-    -> becomes tedious to use for manual AST building
-  - set the provider to Builder
-    -> needs to build each tree with fresh builder
-  - decorate the AST after build
-    -> 
+How the fixed up stack trace element should look like
+
+  synchronous part
+  inserted async part
+  ---------
+  caller of Groovy CPS
+
+For exception thrown from resume
+
+  inserted async part
+  ---------
+  the original stack trace element of the exception
+
+When suspending, the location of where the suspend call had happened should be remembered
+
+  SuspendBlock.eval() can get that. This should include the complete stack trace
+  so that resume() can do a proper fixup
+
+Making 'throw' statement do the stack trace rewriting prevents proper rethrow handling
