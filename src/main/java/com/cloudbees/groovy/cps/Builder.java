@@ -20,10 +20,12 @@ import com.cloudbees.groovy.cps.impl.MapBlock;
 import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
 import com.cloudbees.groovy.cps.impl.ReturnBlock;
 import com.cloudbees.groovy.cps.impl.SequenceBlock;
+import com.cloudbees.groovy.cps.impl.SourceLocation;
 import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import com.cloudbees.groovy.cps.impl.TryCatchBlock;
 import com.cloudbees.groovy.cps.impl.VariableDeclBlock;
 import com.cloudbees.groovy.cps.impl.WhileBlock;
+import groovy.lang.Closure;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
 import java.util.List;
@@ -39,6 +41,20 @@ import static java.util.Arrays.*;
  * @author Kohsuke Kawaguchi
  */
 public class Builder {
+    private MethodLocation loc;
+
+    public Builder(MethodLocation loc) {
+        this.loc = loc;
+    }
+
+    /**
+     * Evaluate the given closure by passing this object as an argument.
+     * Used to bind literal Builder to a local variable.
+     */
+    public Object with(Closure c) {
+        return c.call(this);
+    }
+
     private static final Block NULL = new ConstantBlock(null);
     private static final LValueBlock THIS = new LocalVariableBlock("this");
 
@@ -124,18 +140,18 @@ public class Builder {
         return new LocalVariableBlock(name);
     }
 
-    public Block setLocalVariable(final String name, final Block rhs) {
-        return assign(localVariable(name),rhs);
+    public Block setLocalVariable(int line, final String name, final Block rhs) {
+        return assign(line,localVariable(name),rhs);
     }
 
     public Block declareVariable(final Class type, final String name) {
         return new VariableDeclBlock(type, name);
     }
 
-    public Block declareVariable(Class type, String name, Block init) {
+    public Block declareVariable(int line, Class type, String name, Block init) {
         return sequence(
             declareVariable(type,name),
-            setLocalVariable(name, init));
+            setLocalVariable(line,name, init));
     }
 
     public Block this_() {
@@ -145,8 +161,8 @@ public class Builder {
     /**
      * Assignment operator to a local variable, such as "x += 3"
      */
-    public Block localVariableAssignOp(String name, String operator, Block rhs) {
-        return setLocalVariable(name, functionCall(localVariable(name), operator, rhs));
+    public Block localVariableAssignOp(int line, String name, String operator, Block rhs) {
+        return setLocalVariable(line, name, functionCall(line, localVariable(name), operator, rhs));
     }
 
     /**
@@ -229,68 +245,68 @@ public class Builder {
         return map(blocks.toArray(new Block[blocks.size()]));
     }
 
-    public Block staticCall(Class lhs, String name, Block... argExps) {
-        return functionCall(constant(lhs),name,argExps);
+    public Block staticCall(int line, Class lhs, String name, Block... argExps) {
+        return functionCall(line,constant(lhs),name,argExps);
     }
 
-    public Block plus(Block lhs, Block rhs) {
-        return functionCall(lhs,"plus",rhs);
+    public Block plus(int line, Block lhs, Block rhs) {
+        return functionCall(line,lhs,"plus",rhs);
     }
 
-    public Block plusEqual(LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(lhs,rhs, "plus");
+    public Block plusEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs,rhs, "plus");
     }
 
-    public Block minus(Block lhs, Block rhs) {
-        return functionCall(lhs,"minus",rhs);
+    public Block minus(int line, Block lhs, Block rhs) {
+        return functionCall(line,lhs,"minus",rhs);
     }
 
-    public Block multiply(Block lhs, Block rhs) {
-        return functionCall(lhs,"multiply",rhs);
+    public Block multiply(int line, Block lhs, Block rhs) {
+        return functionCall(line,lhs,"multiply",rhs);
     }
 
-    public Block div(Block lhs, Block rhs) {
-        return functionCall(lhs,"div",rhs);
+    public Block div(int line, Block lhs, Block rhs) {
+        return functionCall(line,lhs,"div",rhs);
     }
 
-    public Block intdiv(Block lhs, Block rhs) {
-        return functionCall(lhs,"intdiv",rhs);
+    public Block intdiv(int line, Block lhs, Block rhs) {
+        return functionCall(line,lhs,"intdiv",rhs);
     }
 
-    public Block mod(Block lhs, Block rhs) {
-        return functionCall(lhs,"mod",rhs);
+    public Block mod(int line, Block lhs, Block rhs) {
+        return functionCall(line,lhs,"mod",rhs);
     }
 
-    public Block power(Block lhs, Block rhs) {
-        return functionCall(lhs, "power", rhs);
+    public Block power(int line, Block lhs, Block rhs) {
+        return functionCall(line,lhs, "power", rhs);
     }
 
-    public Block compareEqual(Block lhs, Block rhs) {
-        return staticCall(ScriptBytecodeAdapter.class, "compareEqual", lhs, rhs);
+    public Block compareEqual(int line, Block lhs, Block rhs) {
+        return staticCall(line,ScriptBytecodeAdapter.class, "compareEqual", lhs, rhs);
     }
 
-    public Block compareNotEqual(Block lhs, Block rhs) {
-        return staticCall(ScriptBytecodeAdapter.class, "compareNotEqual", lhs, rhs);
+    public Block compareNotEqual(int line, Block lhs, Block rhs) {
+        return staticCall(line,ScriptBytecodeAdapter.class, "compareNotEqual", lhs, rhs);
     }
 
-    public Block compareTo(Block lhs, Block rhs) {
-        return staticCall(ScriptBytecodeAdapter.class,"compareTo",lhs,rhs);
+    public Block compareTo(int line, Block lhs, Block rhs) {
+        return staticCall(line,ScriptBytecodeAdapter.class,"compareTo",lhs,rhs);
     }
 
-    public Block lessThan(Block lhs, Block rhs) {
-        return staticCall(ScriptBytecodeAdapter.class,"compareLessThan",lhs,rhs);
+    public Block lessThan(int line, Block lhs, Block rhs) {
+        return staticCall(line,ScriptBytecodeAdapter.class,"compareLessThan",lhs,rhs);
     }
 
-    public Block lessThanEqual(Block lhs, Block rhs) {
-        return staticCall(ScriptBytecodeAdapter.class,"compareLessThanEqual",lhs,rhs);
+    public Block lessThanEqual(int line, Block lhs, Block rhs) {
+        return staticCall(line,ScriptBytecodeAdapter.class,"compareLessThanEqual",lhs,rhs);
     }
 
-    public Block greaterThan(Block lhs, Block rhs) {
-        return staticCall(ScriptBytecodeAdapter.class,"compareGreaterThan",lhs,rhs);
+    public Block greaterThan(int line, Block lhs, Block rhs) {
+        return staticCall(line,ScriptBytecodeAdapter.class,"compareGreaterThan",lhs,rhs);
     }
 
-    public Block greaterThanEqual(Block lhs, Block rhs) {
-        return staticCall(ScriptBytecodeAdapter.class,"compareGreaterThanEqual",lhs,rhs);
+    public Block greaterThanEqual(int line, Block lhs, Block rhs) {
+        return staticCall(line,ScriptBytecodeAdapter.class,"compareGreaterThanEqual",lhs,rhs);
     }
 
     /**
@@ -307,86 +323,86 @@ public class Builder {
         return new LogicalOpBlock(lhs,rhs,false);
     }
 
-    public Block bitwiseAnd(Block lhs, Block rhs) {
-        return functionCall(lhs,"and",rhs);
+    public Block bitwiseAnd(int line, Block lhs, Block rhs) {
+        return functionCall(line,lhs,"and",rhs);
     }
 
-    public Block bitwiseOr(Block lhs, Block rhs) {
-        return functionCall(lhs,"or",rhs);
+    public Block bitwiseOr(int line, Block lhs, Block rhs) {
+        return functionCall(line,lhs,"or",rhs);
     }
 
-    public Block bitwiseXor(Block lhs, Block rhs) {
-        return functionCall(lhs,"xor",rhs);
+    public Block bitwiseXor(int line, Block lhs, Block rhs) {
+        return functionCall(line,lhs,"xor",rhs);
     }
 
     /**
      * ++x
      */
-    public Block prefixInc(LValueBlock body) {
-        return new ExcrementOperatorBlock("next",true,body);
+    public Block prefixInc(int line, LValueBlock body) {
+        return new ExcrementOperatorBlock(loc(line),"next",true,body);
     }
 
     /**
      * --x
      */
-    public Block prefixDec(LValueBlock body) {
-        return new ExcrementOperatorBlock("previous",true,body);
+    public Block prefixDec(int line, LValueBlock body) {
+        return new ExcrementOperatorBlock(loc(line),"previous",true,body);
     }
 
     /**
      * x++
      */
-    public Block postfixInc(LValueBlock body) {
-        return new ExcrementOperatorBlock("next",false,body);
+    public Block postfixInc(int line, LValueBlock body) {
+        return new ExcrementOperatorBlock(loc(line),"next",false,body);
     }
 
     /**
      * x--
      */
-    public Block postfixDec(LValueBlock body) {
-        return new ExcrementOperatorBlock("previous",false,body);
+    public Block postfixDec(int line, LValueBlock body) {
+        return new ExcrementOperatorBlock(loc(line),"previous",false,body);
     }
 
     /**
      * LHS.name(...)
      */
-    public Block functionCall(Block lhs, String name, Block... argExps) {
-        return new FunctionCallBlock(lhs,constant(name),argExps);
+    public Block functionCall(int line, Block lhs, String name, Block... argExps) {
+        return new FunctionCallBlock(loc(line),lhs,constant(name),argExps);
     }
 
-    public Block functionCall(Block lhs, Block name, Block... argExps) {
-        return new FunctionCallBlock(lhs,name,argExps);
+    public Block functionCall(int line, Block lhs, Block name, Block... argExps) {
+        return new FunctionCallBlock(loc(line),lhs,name,argExps);
     }
 
-    public Block assign(LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(lhs,rhs, null);
+    public Block assign(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line),lhs,rhs, null);
     }
 
-    public LValueBlock property(Block lhs, String property) {
-        return property(lhs, constant(property));
+    public LValueBlock property(int line, Block lhs, String property) {
+        return property(line, lhs, constant(property));
     }
 
-    public LValueBlock property(Block lhs, Block property) {
-        return new PropertyAccessBlock(lhs,property);
+    public LValueBlock property(int line, Block lhs, Block property) {
+        return new PropertyAccessBlock(loc(line),lhs,property);
     }
 
-    public Block setProperty(Block lhs, String property, Block rhs) {
-        return setProperty(lhs, constant(property), rhs);
+    public Block setProperty(int line, Block lhs, String property, Block rhs) {
+        return setProperty(line, lhs, constant(property), rhs);
     }
 
-    public Block setProperty(Block lhs, Block property, Block rhs) {
-        return assign(property(lhs, property), rhs);
+    public Block setProperty(int line, Block lhs, Block property, Block rhs) {
+        return assign(line, property(line, lhs, property), rhs);
     }
 
     /**
      * Object instantiation.
      */
-    public Block new_(Class type, Block... argExps) {
-        return new_(constant(type),argExps);
+    public Block new_(int line, Class type, Block... argExps) {
+        return new_(line,constant(type),argExps);
     }
 
-    public Block new_(Block type, Block... argExps) {
-        return new FunctionCallBlock(type,constant("<init>"),argExps);
+    public Block new_(int line, Block type, Block... argExps) {
+        return new FunctionCallBlock(loc(line),type,constant("<init>"),argExps);
     }
 
     /**
@@ -411,9 +427,7 @@ public class Builder {
         return assert_(cond,null_(),sourceText);
     }
 
-    /**
-     * Used for building AST from transformed code.
-     */
-    public static Builder INSTANCE = new Builder();
-
+    private SourceLocation loc(int line) {
+        return new SourceLocation(loc,line);
+    }
 }

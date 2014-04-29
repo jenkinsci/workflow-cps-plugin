@@ -272,7 +272,7 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             }
             1+plus3(3*2)
         """)
-        def cx = new Continuable(s.invoke(null, Continuation.HALT))
+        def cx = new Continuable(s.invoke(null, null, Continuation.HALT))
         cx = roundtripSerialization(cx)
         assert 10==cx.run(null)
     }

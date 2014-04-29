@@ -17,8 +17,8 @@ public class CpsFunction extends CpsCallable {
         super(parameters, body);
     }
 
-    public Next invoke(Env caller, Object receiver, List<?> args, Continuation k) {
-        Env e = new FunctionCallEnv(caller, receiver, k);
+    public Next invoke(Env caller, SourceLocation loc, Object receiver, List<?> args, Continuation k) {
+        Env e = new FunctionCallEnv(caller, k, loc, receiver);
         assignArguments(args,e);
         return new Next(body, e, k);
     }

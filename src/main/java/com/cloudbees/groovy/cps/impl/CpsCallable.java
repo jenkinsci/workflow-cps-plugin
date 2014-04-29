@@ -29,15 +29,18 @@ public abstract class CpsCallable implements Serializable {
      * @param caller
      *      Environment of the caller. For example, if this invokable object throws an exception,
      *      we might have to use this environment to find where to dispatch that exception.
+     * @param loc
+     *      Source location of the call site. Used to build stack trace elements. Null if the call
+     *      happens outside the CPS transformed world (think of the call into {@link Thread#run()}
+     *      in Java, which cannot be explained within the Java semantics.)
      * @param receiver
      *      For functions, this is the left hand side of the expression that becomes 'this' object.
      *      This parameter is meaningless for closures because it's not invoked with a LHS object.
      * @param args
      *      Arguments to the call that match up with {@link #parameters}.
      * @param k
-     *      The result of the function/closure call will be eventually passed to this continuation.
      */
-    abstract Next invoke(Env caller, Object receiver, List<?> args, Continuation k);
+    abstract Next invoke(Env caller, SourceLocation loc, Object receiver, List<?> args, Continuation k);
 
     protected final void assignArguments(List<?> args, Env e) {
         // TODO: var args

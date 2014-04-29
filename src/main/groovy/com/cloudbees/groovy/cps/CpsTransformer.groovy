@@ -13,6 +13,8 @@ import org.codehaus.groovy.control.Janitor
 import org.codehaus.groovy.control.SourceUnit
 import org.codehaus.groovy.control.customizers.CompilationCustomizer
 import org.codehaus.groovy.runtime.powerassert.SourceText
+import org.codehaus.groovy.syntax.Token
+import org.codehaus.groovy.syntax.Types
 
 import java.lang.annotation.Annotation
 import java.lang.reflect.Modifier
@@ -75,9 +77,9 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     @Override
     void call(SourceUnit source, GeneratorContext context, ClassNode classNode) {
         this.sourceUnit = source;
-        source.ast.methods?.each { visitMethod(it) }
+        copy(source.ast.methods)?.each { visitMethod(it) }
 //        classNode?.declaredConstructors?.each { visitMethod(it) } // can't transform constructor
-        classNode?.methods?.each { visitMethod(it) }
+        copy(classNode?.methods)?.each { visitMethod(it) }
 //        classNode?.objectInitializerStatements?.each { it.visit(visitor) }
 //        classNode?.fields?.each { visitor.visitField(it) }
 
@@ -90,6 +92,11 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         if (classNode.getField(Verifier.__TIMESTAMP)==null)
             classNode.addField(Verifier.__TIMESTAMP,Modifier.STATIC|Modifier.PRIVATE, ClassHelper.long_TYPE,
             new ConstantExpression(0L));
+    }
+
+    private <T> List<T> copy(List<T> t) {
+        if (t==null)    return t;
+        else            return new ArrayList<T>(t);
     }
 
     /**
@@ -134,7 +141,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         if (!shouldBeTransformed(m))
             return;
 
-        def body;
+        Expression body;
 
         // transform the body
         parent = { e -> body=e }
@@ -143,8 +150,33 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         def params = new ListExpression();
         m.parameters.each { params.addExpression(new ConstantExpression(it.name))}
 
-        def f = m.declaringClass.addField("___cps___${iota++}", Modifier.STATIC|Modifier.STATIC, FUNCTION_TYPE,
-                new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body)));
+        /*
+              CpsFunction ___cps___N() {
+                Builder b = new Builder(new MethodLocation(...));
+                return new CpsFunction( << parameters >>, << body: AST tree building code >>);
+              }
+         */
+
+        def cpsName = "___cps___${iota++}"
+
+        m.declaringClass.addMethod(cpsName, PRIVATE_STATIC_FINAL, FUNCTION_TYPE, new Parameter[0], new ClassNode[0],
+            new BlockStatement([
+                new ExpressionStatement(new DeclarationExpression(BUILDER, new Token(ASSIGN, "=", -1, -1),
+                        new ConstructorCallExpression(BUIDER_TYPE, new TupleExpression(
+                                        new ConstructorCallExpression(METHOD_LOCATION_TYPE, new TupleExpression(
+                                            new ConstantExpression(m.declaringClass.name),
+                                            new ConstantExpression(m.name),
+                                            new ConstantExpression(sourceUnit.name)
+                                        ))
+                                    )))),
+                new ReturnStatement(new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body)))
+            ], new VariableScope())
+        )
+
+        def f = m.declaringClass.addField(cpsName, PRIVATE_STATIC_FINAL, FUNCTION_TYPE,
+                new StaticMethodCallExpression(m.declaringClass, cpsName, new TupleExpression()));
+//                new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body)));
+
 
         def args = new TupleExpression(new VariableExpression(f), THIS);
         m.parameters.each { args.addExpression(new VariableExpression(it)) }
@@ -227,6 +259,10 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         makeNode(methodName,null)
     }
 
+    private void loc(Expression e) {
+        literal(e.lineNumber);
+    }
+
     /**
      * Used in the closure block of {@link #makeNode(String, Object)} to create a literal string argument.
      */
@@ -236,6 +272,10 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
     private void literal(ClassNode c) {
         parent(new ClassExpression(c))
+    }
+
+    private void literal(int n) {
+        parent(new ConstantExpression(n,true))
     }
 
     void visitEmptyExpression(EmptyExpression e) {
@@ -248,6 +288,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
     void visitMethodCallExpression(MethodCallExpression call) {
         makeNode("functionCall") {
+            loc(call)
             visit(call.objectExpression);
             // TODO: spread & safe
             visit(call.method);
@@ -378,6 +419,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
     void visitConstructorCallExpression(ConstructorCallExpression call) {
         makeNode("new_") {
+            loc(call)
             literal(call.type)
             visit(((TupleExpression)call.arguments).expressions)
         }
@@ -420,6 +462,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      */
     void visitBinaryExpression(BinaryExpression exp) {
         def body = {// for building CPS tree for two expressions
+            loc(exp)
             visit(exp.leftExpression)
             visit(exp.rightExpression)
         }
@@ -526,12 +569,14 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
     void visitPrefixExpression(PrefixExpression exp) {
         makeNode("prefix"+ prepostfixOperatorSuffix(exp)) {
+            loc(exp)
             visit(exp.expression)
         }
     }
 
     void visitPostfixExpression(PostfixExpression exp) {
         makeNode("postfix"+ prepostfixOperatorSuffix(exp)) {
+            loc(exp)
             visit(exp.expression)
         }
     }
@@ -598,6 +643,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     void visitPropertyExpression(PropertyExpression exp) {
         // TODO: spread and safe
         makeNode("property") {
+            loc(exp)
             visit(exp.objectExpression)
             visit(exp.property)
         }
@@ -635,6 +681,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         ||  ref instanceof PropertyNode
         ||  ref instanceof FieldNode) {
             makeNode("property") {
+                loc(exp)
                 makeNode("this_")
                 literal(exp.name)
             }
@@ -659,11 +706,13 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             makeNode("sequence") {
                 for (VariableExpression v in exp.tupleExpression.expressions) {
                     makeNode("declareVariable") {
+                        loc(exp)
                         literal(v.type)
                         literal(v.name)
                     }
                 }
                 makeNode("assign") {
+                    loc(exp)
                     visit(exp.leftExpression)
                     visit(exp.rightExpression)
                 }
@@ -672,6 +721,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             // def x=v;
             makeNode("declareVariable") {
                 def v = exp.variableExpression
+                loc(exp)
                 literal(v.type)
                 literal(v.name)
                 visit(exp.rightExpression) // this will not produce anything if this is EmptyExpression
@@ -732,11 +782,16 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     private static final ClassNode BUILDER_TYPE = ClassHelper.makeCached(Builder.class);
     private static final ClassNode CPSCALLINVK_TYPE = ClassHelper.makeCached(CpsCallableInvocation.class);
     private static final ClassNode WORKFLOW_TRANSFORMED_TYPE = ClassHelper.makeCached(WorkflowTransformed.class);
-    private static final PropertyExpression BUILDER = new PropertyExpression(new ClassExpression(BUILDER_TYPE), "INSTANCE")
+    private static final ClassNode BUIDER_TYPE = ClassHelper.makeCached(Builder.class);
+    private static final ClassNode METHOD_LOCATION_TYPE = ClassHelper.makeCached(MethodLocation.class);
+
+    private static final VariableExpression BUILDER = new VariableExpression("b",BUILDER_TYPE); // new PropertyExpression(new ClassExpression(BUILDER_TYPE), "INSTANCE")
     private static final VariableExpression THIS = new VariableExpression("this");
 
     /**
      * Closure's default "it" parameter.
      */
     private static final Parameter IT = new Parameter(ClassHelper.OBJECT_TYPE, "it", ConstantExpression.NULL);
+
+    private static final int PRIVATE_STATIC_FINAL = Modifier.STATIC | Modifier.PRIVATE | Modifier.FINAL
 }

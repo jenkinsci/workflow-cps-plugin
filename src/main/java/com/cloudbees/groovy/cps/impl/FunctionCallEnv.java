@@ -18,8 +18,8 @@ public class FunctionCallEnv extends CallEnv {
      * @param caller
      *      The environment of the call site. Can be null but only if the caller is outside CPS execution.
      */
-    public FunctionCallEnv(Env caller, Object _this, Continuation returnAddress) {
-        super(caller,returnAddress);
+    public FunctionCallEnv(Env caller, Continuation returnAddress, SourceLocation loc, Object _this) {
+        super(caller,returnAddress,loc);
         locals.put("this",_this);
     }
 

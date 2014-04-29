@@ -1,3 +1,7 @@
+def x() {
+    int i=0;
+    return i;
+}
 def (c,d)=[1,2];
 def y;
 y=0;

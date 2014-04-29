@@ -17,8 +17,10 @@ import static java.util.Collections.*;
  */
 public class PropertyAccessBlock extends LValueBlock {
     private final Block lhs, property;
+    private final SourceLocation loc;
 
-    public PropertyAccessBlock(Block lhs, Block property) {
+    public PropertyAccessBlock(SourceLocation loc, Block lhs, Block property) {
+        this.loc = loc;
         this.lhs = lhs;
         this.property = property;
     }
@@ -62,7 +64,7 @@ public class PropertyAccessBlock extends LValueBlock {
             if (v instanceof CpsFunction) {
                 // if this is a workflow function, it'd return a CpsFunction object instead
                 // of actually executing the function, so execute it in the CPS
-                return ((CpsFunction)v).invoke(e, lhs, emptyList(),k);
+                return ((CpsFunction)v).invoke(e, loc, lhs, emptyList(),k);
             } else {
                 // if this was a normal property, we get the value as-is.
                 return k.receive(v);

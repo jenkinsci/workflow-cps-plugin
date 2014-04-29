@@ -27,8 +27,8 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
         this.arguments = asList(arguments);
     }
 
-    public Next invoke(Env caller, Continuation k) {
-        return call.invoke(caller,receiver,arguments,k);
+    public Next invoke(Env caller, SourceLocation loc, Continuation k) {
+        return call.invoke(caller, loc, receiver,arguments,k);
     }
 
     /**
@@ -37,7 +37,7 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
     public Block asBlock() {
         return new Block() {
             public Next eval(Env e, Continuation k) {
-                return invoke(e,k);
+                return invoke(e, null, k);
             }
         };
     }

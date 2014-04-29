@@ -3,6 +3,8 @@ package com.cloudbees.groovy.cps.impl;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 
+import java.util.List;
+
 /**
  * @author Kohsuke Kawaguchi
  */
@@ -43,6 +45,10 @@ public class ProxyEnv implements Env {
 
     public Continuation getExceptionHandler(Class<? extends Throwable> type) {
         return parent.getExceptionHandler(type);
+    }
+
+    public void buildStackTraceElements(List<StackTraceElement> stack) {
+        parent.buildStackTraceElements(stack);
     }
 
     private static final long serialVersionUID = 1L;

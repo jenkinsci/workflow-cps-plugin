@@ -4,6 +4,9 @@ import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 
+import javax.annotation.Nullable;
+import java.util.List;
+
 /**
  * Common part between {@link FunctionCallEnv} and {@link ClosureCallEnv}.
  *
@@ -20,12 +23,19 @@ import com.cloudbees.groovy.cps.Next;
     private final Env caller;
 
     /**
+     * Source location of the call site.
+     */
+    @Nullable
+    private final SourceLocation callSiteLoc;
+
+    /**
      * @param caller
      *      The environment of the call site. Can be null but only if the caller is outside CPS execution.
      */
-    public CallEnv(Env caller, Continuation returnAddress) {
+    public CallEnv(Env caller, Continuation returnAddress, SourceLocation loc) {
         this.caller = caller;
         this.returnAddress = returnAddress;
+        this.callSiteLoc = loc;
     }
 
     public final Continuation getReturnAddress() {
@@ -53,6 +63,12 @@ import com.cloudbees.groovy.cps.Next;
             // propagate the exception to the caller
             return caller.getExceptionHandler(type);
         }
+    }
+
+    public void buildStackTraceElements(List<StackTraceElement> stack) {
+        if (callSiteLoc!=null)
+            stack.add(callSiteLoc.toStackTrace());
+        caller.buildStackTraceElements(stack);
     }
 
     private static final long serialVersionUID = 1L;

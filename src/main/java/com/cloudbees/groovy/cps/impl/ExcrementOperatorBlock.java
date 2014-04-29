@@ -28,7 +28,10 @@ public class ExcrementOperatorBlock implements Block {
     private final boolean prefix;
     private final Block body;
 
-    public ExcrementOperatorBlock(String operatorMethod, boolean prefix, LValueBlock body) {
+    private final SourceLocation loc;
+
+    public ExcrementOperatorBlock(SourceLocation loc, String operatorMethod, boolean prefix, LValueBlock body) {
+        this.loc = loc;
         this.operatorMethod = operatorMethod;
         this.prefix = prefix;
         this.body = body.asLValue();
@@ -64,7 +67,7 @@ public class ExcrementOperatorBlock implements Block {
          */
         public Next fixCur(Object v) {
             this.before = v;
-            return methodCall(e, calc, v, operatorMethod);
+            return methodCall(e, loc, calc, v, operatorMethod);
         }
 
         /**

@@ -15,7 +15,7 @@ import static java.util.Arrays.*;
  * @author Kohsuke Kawaguchi
  */
 public class BasicTest extends Assert {
-    Builder b = new Builder();
+    Builder b = new Builder(MethodLocation.UNKNOWN);
 
     // useful fragment of expressions
     Block $x = b.localVariable("x");
@@ -27,7 +27,7 @@ public class BasicTest extends Assert {
      */
     private <T> T run(Block... bodies) {
         try {
-            Env e = new FunctionCallEnv(null,null,Continuation.HALT);
+            Env e = new FunctionCallEnv(null,null,null,Continuation.HALT);
             Next p = new Next(b.block(bodies), e, Continuation.HALT);
             return (T) p.run().yield.wrapReplay();
         } catch (InvocationTargetException x) {
@@ -46,7 +46,7 @@ public class BasicTest extends Assert {
     @Test
     public void onePlusOne() {
         assertEquals(true, run(
-                b.staticCall(ScriptBytecodeAdapter.class, "compareEqual",
+                b.staticCall(0,ScriptBytecodeAdapter.class, "compareEqual",
                     b.one(),
                     b.one())));
     }
@@ -55,9 +55,9 @@ public class BasicTest extends Assert {
     @Test
     public void variable() {
         assertEquals(3, run(
-                b.setLocalVariable("x", b.one()),
-                b.setLocalVariable("y", b.two()),
-                b.plus($x, $y)
+                b.setLocalVariable(0,"x", b.one()),
+                b.setLocalVariable(0,"y", b.two()),
+                b.plus(0,$x, $y)
         ));
     }
 
@@ -71,14 +71,14 @@ public class BasicTest extends Assert {
     @Test
     public void forLoop() {
         assertEquals(45, run(
-                b.setLocalVariable("sum", b.zero()),
+                b.setLocalVariable(0, "sum", b.zero()),
                 b.forLoop(null,
-                        b.setLocalVariable("x", b.zero()),
-                        b.lessThan($x, b.constant(10)),
-                        b.localVariableAssignOp("x", "plus", b.one()),
+                        b.setLocalVariable(0, "x", b.zero()),
+                        b.lessThan(0, $x, b.constant(10)),
+                        b.localVariableAssignOp(0, "x", "plus", b.one()),
 
                         b.block(// for loop body
-                                b.localVariableAssignOp("sum", "plus", $x)
+                                b.localVariableAssignOp(0, "sum", "plus", $x)
                         )),
                 b.localVariable("sum")
         ));
@@ -92,10 +92,10 @@ public class BasicTest extends Assert {
     @Test
     public void returnStatement() {
         assertEquals(0, run(
-                b.setLocalVariable("x", b.zero()),
+                b.setLocalVariable(0, "x", b.zero()),
                 b.return_($x),
-                b.localVariableAssignOp("x", "plus", b.one()),
-                b.plus($x, $y)
+                b.localVariableAssignOp(0, "x", "plus", b.one()),
+                b.plus(0, $x, $y)
         ));
     }
 
@@ -116,10 +116,10 @@ public class BasicTest extends Assert {
 
     private void if_(boolean cond, int expected) {
         assertEquals(expected, run(
-                b.setLocalVariable("x", b.zero()),
+                b.setLocalVariable(0, "x", b.zero()),
                 b.if_( b.constant(cond),
-                        b.setLocalVariable("x",b.one()),
-                        b.setLocalVariable("x",b.two())),
+                        b.setLocalVariable(0, "x",b.one()),
+                        b.setLocalVariable(0, "x",b.two())),
                 $x
         ));
     }
@@ -133,7 +133,7 @@ public class BasicTest extends Assert {
             public int add(int x, int y) {
                 CpsFunction f = new CpsFunction(asList("x", "y"),
                         b.sequence(
-                                b.setLocalVariable("z", b.functionCall($x, "plus", $y)),
+                                b.setLocalVariable(0, "z", b.functionCall(0, $x, "plus", $y)),
                                 b.return_($z)
                         ));
                 throw new CpsCallableInvocation(f,this,x,y);
@@ -142,9 +142,9 @@ public class BasicTest extends Assert {
 
         //  z=5; new Op().add(1,2)+z   => 8
         assertEquals(3, run(
-                b.setLocalVariable("z", b.zero()),     // part of the test is to ensure this 'z' is separated from 'z' in the add function
-                b.plus(
-                        b.functionCall(b.constant(new Op()), "add", b.one(), b.two()),
+                b.setLocalVariable(0, "z", b.zero()),     // part of the test is to ensure this 'z' is separated from 'z' in the add function
+                b.plus(0,
+                        b.functionCall(0, b.constant(new Op()), "add", b.one(), b.two()),
                         $z)));
     }
 
@@ -166,10 +166,10 @@ public class BasicTest extends Assert {
     public void newInstance() {
         InstantiationTest v;
 
-        v = run(b.new_(InstantiationTest.class, b.constant(3)));
+        v = run(b.new_(0, InstantiationTest.class, b.constant(3)));
         assertEquals(3, v.v);
 
-        v = run(b.new_(InstantiationTest.class, b.constant(3), b.constant(4)));
+        v = run(b.new_(0, InstantiationTest.class, b.constant(3), b.constant(4)));
         assertEquals(7, v.v);
     }
 
@@ -186,12 +186,12 @@ public class BasicTest extends Assert {
         assertEquals("foo",run(
                 b.tryCatch(
                         b.sequence(
-                                b.throw_(b.new_(RuntimeException.class, b.constant("foo"))),
+                                b.throw_(b.new_(0, RuntimeException.class, b.constant("foo"))),
                                 b.return_(b.null_())
                         ),
 
                         new CatchExpression(Exception.class, "e", b.block(
-                                b.return_(b.functionCall(b.localVariable("e"), "getMessage"))
+                                b.return_(b.functionCall(0, b.localVariable("e"), "getMessage"))
                         ))
                 )
         ));
@@ -213,10 +213,10 @@ public class BasicTest extends Assert {
                 Block $depth = b.localVariable("depth");
                 CpsFunction f = new CpsFunction(asList("depth", "message"),
                         b.block(
-                                b.if_(b.lessThan(b.zero(), $depth),
-                                        b.functionCall(b.this_(), "throw_", b.minus($depth, b.one()), b.localVariable("message")),
+                                b.if_(b.lessThan(0, b.zero(), $depth),
+                                        b.functionCall(0, b.this_(), "throw_", b.minus(0, $depth, b.one()), b.localVariable("message")),
                                         // else
-                                        b.throw_(b.new_(IllegalArgumentException.class, b.localVariable("message")))
+                                        b.throw_(b.new_(0, IllegalArgumentException.class, b.localVariable("message")))
                                 )
                         ));
                 throw new CpsCallableInvocation(f,this,depth,message);
@@ -234,16 +234,16 @@ public class BasicTest extends Assert {
             }
          */
         assertEquals("hello1", run(
-                b.setLocalVariable("x", b.zero()),     // part of the test is to ensure this 'z' is separated from 'z' in the add function
+                b.setLocalVariable(0, "x", b.zero()),     // part of the test is to ensure this 'z' is separated from 'z' in the add function
                 b.tryCatch(
                         b.block(
-                                b.setLocalVariable("x", b.one()),
-                                b.functionCall(b.constant(new Op()), "throw_", b.constant(3), b.constant("hello")),
-                                b.setLocalVariable("x", b.two())
+                                b.setLocalVariable(0, "x", b.one()),
+                                b.functionCall(0, b.constant(new Op()), "throw_", b.constant(3), b.constant("hello")),
+                                b.setLocalVariable(0, "x", b.two())
                         ),
                         new CatchExpression(Exception.class, "e",
-                                b.return_(b.plus(
-                                        b.property(b.localVariable("e"), "message"),
+                                b.return_(b.plus(0,
+                                        b.property(0, b.localVariable("e"), "message"),
                                         b.localVariable("x"))))
                 )));
     }
@@ -255,8 +255,8 @@ public class BasicTest extends Assert {
     @Test
     public void propertyGetAccess() {
         assertEquals("foo",run(
-                b.setLocalVariable("x", b.new_(Exception.class, b.constant("foo"))),
-                b.new_(String.class, b.property(b.property($x, "message"), "bytes"))
+                b.setLocalVariable(0,"x", b.new_(0,Exception.class, b.constant("foo"))),
+                b.new_(0,String.class, b.property(0,b.property(0, $x, "message"), "bytes"))
         ));
     }
 
@@ -283,9 +283,9 @@ public class BasicTest extends Assert {
     public void propertySetAccess() {
         PropertyTest p = new PropertyTest();
         run(
-                b.setLocalVariable("x", b.constant(p)),
-                b.setProperty($x,"x", b.one()),
-                b.setProperty($x,"y", b.two())
+                b.setLocalVariable(0, "x", b.constant(p)),
+                b.setProperty(0, $x,"x", b.one()),
+                b.setProperty(0, $x,"y", b.two())
         );
         assertEquals(p.x,1);
         assertEquals(p.y,2);
@@ -311,7 +311,7 @@ public class BasicTest extends Assert {
         assertEquals(0,run(
                 b.if_(b.true_(), b.sequence(
                         b.declareVariable(int.class,"x"),
-                        b.setLocalVariable("x", b.one())
+                        b.setLocalVariable(0, "x", b.one())
                 )),
                 b.declareVariable(int.class,"x"),
                 b.return_($x)

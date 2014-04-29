@@ -9,7 +9,6 @@ import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 
 import java.io.Serializable;
-import java.util.Arrays;
 
 /**
  * Base class for defining a series of {@link Continuation} methods that share the same set of contextual values.
@@ -48,21 +47,21 @@ abstract class ContinuationGroup implements Serializable {
         return csa.array[0];
     }
 
-    protected Next methodCall(Env e, ContinuationPtr k, Object receiver, String methodName, Object... args) {
-        return methodCall(e,k.bind(this),receiver,methodName,args);
+    protected Next methodCall(Env e, SourceLocation loc, ContinuationPtr k, Object receiver, String methodName, Object... args) {
+        return methodCall(e,loc,k.bind(this),receiver,methodName,args);
     }
 
     /**
      * Evaluates a function (possibly a workflow function), then pass the result to the given continuation.
      */
-    protected Next methodCall(Env e, Continuation k, Object receiver, String methodName, Object... args) {
+    protected Next methodCall(Env e, SourceLocation loc, Continuation k, Object receiver, String methodName, Object... args) {
         try {
             CallSite callSite = fakeCallSite(methodName);
             Object v = callSite.call(receiver,args);
             // if this was a normal function, the method had just executed synchronously
             return k.receive(v);
         } catch (CpsCallableInvocation inv) {
-            return inv.invoke(e,k);
+            return inv.invoke(e, loc, k);
         } catch (Throwable t) {
             return throwException(e, t);
         }

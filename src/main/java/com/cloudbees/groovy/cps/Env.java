@@ -3,6 +3,7 @@ package com.cloudbees.groovy.cps;
 import groovy.lang.Closure;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * For variable lookup. This is local variables.
@@ -58,4 +59,9 @@ public interface Env extends Serializable {
      *      must be returned.
      */
     Continuation getExceptionHandler(Class<? extends Throwable> type);
+
+    /**
+     * Builds the current call stack information for {@link Throwable#getStackTrace()}.
+     */
+    void buildStackTraceElements(List<StackTraceElement> stack);
 }

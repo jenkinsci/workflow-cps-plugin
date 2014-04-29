@@ -6,6 +6,8 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 
 /**
+ * lhs.name(arg,arg,...)
+ *
  * @author Kohsuke Kawaguchi
  */
 public class FunctionCallBlock implements Block {
@@ -25,7 +27,10 @@ public class FunctionCallBlock implements Block {
      */
     private final Block[] argExps;
 
-    public FunctionCallBlock(Block lhsExp, Block nameExp, Block[] argExps) {
+    private final SourceLocation loc;
+
+    public FunctionCallBlock(SourceLocation loc, Block lhsExp, Block nameExp, Block[] argExps) {
+        this.loc = loc;
         this.lhsExp = lhsExp;
         this.nameExp = nameExp;
         this.argExps = argExps;
@@ -82,7 +87,7 @@ public class FunctionCallBlock implements Block {
                     return k.receive(v);
                 } else {
                     // regular method call
-                    return methodCall(e,k,lhs,name,args);
+                    return methodCall(e,loc,k,lhs,name,args);
                 }
             }
         }

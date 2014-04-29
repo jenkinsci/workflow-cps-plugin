@@ -41,7 +41,7 @@ public class Continuable implements Serializable {
      * Creates a {@link Continuable} that executes the block of code in a fresh empty environment.
      */
     public Continuable(Block block) {
-        this(block, new FunctionCallEnv(null,null,Continuation.HALT));
+        this(block, new FunctionCallEnv(null,null,null,Continuation.HALT));
     }
 
     /**
@@ -68,7 +68,7 @@ public class Continuable implements Serializable {
             s.run();
             throw new AssertionError("I'm confused if Script is CPS-transformed or not!");
         } catch (CpsCallableInvocation e) {
-            return e.invoke(null, Continuation.HALT);
+            return e.invoke(null, null, Continuation.HALT);
         } catch (NoSuchMethodException e) {
             throw new AssertionError(e);
         }

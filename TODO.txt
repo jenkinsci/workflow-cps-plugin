@@ -10,3 +10,13 @@ Tests to be written:
 
 Multi-threading TODO
 - how to suspend just one thread while letting other threads run
+
+
+-----------
+How to set source location info in builder
+  - explicit call parameter on each method
+    -> becomes tedious to use for manual AST building
+  - set the provider to Builder
+    -> needs to build each tree with fresh builder
+  - decorate the AST after build
+    -> 

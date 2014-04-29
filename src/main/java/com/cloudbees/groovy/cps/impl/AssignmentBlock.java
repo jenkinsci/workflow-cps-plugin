@@ -22,7 +22,10 @@ public class AssignmentBlock implements Block {
      */
     private final String compoundOp;
 
-    public AssignmentBlock(LValueBlock lhsExp, Block rhsExp, String compoundOp) {
+    private final SourceLocation loc;
+
+    public AssignmentBlock(SourceLocation loc, LValueBlock lhsExp, Block rhsExp, String compoundOp) {
+        this.loc = loc;
         this.compoundOp = compoundOp;
         this.lhsExp = lhsExp.asLValue();
         this.rhsExp = rhsExp;
@@ -77,7 +80,7 @@ public class AssignmentBlock implements Block {
          * Invoke the operator
          */
         public Next fixRhs(Object rhs) {
-            return methodCall(e, assignAndDone, this.cur, compoundOp, rhs);
+            return methodCall(e, loc, assignAndDone, this.cur, compoundOp, rhs);
         }
 
         private static final long serialVersionUID = 1L;

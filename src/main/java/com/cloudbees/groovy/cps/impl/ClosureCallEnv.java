@@ -21,8 +21,8 @@ class ClosureCallEnv extends CallEnv {
      */
     final Env captured;
 
-    public ClosureCallEnv(Env caller, Continuation returnAddress, Env captured, CpsClosure closure) {
-        super(caller,returnAddress);
+    public ClosureCallEnv(Env caller, Continuation returnAddress, SourceLocation loc, Env captured, CpsClosure closure) {
+        super(caller,returnAddress,loc);
         this.closure = closure;
         this.captured = captured;
     }
