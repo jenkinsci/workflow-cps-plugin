@@ -27,7 +27,7 @@ public class BasicTest extends Assert {
      */
     private <T> T run(Block... bodies) {
         try {
-            Env e = new FunctionCallEnv(null,null,null,Continuation.HALT);
+            Env e = new FunctionCallEnv(null,Continuation.HALT,null,null);
             Next p = new Next(b.block(bodies), e, Continuation.HALT);
             return (T) p.run().yield.wrapReplay();
         } catch (InvocationTargetException x) {

@@ -36,6 +36,7 @@ import java.util.List;
         this.caller = caller;
         this.returnAddress = returnAddress;
         this.callSiteLoc = loc;
+        assert returnAddress!=null;
     }
 
     public final Continuation getReturnAddress() {
