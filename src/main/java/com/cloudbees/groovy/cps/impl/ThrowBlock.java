@@ -21,8 +21,10 @@ public class ThrowBlock implements Block {
                 if (t==null) {
                     t = new NullPointerException();
                 }
+                if (!(t instanceof Throwable)) {
+                    t = new ClassCastException(t.getClass()+" cannot be cast to Throwable");
+                }
                 // TODO: fake the stack trace information
-                // TODO: what if 't' is not Throwable?
 
                 Continuation v = e.getExceptionHandler(Throwable.class.cast(t).getClass());
                 return v.receive(t);
