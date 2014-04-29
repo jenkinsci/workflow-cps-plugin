@@ -259,7 +259,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         makeNode(methodName,null)
     }
 
-    private void loc(Expression e) {
+    private void loc(ASTNode e) {
         literal(e.lineNumber);
     }
 
