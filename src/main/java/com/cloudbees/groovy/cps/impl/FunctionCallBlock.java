@@ -1,9 +1,16 @@
 package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.Block;
+import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static com.cloudbees.groovy.cps.impl.SourceLocation.UNKNOWN;
 
 /**
  * lhs.name(arg,arg,...)
@@ -84,6 +91,9 @@ public class FunctionCallBlock implements Block {
                     } catch (Throwable t) {
                         return throwException(e, t);
                     }
+                    if (v instanceof Throwable)
+                        fillInStackTrace(e,(Throwable)v);
+
                     return k.receive(v);
                 } else {
                     // regular method call
@@ -93,6 +103,18 @@ public class FunctionCallBlock implements Block {
         }
 
         private static final long serialVersionUID = 1L;
+    }
+
+    /**
+     * Insert the logical CPS stack trace in front of the actual stack trace.
+     */
+    private void fillInStackTrace(Env e, Throwable t) {
+        List<StackTraceElement> stack = new ArrayList<StackTraceElement>();
+        stack.add((loc!=null ? loc : UNKNOWN).toStackTrace());
+        e.buildStackTraceElements(stack,Integer.MAX_VALUE);
+        stack.add(Continuable.SEPARATOR_STACK_ELEMENT);
+        stack.addAll(Arrays.asList(t.getStackTrace()));
+        t.setStackTrace(stack.toArray(new StackTraceElement[stack.size()]));
     }
 
     static final ContinuationPtr fixLhs = new ContinuationPtr(ContinuationImpl.class,"fixLhs");

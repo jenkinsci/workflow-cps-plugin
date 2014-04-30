@@ -149,4 +149,11 @@ public class Continuable implements Serializable {
     }
 
     private static final long serialVersionUID = 1L;
+
+    /**
+     * The artificial {@link StackTraceElement} that appears in the stack trace when the CPS library fixes up
+     * the stack trace. This separator separates the regular call stack that tracks the actual call stack
+     * JVM executes and the synthesized CPS call stack that CPS-transformed program is logically executing.
+     */
+    public static final StackTraceElement SEPARATOR_STACK_ELEMENT = new StackTraceElement("___cps", "transform___", null, -2);
 }
