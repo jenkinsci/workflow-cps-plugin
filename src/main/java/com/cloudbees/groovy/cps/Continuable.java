@@ -9,6 +9,8 @@ import groovy.lang.Script;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Mutable representation of the program. This is the primary API of the groovy-cps library to the outside.
@@ -133,6 +135,16 @@ public class Continuable implements Serializable {
      */
     public static Object suspend(final Object v) {
         throw new CpsCallableInvocation(SuspendBlock.SUSPEND,null,v);
+    }
+
+    /**
+     * Returns the stack trace in the CPS-transformed code that indicates where this {@link Continuable} will resume from.
+     * If this object represents a yet-started program, an empty list will be returned.
+     */
+    public List<StackTraceElement> getStackTrace() {
+        List<StackTraceElement> r = new ArrayList<StackTraceElement>();
+        e.buildStackTraceElements(r,Integer.MAX_VALUE);
+        return r;
     }
 
     private static final long serialVersionUID = 1L;

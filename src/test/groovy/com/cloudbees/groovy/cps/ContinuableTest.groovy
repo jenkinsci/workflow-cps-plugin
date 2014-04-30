@@ -137,4 +137,47 @@ class ContinuableTest extends AbstractGroovyCpsTest {
     }
 
     public static class ThisObjectIsNotSerializable {}
+
+    /**
+     * Tests {@link Continuable#getStackTrace()}.
+     */
+    @Test
+    void stackTrace() {
+        def s = csh.parse("""
+            @WorkflowMethod
+            def x(i,v) {
+              if (i>0)
+                y(i-1,v);       // line 5
+              else
+                Continuable.suspend(v); // line 7
+            }
+            @WorkflowMethod
+            def y(i,v) {
+              if (i>0)
+                x(i-1,v);   // line 12
+              else
+                Continuable.suspend(v); // line 14
+            }
+
+            x(5,3); // line 17
+        """)
+
+        def c = new Continuable(s);
+
+        assert c.stackTrace.isEmpty()
+
+        def v = c.run(null);
+        assert v==3
+
+        assert c.stackTrace.join("\n")=="""
+Script1.y(Script1.groovy:14)
+Script1.x(Script1.groovy:5)
+Script1.y(Script1.groovy:12)
+Script1.x(Script1.groovy:5)
+Script1.y(Script1.groovy:12)
+Script1.x(Script1.groovy:5)
+Script1.run(Script1.groovy:17)
+""".trim()
+    }
+
 }
