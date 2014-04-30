@@ -26,13 +26,6 @@ For exception thrown from resume
   ---------
   the original stack trace element of the exception
 
-When suspending, the location of where the suspend call had happened should be remembered
-
-  SuspendBlock.eval() can get that. This should include the complete stack trace
-  so that resume() can do a proper fixup
-
-  -> this is already captured as Continuable.e
-
 Making 'throw' statement do the stack trace rewriting prevents proper rethrow handling
 
 - intercept constructor call of Throwable and have it do a proper fixup
