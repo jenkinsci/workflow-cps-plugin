@@ -143,7 +143,8 @@ public class Continuable implements Serializable {
      */
     public List<StackTraceElement> getStackTrace() {
         List<StackTraceElement> r = new ArrayList<StackTraceElement>();
-        e.buildStackTraceElements(r,Integer.MAX_VALUE);
+        if (e!=null)
+            e.buildStackTraceElements(r,Integer.MAX_VALUE);
         return r;
     }
 

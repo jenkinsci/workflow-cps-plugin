@@ -164,6 +164,7 @@ class ContinuableTest extends AbstractGroovyCpsTest {
 
         def c = new Continuable(s);
 
+        // stack trace is empty if it hasn't been started
         assert c.stackTrace.isEmpty()
 
         def v = c.run(null);
@@ -178,6 +179,11 @@ Script1.y(Script1.groovy:12)
 Script1.x(Script1.groovy:5)
 Script1.run(Script1.groovy:17)
 """.trim()
+
+        c.run(null)
+
+        // stack trace is empty if there's nothing more to execute
+        assert c.stackTrace.isEmpty()
     }
 
 }
