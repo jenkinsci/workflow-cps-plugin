@@ -28,7 +28,7 @@ class ThrowBlockTest extends AbstractGroovyCpsTest {
             }
         """)
 
-        println elements;
+//        println elements;
 
         assert elements.subList(0,3).join("\n")=="""
 Script1.y(Script1.groovy:8)

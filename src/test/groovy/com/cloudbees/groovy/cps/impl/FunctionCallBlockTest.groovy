@@ -39,7 +39,7 @@ class FunctionCallBlockTest extends AbstractGroovyCpsTest {
             }
         """)
 
-        println elements;
+//        println elements;
 
         def trace = elements.join("\n")
 
