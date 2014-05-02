@@ -69,26 +69,14 @@ abstract class ContinuationGroup implements Serializable {
         } catch (CpsCallableInvocation inv) {
             return inv.invoke(e, loc, k);
         } catch (Throwable t) {
-            fixupStackTrace(t,loc,e,new ReferenceStackTrace());
-            return throwException(e, t);
+            return throwException(e, t, loc, new ReferenceStackTrace());
         }
     }
 
     /**
      * Fix up the stack trace of an exception thrown from synchronous code.
-     *
-     * @param t
-     *      Exception thrown
-     * @param loc
-     *      Location of the call site in the script. null if unknown.
-     * @param e
-     *      Environment that represents the call stack of the asynchronous code
-     * @param ref
-     *      Reference stack trace that identifies the call site. Create this exception in the same
-     *      function that you call into {@link CallSite}. Used to identify the section of {@coe t.getStackTrace()}
-     *      that belong to the caller of groovy-cps and the invocation of {@link CallSite}  induced by the Groovy script.
      */
-    protected void fixupStackTrace(Throwable t, SourceLocation loc, Env e, ReferenceStackTrace ref) {
+    private void fixupStackTrace(Env e, Throwable t, SourceLocation loc, ReferenceStackTrace ref) {
         StackTraceElement[] rs = ref.getStackTrace();
         StackTraceElement[] ts = t.getStackTrace();
 
@@ -154,8 +142,20 @@ abstract class ContinuationGroup implements Serializable {
      *
      * We use this method to receive an exception thrown from the normal code and "rethrow"
      * into the CPS code.
+     *
+     * @param t
+     *      Exception thrown
+     * @param loc
+     *      Location of the call site in the script. null if unknown.
+     * @param e
+     *      Environment that represents the call stack of the asynchronous code
+     * @param ref
+     *      Reference stack trace that identifies the call site. Create this exception in the same
+     *      function that you call into {@link CallSite}. Used to identify the section of {@coe t.getStackTrace()}
+     *      that belong to the caller of groovy-cps and the invocation of {@link CallSite}  induced by the Groovy script.
      */
-    protected Next throwException(Env e, Throwable t) {
+    protected Next throwException(Env e, Throwable t, SourceLocation loc, ReferenceStackTrace ref) {
+        fixupStackTrace(e, t,loc, ref);
         return e.getExceptionHandler(t.getClass()).receive(t);
     }
 

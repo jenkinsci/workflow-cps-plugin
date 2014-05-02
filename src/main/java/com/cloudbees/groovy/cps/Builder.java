@@ -186,8 +186,8 @@ public class Builder {
     /**
      * for (x in col) { ... }
      */
-    public Block forInLoop(String label, Class type, String variable, Block collection, Block body) {
-        return new ForInLoopBlock(label,type,variable,collection,body);
+    public Block forInLoop(int line, String label, Class type, String variable, Block collection, Block body) {
+        return new ForInLoopBlock(loc(line), label,type,variable,collection,body);
     }
 
     public Block break_(String label) {

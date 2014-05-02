@@ -19,8 +19,10 @@ public class ForInLoopBlock implements Block {
     final String variable;
     final Block collection;
     final Block body;
+    final SourceLocation loc;
 
-    public ForInLoopBlock(String label, Class type, String variable, Block collection, Block body) {
+    public ForInLoopBlock(SourceLocation loc, String label, Class type, String variable, Block collection, Block body) {
+        this.loc = loc;
         this.label = label;
         this.type = type;
         this.variable = variable;
@@ -49,7 +51,7 @@ public class ForInLoopBlock implements Block {
             try {
                 itr = (Iterator) ScriptBytecodeAdapter.invokeMethod0(null/*unused*/, col, "iterator");
             } catch (Throwable t) {
-                return throwException(e, t);
+                return throwException(e, t, loc, new ReferenceStackTrace());
             }
 
             return increment(null);

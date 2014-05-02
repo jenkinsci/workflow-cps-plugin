@@ -89,7 +89,7 @@ public class FunctionCallBlock implements Block {
                     try {
                         v = fakeCallSite("<init>").callConstructor(lhs,args);
                     } catch (Throwable t) {
-                        return throwException(e, t);
+                        return throwException(e, t, loc, new ReferenceStackTrace());
                     }
                     if (v instanceof Throwable)
                         fillInStackTrace(e,(Throwable)v);

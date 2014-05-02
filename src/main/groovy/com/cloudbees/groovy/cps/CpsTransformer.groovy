@@ -316,6 +316,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         } else {
             // for (x in col) { ... }
             makeNode("forInLoop") {
+                loc(forLoop);
                 literal(forLoop.statementLabel)
                 literal(forLoop.variableType)
                 literal(forLoop.variable.name)
