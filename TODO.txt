@@ -1,5 +1,4 @@
 - array access (trivial, so can be done later)
-- debug information and stack trace fixup
 - "synchronized" block
 - finally block
 - how do we handle multi-threading?
