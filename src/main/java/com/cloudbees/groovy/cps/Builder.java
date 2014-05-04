@@ -222,7 +222,11 @@ public class Builder {
      * }
      */
     public Block tryCatch(final Block body, final List<CatchExpression> catches) {
-        return new TryCatchBlock(catches, body);
+        return tryCatch(body, catches, null);
+    }
+
+    public Block tryCatch(final Block body, final List<CatchExpression> catches, final Block finally_) {
+        return new TryCatchBlock(catches, body, finally_);
     }
 
     /**
