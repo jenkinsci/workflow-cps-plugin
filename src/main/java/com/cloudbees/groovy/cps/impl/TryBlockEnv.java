@@ -10,8 +10,7 @@ import java.util.Map.Entry;
 /**
  * @author Kohsuke Kawaguchi
  */
-// TODO: should be package local once all the impls move into this class
-public class TryBlockEnv extends ProxyEnv {
+class TryBlockEnv extends ProxyEnv {
     private final Map<Class,Continuation> handlers = new LinkedHashMap<Class, Continuation>();
 
     public TryBlockEnv(Env parent) {
