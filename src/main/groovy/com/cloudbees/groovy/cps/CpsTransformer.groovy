@@ -42,12 +42,17 @@ import static org.codehaus.groovy.syntax.Types.*
  * CpsFunction foo(int x, int y) {
  *   return foo$workflow;
  * }
- * static CpsFunction foo$workflow = new CpsFunction(["x","y"], B.plus(B.localVariable("x"), B.localVariable("y"));
+ *
+ * private static CpsFunction ___cps___N = ___cps___N();
+ *
+ * private static final CpsFunction ___cps___N() {
+ *   Builder b = new Builder(...);
+ *   return new CpsFunction(['x','y'], b.plus(b.localVariable("x"), b.localVariable("y"))
+ * }
  * </pre>
- * ("B" refers to {@link Builder#INSTANCE} for brevity)
  *
  * <p>
- * That is, we transform a Groovy AST of the method body into a tree of {@link Block}s by using {@link Builder#INSTANCE},
+ * That is, we transform a Groovy AST of the method body into a tree of {@link Block}s by using {@link Builder},
  * then the method just returns this function object and expect the caller to evaluate it, instead of executing the method
  * synchronously before it returns.
  *
@@ -59,9 +64,9 @@ import static org.codehaus.groovy.syntax.Types.*
  *
  * <p>
  * Groovy AST that calls {@link Builder} is a tree of function call, so we build {@link MethodCallExpression}s
- * in the top-down manner. We do this by {@link #makeNode(String)}, which creates a call to {@code Builder.xxx(...)},
+ * in the top-down manner. We do this by {@link CpsTransformer#makeNode(String)}, which creates a call to {@code Builder.xxx(...)},
  * then supply the closure that fills in the arguments to this call by walking down the original Groovy AST tree.
- * This walk-down is done by calling {@link #visit(ASTNode)} (to recursively visit ASTs), or by calling {@link #literal(Object)}
+ * This walk-down is done by calling {@link CpsTransformer#visit(ASTNode)} (to recursively visit ASTs), or by calling {@link CpsTransformer#literal(String)}
  * methods, which generate string/class/etc literals, as sometimes {@link Builder} methods need them as well.
  *
  * @author Kohsuke Kawaguchi
@@ -132,7 +137,12 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      *
      * To:
      *
-     * private static CpsFunction ___cps___N = new CpsFunction(['arg1','arg2','arg3',...], CPS-transformed-method-body)
+     * private static CpsFunction ___cps___N = ___cps___N();
+     *
+     * private static final CpsFunction ___cps___N() {
+     *   return new CpsFunction(['arg1','arg2','arg3',...], CPS-transformed-method-body)
+     * }
+     *
      * ReturnT foo( T1 arg1, T2 arg2, ...) {
      *   throw new CpsCallableInvocation(___cps___N, this, arg1, arg2, ...)
      * }
