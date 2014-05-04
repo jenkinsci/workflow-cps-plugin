@@ -9,28 +9,3 @@ Tests to be written:
 
 Multi-threading TODO
 - how to suspend just one thread while letting other threads run
-
-
------------
-How the fixed up stack trace element should look like
-
-  synchronous part
-  inserted async part
-  ---------
-  caller of Groovy CPS
-
-For exception thrown from resume
-
-  inserted async part
-  ---------
-  the original stack trace element of the exception
-
-Making 'throw' statement do the stack trace rewriting prevents proper rethrow handling
-
-- intercept constructor call of Throwable and have it do a proper fixup
-
-ContinuationGroup.methodCall()
-  if a sync call happens and get an exception, it should rewrite the stack trace
-
-That leaves the exception created deep inside sync code called from async code
-  -> it can be then thrown & caught completely within this sync code, so generally we can't do anything about it
