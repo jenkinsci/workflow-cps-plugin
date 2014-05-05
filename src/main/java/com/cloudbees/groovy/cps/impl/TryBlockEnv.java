@@ -39,7 +39,7 @@ class TryBlockEnv extends ProxyEnv {
                 return e.getValue();
         }
 
-        return super.getExceptionHandler(type);
+        return withFinally(super.getExceptionHandler(type));
     }
 
     /**
