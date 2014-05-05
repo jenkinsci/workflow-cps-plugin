@@ -6,7 +6,6 @@ import org.junit.Test
 
 /**
  * TODO: tests to write
- *   - try block breaking/continuing, running the finally block
  *   - exception caught in a catch block, running the finally block
  *   - exception rethrown in a catch block, running the finally block but not caught in other handlers
  *   - return statement in the finally block, masking an exception
@@ -120,5 +119,28 @@ Script1.run(Script1.groovy:11)
             return a;
 """)
         assert x=="014";
+    }
+
+    @Test
+    void tryAndFinally_ContinueInside() {
+        def x = evalCPS("""
+            a = "";
+            a += "0"
+            for (int i=0; i<2; i++) {
+                a += "1"
+                try {
+                    a += "2";
+                    continue;
+                    a += "3";
+                } catch (Exception e) {
+                    a += "4";
+                } finally {
+                    a += "5";
+                }
+                a += "6";
+            }
+            return a;
+""")
+        assert x=="0125125";
     }
 }
