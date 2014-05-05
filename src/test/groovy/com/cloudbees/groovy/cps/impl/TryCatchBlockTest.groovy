@@ -6,8 +6,6 @@ import org.junit.Test
 
 /**
  * TODO: tests to write
- *   - return statement in the finally block, masking an exception
- *   - return statement in the catch block, masking an exception but running the finally block
  *   - catch order priority
  *
  * @author Kohsuke Kawaguchi
@@ -170,5 +168,57 @@ Script1.run(Script1.groovy:11)
             return a;
 """)
         assert x=="135";
+    }
+
+    @Test
+    void tryAndFinally_returnFromFinally() {
+        def x = evalCPS("""
+            a = "";
+            try {
+                a += "1";
+                throw new Exception("foo");
+                a += "2";
+            } finally {
+                a += "3";
+                return a;
+            }
+""")
+        assert x=="13";
+    }
+
+    @Test
+    void tryAndFinally_returnFromCatch() {
+        def x = evalCPS("""
+            a = "";
+            try {
+                a += "1";
+                throw new Exception("foo");
+                a += "2";
+            } catch (Exception e) {
+                a += "3";
+                return a;
+            } finally {
+                a += "4";
+            }
+""")
+        assert x=="13";
+    }
+
+    @Test
+    void tryAndFinally_returnFromCatch2() {
+        def x = evalCPSonly("""
+            a = new StringBuilder();
+            try {
+                a.append("1");
+                throw new Exception("foo");
+                a.append("2");
+            } catch (Exception e) {
+                a.append("3");
+                return a;
+            } finally {
+                a.append("4");
+            }
+""")
+        assert x.toString()=="134";
     }
 }
