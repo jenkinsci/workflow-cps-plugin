@@ -23,10 +23,9 @@ public class TryCatchBlock implements Block {
         this.finally_ = finally_;
     }
 
-    public Next eval(final Env e, final Continuation _k) {
+    public Next eval(final Env e, final Continuation k) {
         final TryBlockEnv f = new TryBlockEnv(e,finally_);
         // possible evaluation of the finally block, if present.
-        final Continuation k = f.withFinally(_k);
 
         for (final CatchExpression c : catches) {
             f.addHandler(c.type, new Continuation() {
@@ -47,7 +46,7 @@ public class TryCatchBlock implements Block {
         }
 
         // evaluate the body with the new environment
-        return new Next(body,f,k);
+        return new Next(body,f,f.withFinally(k));
     }
 
     private static final long serialVersionUID = 1L;

@@ -208,9 +208,10 @@ public class Builder {
         return new DoWhileBlock(label,body,cond);
     }
 
-    public Block tryCatch(Block body, CatchExpression... catches) {
-        return tryCatch(body, asList(catches));
+    public Block tryCatch(Block body, Block finally_, CatchExpression... catches) {
+        return tryCatch(body, asList(catches), finally_);
     }
+
 
     /**
      * try {

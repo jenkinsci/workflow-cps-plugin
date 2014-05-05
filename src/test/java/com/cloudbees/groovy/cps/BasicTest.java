@@ -189,6 +189,7 @@ public class BasicTest extends Assert {
                                 b.throw_(b.new_(0, RuntimeException.class, b.constant("foo"))),
                                 b.return_(b.null_())
                         ),
+                        null,
 
                         new CatchExpression(Exception.class, "e", b.block(
                                 b.return_(b.functionCall(0, b.localVariable("e"), "getMessage"))
@@ -240,7 +241,7 @@ public class BasicTest extends Assert {
                                 b.setLocalVariable(0, "x", b.one()),
                                 b.functionCall(0, b.constant(new Op()), "throw_", b.constant(3), b.constant("hello")),
                                 b.setLocalVariable(0, "x", b.two())
-                        ),
+                        ), null,
                         new CatchExpression(Exception.class, "e",
                                 b.return_(b.plus(0,
                                         b.property(0, b.localVariable("e"), "message"),

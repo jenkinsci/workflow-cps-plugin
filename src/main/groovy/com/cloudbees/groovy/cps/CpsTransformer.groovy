@@ -383,9 +383,9 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     void visitTryCatchFinally(TryCatchStatement stmt) {
-        // TODO: finally block
         makeNode("tryCatch") {
             visit(stmt.tryStatement)
+            visit(stmt.finallyStatement)
             visit(stmt.catchStatements)
         }
     }
