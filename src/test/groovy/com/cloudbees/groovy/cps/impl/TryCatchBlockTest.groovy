@@ -6,8 +6,6 @@ import org.junit.Test
 
 /**
  * TODO: tests to write
- *   - exception caught in a catch block, running the finally block
- *   - exception rethrown in a catch block, running the finally block but not caught in other handlers
  *   - return statement in the finally block, masking an exception
  *   - return statement in the catch block, masking an exception but running the finally block
  *   - catch order priority
@@ -53,7 +51,7 @@ Script1.run(Script1.groovy:11)
      */
     @Test
     void tryAndFinally_NormalCompletion() {
-        def x = evalCPSonly("""
+        def x = evalCPS("""
             a = "";
             try {
                 a += "1";
@@ -69,7 +67,7 @@ Script1.run(Script1.groovy:11)
 
     @Test
     void tryWithoutFinally_NormalCompletion() {
-        def x = evalCPSonly("""
+        def x = evalCPS("""
             a = "";
             try {
                 a += "1";
@@ -83,7 +81,7 @@ Script1.run(Script1.groovy:11)
 
     @Test
     void tryAndFinally_AbnormalTermination() {
-        def x = evalCPSonly("""
+        def x = evalCPS("""
             a = "";
             try {
                 a += "1";
@@ -142,5 +140,35 @@ Script1.run(Script1.groovy:11)
             return a;
 """)
         assert x=="0125125";
+    }
+
+    /**
+     * Groovy interpreter seems to have a bug in running the finally block when an exception is thrown
+     * from the catch block, so not using "evalCPS".
+     */
+    @Test
+    void tryAndFinally_RethrowAndFinallyBlock() {
+        def x = evalCPSonly("""
+            a = "";
+            try {
+                try {
+                    a += "1";
+                    throw new Exception("foo");
+                    a += "2";
+                } catch (Exception e) {
+                    a += "3";
+                    throw new RuntimeException();
+                    a += "4";
+                } catch (RuntimeException e) {
+                    a += "6";
+                } finally {
+                    a += "5";
+                }
+            } catch (Exception e) {
+                ;
+            }
+            return a;
+""")
+        assert x=="135";
     }
 }
