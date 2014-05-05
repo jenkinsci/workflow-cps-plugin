@@ -17,6 +17,7 @@ import com.cloudbees.groovy.cps.impl.ListBlock;
 import com.cloudbees.groovy.cps.impl.LocalVariableBlock;
 import com.cloudbees.groovy.cps.impl.LogicalOpBlock;
 import com.cloudbees.groovy.cps.impl.MapBlock;
+import com.cloudbees.groovy.cps.impl.NotBlock;
 import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
 import com.cloudbees.groovy.cps.impl.ReturnBlock;
 import com.cloudbees.groovy.cps.impl.SequenceBlock;
@@ -326,6 +327,13 @@ public class Builder {
      */
     public Block logicalOr(Block lhs, Block rhs) {
         return new LogicalOpBlock(lhs,rhs,false);
+    }
+
+    /**
+     * !b
+     */
+    public Block not(Block b) {
+        return new NotBlock(b);
     }
 
     public Block bitwiseAnd(int line, Block lhs, Block rhs) {

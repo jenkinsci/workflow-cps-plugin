@@ -756,8 +756,10 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         throw new UnsupportedOperationException();
     }
 
-    void visitNotExpression(NotExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitNotExpression(NotExpression exp) {
+        makeNode("not") {
+            visit(exp.expression)
+        }
     }
 
     void visitUnaryMinusExpression(UnaryMinusExpression expression) {
