@@ -288,6 +288,10 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         parent(new ConstantExpression(n,true))
     }
 
+    private void literal(boolean b) {
+        parent(new ConstantExpression(b,true))
+    }
+
     void visitEmptyExpression(EmptyExpression e) {
         makeNode("noop")
     }
@@ -778,8 +782,13 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         throw new UnsupportedOperationException();
     }
 
-    void visitCastExpression(CastExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitCastExpression(CastExpression exp) {
+        makeNode("cast") {
+            loc(exp)
+            visit(exp.expression)
+            literal(exp.type)
+            literal(exp.isCoerce())
+        }
     }
 
     void visitArgumentlistExpression(ArgumentListExpression expression) {

@@ -385,6 +385,18 @@ public class Builder {
     }
 
     /**
+     * Cast to type.
+     *
+     * @param coerce
+     *      True for "exp as type" cast. false for "(type)exp" cast.
+     */
+    public Block cast(int line, Block block, Class type, boolean coerce) {
+        return staticCall(line,ScriptBytecodeAdapter.class,
+                coerce ? "asType" : "castToType",
+                block,constant(type));
+    }
+
+    /**
      * LHS.name(...)
      */
     public Block functionCall(int line, Block lhs, String name, Block... argExps) {

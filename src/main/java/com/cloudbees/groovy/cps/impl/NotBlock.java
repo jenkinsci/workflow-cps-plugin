@@ -26,4 +26,6 @@ public class NotBlock implements Block {
             }
         });
     }
+
+    private static final long serialVersionUID = 1L;
 }
