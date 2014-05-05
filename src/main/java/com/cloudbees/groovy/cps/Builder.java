@@ -287,6 +287,14 @@ public class Builder {
         return functionCall(line,lhs, "power", rhs);
     }
 
+    public Block unaryMinus(int line, Block lhs) {
+        return staticCall(line,ScriptBytecodeAdapter.class, "unaryMinus", lhs);
+    }
+
+    public Block unaryPlus(int line, Block lhs) {
+        return staticCall(line,ScriptBytecodeAdapter.class, "unaryPlus", lhs);
+    }
+
     public Block compareEqual(int line, Block lhs, Block rhs) {
         return staticCall(line,ScriptBytecodeAdapter.class, "compareEqual", lhs, rhs);
     }
