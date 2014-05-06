@@ -340,7 +340,7 @@ public class Builder {
     /**
      * !b
      */
-    public Block not(Block b) {
+    public Block not(int line, Block b) {
         return new NotBlock(b);
     }
 

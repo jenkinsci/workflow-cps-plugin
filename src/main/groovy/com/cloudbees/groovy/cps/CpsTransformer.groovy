@@ -762,18 +762,21 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
     void visitNotExpression(NotExpression exp) {
         makeNode("not") {
+            loc(exp)
             visit(exp.expression)
         }
     }
 
     void visitUnaryMinusExpression(UnaryMinusExpression exp) {
         makeNode("unaryMinus") {
+            loc(exp)
             visit(exp.expression)
         }
     }
 
     void visitUnaryPlusExpression(UnaryPlusExpression exp) {
         makeNode("unaryPlus") {
+            loc(exp)
             visit(exp.expression)
         }
     }

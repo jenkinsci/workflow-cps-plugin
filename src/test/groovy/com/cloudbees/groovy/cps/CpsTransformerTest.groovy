@@ -304,4 +304,26 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             assert e.message=="with message. Expression: assert (1+2) == 4 : \"with message\""
         }
     }
+
+    @Test
+    void unaryOps() {
+        assert evalCPS("""
+            def x = 5;
+            def y = -x;
+            def z = +x;
+
+            return y+z;
+""")==0;
+    }
+
+    @Test
+    void not() {
+        assert evalCPS("""
+            def x = true;
+            def y = !x;
+            def z = !y;
+
+            return "y="+y+",z="+z;
+""")=="y=false,z=true";
+    }
 }
