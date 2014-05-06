@@ -27,6 +27,7 @@ import com.cloudbees.groovy.cps.impl.TryCatchBlock;
 import com.cloudbees.groovy.cps.impl.VariableDeclBlock;
 import com.cloudbees.groovy.cps.impl.WhileBlock;
 import groovy.lang.Closure;
+import org.codehaus.groovy.runtime.GStringImpl;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
 import java.util.List;
@@ -462,6 +463,15 @@ public class Builder {
 
     public Block assert_(Block cond, String sourceText) {
         return assert_(cond,null_(),sourceText);
+    }
+
+    /**
+     * "Foo bar zot ${x}" kind of string
+     */
+    public Block gstring(int line, Block listOfValues, Block listOfStrings) {
+        return new_(line, GStringImpl.class,
+                cast(line,listOfValues, Object[].class,true),
+                cast(line,listOfStrings,String[].class,true));
     }
 
     private SourceLocation loc(int line) {

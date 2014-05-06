@@ -744,8 +744,16 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         }
     }
 
-    void visitGStringExpression(GStringExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitGStringExpression(GStringExpression exp) {
+        makeNode("gstring") {
+            loc(exp)
+            makeNode("list") {
+                visit(exp.values)
+            }
+            makeNode("list") {
+                visit(exp.strings)
+            }
+        }
     }
 
     void visitArrayExpression(ArrayExpression expression) {

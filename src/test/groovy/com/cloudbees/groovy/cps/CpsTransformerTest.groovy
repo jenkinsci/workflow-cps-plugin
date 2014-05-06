@@ -334,4 +334,12 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             return ~x;
 """)==-33;
     }
+
+    @Test
+    void gstring() {
+        assert evalCPS('''
+            def x = "foo";
+            return "hello ${1+3}=${x}";
+''')=="hello 4=foo";
+    }
 }
