@@ -326,4 +326,12 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             return "y="+y+",z="+z;
 """)=="y=false,z=true";
     }
+
+    @Test
+    void bitwiseNegative() {
+        assert evalCPS("""
+            int x = 32;
+            return ~x;
+""")==-33;
+    }
 }

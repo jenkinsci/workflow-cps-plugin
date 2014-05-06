@@ -356,6 +356,10 @@ public class Builder {
         return functionCall(line,lhs,"xor",rhs);
     }
 
+    public Block bitwiseNegation(int line, Block b) {
+        return staticCall(line,ScriptBytecodeAdapter.class,"bitwiseNegate",b);
+    }
+
     /**
      * ++x
      */

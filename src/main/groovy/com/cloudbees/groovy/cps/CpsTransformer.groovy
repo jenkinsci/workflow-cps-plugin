@@ -781,8 +781,11 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         }
     }
 
-    void visitBitwiseNegationExpression(BitwiseNegationExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitBitwiseNegationExpression(BitwiseNegationExpression exp) {
+        makeNode("bitwiseNegation") {
+            loc(exp)
+            visit(exp.expression)
+        }
     }
 
     void visitCastExpression(CastExpression exp) {
