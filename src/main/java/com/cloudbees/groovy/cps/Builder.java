@@ -22,6 +22,7 @@ import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
 import com.cloudbees.groovy.cps.impl.ReturnBlock;
 import com.cloudbees.groovy.cps.impl.SequenceBlock;
 import com.cloudbees.groovy.cps.impl.SourceLocation;
+import com.cloudbees.groovy.cps.impl.SwitchBlock;
 import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import com.cloudbees.groovy.cps.impl.TryCatchBlock;
 import com.cloudbees.groovy.cps.impl.VariableDeclBlock;
@@ -30,6 +31,7 @@ import groovy.lang.Closure;
 import org.codehaus.groovy.runtime.GStringImpl;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static com.cloudbees.groovy.cps.Block.*;
@@ -472,6 +474,10 @@ public class Builder {
         return new_(line, GStringImpl.class,
                 cast(line,listOfValues, Object[].class,true),
                 cast(line,listOfStrings,String[].class,true));
+    }
+
+    public Block switchCase(String label, Block switchExp, Block defaultStmt, CaseExpression... caseExps) {
+        return new SwitchBlock(label, switchExp, defaultStmt, Arrays.asList(caseExps));
     }
 
     private SourceLocation loc(int line) {

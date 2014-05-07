@@ -399,7 +399,8 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     void visitCaseStatement(CaseStatement statement) {
-        throw new UnsupportedOperationException();
+        // switch-case is handled entirely in visitSwitch
+        throw new AssertionError();
     }
 
     void visitBreakStatement(BreakStatement statement) {
