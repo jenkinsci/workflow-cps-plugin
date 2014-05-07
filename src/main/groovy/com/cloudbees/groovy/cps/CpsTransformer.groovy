@@ -14,7 +14,6 @@ import org.codehaus.groovy.control.SourceUnit
 import org.codehaus.groovy.control.customizers.CompilationCustomizer
 import org.codehaus.groovy.runtime.powerassert.SourceText
 import org.codehaus.groovy.syntax.Token
-import org.codehaus.groovy.syntax.Types
 
 import java.lang.annotation.Annotation
 import java.lang.reflect.Modifier
@@ -394,13 +393,21 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         }
     }
 
-    void visitSwitch(SwitchStatement statement) {
-        throw new UnsupportedOperationException();
+    void visitSwitch(SwitchStatement stmt) {
+        makeNode("switchCase") {
+            literal(stmt.statementLabel)
+            visit(stmt.expression)
+            visit(stmt.defaultStatement)
+            visit(stmt.caseStatements)
+        }
     }
 
-    void visitCaseStatement(CaseStatement statement) {
-        // switch-case is handled entirely in visitSwitch
-        throw new AssertionError();
+    void visitCaseStatement(CaseStatement stmt) {
+        makeNode(CASE_EXPRESSION_TYPE) {
+            loc(stmt)
+            visit(stmt.expression)
+            visit(stmt.code)
+        }
     }
 
     void visitBreakStatement(BreakStatement statement) {
@@ -819,6 +826,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     private static final ClassNode FUNCTION_TYPE = ClassHelper.makeCached(CpsFunction.class);
+    private static final ClassNode CASE_EXPRESSION_TYPE = ClassHelper.makeCached(CaseExpression.class);
     private static final ClassNode CATCH_EXPRESSION_TYPE = ClassHelper.makeCached(CatchExpression.class);
     private static final ClassNode BUILDER_TYPE = ClassHelper.makeCached(Builder.class);
     private static final ClassNode CPSCALLINVK_TYPE = ClassHelper.makeCached(CpsCallableInvocation.class);
