@@ -8,7 +8,6 @@ import javax.naming.NamingException
 /**
  * Tests
  *
- * - testing case statement that has isCase method (like regexp)
  * - break from within the switch statement
  * - two case matching
  * - no case matching with default
@@ -139,5 +138,24 @@ class SwitchBlockTest extends AbstractGroovyCpsTest {
                 return e.class;
             }
         """)==NamingException.class;
+    }
+
+    @Test
+    void isCase() {
+        assert evalCPS("""
+            def x = 5;
+            switch (x) {
+            case 1:
+                y = "one";
+                break;
+            case [2,4,6,8]:
+                y = "even";
+                break;
+            case [3,5,7,9]:
+                y = "odd";
+                break;
+            }
+            return y;
+        """)=="odd";
     }
 }
