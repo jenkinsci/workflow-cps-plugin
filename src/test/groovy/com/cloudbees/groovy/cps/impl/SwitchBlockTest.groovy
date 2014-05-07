@@ -37,8 +37,49 @@ class SwitchBlockTest extends AbstractGroovyCpsTest {
         """)=="two";
     }
 
+    /**
+     * Null in the switch expression.
+     */
     @Test
-    void exceptionInSwithExp() {
+    void nullSwitchExp() {
+        assert evalCPS("""
+            def x = null;
+            def y = 'zero';
+            switch (x) {
+            case 1:
+                y = "one";
+                break;
+            case 2:
+                y = "two";
+                break;
+            case 3:
+                y = "three";
+                break;
+            }
+            return y;
+        """)=="zero";
+    }
 
+    /**
+     * Null in the case expression.
+     */
+    @Test
+    void nullInCaseExp() {
+        assert evalCPS("""
+            def x = null;
+            def y = 'zero';
+            switch (x) {
+            case 1:
+                y = "one";
+                break;
+            case null:
+                y = "null!";
+                break;
+            case 3:
+                y = "three";
+                break;
+            }
+            return y;
+        """)=="null!";
     }
 }
