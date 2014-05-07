@@ -394,7 +394,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     void visitSwitch(SwitchStatement stmt) {
-        makeNode("switchCase") {
+        makeNode("switch_") {
             literal(stmt.statementLabel)
             visit(stmt.expression)
             visit(stmt.defaultStatement)
@@ -403,7 +403,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     void visitCaseStatement(CaseStatement stmt) {
-        makeNode(CASE_EXPRESSION_TYPE) {
+        makeNode("case_") {
             loc(stmt)
             visit(stmt.expression)
             visit(stmt.code)
@@ -826,7 +826,6 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     private static final ClassNode FUNCTION_TYPE = ClassHelper.makeCached(CpsFunction.class);
-    private static final ClassNode CASE_EXPRESSION_TYPE = ClassHelper.makeCached(CaseExpression.class);
     private static final ClassNode CATCH_EXPRESSION_TYPE = ClassHelper.makeCached(CatchExpression.class);
     private static final ClassNode BUILDER_TYPE = ClassHelper.makeCached(Builder.class);
     private static final ClassNode CPSCALLINVK_TYPE = ClassHelper.makeCached(CpsCallableInvocation.class);

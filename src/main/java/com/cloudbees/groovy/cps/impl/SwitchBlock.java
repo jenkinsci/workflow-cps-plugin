@@ -78,7 +78,7 @@ public class SwitchBlock implements Block {
         /**
          * Called after the case expression is evaluated to decide if we are going to run the statement.
          */
-        private Next matcher(Object caseValue) {
+        public Next matcher(Object caseValue) {
             boolean b;
             try {
                 b = ScriptBytecodeAdapter.isCase(switchValue, caseValue);
@@ -98,7 +98,7 @@ public class SwitchBlock implements Block {
         /**
          * Executes the body and falls through to the next body.
          */
-        private Next body(Object _) {
+        public Next body(Object _) {
             if (index==cases.size()) {
                 // that was the last block
                 return k.receive(null);

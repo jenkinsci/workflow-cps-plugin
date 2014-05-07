@@ -476,8 +476,15 @@ public class Builder {
                 cast(line,listOfStrings,String[].class,true));
     }
 
-    public Block switchCase(String label, Block switchExp, Block defaultStmt, CaseExpression... caseExps) {
+    /**
+     * @see #case_(int, Block, Block)
+     */
+    public Block switch_(String label, Block switchExp, Block defaultStmt, CaseExpression... caseExps) {
         return new SwitchBlock(label, switchExp, defaultStmt, Arrays.asList(caseExps));
+    }
+
+    public CaseExpression case_(int line, Block matcher, Block body) {
+        return new CaseExpression(loc(line), matcher, body);
     }
 
     private SourceLocation loc(int line) {
