@@ -86,11 +86,26 @@ public class SwitchBlock implements Block {
                 return throwException(e, t, getCase().loc, new ReferenceStackTrace());
             }
 
-            if (b)
-                return then(getCase().body, caseEnv, k);
-            else {
+            if (b) {
+                // started executing the body
+                return body(null);
+            } else {
                 index++;
                 return matcher();
+            }
+        }
+
+        /**
+         * Executes the body and falls through to the next body.
+         */
+        private Next body(Object _) {
+            if (index==cases.size()) {
+                // that was the last block
+                return k.receive(null);
+            } else {
+                Next n = then(getCase().body, caseEnv, body);
+                index++;
+                return n;
             }
         }
 
@@ -103,6 +118,7 @@ public class SwitchBlock implements Block {
 
     static final ContinuationPtr test = new ContinuationPtr(ContinuationImpl.class,"test");
     static final ContinuationPtr matcher = new ContinuationPtr(ContinuationImpl.class,"matcher");
+    static final ContinuationPtr body = new ContinuationPtr(ContinuationImpl.class,"body");
 
     private static final long serialVersionUID = 1L;
 }
