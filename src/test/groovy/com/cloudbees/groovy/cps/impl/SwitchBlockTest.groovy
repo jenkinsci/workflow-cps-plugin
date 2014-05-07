@@ -3,10 +3,11 @@ package com.cloudbees.groovy.cps.impl
 import com.cloudbees.groovy.cps.AbstractGroovyCpsTest
 import org.junit.Test
 
+import javax.naming.NamingException
+
 /**
  * Tests
  *
- * - exception in switch exp / case exp
  * - testing case statement that has isCase method (like regexp)
  * - break from within the switch statement
  * - two case matching
@@ -81,5 +82,62 @@ class SwitchBlockTest extends AbstractGroovyCpsTest {
             }
             return y;
         """)=="null!";
+    }
+
+    /**
+     * Exception in the switch expression.
+     */
+    @Test
+    void exceptionInSwitchExp() {
+        assert evalCPS("""
+            @WorkflowMethod
+            def foo() {
+                throw new javax.naming.NamingException();
+            }
+
+            try {
+                switch (foo()) {
+                case 1:
+                    y = "one";
+                    break;
+                case 2:
+                    y = "two!";
+                    break;
+                }
+                return null;
+            } catch (e) {
+                return e.class;
+            }
+        """)==NamingException.class;
+    }
+
+    /**
+     * Exception in the case expression.
+     */
+    @Test
+    void exceptionInCaseExp() {
+        assert evalCPS("""
+            @WorkflowMethod
+            def foo() {
+                throw new javax.naming.NamingException();
+            }
+
+            try {
+                switch (5) {
+                case 1:
+                    y = "one";
+                    break;
+                case foo():
+                    y = "two";
+                    break;
+                case 3:
+                    y = "three";
+                    break;
+                }
+                return null;
+            } catch (e) {
+                return e.class;
+            }
+        """)==NamingException.class;
     }
 }
