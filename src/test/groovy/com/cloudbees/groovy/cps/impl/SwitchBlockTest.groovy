@@ -8,7 +8,6 @@ import javax.naming.NamingException
 /**
  * Tests
  *
- * - break from within the switch statement
  * - two case matching
  * - no case matching with default
  * - no case matching without default
