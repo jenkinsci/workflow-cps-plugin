@@ -1,6 +1,7 @@
 package com.cloudbees.groovy.cps.impl
 
 import com.cloudbees.groovy.cps.AbstractGroovyCpsTest
+import org.junit.Ignore
 import org.junit.Test
 
 import javax.naming.NamingException
@@ -228,5 +229,55 @@ class SwitchBlockTest extends AbstractGroovyCpsTest {
             }
             return y;
         """)=="initial";
+    }
+
+    /**
+     * Case match and fall through the rest.
+     */
+    @Test
+    void fallthrough() {
+        assert evalCPS("""
+            def x = 1;
+            def y = "";
+            switch (x) {
+            case 1:
+                y += "one";
+                // fall through
+            case 2:
+                y += "two";
+                // fall through
+            case 3:
+                y += "three";
+                // fall through
+            }
+            return y;
+        """)=="onetwothree";
+    }
+
+    /**
+     * Default match and fall through
+     */
+    @Test
+    @Ignore("Groovy doesn't handle this correctly")
+    void fallthroughWithDefault() {
+        assert evalCPS("""
+            def x = 9;
+            def y = "";
+            switch (x) {
+            default:
+                y += "other";
+                // fall through
+            case 1:
+                y += "one";
+                // fall through
+            case 2:
+                y += "two";
+                // fall through
+            case 3:
+                y += "three";
+                // fall through
+            }
+            return y;
+        """)=="otheronetwothree";
     }
 }
