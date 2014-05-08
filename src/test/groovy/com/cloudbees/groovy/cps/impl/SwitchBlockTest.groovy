@@ -8,7 +8,6 @@ import javax.naming.NamingException
 /**
  * Tests
  *
- * - two case matching
  * - no case matching with default
  * - no case matching without default
  * - fall through
@@ -157,4 +156,31 @@ class SwitchBlockTest extends AbstractGroovyCpsTest {
             return y;
         """)=="odd";
     }
+
+    /**
+     * Two matching case statements.
+     */
+    @Test
+    void twoMatchingCases() {
+        assert evalCPS("""
+            def x = 2;
+            def y;
+            switch (x) {
+            case 1:
+                y = "one";
+                break;
+            case 2:
+                y = "two";
+                break;
+            case 2:
+                y = "TWO";
+                break;
+            case 3:
+                y = "three";
+                break;
+            }
+            return y;
+        """)=="two";
+    }
+
 }
