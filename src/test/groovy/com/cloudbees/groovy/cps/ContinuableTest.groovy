@@ -186,4 +186,42 @@ Script1.run(Script1.groovy:17)
         assert c.stackTrace.isEmpty()
     }
 
+    /**
+     * Triggers the use of {@link org.codehaus.groovy.ast.expr.StaticMethodCallExpression}
+     */
+    @Test
+    public void staticMethod1() {
+        def s = csh.parse("import static java.lang.Class.forName; forName('java.lang.Integer')")
+        def c = new Continuable(s);
+        def r = c.run(null)
+        assert r==Integer.class
+    }
+
+    /**
+     * Static method call expression with two arguments
+     */
+    @Test
+    public void staticMethod2() {
+        def s = csh.parse("import static java.lang.Integer.toString; toString(31,16)")
+        def c = new Continuable(s);
+        def r = c.run(null)
+        assert r=="1f"
+    }
+
+    /**
+     * Static method call expression with no arguments
+     */
+    @Test
+    public void staticMethod0() {
+        def s = csh.parse("import static com.cloudbees.groovy.cps.ContinuableTest.StaticMethodHost.methodWithNoArgs; methodWithNoArgs()")
+        def c = new Continuable(s);
+        def r = c.run(null)
+        assert r=="hello"
+    }
+
+    public static class StaticMethodHost {
+        public static String methodWithNoArgs() {
+            return "hello";
+        }
+    }
 }
