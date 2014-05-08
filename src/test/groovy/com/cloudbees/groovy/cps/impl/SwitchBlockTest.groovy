@@ -6,10 +6,8 @@ import org.junit.Test
 import javax.naming.NamingException
 
 /**
- * Tests
+ * Tests for switch/case
  *
- * - no case matching with default
- * - no case matching without default
  * - fall through
  *
  * @author Kohsuke Kawaguchi
@@ -183,4 +181,52 @@ class SwitchBlockTest extends AbstractGroovyCpsTest {
         """)=="two";
     }
 
+    /**
+     * Matches to the default clause
+     */
+    @Test
+    void defaultClause() {
+        assert evalCPS("""
+            def x = 5;
+            def y;
+            switch (x) {
+            case 1:
+                y = "one";
+                break;
+            default:
+                y = "other";
+                break;
+            case 2:
+                y = "two";
+                break;
+            case 3:
+                y = "three";
+                break;
+            }
+            return y;
+        """)=="other";
+    }
+
+    /**
+     * Matches to nothing
+     */
+    @Test
+    void noMatch() {
+        assert evalCPS("""
+            def x = 5;
+            def y = "initial";
+            switch (x) {
+            case 1:
+                y = "one";
+                break;
+            case 2:
+                y = "two";
+                break;
+            case 3:
+                y = "three";
+                break;
+            }
+            return y;
+        """)=="initial";
+    }
 }
