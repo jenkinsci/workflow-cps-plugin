@@ -9,8 +9,6 @@ import javax.naming.NamingException
 /**
  * Tests for switch/case
  *
- * - fall through
- *
  * @author Kohsuke Kawaguchi
  */
 class SwitchBlockTest extends AbstractGroovyCpsTest {
