@@ -461,8 +461,11 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         }
     }
 
-    void visitShortTernaryExpression(ElvisOperatorExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitShortTernaryExpression(ElvisOperatorExpression exp) {
+        makeNode("elvisOp") {
+            visit(exp.booleanExpression)
+            visit(exp.falseExpression)
+        }
     }
 
     private static Map<Integer,String> BINARY_OP_TO_BUILDER_METHOD = [

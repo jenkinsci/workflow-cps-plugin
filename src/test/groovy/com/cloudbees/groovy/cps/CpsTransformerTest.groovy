@@ -354,4 +354,10 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     void ternaryOp2() {
         assert evalCPS("false ? bogus.noSuchCall() : 'zot'")=='zot';
     }
+
+    @Test
+    void elvisOp() {
+        assert evalCPS("def x=0; return ++x ?: -1")==1;
+        assert evalCPS("def x=0; return x++ ?: -1")==-1;
+    }
 }

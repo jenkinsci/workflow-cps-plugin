@@ -8,6 +8,7 @@ import com.cloudbees.groovy.cps.impl.ClosureBlock;
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.ContinueBlock;
 import com.cloudbees.groovy.cps.impl.DoWhileBlock;
+import com.cloudbees.groovy.cps.impl.ElvisBlock;
 import com.cloudbees.groovy.cps.impl.ExcrementOperatorBlock;
 import com.cloudbees.groovy.cps.impl.ForInLoopBlock;
 import com.cloudbees.groovy.cps.impl.ForLoopBlock;
@@ -300,6 +301,13 @@ public class Builder {
 
     public Block ternaryOp(Block cond, Block trueExp, Block falseExp) {
         return if_(cond,trueExp,falseExp);
+    }
+
+    /**
+     * x ?: y
+     */
+    public Block elvisOp(Block cond, Block falseExp) {
+        return new ElvisBlock(cond,falseExp);
     }
 
     public Block compareEqual(int line, Block lhs, Block rhs) {
