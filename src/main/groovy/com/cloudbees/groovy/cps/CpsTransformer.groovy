@@ -453,8 +453,12 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         }
     }
 
-    void visitTernaryExpression(TernaryExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitTernaryExpression(TernaryExpression exp) {
+        makeNode("ternaryOp") {
+            visit(exp.booleanExpression)
+            visit(exp.trueExpression)
+            visit(exp.falseExpression)
+        }
     }
 
     void visitShortTernaryExpression(ElvisOperatorExpression expression) {

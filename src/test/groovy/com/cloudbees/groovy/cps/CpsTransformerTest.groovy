@@ -342,4 +342,11 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             return "hello ${1+3}=${x}";
 ''')=="hello 4=foo";
     }
+
+    @Test
+    void ternaryOp() {
+        assert evalCPS('''
+            return true ? 5 : null.makeCall();
+''')==5;
+    }
 }

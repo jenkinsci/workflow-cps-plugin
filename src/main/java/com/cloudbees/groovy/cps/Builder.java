@@ -298,6 +298,10 @@ public class Builder {
         return staticCall(line,ScriptBytecodeAdapter.class, "unaryPlus", lhs);
     }
 
+    public Block ternaryOp(Block cond, Block trueExp, Block falseExp) {
+        return if_(cond,trueExp,falseExp);
+    }
+
     public Block compareEqual(int line, Block lhs, Block rhs) {
         return staticCall(line,ScriptBytecodeAdapter.class, "compareEqual", lhs, rhs);
     }
