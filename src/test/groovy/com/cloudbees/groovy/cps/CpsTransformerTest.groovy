@@ -349,4 +349,9 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             return true ? 5 : null.makeCall();
 ''')==5;
     }
+
+    @Test
+    void ternaryOp2() {
+        assert evalCPS("false ? bogus.noSuchCall() : 'zot'")=='zot';
+    }
 }
