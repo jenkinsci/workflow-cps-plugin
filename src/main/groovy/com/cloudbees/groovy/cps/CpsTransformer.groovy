@@ -688,8 +688,21 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         throw new UnsupportedOperationException();
     }
 
-    void visitFieldExpression(FieldExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitFieldExpression(FieldExpression exp) {
+        def f = exp.field
+        if (f.isStatic()) {
+            makeNode("staticField") {
+                loc(exp)
+                literal(f.type)
+                literal(exp.fieldName)
+            }
+        } else {
+            makeNode("property") {
+                loc(exp)
+                makeNode("this_")
+                literal(exp.fieldName)
+            }
+        }
     }
 
     void visitMethodPointerExpression(MethodPointerExpression expression) {

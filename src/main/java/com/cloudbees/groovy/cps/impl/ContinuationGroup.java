@@ -9,6 +9,7 @@ import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 
+import javax.annotation.CheckReturnValue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -154,6 +155,7 @@ abstract class ContinuationGroup implements Serializable {
      *      function that you call into {@link CallSite}. Used to identify the section of {@coe t.getStackTrace()}
      *      that belong to the caller of groovy-cps and the invocation of {@link CallSite}  induced by the Groovy script.
      */
+    @CheckReturnValue
     protected Next throwException(Env e, Throwable t, SourceLocation loc, ReferenceStackTrace ref) {
         fixupStackTrace(e, t,loc, ref);
         return e.getExceptionHandler(t.getClass()).receive(t);

@@ -23,6 +23,7 @@ import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
 import com.cloudbees.groovy.cps.impl.ReturnBlock;
 import com.cloudbees.groovy.cps.impl.SequenceBlock;
 import com.cloudbees.groovy.cps.impl.SourceLocation;
+import com.cloudbees.groovy.cps.impl.StaticFieldBlock;
 import com.cloudbees.groovy.cps.impl.SwitchBlock;
 import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import com.cloudbees.groovy.cps.impl.TryCatchBlock;
@@ -268,7 +269,7 @@ public class Builder {
     }
 
     public Block minus(int line, Block lhs, Block rhs) {
-        return functionCall(line,lhs,"minus",rhs);
+        return functionCall(line, lhs, "minus", rhs);
     }
 
     public Block multiply(int line, Block lhs, Block rhs) {
@@ -284,7 +285,7 @@ public class Builder {
     }
 
     public Block mod(int line, Block lhs, Block rhs) {
-        return functionCall(line,lhs,"mod",rhs);
+        return functionCall(line, lhs, "mod", rhs);
     }
 
     public Block power(int line, Block lhs, Block rhs) {
@@ -292,7 +293,7 @@ public class Builder {
     }
 
     public Block unaryMinus(int line, Block lhs) {
-        return staticCall(line,ScriptBytecodeAdapter.class, "unaryMinus", lhs);
+        return staticCall(line, ScriptBytecodeAdapter.class, "unaryMinus", lhs);
     }
 
     public Block unaryPlus(int line, Block lhs) {
@@ -300,7 +301,7 @@ public class Builder {
     }
 
     public Block ternaryOp(Block cond, Block trueExp, Block falseExp) {
-        return if_(cond,trueExp,falseExp);
+        return if_(cond, trueExp, falseExp);
     }
 
     /**
@@ -311,19 +312,19 @@ public class Builder {
     }
 
     public Block compareEqual(int line, Block lhs, Block rhs) {
-        return staticCall(line,ScriptBytecodeAdapter.class, "compareEqual", lhs, rhs);
+        return staticCall(line, ScriptBytecodeAdapter.class, "compareEqual", lhs, rhs);
     }
 
     public Block compareNotEqual(int line, Block lhs, Block rhs) {
-        return staticCall(line,ScriptBytecodeAdapter.class, "compareNotEqual", lhs, rhs);
+        return staticCall(line, ScriptBytecodeAdapter.class, "compareNotEqual", lhs, rhs);
     }
 
     public Block compareTo(int line, Block lhs, Block rhs) {
-        return staticCall(line,ScriptBytecodeAdapter.class,"compareTo",lhs,rhs);
+        return staticCall(line, ScriptBytecodeAdapter.class, "compareTo", lhs, rhs);
     }
 
     public Block lessThan(int line, Block lhs, Block rhs) {
-        return staticCall(line,ScriptBytecodeAdapter.class,"compareLessThan",lhs,rhs);
+        return staticCall(line, ScriptBytecodeAdapter.class, "compareLessThan", lhs, rhs);
     }
 
     public Block lessThanEqual(int line, Block lhs, Block rhs) {
@@ -335,7 +336,7 @@ public class Builder {
     }
 
     public Block greaterThanEqual(int line, Block lhs, Block rhs) {
-        return staticCall(line,ScriptBytecodeAdapter.class,"compareGreaterThanEqual",lhs,rhs);
+        return staticCall(line, ScriptBytecodeAdapter.class, "compareGreaterThanEqual", lhs, rhs);
     }
 
     /**
@@ -436,6 +437,10 @@ public class Builder {
 
     public LValueBlock property(int line, Block lhs, Block property) {
         return new PropertyAccessBlock(loc(line),lhs,property);
+    }
+
+    public LValueBlock staticField(int line, Class type, String name) {
+        return new StaticFieldBlock(loc(line),type,name);
     }
 
     public Block setProperty(int line, Block lhs, String property, Block rhs) {
