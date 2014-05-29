@@ -468,6 +468,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         }
     }
 
+    // Constants from Token.type to a method on Builder
     private static Map<Integer,String> BINARY_OP_TO_BUILDER_METHOD = [
             (COMPARE_EQUAL)                 :"compareEqual",
             (COMPARE_NOT_EQUAL)             :"compareNotEqual",
@@ -490,6 +491,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             (MOD)                           :"mod",
             (POWER)                         :"power",
             (EQUAL)                         :"assign",
+            (KEYWORD_INSTANCEOF)            :"instanceOf",
     ]
 
     /**

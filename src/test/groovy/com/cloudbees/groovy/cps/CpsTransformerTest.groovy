@@ -360,4 +360,12 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         assert evalCPS("def x=0; return ++x ?: -1")==1;
         assert evalCPS("def x=0; return x++ ?: -1")==-1;
     }
+
+    @Test
+    void instanceOf() {
+        assert evalCPS("null instanceof String")==false;
+        assert evalCPS("3 instanceof Integer")==true;
+        assert evalCPS("new RuntimeException() instanceof Exception")==true;
+        assert evalCPS("'12345' instanceof String")==true;
+    }
 }

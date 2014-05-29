@@ -416,6 +416,10 @@ public class Builder {
                 block,constant(type));
     }
 
+    public Block instanceOf(int line, Block value, Block type) {
+        return functionCall(line,type,"isInstance",value);
+    }
+
     /**
      * LHS.name(...)
      */
