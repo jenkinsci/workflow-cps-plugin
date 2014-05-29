@@ -368,4 +368,15 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         assert evalCPS("new RuntimeException() instanceof Exception")==true;
         assert evalCPS("'12345' instanceof String")==true;
     }
+
+    @Test
+    void compoundBitwiseAssignment() {
+        [0,1,2,3,4].each { x->
+            [0,1,2,3,4].each { y ->
+                assert evalCPS("def x=${x}; x&=${y}; return x;")== (x&y);
+                assert evalCPS("def x=${x}; x|=${y}; return x;")== (x|y);
+                assert evalCPS("def x=${x}; x^=${y}; return x;")== (x^y);
+            }
+        }
+    }
 }

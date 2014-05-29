@@ -265,31 +265,55 @@ public class Builder {
     }
 
     public Block plusEqual(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line), lhs,rhs, "plus");
+        return new AssignmentBlock(loc(line), lhs, rhs, "plus");
     }
 
     public Block minus(int line, Block lhs, Block rhs) {
         return functionCall(line, lhs, "minus", rhs);
     }
 
+    public Block minusEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs, rhs, "minus");
+    }
+
     public Block multiply(int line, Block lhs, Block rhs) {
         return functionCall(line,lhs,"multiply",rhs);
+    }
+
+    public Block multiplyEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs, rhs, "multiply");
     }
 
     public Block div(int line, Block lhs, Block rhs) {
         return functionCall(line,lhs,"div",rhs);
     }
 
+    public Block divEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs, rhs, "div");
+    }
+
     public Block intdiv(int line, Block lhs, Block rhs) {
         return functionCall(line,lhs,"intdiv",rhs);
+    }
+
+    public Block intdivEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs, rhs, "intdiv");
     }
 
     public Block mod(int line, Block lhs, Block rhs) {
         return functionCall(line, lhs, "mod", rhs);
     }
 
+    public Block modEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs, rhs, "mod");
+    }
+
     public Block power(int line, Block lhs, Block rhs) {
         return functionCall(line,lhs, "power", rhs);
+    }
+
+    public Block powerEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs, rhs, "power");
     }
 
     public Block unaryMinus(int line, Block lhs) {
@@ -364,12 +388,24 @@ public class Builder {
         return functionCall(line,lhs,"and",rhs);
     }
 
+    public Block bitwiseAndEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs, rhs, "and");
+    }
+
     public Block bitwiseOr(int line, Block lhs, Block rhs) {
         return functionCall(line,lhs,"or",rhs);
     }
 
+    public Block bitwiseOrEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs, rhs, "or");
+    }
+
     public Block bitwiseXor(int line, Block lhs, Block rhs) {
         return functionCall(line,lhs,"xor",rhs);
+    }
+
+    public Block bitwiseXorEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs, rhs, "xor");
     }
 
     public Block bitwiseNegation(int line, Block b) {

@@ -480,16 +480,25 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             (LOGICAL_AND)                   :"logicanAnd",
             (LOGICAL_OR)                    :"logicanOr",
             (BITWISE_AND)                   :"bitwiseAnd",
+            (BITWISE_AND_EQUAL)             :"bitwiseAndEqual",
             (BITWISE_OR)                    :"bitwiseOr",
+            (BITWISE_OR_EQUAL)              :"bitwiseOrEqual",
             (BITWISE_XOR)                   :"bitwiseXor",
+            (BITWISE_XOR_EQUAL)             :"bitwiseXorEqual",
             (PLUS)                          :"plus",
             (PLUS_EQUAL)                    :"plusEqual",
             (MINUS)                         :"minus",
+            (MINUS_EQUAL)                   :"minusEqual",
             (MULTIPLY)                      :"multiply",
+            (MULTIPLY_EQUAL)                :"multiplyEqual",
             (DIVIDE)                        :"div",
+            (DIVIDE_EQUAL)                  :"divEqual",
             (INTDIV)                        :"intdiv",
+            (INTDIV_EQUAL)                  :"intdivEqual",
             (MOD)                           :"mod",
+            (MOD_EQUAL)                     :"modEqual",
             (POWER)                         :"power",
+            (POWER_EQUAL)                   :"powerEqual",
             (EQUAL)                         :"assign",
             (KEYWORD_INSTANCEOF)            :"instanceOf",
     ]
@@ -514,44 +523,6 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         // other unique cases
         switch (exp.operation.type) {
 
-        case BITWISE_AND_EQUAL:
-            evaluateBinaryExpressionWithAssignment("and", exp);
-            break;
-
-        case BITWISE_OR_EQUAL:
-            evaluateBinaryExpressionWithAssignment("or", exp);
-            break;
-
-        case BITWISE_XOR_EQUAL:
-            evaluateBinaryExpressionWithAssignment("xor", exp);
-            break;
-
-        case MINUS_EQUAL:
-            evaluateBinaryExpressionWithAssignment("minus", exp);
-            break;
-
-        case MULTIPLY_EQUAL:
-            evaluateBinaryExpressionWithAssignment("multiply", exp);
-            break;
-
-        case DIVIDE_EQUAL:
-            //SPG don't use divide since BigInteger implements directly
-            //and we want to dispatch through DefaultGroovyMethods to get a BigDecimal result
-            evaluateBinaryExpressionWithAssignment("div", exp);
-            break;
-
-        case INTDIV_EQUAL:
-            evaluateBinaryExpressionWithAssignment("intdiv", exp);
-            break;
-
-        case MOD_EQUAL:
-            evaluateBinaryExpressionWithAssignment("mod", exp);
-            break;
-
-        case POWER_EQUAL:
-            evaluateBinaryExpressionWithAssignment("power", exp);
-            break;
-
         case LEFT_SHIFT:
             evaluateBinaryExpression("leftShift", exp);
             break;
@@ -574,10 +545,6 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
         case RIGHT_SHIFT_UNSIGNED_EQUAL:
             evaluateBinaryExpressionWithAssignment("rightShiftUnsigned", exp);
-            break;
-
-        case KEYWORD_INSTANCEOF:
-            evaluateInstanceof(exp);
             break;
 
         case FIND_REGEX:
