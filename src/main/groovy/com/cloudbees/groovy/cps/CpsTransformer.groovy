@@ -106,7 +106,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     /**
      * Should this method be transformed?
      */
-    private boolean shouldBeTransformed(MethodNode node) {
+    protected boolean shouldBeTransformed(MethodNode node) {
         if (node.name=="run" && node.returnType.name==Object.class.name && extendsFromScript(node.declaringClass))
             return true;    // default body of the script
         return hasAnnotation(node, WorkflowMethod.class) && !hasAnnotation(node, WorkflowTransformed.class);
