@@ -127,7 +127,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     void workflowCallingWorkflow() {
         assert evalCPS("""
-            @WorkflowMethod
             def fib(int x) {
               if (x==0)     return 0;
               if (x==1)     return 1;
@@ -144,7 +143,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     void exceptionFromNonCpsCodeShouldBeCaughtByCatchBlockInCpsCode() {
         assert evalCPS("""
-            @WorkflowMethod
             def foo() {
               "abc".substring(5); // will caught exception
               return "fail";
@@ -257,7 +255,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     void serialization() {
         CpsCallableInvocation s = parseCps("""
-            @WorkflowMethod
             def plus3(int x) {
                 return x+3;
             }

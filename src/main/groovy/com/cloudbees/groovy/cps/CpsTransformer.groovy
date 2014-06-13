@@ -24,7 +24,7 @@ import static org.codehaus.groovy.syntax.Types.*
  * Performs CPS transformation of Groovy methods.
  *
  * <p>
- * Every method annotated with {@link WorkflowMethod} gets rewritten. The general strategy of CPS transformation is
+ * Every method not annotated with {@link NonCPS} gets rewritten. The general strategy of CPS transformation is
  * as follows:
  *
  * <p>
@@ -107,9 +107,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      * Should this method be transformed?
      */
     protected boolean shouldBeTransformed(MethodNode node) {
-        if (node.name=="run" && node.returnType.name==Object.class.name && extendsFromScript(node.declaringClass))
-            return true;    // default body of the script
-        return hasAnnotation(node, WorkflowMethod.class) && !hasAnnotation(node, WorkflowTransformed.class);
+        return !node.isSynthetic() && !hasAnnotation(node, NonCPS.class) && !hasAnnotation(node, WorkflowTransformed.class);
     }
 
     private boolean hasAnnotation(MethodNode node, Class<? extends Annotation> a) {
@@ -168,7 +166,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
         def cpsName = "___cps___${iota++}"
 
-        m.declaringClass.addMethod(cpsName, PRIVATE_STATIC_FINAL, FUNCTION_TYPE, new Parameter[0], new ClassNode[0],
+        def builderMethod = m.declaringClass.addMethod(cpsName, PRIVATE_STATIC_FINAL, FUNCTION_TYPE, new Parameter[0], new ClassNode[0],
             new BlockStatement([
                 new ExpressionStatement(new DeclarationExpression(BUILDER, new Token(ASSIGN, "=", -1, -1),
                         new ConstructorCallExpression(BUIDER_TYPE, new TupleExpression(
@@ -181,6 +179,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
                 new ReturnStatement(new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body)))
             ], new VariableScope())
         )
+        builderMethod.addAnnotation(new AnnotationNode(WORKFLOW_TRANSFORMED_TYPE))
 
         def f = m.declaringClass.addField(cpsName, PRIVATE_STATIC_FINAL, FUNCTION_TYPE,
                 new StaticMethodCallExpression(m.declaringClass, cpsName, new TupleExpression()));
