@@ -23,12 +23,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 
-<?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
-    <f:entry field="name" title="Stage Name">
-        <f:textbox/>
-    </f:entry>
-    <f:entry field="concurrency" title="Concurrency">
-        <f:number clazz="positive-number"/>
-    </f:entry>
-</j:jelly>
+<div>
+    Commonly used steps for workflows.
+</div>
