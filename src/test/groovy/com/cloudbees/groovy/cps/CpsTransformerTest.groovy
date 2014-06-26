@@ -360,4 +360,10 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         assert evalCPS("def x=0; return ++x ?: -1")==1;
         assert evalCPS("def x=0; return x++ ?: -1")==-1;
     }
+
+    @Test
+    void range() {
+        assert evalCPS("def x=5; return (0..x)") == (0..5);
+        assert evalCPS("def x=5; return (0..<x)") == (0..<5);
+    }
 }

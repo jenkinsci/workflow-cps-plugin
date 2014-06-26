@@ -671,8 +671,13 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         }
     }
 
-    void visitRangeExpression(RangeExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitRangeExpression(RangeExpression exp) {
+        makeNode("range") {
+            loc(exp)
+            visit(exp.from)
+            visit(exp.to)
+            literal(exp.inclusive)
+        }
     }
 
     void visitPropertyExpression(PropertyExpression exp) {

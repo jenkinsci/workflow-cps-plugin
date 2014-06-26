@@ -476,6 +476,13 @@ public class Builder {
         return new ListBlock(args);
     }
 
+    /**
+     * x..y or x..&lt;y to crete a range
+     */
+    public Block range(int line, Block from, Block to, boolean inclusive) {
+        return staticCall(line,ScriptBytecodeAdapter.class,"createRange",from,to,constant(inclusive));
+    }
+
     public Block assert_(Block cond, Block msg, String sourceText) {
         return new AssertBlock(cond,msg,sourceText);
     }
