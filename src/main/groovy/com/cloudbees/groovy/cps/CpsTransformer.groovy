@@ -484,8 +484,11 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             (PLUS)                          :"plus",
             (PLUS_EQUAL)                    :"plusEqual",
             (MINUS)                         :"minus",
+            (MINUS_EQUAL)                   :"minusEqual",
             (MULTIPLY)                      :"multiply",
+            (MULTIPLY_EQUAL)                :"multiplyEqual",
             (DIVIDE)                        :"div",
+            (DIVIDE_EQUAL)                  :"divEqual",
             (INTDIV)                        :"intdiv",
             (MOD)                           :"mod",
             (POWER)                         :"power",
@@ -522,20 +525,6 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
         case BITWISE_XOR_EQUAL:
             evaluateBinaryExpressionWithAssignment("xor", exp);
-            break;
-
-        case MINUS_EQUAL:
-            evaluateBinaryExpressionWithAssignment("minus", exp);
-            break;
-
-        case MULTIPLY_EQUAL:
-            evaluateBinaryExpressionWithAssignment("multiply", exp);
-            break;
-
-        case DIVIDE_EQUAL:
-            //SPG don't use divide since BigInteger implements directly
-            //and we want to dispatch through DefaultGroovyMethods to get a BigDecimal result
-            evaluateBinaryExpressionWithAssignment("div", exp);
             break;
 
         case INTDIV_EQUAL:

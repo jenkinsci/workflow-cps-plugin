@@ -272,12 +272,24 @@ public class Builder {
         return functionCall(line, lhs, "minus", rhs);
     }
 
+    public Block minusEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs,rhs, "minus");
+    }
+
     public Block multiply(int line, Block lhs, Block rhs) {
         return functionCall(line,lhs,"multiply",rhs);
     }
 
+    public Block multiplyEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs,rhs, "multiply");
+    }
+
     public Block div(int line, Block lhs, Block rhs) {
         return functionCall(line,lhs,"div",rhs);
+    }
+
+    public Block divEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs,rhs, "div");
     }
 
     public Block intdiv(int line, Block lhs, Block rhs) {
