@@ -1,10 +1,13 @@
 package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.Block;
+import com.cloudbees.groovy.cps.CategorySupport;
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
+import com.cloudbees.groovy.cps.CpsDefaultGroovyMethods;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
+import org.codehaus.groovy.runtime.GroovyCategorySupport;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
@@ -14,6 +17,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 import static com.cloudbees.groovy.cps.impl.SourceLocation.UNKNOWN;
 
@@ -61,17 +65,21 @@ abstract class ContinuationGroup implements Serializable {
     /**
      * Evaluates a function (possibly a workflow function), then pass the result to the given continuation.
      */
-    protected Next methodCall(Env e, SourceLocation loc, Continuation k, Object receiver, String methodName, Object... args) {
-        try {
-            CallSite callSite = fakeCallSite(methodName);
-            Object v = callSite.call(receiver,args);
-            // if this was a normal function, the method had just executed synchronously
-            return k.receive(v);
-        } catch (CpsCallableInvocation inv) {
-            return inv.invoke(e, loc, k);
-        } catch (Throwable t) {
-            return throwException(e, t, loc, new ReferenceStackTrace());
-        }
+    protected Next methodCall(final Env e, final SourceLocation loc, final Continuation k, final Object receiver, final String methodName, final Object... args) {
+        return CategorySupport.use(CpsDefaultGroovyMethods.class,new Callable<Next>() {
+            public Next call() {
+                try {
+                    CallSite callSite = fakeCallSite(methodName);
+                    Object v = callSite.call(receiver,args);
+                    // if this was a normal function, the method had just executed synchronously
+                    return k.receive(v);
+                } catch (CpsCallableInvocation inv) {
+                    return inv.invoke(e, loc, k);
+                } catch (Throwable t) {
+                    return throwException(e, t, loc, new ReferenceStackTrace());
+                }
+            }
+        });
     }
 
     /**
