@@ -49,7 +49,7 @@ Script1.y(Script1.groovy:8)
 Script1.x(Script1.groovy:4)
 Script1.run(Script1.groovy:11)
 ___cps.transform___(Native Method)
-com.cloudbees.groovy.cps.impl.ContinuationGroup.methodCall""");
+com.cloudbees.groovy.cps.impl.ContinuationGroup\$1.call""");
 
         // should include the call stack of some sync code
         assert trace.contains("com.cloudbees.groovy.cps.impl.FunctionCallBlockTest.someSyncCode(FunctionCallBlockTest.groovy:")
