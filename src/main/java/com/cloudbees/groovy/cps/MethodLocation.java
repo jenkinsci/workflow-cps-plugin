@@ -15,6 +15,10 @@ public final class MethodLocation implements Serializable {
     private final String methodName;
     private final String fileName;
 
+    public MethodLocation(Class clazz, String methodName) {
+        this(clazz.getName(), methodName, clazz.getSimpleName());
+    }
+
     public MethodLocation(String declaringClass, String methodName, String fileName) {
         this.declaringClass = declaringClass;
         this.methodName = methodName;

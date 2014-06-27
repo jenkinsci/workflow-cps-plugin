@@ -1,31 +1,66 @@
-package com.cloudbees.groovy.cps;
+package com.cloudbees.groovy.cps
 
-import groovy.lang.Closure;
-import org.codehaus.groovy.runtime.DefaultGroovyMethods;
-import org.codehaus.groovy.runtime.InvokerHelper;
-import org.codehaus.groovy.transform.GroovyASTTransformation;
-
-import java.util.Iterator;
-import java.util.Map;
+import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
+import com.cloudbees.groovy.cps.impl.CpsFunction
+import org.codehaus.groovy.runtime.InvokerHelper
 
 /**
+ *
+ * TODO: any way to apply CPS transformation?
+ *
  * @author Kohsuke Kawaguchi
  */
-@GroovyASTTransformation
 public class CpsDefaultGroovyMethods {
+    private static MethodLocation loc(String methodName) {
+        return new MethodLocation(CpsDefaultGroovyMethods.class,methodName);
+    }
+
     /**
      * Interception is successful. The trick is to pre-translate this method into CPS.
      */
     public static <T> T each(T self, Closure closure) {
+        /*
         each(InvokerHelper.asIterator(self), closure);
         return self;
+        */
+
+        def b = new Builder(loc("each"));
+        def f = new CpsFunction(["self", "closure"], b.block(
+                b.staticCall(-1, CpsDefaultGroovyMethods.class, "each",
+                        b.staticCall(-1, InvokerHelper.class, "asIterator",
+                                b.localVariable("self")
+                        ),
+                        b.localVariable("closure")
+                ),
+                b.return_(b.localVariable("self"))
+        ));
+
+        throw new CpsCallableInvocation(f,null,self,closure);
     }
 
     public static <T> Iterator<T> each(Iterator<T> iter, Closure closure) {
+/*
         while (iter.hasNext()) {
             Object arg = iter.next();
             closure.call(arg);
         }
         return iter;
+*/
+
+
+        def b = new Builder(loc("each"));
+        def $iter = b.localVariable("iter")
+
+        def f = new CpsFunction(["iter", "closure"], b.block(
+            b.while_(null, b.functionCall(1, $iter,"hasNext"),
+                b.block(
+                    b.declareVariable(2,Object.class,"arg", b.functionCall(2, $iter,"next")),
+                    b.functionCall(3, b.localVariable("closure"), "call", b.localVariable("arg"))
+                )
+            ),
+            b.return_($iter)
+        ));
+
+        throw new CpsCallableInvocation(f,null,iter,closure);
     }
 }

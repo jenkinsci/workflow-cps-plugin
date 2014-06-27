@@ -382,6 +382,9 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         assert evalCPS("def x=50; x/=5; return x;") == 10;
     }
 
+    /**
+     * Testing {@link CpsDefaultGroovyMethods}.
+     */
     @Test
     void each() {
         assert evalCPS("""

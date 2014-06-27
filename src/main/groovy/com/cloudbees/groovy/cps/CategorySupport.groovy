@@ -9,7 +9,6 @@ import java.util.concurrent.Callable
  *
  * @author Kohsuke Kawaguchi
  */
-@CpsTransformerAnnotation
 class CategorySupport {
     public static <T> T use(Class category, Callable<T> r) {
         return GroovyCategorySupport.use(category) {
