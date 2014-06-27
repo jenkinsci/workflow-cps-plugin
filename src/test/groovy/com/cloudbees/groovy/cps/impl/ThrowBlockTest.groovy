@@ -13,11 +13,11 @@ class ThrowBlockTest extends AbstractGroovyCpsTest {
     @Test
     void stackTraceFixup() {
         List elements = evalCPSonly("""
-            @WorkflowMethod
+
             def x() {
               y();  // line 4
             }
-            @WorkflowMethod
+
             def y() {
               throw new javax.naming.NamingException(); // line 8
             }

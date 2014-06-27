@@ -2,13 +2,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.kohsuke</groupId>
-    <artifactId>pom</artifactId>
-    <version>6</version>
+    <groupId>com.cloudbees</groupId>
+    <artifactId>cloudbees-oss-parent</artifactId>
+    <version>4</version>
   </parent>
 
   <artifactId>groovy-cps</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <version>0.4-SNAPSHOT</version>
 
   <name>Groovy CPS Execution</name>
 
@@ -89,17 +89,10 @@
   </dependencies>
 
   <scm>
-    <connection>scm:git:git@github.com/kohsuke/${project.artifactId}.git</connection>
-    <developerConnection>scm:git:ssh://git@github.com/kohsuke/${project.artifactId}.git</developerConnection>
-    <url>http://${project.artifactId}.kohsuke.org/</url>
+    <connection>scm:git:git@github.com/cloudbees/${project.artifactId}.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/cloudbees/${project.artifactId}.git</developerConnection>
+    <tag>HEAD</tag>
   </scm>
-
-  <distributionManagement>
-    <site>
-      <id>github-pages</id>
-      <url>gitsite:git@github.com/kohsuke/${project.artifactId}.git</url>
-    </site>
-  </distributionManagement>
 
   <reporting>
     <plugins>
@@ -108,4 +101,12 @@
       </plugin>
     </plugins>
   </reporting>
+
+  <licenses>
+    <license>
+      <name>The Apache Software License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
 </project>

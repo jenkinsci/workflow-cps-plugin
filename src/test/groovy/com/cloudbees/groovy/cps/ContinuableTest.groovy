@@ -37,12 +37,10 @@ class ContinuableTest extends AbstractGroovyCpsTest {
     @Test
     void serializeComplexContinuable() {
         def s = csh.parse("""
-            @WorkflowMethod
             def foo(int x) {
                 return Continuable.suspend(x);
             }
 
-            @WorkflowMethod
             def plus3(int x) {
                 return x+3;
             }
@@ -144,14 +142,14 @@ class ContinuableTest extends AbstractGroovyCpsTest {
     @Test
     void stackTrace() {
         def s = csh.parse("""
-            @WorkflowMethod
+
             def x(i,v) {
               if (i>0)
                 y(i-1,v);       // line 5
               else
                 Continuable.suspend(v); // line 7
             }
-            @WorkflowMethod
+            
             def y(i,v) {
               if (i>0)
                 x(i-1,v);   // line 12

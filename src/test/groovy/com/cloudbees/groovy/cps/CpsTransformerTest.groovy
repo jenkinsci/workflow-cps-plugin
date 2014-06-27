@@ -127,7 +127,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     void workflowCallingWorkflow() {
         assert evalCPS("""
-            @WorkflowMethod
             def fib(int x) {
               if (x==0)     return 0;
               if (x==1)     return 1;
@@ -144,7 +143,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     void exceptionFromNonCpsCodeShouldBeCaughtByCatchBlockInCpsCode() {
         assert evalCPS("""
-            @WorkflowMethod
             def foo() {
               "abc".substring(5); // will caught exception
               return "fail";
@@ -257,7 +255,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     void serialization() {
         CpsCallableInvocation s = parseCps("""
-            @WorkflowMethod
             def plus3(int x) {
                 return x+3;
             }
@@ -392,5 +389,23 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     (0..10).each { y -> x+=y; }
     return x;
 """) == 55;
+    }
+
+    void instanceOf() {
+        assert evalCPS("null instanceof String")==false;
+        assert evalCPS("3 instanceof Integer")==true;
+        assert evalCPS("new RuntimeException() instanceof Exception")==true;
+        assert evalCPS("'12345' instanceof String")==true;
+    }
+
+    @Test
+    void compoundBitwiseAssignment() {
+        [0,1,2,3,4].each { x->
+            [0,1,2,3,4].each { y ->
+                assert evalCPS("def x=${x}; x&=${y}; return x;")== (x&y);
+                assert evalCPS("def x=${x}; x|=${y}; return x;")== (x|y);
+                assert evalCPS("def x=${x}; x^=${y}; return x;")== (x^y);
+            }
+        }
     }
 }

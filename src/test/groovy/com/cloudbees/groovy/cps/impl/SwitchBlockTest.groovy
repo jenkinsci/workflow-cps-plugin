@@ -84,7 +84,6 @@ class SwitchBlockTest extends AbstractGroovyCpsTest {
     @Test
     void exceptionInSwitchExp() {
         assert evalCPS("""
-            @WorkflowMethod
             def foo() {
                 throw new javax.naming.NamingException();
             }
@@ -111,7 +110,6 @@ class SwitchBlockTest extends AbstractGroovyCpsTest {
     @Test
     void exceptionInCaseExp() {
         assert evalCPS("""
-            @WorkflowMethod
             def foo() {
                 throw new javax.naming.NamingException();
             }
