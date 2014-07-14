@@ -32,6 +32,21 @@ public class DefaultInvoker implements Invoker {
         ScriptBytecodeAdapter.setProperty(value, null/*Groovy doesn't use this parameter*/, lhs, name);
     }
 
+    public Object getAttribute(Object lhs, boolean safe, boolean spread, String name) throws Throwable {
+        assert !safe : "TODO";
+        assert !spread : "TODO";
+
+        Object v = ScriptBytecodeAdapter.getField(null/*Groovy doesn't use this parameter*/, lhs, name);
+        return v;
+    }
+
+    public void setAttribute(Object lhs, String name, boolean safe, boolean spread, Object value) throws Throwable {
+        assert !safe : "TODO";
+        assert !spread : "TODO";
+
+        ScriptBytecodeAdapter.setField(value, null/*Groovy doesn't use this parameter*/, lhs, name);
+    }
+
     /*TODO: specify the proper owner value (to the script that includes the call site) */
     protected CallSite fakeCallSite(String method) {
         CallSiteArray csa = new CallSiteArray(DefaultInvoker.class, new String[]{method});

@@ -13,14 +13,18 @@ import com.cloudbees.groovy.cps.Env;
  * @see Env#getInvoker()
  */
 public interface Invoker {
-    Object methodCall(Object receiver, boolean safe, boolean spread, String method, Object[] args) throws Throwable;
-
     /**
      * Default instance to be used.
      */
     Invoker INSTANCE = new DefaultInvoker();
 
+    Object methodCall(Object receiver, boolean safe, boolean spread, String method, Object[] args) throws Throwable;
+
     Object getProperty(Object lhs, boolean safe, boolean spread, String name) throws Throwable;
 
     void setProperty(Object lhs, String name, boolean safe, boolean spread, Object value) throws Throwable;
+
+    Object getAttribute(Object lhs, boolean safe, boolean spread, String name) throws Throwable;
+
+    void setAttribute(Object lhs, String name, boolean safe, boolean spread, Object value) throws Throwable;
 }

@@ -14,11 +14,11 @@ public class AttributeAccessBlock extends PropertyishBlock {
     }
 
     protected Object rawGet(Env e, Object lhs, String name) throws Throwable {
-        return e.getInvoker().getProperty(lhs,false,false,name);
+        return e.getInvoker().getAttribute(lhs,false,false,name);
     }
 
     protected void rawSet(Env e, Object lhs, String name, Object v) throws Throwable {
-        e.getInvoker().setProperty(lhs,name,false,false,v);
+        e.getInvoker().setAttribute(lhs,name,false,false,v);
     }
 
     private static final long serialVersionUID = 1L;

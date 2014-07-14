@@ -22,4 +22,12 @@ public class SandboxInvoker implements Invoker {
     public void setProperty(Object lhs, String name, boolean safe, boolean spread, Object value) throws Throwable {
         Checker.checkedSetProperty(lhs,name,safe,spread, Types.ASSIGN,value);
     }
+
+    public Object getAttribute(Object lhs, boolean safe, boolean spread, String name) throws Throwable {
+        return Checker.checkedGetAttribute(lhs,safe,spread,name);
+    }
+
+    public void setAttribute(Object lhs, String name, boolean safe, boolean spread, Object value) throws Throwable {
+        Checker.checkedSetAttribute(lhs,name,safe,spread, Types.ASSIGN,value);
+    }
 }
