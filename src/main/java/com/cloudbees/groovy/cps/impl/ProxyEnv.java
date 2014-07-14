@@ -2,6 +2,7 @@ package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
+import com.cloudbees.groovy.cps.sandbox.Invoker;
 
 import java.util.List;
 
@@ -45,6 +46,10 @@ public class ProxyEnv implements Env {
 
     public Continuation getExceptionHandler(Class<? extends Throwable> type) {
         return parent.getExceptionHandler(type);
+    }
+
+    public Invoker getInvoker() {
+        return parent.getInvoker();
     }
 
     public void buildStackTraceElements(List<StackTraceElement> stack, int depth) {

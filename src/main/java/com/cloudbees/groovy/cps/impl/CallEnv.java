@@ -3,6 +3,7 @@ package com.cloudbees.groovy.cps.impl;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
+import com.cloudbees.groovy.cps.sandbox.Invoker;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -28,6 +29,8 @@ import java.util.List;
     @Nullable
     private final SourceLocation callSiteLoc;
 
+    private Invoker invoker;
+
     /**
      * @param caller
      *      The environment of the call site. Can be null but only if the caller is outside CPS execution.
@@ -36,7 +39,19 @@ import java.util.List;
         this.caller = caller;
         this.returnAddress = returnAddress;
         this.callSiteLoc = loc;
+        this.invoker = caller==null ? Invoker.INSTANCE : caller.getInvoker();
         assert returnAddress!=null;
+    }
+
+    /**
+     * Sets the {@link Invoker}, which gets inherited through the call chain.
+     */
+    public void setInvoker(Invoker invoker) {
+        this.invoker = invoker;
+    }
+
+    public Invoker getInvoker() {
+        return invoker;
     }
 
     public final Continuation getReturnAddress() {

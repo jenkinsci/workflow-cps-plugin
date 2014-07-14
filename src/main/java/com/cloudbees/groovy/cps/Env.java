@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.sandbox.Invoker;
 import groovy.lang.Closure;
 
 import java.io.Serializable;
@@ -67,4 +68,11 @@ public interface Env extends Serializable {
      *      Maximum depth of stack trace to obtain.
      */
     void buildStackTraceElements(List<StackTraceElement> stack, int depth);
+
+    /**
+     * {@link Invoker} is typically scoped at the whole execution.
+     *
+     * @return never null
+     */
+    Invoker getInvoker();
 }

@@ -7,7 +7,6 @@ import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.CpsDefaultGroovyMethods;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-import org.codehaus.groovy.runtime.GroovyCategorySupport;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
@@ -69,8 +68,8 @@ abstract class ContinuationGroup implements Serializable {
         return CategorySupport.use(CpsDefaultGroovyMethods.class,new Callable<Next>() {
             public Next call() {
                 try {
-                    CallSite callSite = fakeCallSite(methodName);
-                    Object v = callSite.call(receiver,args);
+                    // TODO: spread and safe
+                    Object v = e.getInvoker().methodCall(receiver,false,false,methodName,args);
                     // if this was a normal function, the method had just executed synchronously
                     return k.receive(v);
                 } catch (CpsCallableInvocation inv) {
