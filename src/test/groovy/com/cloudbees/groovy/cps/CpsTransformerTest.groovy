@@ -418,4 +418,9 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     void attributeGet() {
         assert evalCPS("def p = new java.awt.Point(1,2); p.@x+=5; p.@x") == 6;
     }
+
+    @Test
+    void arrayAccess() {
+        assert evalCPS("def x = new int[3]; x[0]=1; x[1]=x[0]+2; x[1]+=4; return x[1]") == 7;
+    }
 }

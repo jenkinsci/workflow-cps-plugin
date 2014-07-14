@@ -27,4 +27,8 @@ public interface Invoker {
     Object getAttribute(Object lhs, boolean safe, boolean spread, String name) throws Throwable;
 
     void setAttribute(Object lhs, String name, boolean safe, boolean spread, Object value) throws Throwable;
+
+    Object getArray(Object lhs, Object index) throws Throwable;
+
+    void setArray(Object lhs, Object index, Object value) throws Throwable;
 }

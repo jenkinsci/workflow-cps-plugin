@@ -47,6 +47,14 @@ public class DefaultInvoker implements Invoker {
         ScriptBytecodeAdapter.setField(value, null/*Groovy doesn't use this parameter*/, lhs, name);
     }
 
+    public Object getArray(Object lhs, Object index) throws Throwable {
+        return fakeCallSite("getAt").call(lhs,index);
+    }
+
+    public void setArray(Object lhs, Object index, Object value) throws Throwable {
+        fakeCallSite("putAt").call(lhs,index,value);
+    }
+
     /*TODO: specify the proper owner value (to the script that includes the call site) */
     protected CallSite fakeCallSite(String method) {
         CallSiteArray csa = new CallSiteArray(DefaultInvoker.class, new String[]{method});

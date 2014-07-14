@@ -8,7 +8,7 @@ import com.cloudbees.groovy.cps.Env;
  *
  * @author Kohsuke Kawaguchi
  */
-public class AttributeAccessBlock extends PropertyishBlock {
+public class AttributeAccessBlock extends PropertyishBlock<String> {
     public AttributeAccessBlock(SourceLocation loc, Block lhs, Block property) {
         super(loc, lhs, property);
     }
@@ -19,6 +19,12 @@ public class AttributeAccessBlock extends PropertyishBlock {
 
     protected void rawSet(Env e, Object lhs, String name, Object v) throws Throwable {
         e.getInvoker().setAttribute(lhs,name,false,false,v);
+    }
+
+    @Override
+    protected String coerce(Object name) {
+        // TODO: verify the behaviour of Groovy if the property expression evaluates to non-String
+        return name.toString();
     }
 
     private static final long serialVersionUID = 1L;

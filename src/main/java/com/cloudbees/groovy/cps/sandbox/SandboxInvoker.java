@@ -24,10 +24,18 @@ public class SandboxInvoker implements Invoker {
     }
 
     public Object getAttribute(Object lhs, boolean safe, boolean spread, String name) throws Throwable {
-        return Checker.checkedGetAttribute(lhs,safe,spread,name);
+        return Checker.checkedGetAttribute(lhs, safe, spread, name);
     }
 
     public void setAttribute(Object lhs, String name, boolean safe, boolean spread, Object value) throws Throwable {
-        Checker.checkedSetAttribute(lhs,name,safe,spread, Types.ASSIGN,value);
+        Checker.checkedSetAttribute(lhs, name, safe, spread, Types.ASSIGN, value);
+    }
+
+    public Object getArray(Object lhs, Object index) throws Throwable {
+        return Checker.checkedGetArray(lhs,index);
+    }
+
+    public void setArray(Object lhs, Object index, Object value) throws Throwable {
+        Checker.checkedSetArray(lhs,index,Types.ASSIGN,value);
     }
 }
