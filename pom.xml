@@ -66,6 +66,11 @@
 
   <dependencies>
     <dependency>
+      <groupId>org.kohsuke</groupId>
+      <artifactId>groovy-sandbox</artifactId>
+      <version>1.7-SNAPSHOT</version>
+    </dependency>
+    <dependency>
       <groupId>org.codehaus.groovy</groupId>
       <artifactId>groovy</artifactId>
       <version>1.8.5</version>
