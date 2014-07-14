@@ -657,8 +657,13 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         }
     }
 
-    void visitAttributeExpression(AttributeExpression attributeExpression) {
-        throw new UnsupportedOperationException();
+    void visitAttributeExpression(AttributeExpression exp) {
+        // TODO: spread and safe
+        makeNode("attribute") {
+            loc(exp)
+            visit(exp.objectExpression)
+            visit(exp.property)
+        }
     }
 
     void visitFieldExpression(FieldExpression exp) {

@@ -4,12 +4,12 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Env;
 
 /**
- * Property access expression like {@code foo.bar}, which is an l-value.
+ * Attribute access expression like {@code foo.@bar}, which is an l-value.
  *
  * @author Kohsuke Kawaguchi
  */
-public class PropertyAccessBlock extends PropertyishBlock {
-    public PropertyAccessBlock(SourceLocation loc, Block lhs, Block property) {
+public class AttributeAccessBlock extends PropertyishBlock {
+    public AttributeAccessBlock(SourceLocation loc, Block lhs, Block property) {
         super(loc, lhs, property);
     }
 

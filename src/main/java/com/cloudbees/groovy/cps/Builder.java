@@ -2,6 +2,7 @@ package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.AssertBlock;
 import com.cloudbees.groovy.cps.impl.AssignmentBlock;
+import com.cloudbees.groovy.cps.impl.AttributeAccessBlock;
 import com.cloudbees.groovy.cps.impl.BlockScopedBlock;
 import com.cloudbees.groovy.cps.impl.BreakBlock;
 import com.cloudbees.groovy.cps.impl.ClosureBlock;
@@ -477,6 +478,11 @@ public class Builder {
 
     public LValueBlock property(int line, Block lhs, Block property) {
         return new PropertyAccessBlock(loc(line),lhs,property);
+    }
+
+
+    public LValueBlock attribute(int line, Block lhs, Block property) {
+        return new AttributeAccessBlock(loc(line),lhs,property);
     }
 
     public LValueBlock staticField(int line, Class type, String name) {

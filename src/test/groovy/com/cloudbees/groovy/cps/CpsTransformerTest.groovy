@@ -408,4 +408,9 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             }
         }
     }
+
+    @Test
+    void attributeAccess() {
+        assert evalCPS("new java.awt.Point(1,2).@x") == 1;
+    }
 }
