@@ -8,21 +8,20 @@ import com.cloudbees.groovy.cps.Env;
  *
  * @author Kohsuke Kawaguchi
  */
-public class PropertyAccessBlock extends PropertyishBlock<String> {
+public class PropertyAccessBlock extends PropertyishBlock {
     public PropertyAccessBlock(SourceLocation loc, Block lhs, Block property) {
         super(loc, lhs, property);
     }
 
-    protected Object rawGet(Env e, Object lhs, String name) throws Throwable {
-        return e.getInvoker().getProperty(lhs,false,false,name);
+    protected Object rawGet(Env e, Object lhs, Object name) throws Throwable {
+        return e.getInvoker().getProperty(lhs,false,false,coerce(name));
     }
 
-    protected void rawSet(Env e, Object lhs, String name, Object v) throws Throwable {
-        e.getInvoker().setProperty(lhs,name,false,false,v);
+    protected void rawSet(Env e, Object lhs, Object name, Object v) throws Throwable {
+        e.getInvoker().setProperty(lhs,coerce(name),false,false,v);
     }
 
-    @Override
-    protected String coerce(Object name) {
+    private String coerce(Object name) {
         // TODO: verify the behaviour of Groovy if the property expression evaluates to non-String
         return name.toString();
     }

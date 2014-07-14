@@ -8,7 +8,7 @@ import com.cloudbees.groovy.cps.Env;
  *
  * @author Kohsuke Kawaguchi
  */
-public class ArrayAccessBlock extends PropertyishBlock<Object> {
+public class ArrayAccessBlock extends PropertyishBlock {
     public ArrayAccessBlock(SourceLocation loc, Block lhs, Block property) {
         super(loc, lhs, property);
     }
@@ -21,10 +21,5 @@ public class ArrayAccessBlock extends PropertyishBlock<Object> {
     @Override
     protected void rawSet(Env e, Object lhs, Object index, Object v) throws Throwable {
         e.getInvoker().setArray(lhs, index, v);
-    }
-
-    @Override
-    protected Object coerce(Object index) {
-        return index;
     }
 }

@@ -10,11 +10,9 @@ import com.cloudbees.groovy.cps.Next;
 /**
  * Common part of {@link PropertyAccessBlock} and {@link AttributeAccessBlock}.
  *
- * @param <T>
- *      type that the property expression evaluates to. String for properties/attributes and int for arrays.
  * @author Kohsuke Kawaguchi
  */
-abstract class PropertyishBlock<T> extends LValueBlock {
+abstract class PropertyishBlock extends LValueBlock {
     private final Block lhs, property;
     private final SourceLocation loc;
 
@@ -29,21 +27,15 @@ abstract class PropertyishBlock<T> extends LValueBlock {
     }
 
     // invoke the underlying Groovy object. Main point of attribute/property handling difference.
-    protected abstract Object rawGet(Env e, Object lhs, T property) throws Throwable;
-    protected abstract void rawSet(Env e, Object lhs, T property, Object v) throws Throwable;
-
-    /**
-     * Given the result of the property/attribute name or array index value evaluation,
-     * coerce the result into the right type.
-     */
-    protected abstract T coerce(Object property);
+    protected abstract Object rawGet(Env e, Object lhs, Object property) throws Throwable;
+    protected abstract void rawSet(Env e, Object lhs, Object property, Object v) throws Throwable;
 
     class ContinuationImpl extends ContinuationGroup implements LValue {
         final Continuation k;
         final Env e;
 
         Object lhs;
-        T name;
+        Object name;
 
         ContinuationImpl(Env e, Continuation k) {
             this.e = e;
@@ -56,7 +48,7 @@ abstract class PropertyishBlock<T> extends LValueBlock {
         }
 
         public Next fixName(Object name) {
-            this.name = coerce(name);
+            this.name = name;
             return k.receive(this);
         }
 
