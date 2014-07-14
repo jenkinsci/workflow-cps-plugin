@@ -6,7 +6,6 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.LValue;
 import com.cloudbees.groovy.cps.LValueBlock;
 import com.cloudbees.groovy.cps.Next;
-import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
 import static java.util.Collections.*;
 
@@ -56,7 +55,7 @@ public class PropertyAccessBlock extends LValueBlock {
         public Next get(Continuation k) {
             Object v;
             try {
-                v = ScriptBytecodeAdapter.getProperty(null/*Groovy doesn't use this parameter*/, lhs, name);
+                v = e.getInvoker().getProperty(lhs,false,false,name);
             } catch (Throwable t) {
                 return throwException(e, t, loc, new ReferenceStackTrace());
             }
@@ -75,7 +74,7 @@ public class PropertyAccessBlock extends LValueBlock {
             // TODO: how to handle the case when a setter is a workflow method?
 
             try {
-                ScriptBytecodeAdapter.setProperty(v, null/*Groovy doesn't use this parameter*/, lhs, name);
+                e.getInvoker().setProperty(lhs,name,false,false,v);
             } catch (Throwable t) {
                 return throwException(e, t, loc, new ReferenceStackTrace());
             }

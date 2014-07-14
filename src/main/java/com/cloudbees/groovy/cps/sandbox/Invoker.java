@@ -19,4 +19,8 @@ public interface Invoker {
      * Default instance to be used.
      */
     Invoker INSTANCE = new DefaultInvoker();
+
+    Object getProperty(Object lhs, boolean safe, boolean spread, String name) throws Throwable;
+
+    void setProperty(Object lhs, String name, boolean safe, boolean spread, Object value) throws Throwable;
 }
