@@ -7,8 +7,6 @@ import com.cloudbees.groovy.cps.LValue;
 import com.cloudbees.groovy.cps.LValueBlock;
 import com.cloudbees.groovy.cps.Next;
 
-import static java.util.Collections.emptyList;
-
 /**
  * Common part of {@link PropertyAccessBlock} and {@link AttributeAccessBlock}.
  *
@@ -28,6 +26,7 @@ abstract class PropertyishBlock extends LValueBlock {
         return new ContinuationImpl(e,k).then(lhs,e,fixLhs);
     }
 
+    // invoke the underlying Groovy object. Main point of attribute/property handling difference.
     protected abstract Object rawGet(Env e, Object lhs, String name) throws Throwable;
     protected abstract void rawSet(Env e, Object lhs, String name, Object v) throws Throwable;
 
@@ -57,34 +56,30 @@ abstract class PropertyishBlock extends LValueBlock {
         }
 
         public Next get(Continuation k) {
-            Object v;
             try {
-                v = rawGet(e,lhs,name);
-            } catch (Throwable t) {
-                return throwException(e, t, loc, new ReferenceStackTrace());
-            }
-
-            if (v instanceof CpsFunction) {
-                // if this is a workflow function, it'd return a CpsFunction object instead
-                // of actually executing the function, so execute it in the CPS
-                return ((CpsFunction)v).invoke(e, loc, lhs, emptyList(),k);
-            } else {
+                Object v = rawGet(e,lhs,name);
                 // if this was a normal property, we get the value as-is.
                 return k.receive(v);
+            } catch (CpsCallableInvocation inv) {
+                // if this was a workflow function, execute it in the CPS
+                return inv.invoke(e, loc, k);
+            } catch (Throwable t) {
+                return throwException(e, t, loc, new ReferenceStackTrace());
             }
         }
 
 
         public Next set(Object v, Continuation k) {
-            // TODO: how to handle the case when a setter is a workflow method?
-
             try {
                 rawSet(e,lhs,name,v);
+                return k.receive(null);
+            } catch (CpsCallableInvocation inv) {
+                // if this was a workflow function, execute it in the CPS
+                return inv.invoke(e, loc, k);
             } catch (Throwable t) {
                 return throwException(e, t, loc, new ReferenceStackTrace());
             }
 
-            return k.receive(null);
         }
 
         private static final long serialVersionUID = 1L;
