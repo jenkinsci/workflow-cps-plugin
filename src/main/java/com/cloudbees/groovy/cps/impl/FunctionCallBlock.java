@@ -87,7 +87,7 @@ public class FunctionCallBlock implements Block {
                     // constructor call
                     Object v;
                     try {
-                        v = fakeCallSite("<init>").callConstructor(lhs,args);
+                        v = e.getInvoker().constructorCall((Class)lhs,args);
                     } catch (Throwable t) {
                         return throwException(e, t, loc, new ReferenceStackTrace());
                     }

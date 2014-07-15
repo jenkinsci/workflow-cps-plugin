@@ -20,6 +20,8 @@ public interface Invoker {
 
     Object methodCall(Object receiver, boolean safe, boolean spread, String method, Object[] args) throws Throwable;
 
+    Object constructorCall(Class lhs, Object[] args) throws Throwable;
+
     Object getProperty(Object lhs, boolean safe, boolean spread, String name) throws Throwable;
 
     void setProperty(Object lhs, String name, boolean safe, boolean spread, Object value) throws Throwable;

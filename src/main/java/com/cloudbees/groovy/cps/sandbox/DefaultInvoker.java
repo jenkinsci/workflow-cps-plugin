@@ -17,6 +17,11 @@ public class DefaultInvoker implements Invoker {
         return v;
     }
 
+    public Object constructorCall(Class lhs, Object[] args) throws Throwable {
+        Object v = fakeCallSite("<init>").callConstructor(lhs,args);
+        return v;
+    }
+
     public Object getProperty(Object lhs, boolean safe, boolean spread, String name) throws Throwable {
         assert !safe : "TODO";
         assert !spread : "TODO";

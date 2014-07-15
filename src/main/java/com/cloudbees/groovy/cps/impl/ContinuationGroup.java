@@ -9,7 +9,6 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
-import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 
 import javax.annotation.CheckReturnValue;
 import java.io.Serializable;
@@ -18,7 +17,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-import static com.cloudbees.groovy.cps.impl.SourceLocation.UNKNOWN;
+import static com.cloudbees.groovy.cps.impl.SourceLocation.*;
 
 /**
  * Base class for defining a series of {@link Continuation} methods that share the same set of contextual values.
@@ -52,11 +51,6 @@ abstract class ContinuationGroup implements Serializable {
     }
 
     /*TODO: specify the proper owner value (to the script that includes the call site) */
-    protected static CallSite fakeCallSite(String method) {
-        CallSiteArray csa = new CallSiteArray(ContinuationGroup.class, new String[]{method});
-        return csa.array[0];
-    }
-
     protected Next methodCall(Env e, SourceLocation loc, ContinuationPtr k, Object receiver, String methodName, Object... args) {
         return methodCall(e,loc,k.bind(this),receiver,methodName,args);
     }
@@ -69,7 +63,7 @@ abstract class ContinuationGroup implements Serializable {
             public Next call() {
                 try {
                     // TODO: spread and safe
-                    Object v = e.getInvoker().methodCall(receiver,false,false,methodName,args);
+                    Object v = e.getInvoker().methodCall(receiver, false, false, methodName, args);
                     // if this was a normal function, the method had just executed synchronously
                     return k.receive(v);
                 } catch (CpsCallableInvocation inv) {

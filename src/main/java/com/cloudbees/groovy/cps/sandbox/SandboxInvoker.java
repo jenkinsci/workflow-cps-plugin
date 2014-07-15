@@ -15,6 +15,10 @@ public class SandboxInvoker implements Invoker {
         return Checker.checkedCall(receiver,safe,spread,method,args);
     }
 
+    public Object constructorCall(Class lhs, Object[] args) throws Throwable {
+        return Checker.checkedConstructor(lhs,args);
+    }
+
     public Object getProperty(Object lhs, boolean safe, boolean spread, String name) throws Throwable {
         return Checker.checkedGetProperty(lhs,safe,spread,name);
     }
