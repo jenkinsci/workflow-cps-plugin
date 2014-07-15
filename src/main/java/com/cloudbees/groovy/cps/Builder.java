@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.impl.ArrayAccessBlock;
 import com.cloudbees.groovy.cps.impl.AssertBlock;
 import com.cloudbees.groovy.cps.impl.AssignmentBlock;
 import com.cloudbees.groovy.cps.impl.AttributeAccessBlock;
@@ -19,6 +20,7 @@ import com.cloudbees.groovy.cps.impl.ListBlock;
 import com.cloudbees.groovy.cps.impl.LocalVariableBlock;
 import com.cloudbees.groovy.cps.impl.LogicalOpBlock;
 import com.cloudbees.groovy.cps.impl.MapBlock;
+import com.cloudbees.groovy.cps.impl.NewArrayBlock;
 import com.cloudbees.groovy.cps.impl.NotBlock;
 import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
 import com.cloudbees.groovy.cps.impl.ReturnBlock;
@@ -480,6 +482,9 @@ public class Builder {
         return new PropertyAccessBlock(loc(line),lhs,property);
     }
 
+    public LValueBlock array(int line, Block lhs, Block index) {
+        return new ArrayAccessBlock(loc(line),lhs,index);
+    }
 
     public LValueBlock attribute(int line, Block lhs, Block property) {
         return new AttributeAccessBlock(loc(line),lhs,property);
@@ -506,6 +511,13 @@ public class Builder {
 
     public Block new_(int line, Block type, Block... argExps) {
         return new FunctionCallBlock(loc(line),type,constant("<init>"),argExps);
+    }
+
+    /**
+     * Array instantiation like {@code new String[1][5]}
+     */
+    public Block newArray(int line, Class type, Block... argExps) {
+        return new NewArrayBlock(loc(line),type,argExps);
     }
 
     /**

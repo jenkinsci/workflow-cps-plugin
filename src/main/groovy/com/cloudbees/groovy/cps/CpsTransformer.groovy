@@ -767,8 +767,17 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         }
     }
 
-    void visitArrayExpression(ArrayExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitArrayExpression(ArrayExpression exp) {
+        if (exp.sizeExpression!=null) {
+            // array instanation like new String[1][2][3]
+            makeNode("newArray") {
+                loc(exp)
+                literal(exp.elementType)
+                visit(exp.sizeExpression)
+            }
+        } else {
+            throw new UnsupportedOperationException();
+        }
     }
 
     void visitSpreadExpression(SpreadExpression expression) {
