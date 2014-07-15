@@ -500,6 +500,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             (POWER_EQUAL)                   :"powerEqual",
             (EQUAL)                         :"assign",
             (KEYWORD_INSTANCEOF)            :"instanceOf",
+            (LEFT_SQUARE_BRACKET)           :"array",
     ]
 
     /**
@@ -552,14 +553,6 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
         case MATCH_REGEX:
             evaluateCompareExpression(matchRegexMethod, exp);
-            break;
-
-        case LEFT_SQUARE_BRACKET:
-            if (controller.getCompileStack().isLHS()) {
-                evaluateEqual(exp, false);
-            } else {
-                evaluateBinaryExpression("getAt", exp);
-            }
             break;
 
         case KEYWORD_IN:
