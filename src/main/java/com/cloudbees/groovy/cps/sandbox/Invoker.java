@@ -18,17 +18,17 @@ public interface Invoker {
      */
     Invoker INSTANCE = new DefaultInvoker();
 
-    Object methodCall(Object receiver, boolean safe, boolean spread, String method, Object[] args) throws Throwable;
+    Object methodCall(Object receiver, String method, Object[] args) throws Throwable;
 
     Object constructorCall(Class lhs, Object[] args) throws Throwable;
 
-    Object getProperty(Object lhs, boolean safe, boolean spread, String name) throws Throwable;
+    Object getProperty(Object lhs, String name) throws Throwable;
 
-    void setProperty(Object lhs, String name, boolean safe, boolean spread, Object value) throws Throwable;
+    void setProperty(Object lhs, String name, Object value) throws Throwable;
 
-    Object getAttribute(Object lhs, boolean safe, boolean spread, String name) throws Throwable;
+    Object getAttribute(Object lhs, String name) throws Throwable;
 
-    void setAttribute(Object lhs, String name, boolean safe, boolean spread, Object value) throws Throwable;
+    void setAttribute(Object lhs, String name, Object value) throws Throwable;
 
     Object getArray(Object lhs, Object index) throws Throwable;
 

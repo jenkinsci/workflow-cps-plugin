@@ -11,28 +11,28 @@ import org.kohsuke.groovy.sandbox.impl.Checker;
  * @author Kohsuke Kawaguchi
  */
 public class SandboxInvoker implements Invoker {
-    public Object methodCall(Object receiver, boolean safe, boolean spread, String method, Object[] args) throws Throwable {
-        return Checker.checkedCall(receiver,safe,spread,method,args);
+    public Object methodCall(Object receiver, String method, Object[] args) throws Throwable {
+        return Checker.checkedCall(receiver,false,false,method,args);
     }
 
     public Object constructorCall(Class lhs, Object[] args) throws Throwable {
         return Checker.checkedConstructor(lhs,args);
     }
 
-    public Object getProperty(Object lhs, boolean safe, boolean spread, String name) throws Throwable {
-        return Checker.checkedGetProperty(lhs,safe,spread,name);
+    public Object getProperty(Object lhs, String name) throws Throwable {
+        return Checker.checkedGetProperty(lhs,false,false,name);
     }
 
-    public void setProperty(Object lhs, String name, boolean safe, boolean spread, Object value) throws Throwable {
-        Checker.checkedSetProperty(lhs,name,safe,spread, Types.ASSIGN,value);
+    public void setProperty(Object lhs, String name, Object value) throws Throwable {
+        Checker.checkedSetProperty(lhs,name,false,false, Types.ASSIGN,value);
     }
 
-    public Object getAttribute(Object lhs, boolean safe, boolean spread, String name) throws Throwable {
-        return Checker.checkedGetAttribute(lhs, safe, spread, name);
+    public Object getAttribute(Object lhs, String name) throws Throwable {
+        return Checker.checkedGetAttribute(lhs, false, false, name);
     }
 
-    public void setAttribute(Object lhs, String name, boolean safe, boolean spread, Object value) throws Throwable {
-        Checker.checkedSetAttribute(lhs, name, safe, spread, Types.ASSIGN, value);
+    public void setAttribute(Object lhs, String name, Object value) throws Throwable {
+        Checker.checkedSetAttribute(lhs, name, false, false, Types.ASSIGN, value);
     }
 
     public Object getArray(Object lhs, Object index) throws Throwable {

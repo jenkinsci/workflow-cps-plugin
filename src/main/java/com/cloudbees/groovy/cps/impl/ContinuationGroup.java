@@ -63,7 +63,7 @@ abstract class ContinuationGroup implements Serializable {
             public Next call() {
                 try {
                     // TODO: spread and safe
-                    Object v = e.getInvoker().methodCall(receiver, false, false, methodName, args);
+                    Object v = e.getInvoker().methodCall(receiver, methodName, args);
                     // if this was a normal function, the method had just executed synchronously
                     return k.receive(v);
                 } catch (CpsCallableInvocation inv) {

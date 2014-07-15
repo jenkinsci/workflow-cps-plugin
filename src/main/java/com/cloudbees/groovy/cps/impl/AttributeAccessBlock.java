@@ -14,11 +14,11 @@ public class AttributeAccessBlock extends PropertyishBlock {
     }
 
     protected Object rawGet(Env e, Object lhs, Object name) throws Throwable {
-        return e.getInvoker().getAttribute(lhs,false,false,coerce(name));
+        return e.getInvoker().getAttribute(lhs,coerce(name));
     }
 
     protected void rawSet(Env e, Object lhs, Object name, Object v) throws Throwable {
-        e.getInvoker().setAttribute(lhs,coerce(name),false,false,v);
+        e.getInvoker().setAttribute(lhs,coerce(name),v);
     }
 
     private String coerce(Object name) {

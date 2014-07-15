@@ -5,13 +5,12 @@ import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 
 /**
+ * {@link Invoker} that performs the expected operation without anything extra.
+ *
  * @author Kohsuke Kawaguchi
  */
 public class DefaultInvoker implements Invoker {
-    public Object methodCall(Object receiver, boolean safe, boolean spread, String method, Object[] args) throws Throwable {
-        assert !safe : "TODO";
-        assert !spread : "TODO";
-
+    public Object methodCall(Object receiver, String method, Object[] args) throws Throwable {
         CallSite callSite = fakeCallSite(method);
         Object v = callSite.call(receiver,args);
         return v;
@@ -22,33 +21,21 @@ public class DefaultInvoker implements Invoker {
         return v;
     }
 
-    public Object getProperty(Object lhs, boolean safe, boolean spread, String name) throws Throwable {
-        assert !safe : "TODO";
-        assert !spread : "TODO";
-
+    public Object getProperty(Object lhs, String name) throws Throwable {
         Object v = ScriptBytecodeAdapter.getProperty(null/*Groovy doesn't use this parameter*/, lhs, name);
         return v;
     }
 
-    public void setProperty(Object lhs, String name, boolean safe, boolean spread, Object value) throws Throwable {
-        assert !safe : "TODO";
-        assert !spread : "TODO";
-
+    public void setProperty(Object lhs, String name, Object value) throws Throwable {
         ScriptBytecodeAdapter.setProperty(value, null/*Groovy doesn't use this parameter*/, lhs, name);
     }
 
-    public Object getAttribute(Object lhs, boolean safe, boolean spread, String name) throws Throwable {
-        assert !safe : "TODO";
-        assert !spread : "TODO";
-
+    public Object getAttribute(Object lhs, String name) throws Throwable {
         Object v = ScriptBytecodeAdapter.getField(null/*Groovy doesn't use this parameter*/, lhs, name);
         return v;
     }
 
-    public void setAttribute(Object lhs, String name, boolean safe, boolean spread, Object value) throws Throwable {
-        assert !safe : "TODO";
-        assert !spread : "TODO";
-
+    public void setAttribute(Object lhs, String name, Object value) throws Throwable {
         ScriptBytecodeAdapter.setField(value, null/*Groovy doesn't use this parameter*/, lhs, name);
     }
 
