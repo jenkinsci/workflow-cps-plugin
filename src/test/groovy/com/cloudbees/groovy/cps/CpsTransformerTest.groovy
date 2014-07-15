@@ -420,6 +420,17 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     }
 
     @Test
+    void multidimensionalArrayInstantiation() {
+        assert evalCPS("""
+            def x = new int[3][4];
+            int z = 0;
+            for (int i=0; i<x.length; i++)
+                z += x[i].length;
+            return z;
+        """) == 12;
+    }
+
+    @Test
     void arrayAccess() {
         assert evalCPS("def x = new int[3]; x[0]=1; x[1]=x[0]+2; x[1]+=4; return x[1]") == 7;
     }
