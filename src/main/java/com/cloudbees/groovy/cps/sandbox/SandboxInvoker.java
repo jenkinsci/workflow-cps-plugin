@@ -42,4 +42,6 @@ public class SandboxInvoker implements Invoker {
     public void setArray(Object lhs, Object index, Object value) throws Throwable {
         Checker.checkedSetArray(lhs,index,Types.ASSIGN,value);
     }
+
+    private static final long serialVersionUID = 1L;
 }

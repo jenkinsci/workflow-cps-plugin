@@ -52,4 +52,6 @@ public class DefaultInvoker implements Invoker {
         CallSiteArray csa = new CallSiteArray(DefaultInvoker.class, new String[]{method});
         return csa.array[0];
     }
+
+    private static final long serialVersionUID = 1L;
 }

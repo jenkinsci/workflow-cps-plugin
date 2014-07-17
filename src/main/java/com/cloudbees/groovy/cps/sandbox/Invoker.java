@@ -2,6 +2,8 @@ package com.cloudbees.groovy.cps.sandbox;
 
 import com.cloudbees.groovy.cps.Env;
 
+import java.io.Serializable;
+
 /**
  * Abstracts away interactions with Groovy objects, for example to provide an opportunity to intercept
  * calls.
@@ -12,7 +14,7 @@ import com.cloudbees.groovy.cps.Env;
  * @author Kohsuke Kawaguchi
  * @see Env#getInvoker()
  */
-public interface Invoker {
+public interface Invoker extends Serializable {
     /**
      * Default instance to be used.
      */
