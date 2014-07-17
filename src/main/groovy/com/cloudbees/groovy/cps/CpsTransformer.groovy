@@ -145,8 +145,10 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      * }
      */
     public void visitMethod(MethodNode m) {
-        if (!shouldBeTransformed(m))
+        if (!shouldBeTransformed(m)) {
+            visitNontransformedMethod(m);
             return;
+        }
 
         Expression body;
 
@@ -195,12 +197,19 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     /**
+     * For methods that are not CPS-transformed.
+     */
+    protected void visitNontransformedMethod(MethodNode m) {
+    }
+
+
+    /**
      * As we visit expressions in the method body, we convert them to the {@link Builder} invocations
      * and pass them back to this closure.
      */
     private Closure parent;
 
-    private void visit(ASTNode e) {
+    protected void visit(ASTNode e) {
         if (e instanceof EmptyExpression) {
             // working around a bug in EmptyExpression.visit() that doesn't call any method
             visitEmptyExpression(e);
@@ -213,7 +222,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         }
     }
 
-    private void visit(Collection<? extends ASTNode> col) {
+    protected void visit(Collection<? extends ASTNode> col) {
         for (def e : col) {
             visit(e);
         }
@@ -267,26 +276,26 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         makeNode(methodName,null)
     }
 
-    private void loc(ASTNode e) {
+    protected void loc(ASTNode e) {
         literal(e.lineNumber);
     }
 
     /**
      * Used in the closure block of {@link #makeNode(String, Object)} to create a literal string argument.
      */
-    private void literal(String s) {
+    protected void literal(String s) {
         parent(new ConstantExpression(s))
     }
 
-    private void literal(ClassNode c) {
+    protected void literal(ClassNode c) {
         parent(new ClassExpression(c))
     }
 
-    private void literal(int n) {
+    protected void literal(int n) {
         parent(new ConstantExpression(n,true))
     }
 
-    private void literal(boolean b) {
+    protected void literal(boolean b) {
         parent(new ConstantExpression(b,true))
     }
 
