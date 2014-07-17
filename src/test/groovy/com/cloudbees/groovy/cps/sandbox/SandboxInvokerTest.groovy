@@ -70,7 +70,7 @@ ScriptBytecodeAdapter:compareEqual(Integer,Integer)
 
     return length("foo")
 """)
-        println cr.toString()
+        assertIntercept('Script1.length(String)','String.length()')
     }
 
 
