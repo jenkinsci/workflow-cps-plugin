@@ -13,14 +13,44 @@ import org.kohsuke.groovy.sandbox.ClassRecorder;
 public class SandboxInvokerTest extends AbstractGroovyCpsTest {
     def cr = new ClassRecorder()
 
+    /**
+     * Covers all the intercepted operations.
+     */
     @Test
     public void basic() {
-        assert 3==evalCpsSandbox("new String('abc'.bytes).length()")
+        evalCpsSandbox("""
+            import java.awt.Point;
 
-        assertIntercept(
-                "String.bytes",
-                "new String(byte[])",
-                "String.length()")
+            def p = new Point(1,3);     // constructor
+            assert p.equals(p)          // method call
+            assert 4 == p.x+p.y;        // property get
+            p.x = 5;                    // property set
+            assert 5 == p.@x;           // attribute get
+            p.@x = 6;                   // attribute set
+
+            def a = new int[3];
+            a[1] = a[0]+7;              // array get & set
+            assert a[1]==7;
+        """)
+
+        assertIntercept("""
+new Point(Integer,Integer)
+Point.equals(Point)
+Point.x
+Point.y
+Double.plus(Double)
+ScriptBytecodeAdapter:compareEqual(Integer,Double)
+Point.x=Integer
+Point.@x
+ScriptBytecodeAdapter:compareEqual(Integer,Integer)
+Point.@x=Integer
+int[][Integer]
+Integer.plus(Integer)
+int[][Integer]=Integer
+int[][Integer]
+ScriptBytecodeAdapter:compareEqual(Integer,Integer)
+"""
+)
     }
 
     private Object evalCpsSandbox(String script) {
@@ -36,6 +66,6 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
     }
 
     def assertIntercept(String... expected) {
-        assertEquals(expected.join("\n"), cr.toString().trim())
+        assertEquals(expected.join("\n").trim(), cr.toString().trim())
     }
 }
