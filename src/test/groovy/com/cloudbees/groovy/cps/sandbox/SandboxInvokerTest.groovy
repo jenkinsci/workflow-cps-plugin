@@ -75,7 +75,7 @@ ScriptBytecodeAdapter:compareEqual(Integer,Integer)
 
 
     private Object evalCpsSandbox(String script) {
-        FunctionCallEnv e = new FunctionCallEnv(null, null, null, null);
+        FunctionCallEnv e = new FunctionCallEnv(null, Continuation.HALT, null, null);
         e.invoker = new SandboxInvoker();
 
         cr.register()
