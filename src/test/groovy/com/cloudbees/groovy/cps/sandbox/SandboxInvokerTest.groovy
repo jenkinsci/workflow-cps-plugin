@@ -2,7 +2,9 @@ package com.cloudbees.groovy.cps.sandbox;
 
 import com.cloudbees.groovy.cps.AbstractGroovyCpsTest
 import com.cloudbees.groovy.cps.Continuation
+import com.cloudbees.groovy.cps.CpsTransformer
 import com.cloudbees.groovy.cps.Env
+import com.cloudbees.groovy.cps.SandboxCpsTransformer
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import org.junit.Test
 import org.kohsuke.groovy.sandbox.ClassRecorder;
@@ -12,6 +14,11 @@ import org.kohsuke.groovy.sandbox.ClassRecorder;
  */
 public class SandboxInvokerTest extends AbstractGroovyCpsTest {
     def cr = new ClassRecorder()
+
+    @Override
+    protected CpsTransformer createCpsTransformer() {
+        new SandboxCpsTransformer()
+    }
 
     /**
      * Covers all the intercepted operations.
@@ -52,6 +59,20 @@ ScriptBytecodeAdapter:compareEqual(Integer,Integer)
 """
 )
     }
+
+    @Test
+    public void mixtureOfNonTransformation() {
+        assert 3==evalCpsSandbox("""
+    @NonCPS
+    def length(x) {
+        return x.length();
+    }
+
+    return length("foo")
+""")
+        println cr.toString()
+    }
+
 
     private Object evalCpsSandbox(String script) {
         FunctionCallEnv e = new FunctionCallEnv(null, null, null, null);

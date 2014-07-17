@@ -32,13 +32,17 @@ abstract class AbstractGroovyCpsTest extends Assert {
 
         def cc = new CompilerConfiguration()
         cc.addCompilationCustomizers(imports)
-        cc.addCompilationCustomizers(new CpsTransformer())
+        cc.addCompilationCustomizers(createCpsTransformer())
         cc.scriptBaseClass = SerializableScript.class.name
         csh = new GroovyShell(binding,cc);
 
         cc = new CompilerConfiguration()
         cc.addCompilationCustomizers(imports)
         sh = new GroovyShell(binding,cc);
+    }
+
+    protected CpsTransformer createCpsTransformer() {
+        return new CpsTransformer()
     }
 
     Object evalCPS(String script) {
