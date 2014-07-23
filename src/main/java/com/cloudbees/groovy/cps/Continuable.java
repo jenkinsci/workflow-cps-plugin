@@ -43,7 +43,7 @@ public class Continuable implements Serializable {
      * Creates a {@link Continuable} that executes the block of code in a fresh empty environment.
      */
     public Continuable(Block block) {
-        this(block, new FunctionCallEnv(null,null,null,Continuation.HALT));
+        this(block, new FunctionCallEnv(null,Continuation.HALT,null,null));
     }
 
     /**

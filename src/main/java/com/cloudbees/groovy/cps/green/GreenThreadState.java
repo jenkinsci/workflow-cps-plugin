@@ -64,7 +64,7 @@ final class GreenThreadState implements Serializable {
      */
     GreenThreadState(GreenThread g, Block b) {
         // TODO: allow the caller to pass a value
-        this(g,new Next(b, new FunctionCallEnv(null, null, null, HALT), HALT));
+        this(g,new Next(b, new FunctionCallEnv(null, HALT, null, null), HALT));
     }
 
     /**
