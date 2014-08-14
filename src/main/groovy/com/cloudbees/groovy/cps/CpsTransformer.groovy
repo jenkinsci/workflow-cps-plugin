@@ -207,7 +207,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      * As we visit expressions in the method body, we convert them to the {@link Builder} invocations
      * and pass them back to this closure.
      */
-    private Closure parent;
+    protected Closure parent;
 
     protected void visit(ASTNode e) {
         if (e instanceof EmptyExpression) {
