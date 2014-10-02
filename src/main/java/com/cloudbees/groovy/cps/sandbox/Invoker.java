@@ -2,6 +2,7 @@ package com.cloudbees.groovy.cps.sandbox;
 
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Env;
+import com.cloudbees.groovy.cps.Envs;
 import groovy.lang.Script;
 
 import java.io.Serializable;
@@ -16,6 +17,7 @@ import java.io.Serializable;
  * @author Kohsuke Kawaguchi
  * @see Env#getInvoker()
  * @see Continuable#Continuable(Script, Env)
+ * @see Envs#empty(Invoker)
  */
 public interface Invoker extends Serializable {
     /**

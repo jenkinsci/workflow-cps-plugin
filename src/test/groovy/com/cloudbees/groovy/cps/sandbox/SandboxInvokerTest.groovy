@@ -1,13 +1,9 @@
-package com.cloudbees.groovy.cps.sandbox;
+package com.cloudbees.groovy.cps.sandbox
 
-import com.cloudbees.groovy.cps.AbstractGroovyCpsTest
-import com.cloudbees.groovy.cps.Continuation
-import com.cloudbees.groovy.cps.CpsTransformer
-import com.cloudbees.groovy.cps.Env
-import com.cloudbees.groovy.cps.SandboxCpsTransformer
-import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
+import com.cloudbees.groovy.cps.*
+import com.cloudbees.groovy.cps.impl.FunctionCallEnv
 import org.junit.Test
-import org.kohsuke.groovy.sandbox.ClassRecorder;
+import org.kohsuke.groovy.sandbox.ClassRecorder
 
 /**
  * @author Kohsuke Kawaguchi
@@ -75,7 +71,7 @@ ScriptBytecodeAdapter:compareEqual(Integer,Integer)
 
 
     private Object evalCpsSandbox(String script) {
-        FunctionCallEnv e = new FunctionCallEnv(null, Continuation.HALT, null, null);
+        FunctionCallEnv e = Envs.empty();
         e.invoker = new SandboxInvoker();
 
         cr.register()

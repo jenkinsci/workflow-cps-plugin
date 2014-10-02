@@ -3,8 +3,8 @@ package com.cloudbees.groovy.cps.green;
 import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
+import com.cloudbees.groovy.cps.Envs;
 import com.cloudbees.groovy.cps.Next;
-import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import com.cloudbees.groovy.cps.Outcome;
 
 import java.io.Serializable;
@@ -64,7 +64,7 @@ final class GreenThreadState implements Serializable {
      */
     GreenThreadState(GreenThread g, Block b) {
         // TODO: allow the caller to pass a value
-        this(g,new Next(b, new FunctionCallEnv(null, HALT, null, null), HALT));
+        this(g,new Next(b, Envs.empty(), HALT));
     }
 
     /**

@@ -2,7 +2,6 @@ package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.CpsFunction;
-import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.junit.Assert;
 import org.junit.Test;
@@ -27,7 +26,7 @@ public class BasicTest extends Assert {
      */
     private <T> T run(Block... bodies) {
         try {
-            Env e = new FunctionCallEnv(null,Continuation.HALT,null,null);
+            Env e = Envs.empty();
             Next p = new Next(b.block(bodies), e, Continuation.HALT);
             return (T) p.run().yield.wrapReplay();
         } catch (InvocationTargetException x) {
