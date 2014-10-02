@@ -3,6 +3,7 @@ package com.cloudbees.groovy.cps;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import com.cloudbees.groovy.cps.impl.SuspendBlock;
+import com.cloudbees.groovy.cps.sandbox.Invoker;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 
@@ -59,10 +60,21 @@ public class Continuable implements Serializable {
      * wraps that into a {@link Continuable}.
      */
     public Continuable(Script cpsTransformedScript) {
-        this(wrap(cpsTransformedScript));
+        this(cpsTransformedScript,null);
     }
 
-    private static Next wrap(Script s) {
+    /**
+     * Takes a {@link Script} compiled from CPS-transforming {@link GroovyShell} and
+     * wraps that into a {@link Continuable}, in the context of the given {@link Env}.
+     *
+     * The added 'env' parameter can be used to control the execution flow in case
+     * of exceptions, and/or providing custom {@link Invoker}
+     */
+    public Continuable(Script cpsTransformedScript, Env env) {
+        this(wrap(cpsTransformedScript,env));
+    }
+
+    private static Next wrap(Script s, Env env) {
         try {
             Method m = s.getClass().getMethod("run");
             if (!m.isAnnotationPresent(WorkflowTransformed.class))
@@ -70,7 +82,7 @@ public class Continuable implements Serializable {
             s.run();
             throw new AssertionError("I'm confused if Script is CPS-transformed or not!");
         } catch (CpsCallableInvocation e) {
-            return e.invoke(null, null, Continuation.HALT);
+            return e.invoke(env, null, Continuation.HALT);
         } catch (NoSuchMethodException e) {
             throw new AssertionError(e);
         }
