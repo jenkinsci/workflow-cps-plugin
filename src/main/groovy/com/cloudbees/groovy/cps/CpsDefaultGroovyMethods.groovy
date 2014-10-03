@@ -1,7 +1,9 @@
 package com.cloudbees.groovy.cps
 
+import com.cloudbees.groovy.cps.impl.Caller
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import com.cloudbees.groovy.cps.impl.CpsFunction
+import org.codehaus.groovy.runtime.DefaultGroovyMethods
 import org.codehaus.groovy.runtime.InvokerHelper
 
 /**
@@ -19,6 +21,10 @@ public class CpsDefaultGroovyMethods {
      * Interception is successful. The trick is to pre-translate this method into CPS.
      */
     public static <T> T each(T self, Closure closure) {
+        if (!Caller.isAsynchronous(self,"each",closure)
+         && !Caller.isAsynchronous(CpsDefaultGroovyMethods.class,"each",self,closure))
+            return DefaultGroovyMethods.each(self,closure);
+
         /*
         each(InvokerHelper.asIterator(self), closure);
         return self;
@@ -39,6 +45,10 @@ public class CpsDefaultGroovyMethods {
     }
 
     public static <T> Iterator<T> each(Iterator<T> iter, Closure closure) {
+        if (!Caller.isAsynchronous(iter,"each",closure)
+         && !Caller.isAsynchronous(CpsDefaultGroovyMethods.class,"each",iter,closure))
+            return DefaultGroovyMethods.each(iter,closure);
+
 /*
         while (iter.hasNext()) {
             Object arg = iter.next();
