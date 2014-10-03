@@ -382,12 +382,30 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     /**
      * Testing {@link CpsDefaultGroovyMethods}.
      */
-    @Test
+    @Test @Ignore
     void each() {
         assert evalCPS("""
     def x = 0;
     (0..10).each { y -> x+=y; }
     return x;
+""") == 55;
+    }
+
+    /**
+     * Testing {@link CpsDefaultGroovyMethods} to ensure it doesn't kick in incorrectly
+     * while processing synchronous code
+     */
+    @Test
+    void syncEach() {
+        assert evalCPS("""
+    @NonCPS
+    def sum() {
+      def x = 0;
+      (0..10).each { y -> x+=y; }
+      return x;
+    }
+
+    sum()
 """) == 55;
     }
 

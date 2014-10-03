@@ -1,10 +1,8 @@
 package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.Block;
-import com.cloudbees.groovy.cps.CategorySupport;
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
-import com.cloudbees.groovy.cps.CpsDefaultGroovyMethods;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
@@ -15,7 +13,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Callable;
 
 import static com.cloudbees.groovy.cps.impl.SourceLocation.*;
 
@@ -59,20 +56,16 @@ abstract class ContinuationGroup implements Serializable {
      * Evaluates a function (possibly a workflow function), then pass the result to the given continuation.
      */
     protected Next methodCall(final Env e, final SourceLocation loc, final Continuation k, final Object receiver, final String methodName, final Object... args) {
-        return CategorySupport.use(CpsDefaultGroovyMethods.class,new Callable<Next>() {
-            public Next call() {
-                try {
-                    // TODO: spread and safe
-                    Object v = e.getInvoker().methodCall(receiver, methodName, args);
-                    // if this was a normal function, the method had just executed synchronously
-                    return k.receive(v);
-                } catch (CpsCallableInvocation inv) {
-                    return inv.invoke(e, loc, k);
-                } catch (Throwable t) {
-                    return throwException(e, t, loc, new ReferenceStackTrace());
-                }
-            }
-        });
+        try {
+            // TODO: spread and safe
+            Object v = e.getInvoker().methodCall(receiver, methodName, args);
+            // if this was a normal function, the method had just executed synchronously
+            return k.receive(v);
+        } catch (CpsCallableInvocation inv) {
+            return inv.invoke(e, loc, k);
+        } catch (Throwable t) {
+            return throwException(e, t, loc, new ReferenceStackTrace());
+        }
     }
 
     /**
