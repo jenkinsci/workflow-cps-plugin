@@ -1,21 +1,25 @@
 package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.Block;
-import com.cloudbees.groovy.cps.CategorySupport;
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.CpsDefaultGroovyMethods;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
+import groovy.lang.MetaMethod;
+import org.codehaus.groovy.reflection.CachedClass;
+import org.codehaus.groovy.reflection.CachedMethod;
+import org.codehaus.groovy.reflection.ReflectionCache;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
+import org.codehaus.groovy.runtime.metaclass.NewInstanceMetaMethod;
 
 import javax.annotation.CheckReturnValue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Callable;
 
 import static com.cloudbees.groovy.cps.impl.SourceLocation.*;
 
@@ -59,6 +63,28 @@ abstract class ContinuationGroup implements Serializable {
      * Evaluates a function (possibly a workflow function), then pass the result to the given continuation.
      */
     protected Next methodCall(final Env e, final SourceLocation loc, final Continuation k, final Object receiver, final String methodName, final Object... args) {
+        try {
+            Caller.record(receiver,methodName,args);
+            // TODO: spread and safe
+            Object v = e.getInvoker().methodCall(receiver, methodName, args);
+            // if this was a normal function, the method had just executed synchronously
+            return k.receive(v);
+        } catch (CpsCallableInvocation inv) {
+            return inv.invoke(e, loc, k);
+        } catch (Throwable t) {
+            return throwException(e, t, loc, new ReferenceStackTrace());
+        }
+
+/*
+    Because of GROOVY-6263, if we use category, CpsTransformer fails wherever it calls its private method
+    when 'this' is SandboxCpsTransformer. A similar problem will likely happen anywhere we call Groovy code.
+
+    So instead of using category, insert methods into MetaClass, which is what Groovy runtime does
+    for its builtin DefaultGroovyMethods.
+
+    This affects every Groovy code execution in the same JVM, which is too wide, but
+
+
         return CategorySupport.use(CpsDefaultGroovyMethods.class, new Callable<Next>() {
             public Next call() {
                 try {
@@ -74,6 +100,15 @@ abstract class ContinuationGroup implements Serializable {
                 }
             }
         });
+*/
+    }
+
+    static {
+        for (CachedMethod m : ReflectionCache.getCachedClass(CpsDefaultGroovyMethods.class).getMethods()) {
+            CachedClass[] paramTypes = m.getParameterTypes();
+            if (paramTypes.length>0)
+                paramTypes[0].addNewMopMethods(Collections.<MetaMethod>singletonList(new NewInstanceMetaMethod(m)));
+        }
     }
 
     /**
