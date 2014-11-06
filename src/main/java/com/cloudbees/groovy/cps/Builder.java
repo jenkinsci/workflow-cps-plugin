@@ -369,14 +369,14 @@ public class Builder {
     /**
      * lhs && rhs
      */
-    public Block logicalAnd(Block lhs, Block rhs) {
+    public Block logicalAnd(int line, Block lhs, Block rhs) {
         return new LogicalOpBlock(lhs,rhs,true);
     }
 
     /**
      * lhs || rhs
      */
-    public Block logicalOr(Block lhs, Block rhs) {
+    public Block logicalOr(int line, Block lhs, Block rhs) {
         return new LogicalOpBlock(lhs,rhs,false);
     }
 
