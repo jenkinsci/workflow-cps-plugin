@@ -358,10 +358,24 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         assert evalCPS("def x=0; return x++ ?: -1")==-1;
     }
 
-    @Test void booleanOps() {
+    @Test void logicalOp() {
         assert evalCPS("true && (false || false)") == false;
         assert evalCPS("true && (true || false)") == true;
         assert evalCPS("false && (true || false)") == false;
+        assert evalCPS('''
+            x = [0, 0, 0, 0]
+            def set(index) {
+                x[index - 1] = index
+                true
+            }
+            def r = [
+                true  && set(1),
+                false && set(2),
+                true  || set(3),
+                false || set(4)
+            ]
+            "${r} ${x}"
+        ''') == "[true, false, true, true] [1, 0, 0, 4]"
     }
 
     @Test
