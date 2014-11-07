@@ -3,7 +3,12 @@ package com.cloudbees.groovy.cps;
 import java.io.Serializable;
 
 /**
- * Remaining computation to execute. To work around the lack of tail-call optimization
+ * Remaining computation to execute. To work around the lack of tail-call optimization.
+ *
+ * The remaining computation is either to execute {@link #f} under {#link #e} and pass the
+ * result to {@link #k} immediately, or to suspend execution by yielding {@link #yield},
+ * and when the execution is resumed, continue by passing the resume value to {@link #k}
+ * (or throw the resume value to the catch handler as specified by {@link #e}.)
  *
  * @author Kohsuke Kawaguchi
  */
