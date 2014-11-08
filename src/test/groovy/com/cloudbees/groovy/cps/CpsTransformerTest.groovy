@@ -484,4 +484,22 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
 
         assert evalCPS("x=[]; x<<'hello'; x<<'world'; x")==["hello","world"];
     }
+
+    @Test
+    void inOperator() {
+        assert evalCPS("3 in [1,2,3]");
+        assert evalCPS("'ascii' in String.class");
+        assert !evalCPS("6 in [1,2,3]");
+        assert !evalCPS("'ascii' in URL.class");
+    }
+
+    @Test
+    void regexpOperator() {
+        assert evalCPS("('cheesecheese' =~ 'cheese') as boolean")
+        assert evalCPS("('cheesecheese' =~ /cheese/) as boolean")
+        assert !evalCPS("('cheese' =~ /ham/) as boolean")
+
+        assert evalCPS("('2009' ==~ /\\d+/) as boolean")
+        assert !evalCPS("('holla' ==~ /\\d+/) as boolean")
+    }
 }

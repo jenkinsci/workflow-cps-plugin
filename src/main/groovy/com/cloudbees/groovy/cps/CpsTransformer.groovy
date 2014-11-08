@@ -517,6 +517,10 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             (RIGHT_SHIFT_EQUAL)             :"rightShiftEqual",
             (RIGHT_SHIFT_UNSIGNED)          :"rightShiftUnsigned",
             (RIGHT_SHIFT_UNSIGNED_EQUAL)    :"rightShiftUnsignedEqual",
+
+            (FIND_REGEX)                    :"findRegex",
+            (MATCH_REGEX)                   :"matchRegex",
+            (KEYWORD_IN)                    :"isCase",
     ]
 
     /**
@@ -534,23 +538,6 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             makeNode(name,body)
             return;
         }
-
-/* TODO: from BinaryExpressionHelper
-        // other unique cases
-        switch (exp.operation.type) {
-
-        case FIND_REGEX:
-            evaluateCompareExpression(findRegexMethod, exp);
-            break;
-
-        case MATCH_REGEX:
-            evaluateCompareExpression(matchRegexMethod, exp);
-            break;
-
-        case KEYWORD_IN:
-            evaluateCompareExpression(isCaseMethod, exp);
-            break;
-*/
 
         throw new UnsupportedOperationException("Operation: " + exp.operation + " not supported");
     }

@@ -367,6 +367,27 @@ public class Builder {
     }
 
     /**
+     * lhs =~ rhs
+     */
+    public Block findRegex(int line, Block lhs, Block rhs) {
+        return staticCall(line, ScriptBytecodeAdapter.class, "findRegex", lhs, rhs);
+    }
+
+    /**
+     * lhs ==~ rhs
+     */
+    public Block matchRegex(int line, Block lhs, Block rhs) {
+        return staticCall(line, ScriptBytecodeAdapter.class, "matchRegex", lhs, rhs);
+    }
+
+    /**
+     * lhs in rhs
+     */
+    public Block isCase(int line, Block lhs, Block rhs) {
+        return staticCall(line, ScriptBytecodeAdapter.class, "isCase", lhs, rhs);
+    }
+
+    /**
      * lhs && rhs
      */
     public Block logicalAnd(int line, Block lhs, Block rhs) {
