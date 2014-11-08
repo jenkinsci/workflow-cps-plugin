@@ -57,6 +57,10 @@ public final class Outcome implements Serializable {
         return abnormal!=null;
     }
 
+    public Next resumeFrom(Continuable c) {
+        return resumeFrom(c.getE(), c.getK());
+    }
+
     public Next resumeFrom(Env e, Continuation k) {
         if (abnormal!=null) {
             // resume program by throwing this exception

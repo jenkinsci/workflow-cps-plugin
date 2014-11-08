@@ -222,4 +222,52 @@ Script1.run(Script1.groovy:17)
             return "hello";
         }
     }
+
+    /**
+     * Start running one Continuable, interrupt that and run something else, then come back to it.
+     *
+     */
+    @Test
+    public void concatenate() {
+        def s = csh.parse("""
+            def plus2(i) { return i+2; }
+
+            def i=1;
+            x = Continuable.suspend("pause1"); // this will jump to another script and then come back
+            return plus2(i+x);
+        """)
+
+        // let the script run to the suspend point
+        def c = new Continuable(s);
+        assert c.run(null)=="pause1";
+
+        def s2 = csh.parse("""
+            return 16+Continuable.suspend("pause2")+32;
+        """)
+
+        // now create a new Continuable that evaluates s2 first, then come back to where we paused in 'c'
+        c = new Continuable(s2,null,new Continuation() {
+            final Continuable pause = c;
+            @Override
+            Next receive(Object o) {
+                // when s2 is done, hand off the value to pause1 to resume execution from there
+                return Next.go0(new Outcome(o+64,null),pause);
+            }
+        });
+
+        // the point of all this trouble is that once the new 'c' is created, the rest of the code
+        // doesn't have to know that the new Continuable is a composite of two Continuables.
+
+
+
+        assert c.run(null)=="pause2";
+
+        // s2 evaluates, then the result goes back to pause1 after +64 adjustment above
+        // and the whole thing completes
+        def r = c.run(128);
+
+        assert !c.isResumable();    // it should have been completed
+
+        assert r == 1+2 +16+32 +64+128;
+    }
 }

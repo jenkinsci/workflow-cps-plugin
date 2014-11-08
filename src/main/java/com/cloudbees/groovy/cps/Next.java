@@ -67,6 +67,25 @@ public final class Next implements Serializable, Continuation {
         return yield0(new Outcome(v, null), e, k);
     }
 
+    /**
+     * Creates a {@link Next} object that
+     * causes the interpreter loop to exit with the specified value, then optionally allow the interpreter
+     * to resume to the continuation represented by {@link Continuable}.
+     */
+    public static Next yield0(Outcome v, Continuable c) {
+        return yield0(v, c.getE(), c.getK());
+    }
+
+    /**
+     * Crestes a {@link Next} object that
+     * causes the interpreter loop to keep evaluating the continuation represented by {@link Continuable}
+     * by passing the outcome (or throwing it).
+     */
+    public static Next go0(Outcome v, Continuable c) {
+        return v.resumeFrom(c.getE(), c.getK());
+    }
+
+
     private static Next yield0(Outcome v, Env e, Continuation k) {
         if (v==null)        throw new IllegalStateException("trying to yield null");
 
@@ -74,20 +93,26 @@ public final class Next implements Serializable, Continuation {
     }
 
     /**
-     * Creates a {@link Next} object that terminates the computation and either returns a value or throw an exception.
+     * Creates a {@link Next} object that terminates the computation and either returns a value.
      */
     public static Next terminate(Object v) {
-        return terminate(new Outcome(v, null));
+        return terminate0(new Outcome(v, null));
     }
 
-    static Next terminate(Outcome v) {
-        return yield0(v,null,HALT);
-    }
-      
+    /**
+     * Creates a {@link Next} object that terminates the computation by throwing an exception.
+     */
     public static Next unhandledException(Throwable t) {
-        return terminate(new Outcome(null, t));
+        return terminate0(new Outcome(null, t));
     }
-      
+
+    /**
+     * Creates a {@link Next} object that terminates the computation and either returns a value or throw an exception.
+     */
+    public static Next terminate0(Outcome v) {
+        return yield0(v, null, HALT);
+    }
+
     /**
      * As a {@link Continuation}, just ignore the argument.
      */
