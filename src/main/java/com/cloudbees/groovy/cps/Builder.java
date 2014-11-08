@@ -260,11 +260,11 @@ public class Builder {
     }
 
     public Block staticCall(int line, Class lhs, String name, Block... argExps) {
-        return functionCall(line,constant(lhs),name,argExps);
+        return functionCall(line, constant(lhs), name, argExps);
     }
 
     public Block plus(int line, Block lhs, Block rhs) {
-        return functionCall(line,lhs,"plus",rhs);
+        return functionCall(line, lhs, "plus", rhs);
     }
 
     public Block plusEqual(int line, LValueBlock lhs, Block rhs) {
@@ -378,6 +378,48 @@ public class Builder {
      */
     public Block logicalOr(int line, Block lhs, Block rhs) {
         return new LogicalOpBlock(lhs,rhs,false);
+    }
+
+    /**
+     * lhs << rhs
+     */
+    public Block leftShift(int line, Block lhs, Block rhs) {
+        return functionCall(line, lhs, "leftShift", rhs);
+    }
+
+    /**
+     * lhs <<= rhs
+     */
+    public Block leftShiftEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs, rhs, "leftShift");
+    }
+
+    /**
+     * lhs >> rhs
+     */
+    public Block rightShift(int line, Block lhs, Block rhs) {
+        return functionCall(line, lhs, "rightShift", rhs);
+    }
+
+    /**
+     * lhs >>= rhs
+     */
+    public Block rightShiftEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs, rhs, "rightShift");
+    }
+
+    /**
+     * lhs >>> rhs
+     */
+    public Block rightShiftUnsigned(int line, Block lhs, Block rhs) {
+        return functionCall(line, lhs, "rightShiftUnsigned", rhs);
+    }
+
+    /**
+     * lhs >>>= rhs
+     */
+    public Block rightShiftUnsignedEqual(int line, LValueBlock lhs, Block rhs) {
+        return new AssignmentBlock(loc(line), lhs, rhs, "rightShiftUnsigned");
     }
 
     /**

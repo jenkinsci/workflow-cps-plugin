@@ -472,4 +472,16 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     void arrayAccess() {
         assert evalCPS("def x = new int[3]; x[0]=1; x[1]=x[0]+2; x[1]+=4; return x[1]") == 7;
     }
+
+    @Test
+    void bitShift() {
+        assert evalCPS("3<<3")==3*8;
+        assert evalCPS("x=3; x<<=3; x")==3*8;
+        assert evalCPS("5 >> 1")==5/2 as int;
+        assert evalCPS("x=5; x>>=1; x")==5/2 as int;
+        assert evalCPS("-1>>>1")==2147483647;
+        assert evalCPS("x=-1; x>>>=1; x")==2147483647;
+
+        assert evalCPS("x=[]; x<<'hello'; x<<'world'; x")==["hello","world"];
+    }
 }

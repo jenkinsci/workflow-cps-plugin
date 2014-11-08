@@ -510,6 +510,13 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             (EQUAL)                         :"assign",
             (KEYWORD_INSTANCEOF)            :"instanceOf",
             (LEFT_SQUARE_BRACKET)           :"array",
+
+            (LEFT_SHIFT)                    :"leftShift",
+            (LEFT_SHIFT_EQUAL)              :"leftShiftEqual",
+            (RIGHT_SHIFT)                   :"rightShift",
+            (RIGHT_SHIFT_EQUAL)             :"rightShiftEqual",
+            (RIGHT_SHIFT_UNSIGNED)          :"rightShiftUnsigned",
+            (RIGHT_SHIFT_UNSIGNED_EQUAL)    :"rightShiftUnsignedEqual",
     ]
 
     /**
@@ -531,30 +538,6 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 /* TODO: from BinaryExpressionHelper
         // other unique cases
         switch (exp.operation.type) {
-
-        case LEFT_SHIFT:
-            evaluateBinaryExpression("leftShift", exp);
-            break;
-
-        case LEFT_SHIFT_EQUAL:
-            evaluateBinaryExpressionWithAssignment("leftShift", exp);
-            break;
-
-        case RIGHT_SHIFT:
-            evaluateBinaryExpression("rightShift", exp);
-            break;
-
-        case RIGHT_SHIFT_EQUAL:
-            evaluateBinaryExpressionWithAssignment("rightShift", exp);
-            break;
-
-        case RIGHT_SHIFT_UNSIGNED:
-            evaluateBinaryExpression("rightShiftUnsigned", exp);
-            break;
-
-        case RIGHT_SHIFT_UNSIGNED_EQUAL:
-            evaluateBinaryExpressionWithAssignment("rightShiftUnsigned", exp);
-            break;
 
         case FIND_REGEX:
             evaluateCompareExpression(findRegexMethod, exp);
