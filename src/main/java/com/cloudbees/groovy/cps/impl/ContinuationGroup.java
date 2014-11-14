@@ -126,8 +126,13 @@ abstract class ContinuationGroup implements Serializable {
 
         /*
             SYNC TRACE
+              this section contains the top portion of the actual stack beyond ReferenceStackTrace that led to the
+              instantiation of the exception. This is the synchronous code called from CPS code that created the exception.
             CPS TRACE
-            REFERENECE TRACE
+              this section contains a synthesized fake stack trace that shows the logical stack trace of the CPS code
+            REFERENCE TRACE
+              this section contains the actual stack trace leading up to the point where ReferenceStackTrace is created
+              to show how the actual execution happened on JVM
          */
 
         List<StackTraceElement> orig = Arrays.asList(ts);

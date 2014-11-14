@@ -428,6 +428,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
     void visitThrowStatement(ThrowStatement st) {
         makeNode("throw_") {
+            loc(st)
             visit(st.expression)
         }
     }

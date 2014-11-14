@@ -1,7 +1,10 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
+import com.cloudbees.groovy.cps.impl.SourceLocation;
 import com.cloudbees.groovy.cps.impl.SuspendBlock;
+import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 import com.google.common.base.Function;
 import groovy.lang.GroovyShell;
@@ -12,6 +15,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.cloudbees.groovy.cps.impl.SourceLocation.UNKNOWN;
 
 /**
  * Mutable representation of the program. This is the primary API of the groovy-cps library to the outside.
@@ -29,6 +34,8 @@ public class Continuable implements Serializable {
      * Represents the remainder of the program to execute.
      */
     private Continuation k;
+
+    private volatile Throwable interrupt;
 
     public Continuable(Continuable src) {
         this.e = src.e;
@@ -129,12 +136,39 @@ public class Continuable implements Serializable {
     public Outcome run0(Outcome cn) {
         Next n = cn.resumeFrom(e,k);
 
-        n = n.run();
+        while(n.yield==null) {
+            if (interrupt!=null) {
+                // TODO: correctly reporting a source location requires every block to have the line number
+                n = new Next(new ThrowBlock(UNKNOWN, new ConstantBlock(interrupt), true),n.e,n.k);
+                interrupt = null;
+            }
+            n = n.step();
+        }
 
         e = n.e;
         k = n.k;
 
         return n.yield;
+    }
+
+    /**
+     * Sets a super-interrupt.
+     *
+     * <p>
+     * A super interrupt works like {@link Thread#interrupt()} that throws
+     * {@link InterruptedException}. It lets other threads interrupt the execution
+     * of {@link Continuable} by making it throw an exception.
+     *
+     * <p>
+     * Unlike {@link InterruptedException}, which only gets thrown in specific
+     * known locations, such as {@link Object#wait()}, this "super interruption"
+     * gets thrown at any point in the execution, even during {@code while(true) ;} kind of loop.
+     *
+     * <p>
+     * The
+     */
+    public void superInterrupt(Throwable t) {
+        this.interrupt = t;
     }
 
     /**

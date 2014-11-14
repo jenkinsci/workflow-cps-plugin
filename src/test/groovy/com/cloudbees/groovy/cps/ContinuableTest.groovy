@@ -270,4 +270,34 @@ Script1.run(Script1.groovy:17)
 
         assert r == 1+2 +16+32 +64+128;
     }
+
+
+    @Test
+    public void superInterrupt() {
+        def s = csh.parse("""
+            def infiniteLoop() {
+                while (true)
+                    ; // infinite loop
+            }
+            infiniteLoop(); // line 6
+        """);
+
+        def ex = new RuntimeException("Yippie!");
+
+        def c= new Continuable(s);
+        new Thread({ ->
+            Thread.sleep(100);
+            c.superInterrupt(ex);
+        }).start();
+
+        def o = c.run0(new Outcome(null,null));
+        assert o.abnormal==ex;
+
+        StringWriter sw = new StringWriter();
+        o.abnormal.printStackTrace(new PrintWriter(sw));
+        // TODO: right now we cannot capture the exact location of the execution that the exception was thrown from.
+        // see Continuable.run0 for details
+//        assert sw.toString().contains("Script1.infiniteLoop");
+        assert sw.toString().contains("Script1.run(Script1.groovy:6)");
+    }
 }

@@ -242,8 +242,8 @@ public class Builder {
     /**
      * throw exp;
      */
-    public Block throw_(final Block exp) {
-        return new ThrowBlock(exp);
+    public Block throw_(int line, final Block exp) {
+        return new ThrowBlock(loc(line),exp,false);
     }
 
     /**

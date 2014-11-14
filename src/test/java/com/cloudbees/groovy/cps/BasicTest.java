@@ -185,7 +185,7 @@ public class BasicTest extends Assert {
         assertEquals("foo",run(
                 b.tryCatch(
                         b.sequence(
-                                b.throw_(b.new_(0, RuntimeException.class, b.constant("foo"))),
+                                b.throw_(0, b.new_(0, RuntimeException.class, b.constant("foo"))),
                                 b.return_(b.null_())
                         ),
                         null,
@@ -216,7 +216,7 @@ public class BasicTest extends Assert {
                                 b.if_(b.lessThan(0, b.zero(), $depth),
                                         b.functionCall(0, b.this_(), "throw_", b.minus(0, $depth, b.one()), b.localVariable("message")),
                                         // else
-                                        b.throw_(b.new_(0, IllegalArgumentException.class, b.localVariable("message")))
+                                        b.throw_(0, b.new_(0, IllegalArgumentException.class, b.localVariable("message")))
                                 )
                         ));
                 throw new CpsCallableInvocation(f,this,depth,message);
