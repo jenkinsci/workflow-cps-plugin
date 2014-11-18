@@ -236,7 +236,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      * @param args
      *      Can be closure for building argument nodes, Expression, or List of Expressions.
      */
-    private void makeNode(String methodName, Object args) {
+    protected void makeNode(String methodName, Object args) {
         parent(new MethodCallExpression(BUILDER, methodName, makeChildren(args)));
     }
 
@@ -246,7 +246,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      * @param args
      *      Can be closure for building argument nodes, Expression, or List of Expressions.
      */
-    private void makeNode(ClassNode type, Object args) {
+    protected void makeNode(ClassNode type, Object args) {
         parent(new ConstructorCallExpression(type, makeChildren(args)));
     }
 
@@ -254,7 +254,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      * Given closure, {@link Expression} or a list of them, package them up into
      * {@link TupleExpression}
      */
-    private TupleExpression makeChildren(args) {
+    protected TupleExpression makeChildren(args) {
         if (args==null)     return new TupleExpression();
         if (args instanceof Closure) {
             def argExps = []
@@ -272,7 +272,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         return new TupleExpression(args);
     }
 
-    private void makeNode(String methodName) {
+    protected void makeNode(String methodName) {
         makeNode(methodName,null)
     }
 
@@ -557,7 +557,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         }
     }
 
-    private String prepostfixOperatorSuffix(Expression exp) {
+    protected String prepostfixOperatorSuffix(Expression exp) {
         switch (exp.operation.type) {
         case PLUS_PLUS:   return "Inc";
         case MINUS_MINUS: return "Dec";
