@@ -1,7 +1,6 @@
 package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.Block;
-import com.cloudbees.groovy.cps.Builder;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
@@ -34,6 +33,8 @@ public class VariableDeclBlock implements Block {
         defaultPrimitiveValue.put(boolean.class,false);
         defaultPrimitiveValue.put(int.class,0);
         defaultPrimitiveValue.put(long.class,0L);
+        defaultPrimitiveValue.put(float.class,0.0f);
+        defaultPrimitiveValue.put(double.class,0.0d);
         // TODO: complete the rest
     }
 }
