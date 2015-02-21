@@ -429,6 +429,7 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
 """) == 55;
     }
 
+    @Test
     void instanceOf() {
         assert evalCPS("null instanceof String")==false;
         assert evalCPS("3 instanceof Integer")==true;
