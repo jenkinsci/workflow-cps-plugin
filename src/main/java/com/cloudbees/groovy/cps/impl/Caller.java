@@ -29,7 +29,7 @@ public class Caller {
      */
     public static boolean isAsynchronous(Object receiver, String method, Object... args) {
         Info i = store.get();
-        return receiver==i.receiver.get() && method.equals(i.method) && arrayShallowEquals(i.args, args);
+        return i.receiver != null && receiver==i.receiver.get() && method.equals(i.method) && arrayShallowEquals(i.args, args);
     }
 
     private static boolean arrayShallowEquals(Reference<Object>[] a, Object[] b) {
@@ -42,17 +42,17 @@ public class Caller {
 
     public static boolean isAsynchronous(Object receiver, String method) {
         Info i = store.get();
-        return receiver==i.receiver.get() && method.equals(i.method) && i.args.length==0;
+        return i.receiver != null && receiver==i.receiver.get() && method.equals(i.method) && i.args.length==0;
     }
 
     public static boolean isAsynchronous(Object receiver, String method, Object arg1) {
         Info i = store.get();
-        return receiver==i.receiver.get() && method.equals(i.method) && i.args.length==1 && i.args[0].get()==arg1;
+        return i.receiver != null && receiver==i.receiver.get() && method.equals(i.method) && i.args.length==1 && i.args[0].get()==arg1;
     }
 
     public static boolean isAsynchronous(Object receiver, String method, Object arg1, Object arg2) {
         Info i = store.get();
-        return receiver==i.receiver.get() && method.equals(i.method) && i.args.length==2 && i.args[0].get()==arg1 && i.args[1].get()==arg2;
+        return i.receiver != null && receiver==i.receiver.get() && method.equals(i.method) && i.args.length==2 && i.args[0].get()==arg1 && i.args[1].get()==arg2;
     }
 
     static class Info {
