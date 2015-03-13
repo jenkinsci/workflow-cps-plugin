@@ -38,8 +38,10 @@ import static org.codehaus.groovy.syntax.Types.*
  * <p>
  * After:
  * <pre>
- * CpsFunction foo(int x, int y) {
- *   return foo$workflow;
+ * Object foo(int x, int y) {
+ *   // the first part is AST of the method body
+ *   // the rest (including implicit receiver argument) is actual value of arguments
+ *   throw new CpsCallableInvocation(___cps___N,this,[x,y]);
  * }
  *
  * private static CpsFunction ___cps___N = ___cps___N();
