@@ -313,8 +313,9 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         makeNode("functionCall") {
             loc(call)
             visit(call.objectExpression);
-            // TODO: spread & safe
+            // TODO: spread
             visit(call.method);
+            literal(call.safe);
             visit(((TupleExpression)call.arguments).expressions)
         }
     }
@@ -624,20 +625,22 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     void visitPropertyExpression(PropertyExpression exp) {
-        // TODO: spread and safe
+        // TODO: spread
         makeNode("property") {
             loc(exp)
             visit(exp.objectExpression)
             visit(exp.property)
+            literal(exp.safe)
         }
     }
 
     void visitAttributeExpression(AttributeExpression exp) {
-        // TODO: spread and safe
+        // TODO: spread
         makeNode("attribute") {
             loc(exp)
             visit(exp.objectExpression)
             visit(exp.property)
+            literal(exp.safe)
         }
     }
 

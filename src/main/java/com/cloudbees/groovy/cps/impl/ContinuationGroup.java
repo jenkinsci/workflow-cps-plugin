@@ -65,7 +65,7 @@ abstract class ContinuationGroup implements Serializable {
     protected Next methodCall(final Env e, final SourceLocation loc, final Continuation k, final Object receiver, final String methodName, final Object... args) {
         try {
             Caller.record(receiver,methodName,args);
-            // TODO: spread and safe
+            // TODO: spread
             Object v = e.getInvoker().methodCall(receiver, methodName, args);
             // if this was a normal function, the method had just executed synchronously
             return k.receive(v);

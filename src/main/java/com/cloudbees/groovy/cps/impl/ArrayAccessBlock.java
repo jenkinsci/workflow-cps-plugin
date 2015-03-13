@@ -10,7 +10,7 @@ import com.cloudbees.groovy.cps.Env;
  */
 public class ArrayAccessBlock extends PropertyishBlock {
     public ArrayAccessBlock(SourceLocation loc, Block lhs, Block property) {
-        super(loc, lhs, property);
+        super(loc, lhs, property, false);
     }
 
     @Override

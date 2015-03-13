@@ -437,6 +437,12 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         assert evalCPS("'12345' instanceof String")==true;
     }
 
+    @Test void safeNavigation() {
+        assert evalCPS("def x = null; x?.stuff()") == null;
+        assert evalCPS("def x = null; x?.stuff") == null;
+        assert evalCPS("def x = null; x?.@stuff") == null;
+    }
+
     @Test
     void compoundBitwiseAssignment() {
         [0,1,2,3,4].each { x->
