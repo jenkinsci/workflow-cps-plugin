@@ -15,11 +15,13 @@ import com.cloudbees.groovy.cps.Next;
 abstract class PropertyishBlock extends LValueBlock {
     private final Block lhs, property;
     private final SourceLocation loc;
+    private final boolean safe;
 
-    public PropertyishBlock(SourceLocation loc, Block lhs, Block property) {
+    public PropertyishBlock(SourceLocation loc, Block lhs, Block property, boolean safe) {
         this.loc = loc;
         this.lhs = lhs;
         this.property = property;
+        this.safe = safe;
     }
 
     public Next evalLValue(final Env e, final Continuation k) {
@@ -53,6 +55,9 @@ abstract class PropertyishBlock extends LValueBlock {
         }
 
         public Next get(Continuation k) {
+            if (safe && lhs == null) {
+                return k.receive(null);
+            }
             try {
                 Object v = rawGet(e,lhs,name);
                 // if this was a normal property, we get the value as-is.

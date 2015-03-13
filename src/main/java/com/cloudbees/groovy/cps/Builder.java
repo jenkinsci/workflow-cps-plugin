@@ -526,11 +526,11 @@ public class Builder {
      * LHS.name(...)
      */
     public Block functionCall(int line, Block lhs, String name, Block... argExps) {
-        return new FunctionCallBlock(loc(line),lhs,constant(name),argExps);
+        return new FunctionCallBlock(loc(line), lhs, constant(name), false, argExps);
     }
 
-    public Block functionCall(int line, Block lhs, Block name, Block... argExps) {
-        return new FunctionCallBlock(loc(line),lhs,name,argExps);
+    public Block functionCall(int line, Block lhs, Block name, boolean safe, Block... argExps) {
+        return new FunctionCallBlock(loc(line), lhs, name, safe, argExps);
     }
 
     public Block assign(int line, LValueBlock lhs, Block rhs) {
@@ -538,19 +538,19 @@ public class Builder {
     }
 
     public LValueBlock property(int line, Block lhs, String property) {
-        return property(line, lhs, constant(property));
+        return property(line, lhs, constant(property), false);
     }
 
-    public LValueBlock property(int line, Block lhs, Block property) {
-        return new PropertyAccessBlock(loc(line),lhs,property);
+    public LValueBlock property(int line, Block lhs, Block property, boolean safe) {
+        return new PropertyAccessBlock(loc(line), lhs, property, safe);
     }
 
     public LValueBlock array(int line, Block lhs, Block index) {
         return new ArrayAccessBlock(loc(line),lhs,index);
     }
 
-    public LValueBlock attribute(int line, Block lhs, Block property) {
-        return new AttributeAccessBlock(loc(line),lhs,property);
+    public LValueBlock attribute(int line, Block lhs, Block property, boolean safe) {
+        return new AttributeAccessBlock(loc(line), lhs, property, safe);
     }
 
     public LValueBlock staticField(int line, Class type, String name) {
@@ -562,7 +562,7 @@ public class Builder {
     }
 
     public Block setProperty(int line, Block lhs, Block property, Block rhs) {
-        return assign(line, property(line, lhs, property), rhs);
+        return assign(line, property(line, lhs, property, false), rhs);
     }
 
     /**
@@ -573,7 +573,7 @@ public class Builder {
     }
 
     public Block new_(int line, Block type, Block... argExps) {
-        return new FunctionCallBlock(loc(line),type,constant("<init>"),argExps);
+        return new FunctionCallBlock(loc(line), type, constant("<init>"), false, argExps);
     }
 
     /**

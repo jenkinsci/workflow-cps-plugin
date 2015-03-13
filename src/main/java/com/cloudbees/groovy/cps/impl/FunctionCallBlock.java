@@ -36,10 +36,13 @@ public class FunctionCallBlock implements Block {
 
     private final SourceLocation loc;
 
-    public FunctionCallBlock(SourceLocation loc, Block lhsExp, Block nameExp, Block[] argExps) {
+    private final boolean safe;
+
+    public FunctionCallBlock(SourceLocation loc, Block lhsExp, Block nameExp, boolean safe, Block[] argExps) {
         this.loc = loc;
         this.lhsExp = lhsExp;
         this.nameExp = nameExp;
+        this.safe = safe;
         this.argExps = argExps;
     }
 
@@ -97,7 +100,11 @@ public class FunctionCallBlock implements Block {
                     return k.receive(v);
                 } else {
                     // regular method call
-                    return methodCall(e,loc,k,lhs,name,args);
+                    if (safe && lhs == null) {
+                        return k.receive(null);
+                    } else {
+                        return methodCall(e, loc, k, lhs, name, args);
+                    }
                 }
             }
         }

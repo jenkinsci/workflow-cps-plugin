@@ -9,8 +9,8 @@ import com.cloudbees.groovy.cps.Env;
  * @author Kohsuke Kawaguchi
  */
 public class AttributeAccessBlock extends PropertyishBlock {
-    public AttributeAccessBlock(SourceLocation loc, Block lhs, Block property) {
-        super(loc, lhs, property);
+    public AttributeAccessBlock(SourceLocation loc, Block lhs, Block property, boolean safe) {
+        super(loc, lhs, property, safe);
     }
 
     protected Object rawGet(Env e, Object lhs, Object name) throws Throwable {
