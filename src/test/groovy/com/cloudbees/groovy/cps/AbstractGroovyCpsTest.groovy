@@ -46,9 +46,9 @@ abstract class AbstractGroovyCpsTest extends Assert {
     }
 
     Object evalCPS(String script) {
-        Object v = evalCPSonly(script)
-        assert v==sh.evaluate(script); // make sure that regular non-CPS execution reports the same result
-        return v;
+        Object resultInCps = evalCPSonly(script)
+        assert resultInCps==sh.evaluate(script); // make sure that regular non-CPS execution reports the same result
+        return resultInCps;
     }
 
     Object evalCPSonly(String script) {
