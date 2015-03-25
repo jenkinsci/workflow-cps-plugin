@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2013-2014, CloudBees, Inc.
+ * Copyright 2015 Jesse Glick.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,35 +22,20 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.workflow.cps
+package org.jenkinsci.plugins.workflow.cps;
 
-import org.jenkinsci.plugins.workflow.graph.FlowNode
-import org.jenkinsci.plugins.workflow.actions.LogAction
-import org.jenkinsci.plugins.workflow.support.actions.LogActionImpl
-import org.junit.Test
+import hudson.model.Action;
+import java.io.IOException;
+import java.util.List;
+import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 
 /**
- *
- *
- * @author Kohsuke Kawaguchi
+ * {@link Action} that can be passed to {@link FlowDefinition#create(FlowExecutionOwner, List)}
+ * that can take over the instantiation of {@link CpsFlowExecution}.
  */
-class LogActionTest extends AbstractCpsFlowTest {
-    /**
-     * CpsFlowDefinition's simplest possible test.
-     */
-    @Test
-    public void echo() {
-        def flow = new CpsFlowDefinition("""
-echo("Hello I'm Gilbert")
-""")
+public interface CpsFlowFactoryAction2 extends Action {
 
-        def exec = createExecution(flow)
-        exec.start()
-        exec.waitForSuspension()
-
-        assert exec.isComplete()
-        FlowNode atom = exec.currentHeads[0].parents[0]
-        LogActionImpl la = atom.getAction(LogAction)
-        assert la.logFile.text.trim() == "Hello I'm Gilbert"
-    }
+    CpsFlowExecution create(FlowDefinition def, FlowExecutionOwner owner, List<? extends Action> actions) throws IOException;
+    
 }
