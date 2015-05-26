@@ -16,6 +16,7 @@ import com.cloudbees.groovy.cps.impl.ForInLoopBlock;
 import com.cloudbees.groovy.cps.impl.ForLoopBlock;
 import com.cloudbees.groovy.cps.impl.FunctionCallBlock;
 import com.cloudbees.groovy.cps.impl.IfBlock;
+import com.cloudbees.groovy.cps.impl.JavaThisBlock;
 import com.cloudbees.groovy.cps.impl.ListBlock;
 import com.cloudbees.groovy.cps.impl.LocalVariableBlock;
 import com.cloudbees.groovy.cps.impl.LogicalOpBlock;
@@ -66,6 +67,7 @@ public class Builder {
 
     private static final Block NULL = new ConstantBlock(null);
     private static final LValueBlock THIS = new LocalVariableBlock("this");
+    private static final Block JAVA_THIS = new JavaThisBlock();
 
     public Block null_() {
         return NULL;
@@ -164,7 +166,14 @@ public class Builder {
     }
 
     public Block this_() {
-        return THIS;
+        return THIS; // this is 'groovyThis'
+    }
+
+    /**
+     * See {@link JavaThisBlock} for the discussion of 'this' vs 'javaThis'
+     */
+    public Block javaThis_() {
+        return JAVA_THIS;
     }
 
     /**

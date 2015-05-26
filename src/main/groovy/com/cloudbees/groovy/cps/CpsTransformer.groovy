@@ -5,6 +5,7 @@ import com.cloudbees.groovy.cps.impl.CpsFunction
 import org.codehaus.groovy.ast.*
 import org.codehaus.groovy.ast.expr.*
 import org.codehaus.groovy.ast.stmt.*
+import org.codehaus.groovy.classgen.AsmClassGenerator
 import org.codehaus.groovy.classgen.BytecodeExpression
 import org.codehaus.groovy.classgen.GeneratorContext
 import org.codehaus.groovy.classgen.Verifier
@@ -312,7 +313,13 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     void visitMethodCallExpression(MethodCallExpression call) {
         makeNode("functionCall") {
             loc(call)
-            visit(call.objectExpression);
+
+            // isImplicitThis==true even when objectExpression is not 'this'.
+            // See InvocationWriter.makeCall,
+            if (call.isImplicitThis() && AsmClassGenerator.isThisExpression(call.objectExpression))
+                makeNode("javaThis_")
+            else
+                visit(call.objectExpression);
             // TODO: spread
             visit(call.method);
             literal(call.safe);
@@ -686,7 +693,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         ||  ref instanceof FieldNode) {
             makeNode("property") {
                 loc(exp)
-                makeNode("this_")
+                makeNode("javaThis_")
                 literal(exp.name)
             }
         } else

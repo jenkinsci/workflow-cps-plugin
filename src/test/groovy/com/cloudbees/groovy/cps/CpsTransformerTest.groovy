@@ -252,6 +252,32 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         """)==4
     }
 
+    /**
+     * A common pattern of using closure as a configuration block requires
+     * a library to set a delegate.
+     */
+    @Test
+    void closureDelegateProperty() {
+        assert evalCPS("""
+            def config(c) {
+                def map = [:];
+                c.resolveStrategy = Closure.DELEGATE_FIRST;
+                c.delegate = map;
+                c();
+                return map;
+            }
+
+            def x = config {
+                foo = 3;
+                bar = 'xyz';
+                zot = bar;
+                fog = containsKey('foo');
+            }
+
+            return [x.foo, x.bar, x.zot, x.fog].join('-');
+        """)=="3-xyz-xyz-true"
+    }
+
     @Test
     void serialization() {
         CpsCallableInvocation s = parseCps("""
