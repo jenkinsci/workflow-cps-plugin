@@ -18,9 +18,14 @@ public interface Env extends Serializable {
     void setLocalVariable(String name, Object value);
 
     /**
-     * Closure or 'this' object that surrounds the currently executing code.
-     * If a new closure instantiation is encountered, this is th object that becomes
+     * Closure instance or 'this' object that surrounds the currently executing code.
+     * 
+     * <p> 
+     * If a new closure instantiation is encountered, this is the object that becomes
      * {@linkplain Closure#getOwner() the owner} of that closure.
+     * 
+     * <p>
+     * Dynamic property access inside closures are also resolved against this instance.
      */
     Object closureOwner();
 
