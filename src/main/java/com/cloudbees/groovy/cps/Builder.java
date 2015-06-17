@@ -9,6 +9,7 @@ import com.cloudbees.groovy.cps.impl.BreakBlock;
 import com.cloudbees.groovy.cps.impl.ClosureBlock;
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.ContinueBlock;
+import com.cloudbees.groovy.cps.impl.CpsClosure;
 import com.cloudbees.groovy.cps.impl.DoWhileBlock;
 import com.cloudbees.groovy.cps.impl.ElvisBlock;
 import com.cloudbees.groovy.cps.impl.ExcrementOperatorBlock;
@@ -52,9 +53,18 @@ import static java.util.Arrays.*;
  */
 public class Builder {
     private MethodLocation loc;
+    private Class<? extends CpsClosure> closureType;
 
     public Builder(MethodLocation loc) {
         this.loc = loc;
+    }
+
+    /**
+     * Overrides the actual instance type of {@link CpsClosure} to be created.
+     */
+    public Builder withClosureType(Class<? extends CpsClosure> t) {
+        closureType = t;
+        return this;
     }
 
     /**
@@ -143,8 +153,8 @@ public class Builder {
         return b;
     }
 
-    public Block closure(List<String> parameters, Block body) {
-        return new ClosureBlock(parameters,body);
+    public Block closure(int line, List<String> parameters, Block body) {
+        return new ClosureBlock(loc(line),parameters,body,closureType);
     }
 
     public LValueBlock localVariable(String name) {
