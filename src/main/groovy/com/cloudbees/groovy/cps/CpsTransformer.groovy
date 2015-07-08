@@ -16,6 +16,7 @@ import org.codehaus.groovy.control.customizers.CompilationCustomizer
 import org.codehaus.groovy.runtime.powerassert.SourceText
 import org.codehaus.groovy.syntax.Token
 
+import javax.annotation.Nonnull
 import java.lang.annotation.Annotation
 import java.lang.reflect.Modifier
 
@@ -82,7 +83,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         super(CompilePhase.CANONICALIZATION)
     }
 
-    public void setConfiguration(TransformerConfiguration config) {
+    public void setConfiguration(@Nonnull TransformerConfiguration config) {
         this.config = config;
     }
 

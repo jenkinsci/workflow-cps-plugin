@@ -1,6 +1,7 @@
 package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.CpsClosure;
+import groovy.lang.Closure;
 import org.codehaus.groovy.ast.ClassNode;
 
 /**
@@ -21,7 +22,7 @@ public class TransformerConfiguration {
         return this;
     }
 
-    public TransformerConfiguration withClosureType(Class c) {
+    public TransformerConfiguration withClosureType(Class<? extends Closure> c) {
         return withClosureType(new ClassNode(c));
     }
 }
