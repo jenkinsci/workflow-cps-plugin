@@ -16,6 +16,7 @@ import org.codehaus.groovy.control.customizers.CompilationCustomizer
 import org.codehaus.groovy.runtime.powerassert.SourceText
 import org.codehaus.groovy.syntax.Token
 
+import javax.annotation.Nonnull
 import java.lang.annotation.Annotation
 import java.lang.reflect.Modifier
 
@@ -76,9 +77,14 @@ import static org.codehaus.groovy.syntax.Types.*
 class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor {
     private int iota=0;
     private SourceUnit sourceUnit;
+    private TransformerConfiguration config = new TransformerConfiguration();
 
     CpsTransformer() {
         super(CompilePhase.CANONICALIZATION)
+    }
+
+    public void setConfiguration(@Nonnull TransformerConfiguration config) {
+        this.config = config;
     }
 
     @Override
@@ -165,6 +171,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         /*
               CpsFunction ___cps___N() {
                 Builder b = new Builder(new MethodLocation(...));
+                b.withClosureType(...);
                 return new CpsFunction( << parameters >>, << body: AST tree building code >>);
               }
          */
@@ -181,6 +188,9 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
                                             new ConstantExpression(sourceUnit.name)
                                         ))
                                     )))),
+                new ExpressionStatement(
+                        new MethodCallExpression(BUILDER, "withClosureType",
+                                new TupleExpression(new ClassExpression(config.closureType)))),
                 new ReturnStatement(new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body)))
             ], new VariableScope())
         )
@@ -582,6 +592,8 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
     void visitClosureExpression(ClosureExpression exp) {
         makeNode("closure") {
+            loc(exp)
+
             def params = new ListExpression();
 
             // the interpretation of the 'parameters' is messed up. According to ClosureWriter,
