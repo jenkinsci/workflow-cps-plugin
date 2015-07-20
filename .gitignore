@@ -1,1 +1,8 @@
-/target/
+# Ignore IntelliJ IDEA config files and dir
+*.iml
+*.iws
+*.ipr
+.idea/
+
+# Ignore Apache Maven generated stuffs
+target/
