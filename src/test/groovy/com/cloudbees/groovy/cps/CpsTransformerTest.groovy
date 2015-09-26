@@ -3,6 +3,7 @@ package com.cloudbees.groovy.cps
 import com.cloudbees.groovy.cps.impl.ContinuationGroup
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import com.cloudbees.groovy.cps.impl.DGMPatcher
+import groovy.transform.NotYetImplemented
 import org.junit.Ignore
 import org.junit.Test
 import org.jvnet.hudson.test.Issue
@@ -622,5 +623,21 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             [1, 2, 3].each { y -> x+=y; }
             return x;
         """) == 6;
+    }
+
+    @Issue("https://github.com/cloudbees/groovy-cps/issues/16")
+    @Test
+    @NotYetImplemented
+    void category() {
+        assert evalCPS('''
+            class BarCategory {
+                static String up(String text) {
+                    text.toUpperCase()
+                }
+            }
+            return use(BarCategory) {
+                'foo'.up()
+            };
+        ''') == 'FOO';
     }
 }
