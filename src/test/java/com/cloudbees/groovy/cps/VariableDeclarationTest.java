@@ -1,17 +1,15 @@
 package com.cloudbees.groovy.cps;
 
-import static org.junit.Assert.assertEquals;
-
-import java.lang.reflect.InvocationTargetException;
-
-import org.junit.Test;
 
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
+import java.lang.reflect.InvocationTargetException;
+import static org.junit.Assert.assertEquals;
+import org.junit.Test;
 
 /**
  * Tests variable declaration using the groovy-cps Builder. 
  */
-public class TestVariableDeclaration {
+public class VariableDeclarationTest {
 
 	Builder b = new Builder(MethodLocation.UNKNOWN);
 	
@@ -35,7 +33,7 @@ public class TestVariableDeclaration {
 	 * Tests the default value of variables (e.g. 0 for int, 0L for long, etc).
 	 */
 	@Test
-	public void testDefaultValues() {
+	public void defaultValues() {
 		int iv = createVariable(int.class); 
 		assertEquals(0, iv);
 		
