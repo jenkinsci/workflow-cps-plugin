@@ -10,7 +10,6 @@ import groovy.lang.MetaMethod;
 import org.codehaus.groovy.reflection.CachedClass;
 import org.codehaus.groovy.reflection.CachedMethod;
 import org.codehaus.groovy.reflection.ReflectionCache;
-import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.metaclass.NewInstanceMetaMethod;
 
@@ -39,19 +38,6 @@ abstract class ContinuationGroup implements Serializable {
 
     public Next then(Block exp, Env e, Continuation k) {
         return new Next(exp,e,k);
-    }
-
-    /**
-     * Casts the value to boolean by following the Groovy semantics.
-     */
-    protected final boolean asBoolean(Object o) {
-        try {
-            return (Boolean) ScriptBytecodeAdapter.asType(o, Boolean.class);
-        } catch (Throwable e) {
-            // TODO: exception handling
-            e.printStackTrace();
-            return false;
-        }
     }
 
     /*TODO: specify the proper owner value (to the script that includes the call site) */

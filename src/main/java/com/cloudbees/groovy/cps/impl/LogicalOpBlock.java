@@ -4,6 +4,7 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
+import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 
 /**
  * Logical operator (&& and ||)
@@ -34,7 +35,7 @@ public class LogicalOpBlock implements Block {
         }
 
         public Next decide(Object lhs) {
-            boolean v = asBoolean(lhs);
+            boolean v = DefaultTypeTransformation.castToBoolean(lhs);
             if (and) {
                 if (!v)     return k.receive(false);    // false && ...
                 else        return then(rhs,e,k);

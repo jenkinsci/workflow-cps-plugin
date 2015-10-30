@@ -4,6 +4,7 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
+import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 
 /**
  * do { ... } while ( ... );
@@ -43,7 +44,7 @@ public class DoWhileBlock implements Block {
         }
 
         public Next loopCond(Object cond) {
-            if (asBoolean(cond)) {
+            if (DefaultTypeTransformation.castToBoolean(cond)) {
                 // loop
                 return top();
             } else {

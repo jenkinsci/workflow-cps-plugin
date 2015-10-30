@@ -379,6 +379,11 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     }
 
     @Test
+    void ternaryOp3() {
+        assert evalCPS("def x = 'ok'; def y = null; [x ?: 1, y ?: 2]") == ['ok', 2]
+    }
+
+    @Test
     void elvisOp() {
         assert evalCPS("def x=0; return ++x ?: -1")==1;
         assert evalCPS("def x=0; return x++ ?: -1")==-1;

@@ -4,6 +4,7 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
+import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 
 /**
  * x ?: y
@@ -33,7 +34,7 @@ public class ElvisBlock implements Block {
         }
 
         public Next jump(Object cond) {
-            if (asBoolean(cond)) {
+            if (DefaultTypeTransformation.castToBoolean(cond)) {
                 return k.receive(cond);
             } else {
                 return then(falseExp, e, k);
