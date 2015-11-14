@@ -10,6 +10,7 @@ import com.google.common.base.Function;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 
+import java.io.PrintWriter;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -113,6 +114,14 @@ public class Continuable implements Serializable {
      */
     public Continuable fork() {
         return new Continuable(this);
+    }
+
+    /**
+     * Prints the stack trace into the given writer, much like {@link Throwable#printStackTrace(PrintWriter)}
+     */
+    public void printStackTrace(PrintWriter s) {
+        for (StackTraceElement t : getStackTrace())
+            s.println("\tat " + t);
     }
 
     /**
