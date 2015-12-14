@@ -43,7 +43,7 @@ import static org.codehaus.groovy.syntax.Types.*
  * Object foo(int x, int y) {
  *   // the first part is AST of the method body
  *   // the rest (including implicit receiver argument) is actual value of arguments
- *   throw new CpsCallableInvocation(___cps___N,this,[x,y]);
+ *   throw new CpsCallableInvocation(___cps___N, this, new Object[] {x, y});
  * }
  *
  * private static CpsFunction ___cps___N = ___cps___N();
@@ -150,7 +150,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      * }
      *
      * ReturnT foo( T1 arg1, T2 arg2, ...) {
-     *   throw new CpsCallableInvocation(___cps___N, this, arg1, arg2, ...)
+     *   throw new CpsCallableInvocation(___cps___N, this, new Object[] {arg1, arg2, ...})
      * }
      */
     public void visitMethod(MethodNode m) {
@@ -201,8 +201,8 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 //                new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body)));
 
 
-        def args = new TupleExpression(new VariableExpression(f), THIS);
-        m.parameters.each { args.addExpression(new VariableExpression(it)) }
+        def paramArray = new ArrayExpression(ClassHelper.OBJECT_TYPE, m.parameters.collect {new VariableExpression(it)});
+        def args = new TupleExpression(new VariableExpression(f), THIS, paramArray);
 
         m.code = new ThrowStatement(new ConstructorCallExpression(CPSCALLINVK_TYPE,args));
 
