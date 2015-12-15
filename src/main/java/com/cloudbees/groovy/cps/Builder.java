@@ -112,7 +112,7 @@ public class Builder {
     }
 
     /**
-     * { ... }
+     * {@code { ... }}
      */
     public Block block(Block... bodies) {
         if (bodies.length==0)   return NULL;
@@ -180,21 +180,21 @@ public class Builder {
     }
 
     /**
-     * See {@link JavaThisBlock} for the discussion of 'this' vs 'javaThis'
+     * See {@link JavaThisBlock} for the discussion of {@code this} vs {@code javaThis}
      */
     public Block javaThis_() {
         return JAVA_THIS;
     }
 
     /**
-     * Assignment operator to a local variable, such as "x += 3"
+     * Assignment operator to a local variable, such as {@code x += 3}
      */
     public Block localVariableAssignOp(int line, String name, String operator, Block rhs) {
         return setLocalVariable(line, name, functionCall(line, localVariable(name), operator, rhs));
     }
 
     /**
-     * if (...) { ... } else { ... }
+     * {@code if (...) { ... } else { ... }}
      */
     public Block if_(Block cond, Block then, Block els) {
         return new IfBlock(cond,then,els);
@@ -205,14 +205,14 @@ public class Builder {
     }
 
     /**
-     * for (e1; e2; e3) { ... }
+     * {@code for (e1; e2; e3) { ... }}
      */
     public Block forLoop(String label, Block e1, Block e2, Block e3, Block body) {
         return new ForLoopBlock(label, e1,e2,e3,body);
     }
 
     /**
-     * for (x in col) { ... }
+     * {@code for (x in col) { ... }}
      */
     public Block forInLoop(int line, String label, Class type, String variable, Block collection, Block body) {
         return new ForInLoopBlock(loc(line), label,type,variable,collection,body);
@@ -242,6 +242,7 @@ public class Builder {
 
 
     /**
+     * <pre>{@code
      * try {
      *     ...
      * } catch (T v) {
@@ -249,6 +250,7 @@ public class Builder {
      * } catch (T v) {
      *     ...
      * }
+     * }</pre>
      */
     public Block tryCatch(final Block body, final List<CatchExpression> catches) {
         return tryCatch(body, catches, null);
@@ -259,14 +261,14 @@ public class Builder {
     }
 
     /**
-     * throw exp;
+     * {@code throw exp;}
      */
     public Block throw_(int line, final Block exp) {
         return new ThrowBlock(loc(line),exp,false);
     }
 
     /**
-     * Map literal: [ a:b, c:d, e:f ] ...
+     * Map literal: {@code [ a:b, c:d, e:f ] ...}
      *
      * We expect arguments to be multiple of two.
      */
@@ -351,7 +353,7 @@ public class Builder {
     }
 
     /**
-     * x ?: y
+     * {@code x ?: y}
      */
     public Block elvisOp(Block cond, Block falseExp) {
         return new ElvisBlock(cond,falseExp);
@@ -386,84 +388,84 @@ public class Builder {
     }
 
     /**
-     * lhs =~ rhs
+     * {@code lhs =~ rhs}
      */
     public Block findRegex(int line, Block lhs, Block rhs) {
         return staticCall(line, ScriptBytecodeAdapter.class, "findRegex", lhs, rhs);
     }
 
     /**
-     * lhs ==~ rhs
+     * {@code lhs ==~ rhs}
      */
     public Block matchRegex(int line, Block lhs, Block rhs) {
         return staticCall(line, ScriptBytecodeAdapter.class, "matchRegex", lhs, rhs);
     }
 
     /**
-     * lhs in rhs
+     * {@code lhs in rhs}
      */
     public Block isCase(int line, Block lhs, Block rhs) {
         return staticCall(line, ScriptBytecodeAdapter.class, "isCase", lhs, rhs);
     }
 
     /**
-     * lhs && rhs
+     * {@code lhs && rhs}
      */
     public Block logicalAnd(int line, Block lhs, Block rhs) {
         return new LogicalOpBlock(lhs,rhs,true);
     }
 
     /**
-     * lhs || rhs
+     * {@code lhs || rhs}
      */
     public Block logicalOr(int line, Block lhs, Block rhs) {
         return new LogicalOpBlock(lhs,rhs,false);
     }
 
     /**
-     * lhs << rhs
+     * {@code lhs << rhs}
      */
     public Block leftShift(int line, Block lhs, Block rhs) {
         return functionCall(line, lhs, "leftShift", rhs);
     }
 
     /**
-     * lhs <<= rhs
+     * {@code lhs <<= rhs}
      */
     public Block leftShiftEqual(int line, LValueBlock lhs, Block rhs) {
         return new AssignmentBlock(loc(line), lhs, rhs, "leftShift");
     }
 
     /**
-     * lhs >> rhs
+     * {@code lhs >> rhs}
      */
     public Block rightShift(int line, Block lhs, Block rhs) {
         return functionCall(line, lhs, "rightShift", rhs);
     }
 
     /**
-     * lhs >>= rhs
+     * {@code lhs >>= rhs}
      */
     public Block rightShiftEqual(int line, LValueBlock lhs, Block rhs) {
         return new AssignmentBlock(loc(line), lhs, rhs, "rightShift");
     }
 
     /**
-     * lhs >>> rhs
+     * {@code lhs >>> rhs}
      */
     public Block rightShiftUnsigned(int line, Block lhs, Block rhs) {
         return functionCall(line, lhs, "rightShiftUnsigned", rhs);
     }
 
     /**
-     * lhs >>>= rhs
+     * {@code lhs >>>= rhs}
      */
     public Block rightShiftUnsignedEqual(int line, LValueBlock lhs, Block rhs) {
         return new AssignmentBlock(loc(line), lhs, rhs, "rightShiftUnsigned");
     }
 
     /**
-     * !b
+     * {@code !b}
      */
     public Block not(int line, Block b) {
         return new NotBlock(b);
@@ -498,28 +500,28 @@ public class Builder {
     }
 
     /**
-     * ++x
+     * {@code ++x}
      */
     public Block prefixInc(int line, LValueBlock body) {
         return new ExcrementOperatorBlock(loc(line),"next",true,body);
     }
 
     /**
-     * --x
+     * {@code --x}
      */
     public Block prefixDec(int line, LValueBlock body) {
         return new ExcrementOperatorBlock(loc(line),"previous",true,body);
     }
 
     /**
-     * x++
+     * {@code x++}
      */
     public Block postfixInc(int line, LValueBlock body) {
         return new ExcrementOperatorBlock(loc(line),"next",false,body);
     }
 
     /**
-     * x--
+     * {@code x--}
      */
     public Block postfixDec(int line, LValueBlock body) {
         return new ExcrementOperatorBlock(loc(line),"previous",false,body);
@@ -529,7 +531,7 @@ public class Builder {
      * Cast to type.
      *
      * @param coerce
-     *      True for "exp as type" cast. false for "(type)exp" cast.
+     *      True for {@code exp as type} cast. false for {@code (type)exp} cast.
      */
     public Block cast(int line, Block block, Class type, boolean coerce) {
         return staticCall(line,ScriptBytecodeAdapter.class,
@@ -542,7 +544,7 @@ public class Builder {
     }
 
     /**
-     * LHS.name(...)
+     * {@code LHS.name(...)}
      */
     public Block functionCall(int line, Block lhs, String name, Block... argExps) {
         return new FunctionCallBlock(loc(line), lhs, constant(name), false, argExps);
@@ -603,21 +605,21 @@ public class Builder {
     }
 
     /**
-     * return exp;
+     * {@code return exp;}
      */
     public Block return_(final Block exp) {
         return new ReturnBlock(exp);
     }
 
     /**
-     * [a,b,c,d] that creates a List.
+     * {@code [a,b,c,d]} that creates a List.
      */
     public Block list(Block... args) {
         return new ListBlock(args);
     }
 
     /**
-     * x..y or x..&lt;y to crete a range
+     * {@code x..y} or {@code x..>y} to create a range
      */
     public Block range(int line, Block from, Block to, boolean inclusive) {
         return staticCall(line,ScriptBytecodeAdapter.class,"createRange",from,to,constant(inclusive));
@@ -632,7 +634,7 @@ public class Builder {
     }
 
     /**
-     * "Foo bar zot ${x}" kind of string
+     * {@code "Foo bar zot ${x}"} kind of string
      */
     public Block gstring(int line, Block listOfValues, Block listOfStrings) {
         return new_(line, GStringImpl.class,

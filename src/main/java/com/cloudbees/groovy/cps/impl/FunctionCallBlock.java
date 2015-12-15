@@ -25,7 +25,7 @@ public class FunctionCallBlock implements Block {
 
     /**
      * Method name.
-     * "&lt;init>" to call constructor
+     * {@code "<init>"} to call constructor
      */
     private final Block nameExp;
 

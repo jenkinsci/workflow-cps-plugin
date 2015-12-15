@@ -7,7 +7,7 @@ import com.cloudbees.groovy.cps.Next;
 import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 
 /**
- * Logical operator (&& and ||)
+ * Logical operator ({@code &&} and {@code ||})
  *
  * @author Kohsuke Kawaguchi
  */

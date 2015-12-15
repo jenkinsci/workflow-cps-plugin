@@ -7,7 +7,7 @@ import java.io.Serializable;
  *
  * <p>
  * To maintain backward compatibility with serialized {@link Continuation} objects, it is preferable
- * to avoid anonymous single-method classes that implement {@link Continuation}. See {@link com.cloudbees.groovy.cps.impl.ContinuationGroup}
+ * to avoid anonymous single-method classes that implement {@link Continuation}. See {@code ContinuationGroup}
  * for how to do this.
  *
  * @author Kohsuke Kawaguchi

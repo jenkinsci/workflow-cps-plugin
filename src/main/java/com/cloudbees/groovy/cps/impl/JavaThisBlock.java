@@ -20,7 +20,7 @@ import groovy.lang.Closure;
  * {@code Foo} instance, not the instance of the anonymous closure class, which is the actual
  * {@code this} as far as Java bytecode is concerned at the runtime.
  * 
- * <pre>
+ * <pre>{@code
  * class Foo {
  *   def foo() {
  *     def closure = { ->
@@ -29,7 +29,7 @@ import groovy.lang.Closure;
  *     closure();     
  *   }
  * }
- * </pre>
+ * }</pre>
  * 
  * <p>
  * So let's refer to the Java version of {@code this} as {code javaThis}, and let's refer
@@ -44,7 +44,7 @@ import groovy.lang.Closure;
  * {@link Closure#setProperty(String, Object)}), not {@code groovyThis.x=1} (which would call
  * {@code Foo#setProperty()}).
  * 
- * <pre>
+ * <pre>{@code
  * class Foo {
  *   def foo() {
  *     def closure = { ->
@@ -53,7 +53,7 @@ import groovy.lang.Closure;
  *     ...     
  *   }
  * }
- * </pre>
+ * }</pre>
  *
  * <p>
  * Groovy defines no explicit syntax for {@code javaThis}. It can be only used implicitly.
