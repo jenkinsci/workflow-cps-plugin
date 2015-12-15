@@ -3,6 +3,7 @@ package com.cloudbees.groovy.cps
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import org.junit.Ignore
 import org.junit.Test
+import org.jvnet.hudson.test.Issue
 
 /**
  *
@@ -540,4 +541,14 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         assert evalCPS("('2009' ==~ /\\d+/) as boolean")
         assert !evalCPS("('holla' ==~ /\\d+/) as boolean")
     }
+
+    @Issue("JENKINS-32062")
+    @Test
+    void arrayPassedToMethod() {
+        assert evalCPS('def m(x) {x.size()}; def a = [1, 2]; a.size() + m(a)') == 4 // control case
+        assert evalCPS('def m(x) {x.size()}; def a = [1, 2].toArray(); a.length + m(Arrays.asList(a))') == 4 // workaround #1
+        assert evalCPS('@NonCPS def m(x) {x.length}; def a = [1, 2].toArray(); a.length + m(a)') == 4 // workaround #2
+        assert evalCPS('def m(x) {x.length}; def a = [1, 2].toArray(); a.length + m(a)') == 4 // formerly: groovy.lang.MissingPropertyException: No such property: length for class: java.lang.Integer
+    }
+
 }
