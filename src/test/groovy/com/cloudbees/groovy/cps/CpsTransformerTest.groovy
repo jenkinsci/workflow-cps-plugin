@@ -551,4 +551,9 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         assert evalCPS('def m(x) {x.length}; def a = [1, 2].toArray(); a.length + m(a)') == 4 // formerly: groovy.lang.MissingPropertyException: No such property: length for class: java.lang.Integer
     }
 
+    @Issue("JENKINS-27893")
+    @Test
+    void varArgs() {
+        assert evalCPS('def fn(String... args) { args.size() }; fn("one string")') == 1;
+    }
 }
