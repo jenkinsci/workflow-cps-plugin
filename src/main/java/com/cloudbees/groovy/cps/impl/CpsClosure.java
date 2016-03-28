@@ -17,7 +17,11 @@ public class CpsClosure extends Closure {
     public CpsClosure(Object owner, Object thisObject, List<String> parameters, Block body, Env capture) {
         super(owner, thisObject);
         this.def = new CpsClosureDef(parameters,body,capture,this);
-        // TODO: parameterTypes and maximumNumberOfParameters
+    }
+
+    /*package*/ void setParameterTypes(List<Class> types) {
+        parameterTypes = types.toArray(new Class[types.size()]);
+        maximumNumberOfParameters = types.size();
     }
 
     // returning CpsCallable lets the caller know that it needs to do CPS evaluation of this closure.

@@ -153,8 +153,8 @@ public class Builder {
         return b;
     }
 
-    public Block closure(int line, List<String> parameters, Block body) {
-        return new ClosureBlock(loc(line),parameters,body,closureType);
+    public Block closure(int line, List<Class> parameterTypes, List<String> parameters, Block body) {
+        return new ClosureBlock(loc(line),parameterTypes,parameters,body,closureType);
     }
 
     public LValueBlock localVariable(String name) {
