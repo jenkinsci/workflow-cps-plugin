@@ -556,4 +556,10 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     void varArgs() {
         assert evalCPS('def fn(String... args) { args.size() }; fn("one string")') == 1;
     }
+
+    @Issue("JENKINS-28277")
+    @Test
+    void currying() {
+        assert evalCPS('def nCopies = { int n, String str -> str*n }; def twice=nCopies.curry(2); twice("foo")') == "foofoo";
+    }
 }
