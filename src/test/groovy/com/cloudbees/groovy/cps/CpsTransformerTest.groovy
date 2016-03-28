@@ -556,4 +556,27 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     void varArgs() {
         assert evalCPS('def fn(String... args) { args.size() }; fn("one string")') == 1;
     }
+
+    @Issue("JENKINS-28277")
+    @Test
+    void currying() {
+        assert evalCPS('def nCopies = { int n, String str -> str*n }; def twice=nCopies.curry(2); twice("foo")') == "foofoo";
+    }
+
+    @Issue("JENKINS-28277")
+    @Test
+    void ncurrying_native_closure() {
+        assert evalCPS('''
+            @NonCPS
+            def makeNativeClosure() {
+                Collections.&binarySearch
+            }
+            def catSearcher = makeNativeClosure().ncurry(1,"cat")
+
+            return [
+                catSearcher(['ant','bee','dog']),
+                catSearcher(['ant','bee','cat'])
+            ]
+        ''') == [-3,2];
+    }
 }

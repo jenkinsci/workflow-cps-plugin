@@ -594,6 +594,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         makeNode("closure") {
             loc(exp)
 
+            def types = new ListExpression();
             def params = new ListExpression();
 
             // the interpretation of the 'parameters' is messed up. According to ClosureWriter,
@@ -602,10 +603,15 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             if (exp.parameters==null) {
             } else
             if (exp.parameters.length==0) {
+                types.addExpression(new ClassExpression(OBJECT_TYPE));
                 params.addExpression(new ConstantExpression("it"));
             } else {
-                exp.parameters.each { params.addExpression(new ConstantExpression(it.name)) }
+                exp.parameters.each {
+                    types.addExpression(new ClassExpression(it.type));
+                    params.addExpression(new ConstantExpression(it.name))
+                }
             }
+            parent(types);
             parent(params)
             visit(exp.code)
         }
@@ -834,6 +840,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         throw new UnsupportedOperationException();
     }
 
+    private static final ClassNode OBJECT_TYPE = ClassHelper.makeCached(Object.class);
     private static final ClassNode FUNCTION_TYPE = ClassHelper.makeCached(CpsFunction.class);
     private static final ClassNode CATCH_EXPRESSION_TYPE = ClassHelper.makeCached(CatchExpression.class);
     private static final ClassNode BUILDER_TYPE = ClassHelper.makeCached(Builder.class);
