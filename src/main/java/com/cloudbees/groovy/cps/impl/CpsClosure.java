@@ -3,6 +3,9 @@ package com.cloudbees.groovy.cps.impl;
 import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Env;
 import groovy.lang.Closure;
+import groovy.lang.MetaClassImpl;
+import org.codehaus.groovy.classgen.asm.ClosureWriter;
+import org.codehaus.groovy.runtime.CurriedClosure;
 
 import java.util.List;
 
@@ -38,6 +41,16 @@ public class CpsClosure extends Closure {
     @Override
     public Object call(Object arguments) {
         throw new CpsCallableInvocation(def,this,arguments);
+    }
+
+    /**
+     * {@link ClosureWriter} generates this function with actual argument types.
+     * Here we approximate by using varargs.
+     * <p>
+     * {@link CurriedClosure} invokes this method directly (via {@link MetaClassImpl#invokeMethod(Class, Object, String, Object[], boolean, boolean)}
+     */
+    public Object doCall(Object... args) {
+        throw new CpsCallableInvocation(def,this,args);
     }
 
     private static final long serialVersionUID = 1L;
