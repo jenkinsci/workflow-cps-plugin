@@ -579,4 +579,36 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             ]
         ''') == [-3,2];
     }
+
+
+    @Test
+    void method_pointer() {
+        // method pointer to a native static method
+        assert evalCPS('''
+            def add = CpsTransformerTest.&add
+            return [ add(1,2), add(3,4) ]
+        ''') == [3,7]
+
+        // method pointer to a native instance method
+        assert evalCPS('''
+            def contains = "foobar".&contains
+            return [ contains('oo'), contains('xyz') ]
+        ''') == [true,false]
+
+        // method pointer to a CPS transformed method
+        assert evalCPS('''
+            class X {
+                int z;
+                X(int z) { this.z = z; }
+                int add(int x, int y) { x+y+z }
+            }
+
+            def adder = (new X(1)).&add;
+            def plus1 = adder.curry(10)
+
+            return [ adder(100,1000), plus1(10000) ]
+        ''') == [1101, 10011]
+    }
+
+    public static int add(int a, int b) { return a+b; }
 }

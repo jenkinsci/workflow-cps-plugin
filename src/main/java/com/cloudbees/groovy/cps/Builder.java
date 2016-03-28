@@ -22,6 +22,7 @@ import com.cloudbees.groovy.cps.impl.ListBlock;
 import com.cloudbees.groovy.cps.impl.LocalVariableBlock;
 import com.cloudbees.groovy.cps.impl.LogicalOpBlock;
 import com.cloudbees.groovy.cps.impl.MapBlock;
+import com.cloudbees.groovy.cps.impl.MethodPointerBlock;
 import com.cloudbees.groovy.cps.impl.NewArrayBlock;
 import com.cloudbees.groovy.cps.impl.NotBlock;
 import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
@@ -89,6 +90,10 @@ public class Builder {
 
     public Block constant(Object o) {
         return new ConstantBlock(o);
+    }
+
+    public Block methodPointer(int line, Block lhs, Block methodName) {
+        return new MethodPointerBlock(loc(line),lhs,methodName);
     }
 
     public Block zero() {
