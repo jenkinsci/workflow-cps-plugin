@@ -686,8 +686,12 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         }
     }
 
-    void visitMethodPointerExpression(MethodPointerExpression expression) {
-        throw new UnsupportedOperationException();
+    void visitMethodPointerExpression(MethodPointerExpression exp) {
+        makeNode("methodPointer") {
+            loc(exp)
+            visit(exp.expression)
+            visit(exp.methodName)
+        }
     }
 
     void visitConstantExpression(ConstantExpression expression) {
