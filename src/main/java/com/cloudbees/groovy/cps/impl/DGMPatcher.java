@@ -132,6 +132,11 @@ class DGMPatcher {
         public int hashCode() {
             return Objects.hashCode(declaringClass, name, Arrays.hashCode(nativeParamTypes));
         }
+
+        @Override
+        public String toString() {
+            return declaringClass.getName() + "." + name + Arrays.toString(nativeParamTypes);
+        }
     }
 
     /**
@@ -145,7 +150,10 @@ class DGMPatcher {
      */
     DGMPatcher(List<MetaMethod> methods) {
         for (MetaMethod m : methods) {
-            overrides.put(new Key(m),m);
+            MetaMethod old = overrides.put(new Key(m),m);
+            if (old != null) {
+                throw new IllegalStateException("duplication between " + m + " and " + old);
+            }
         }
     }
 
