@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2014 Jesse Glick.
+ * Copyright 2016 CloudBees, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,35 +22,26 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.workflow.steps;
+package org.jenkinsci.plugins.workflow;
 
-import hudson.FilePath;
-import hudson.slaves.WorkspaceList;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.junit.Test;
+import static org.junit.Assert.*;
 import org.junit.Rule;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
-public class PwdStepTest {
+public class SubtypeInjectingStepTest {
 
     @Rule public JenkinsRule r = new JenkinsRule();
 
-    @Test public void basics() throws Exception {
+    @Test @Issue("JENKINS-25630")
+    public void contextInjectionOfSubParameters() throws Exception {
+        // see SubtypeInjectingStep
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("node {echo \"cwd='${pwd()}'\"}", true));
-        r.assertLogContains("cwd='" + r.jenkins.getWorkspaceFor(p) + "'", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
-    }
-
-    // TODO use 1.652 use WorkspaceList.tempDir
-    private static FilePath tempDir(FilePath ws) {
-        return ws.sibling(ws.getName() + System.getProperty(WorkspaceList.class.getName(), "@") + "tmp");
-    }
-
-    @Test public void tmp() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("node {echo \"tmp='${pwd tmp: true}'\"}", true));
-        r.assertLogContains("tmp='" + tempDir(r.jenkins.getWorkspaceFor(p)) + "'", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+        p.setDefinition(new CpsFlowDefinition("node('master') { injectSubtypesAsContext() }"));
+        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
 
 }

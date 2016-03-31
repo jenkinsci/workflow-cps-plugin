@@ -42,6 +42,7 @@ import org.jvnet.hudson.test.RestartableJenkinsRule;
  * Base class for tests that interacts with a single workflow job named {@code demo}.
  *
  * @author Kohsuke Kawaguchi
+ * @deprecated inline relevant parts
  */
 public abstract class SingleJobTestBase extends Assert {
 
