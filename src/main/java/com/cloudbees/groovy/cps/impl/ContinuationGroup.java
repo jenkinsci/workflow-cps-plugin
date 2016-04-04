@@ -3,21 +3,14 @@ package com.cloudbees.groovy.cps.impl;
 import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
-import com.cloudbees.groovy.cps.CpsDefaultGroovyMethods;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-import groovy.lang.MetaMethod;
-import org.codehaus.groovy.reflection.CachedClass;
-import org.codehaus.groovy.reflection.CachedMethod;
-import org.codehaus.groovy.reflection.ReflectionCache;
 import org.codehaus.groovy.runtime.callsite.CallSite;
-import org.codehaus.groovy.runtime.metaclass.NewInstanceMetaMethod;
 
 import javax.annotation.CheckReturnValue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static com.cloudbees.groovy.cps.impl.SourceLocation.*;
@@ -90,11 +83,7 @@ abstract class ContinuationGroup implements Serializable {
     }
 
     static {
-        for (CachedMethod m : ReflectionCache.getCachedClass(CpsDefaultGroovyMethods.class).getMethods()) {
-            CachedClass[] paramTypes = m.getParameterTypes();
-            if (paramTypes.length>0)
-                paramTypes[0].addNewMopMethods(Collections.<MetaMethod>singletonList(new NewInstanceMetaMethod(m)));
-        }
+        DGMPatcher.init();
     }
 
     /**

@@ -1,6 +1,8 @@
 package com.cloudbees.groovy.cps
 
+import com.cloudbees.groovy.cps.impl.ContinuationGroup
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
+import com.cloudbees.groovy.cps.impl.DGMPatcher
 import org.junit.Ignore
 import org.junit.Test
 import org.jvnet.hudson.test.Issue
@@ -611,4 +613,14 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     }
 
     public static int add(int a, int b) { return a+b; }
+
+
+    @Test
+    void eachArray() {
+        assert evalCPS("""
+            def x = 0;
+            [1, 2, 3].each { y -> x+=y; }
+            return x;
+        """) == 6;
+    }
 }
