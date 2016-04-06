@@ -202,6 +202,7 @@ public class SerializationTest extends SingleJobTestBase {
         });
     }
 
+    @Ignore("TODO backed out for JENKINS-34064")
     @Issue("JENKINS-26481")
     @Test public void eachClosure() {
         story.addStep(new Statement() {
