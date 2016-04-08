@@ -6,7 +6,6 @@ import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.Outcome;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
-import com.cloudbees.groovy.cps.impl.SourceLocation;
 import com.cloudbees.groovy.cps.impl.TryBlockEnv;
 import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
 import com.google.common.util.concurrent.FutureCallback;
@@ -18,14 +17,12 @@ import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
-import javax.annotation.CheckForNull;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.Collection;
@@ -37,6 +34,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
+import javax.annotation.Nonnull;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
 /**
@@ -86,15 +84,9 @@ class CpsBodyExecution extends BodyExecution {
     @GuardedBy("this")
     private Outcome outcome;
 
-    /**
-     * @see CpsBodyInvoker#createBodyBlockNode
-     */
-    private final boolean createBodyBlockNode;
-
-    public CpsBodyExecution(CpsStepContext context, List<BodyExecutionCallback> callbacks, boolean createBodyBlockNode) {
+    CpsBodyExecution(CpsStepContext context, List<BodyExecutionCallback> callbacks) {
         this.context = context;
         this.callbacks = callbacks;
-        this.createBodyBlockNode = createBodyBlockNode;
     }
 
     /**
@@ -117,7 +109,7 @@ class CpsBodyExecution extends BodyExecution {
                 sn.addAction(a);
         }
 
-        StepContext sc = subContext(sn);
+        StepContext sc = new CpsBodySubContext(context, sn);
         for (BodyExecutionCallback c : callbacks) {
             c.onStart(sc);
         }
@@ -289,7 +281,7 @@ class CpsBodyExecution extends BodyExecution {
             en.addAction(new ErrorAction(t));
 
             setOutcome(new Outcome(null,t));
-            StepContext sc = subContext(en);
+            StepContext sc = new CpsBodySubContext(context, en);
             for (BodyExecutionCallback c : callbacks) {
                 c.onFailure(sc, t);
             }
@@ -306,7 +298,7 @@ class CpsBodyExecution extends BodyExecution {
             StepEndNode en = addBodyEndFlowNode();
 
             setOutcome(new Outcome(o,null));
-            StepContext sc = subContext(en);
+            StepContext sc = new CpsBodySubContext(context, en);
             for (BodyExecutionCallback c : callbacks) {
                 c.onSuccess(sc, o);
             }
@@ -318,33 +310,17 @@ class CpsBodyExecution extends BodyExecution {
     }
 
     /**
-     * Creates a sub-context to call {@link BodyExecutionCallback}.
-     * If {@link #createBodyBlockNode} is false, then we don't have distinctive
-     * {@link FlowNode}, so we just hand out the master context.
-     */
-    private StepContext subContext(FlowNode n) {
-        if (n==null)
-            return context;
-        else
-            return new CpsBodySubContext(context,n);
-    }
-
-    /**
      * Inserts the flow node that indicates the beginning of the body invocation.
      *
      * @see #addBodyEndFlowNode()
      */
-    private @CheckForNull StepStartNode addBodyStartFlowNode(FlowHead head) {
-        if (createBodyBlockNode) {
-            StepStartNode start = new StepStartNode(head.getExecution(),
-                    context.getStepDescriptor(), head.get());
-            this.startNodeId = start.getId();
-            start.addAction(new BodyInvocationAction());
-            head.setNewHead(start);
-            return start;
-        } else {
-            return null;
-        }
+    private @Nonnull StepStartNode addBodyStartFlowNode(FlowHead head) {
+        StepStartNode start = new StepStartNode(head.getExecution(),
+                context.getStepDescriptor(), head.get());
+        this.startNodeId = start.getId();
+        start.addAction(new BodyInvocationAction());
+        head.setNewHead(start);
+        return start;
     }
 
     /**
@@ -352,23 +328,19 @@ class CpsBodyExecution extends BodyExecution {
      *
      * @see #addBodyStartFlowNode(FlowHead)
      */
-    private @CheckForNull StepEndNode addBodyEndFlowNode() {
-        if (createBodyBlockNode) {
-            try {
-                FlowHead head = CpsThread.current().head;
+    private @Nonnull StepEndNode addBodyEndFlowNode() {
+        try {
+            FlowHead head = CpsThread.current().head;
 
-                StepEndNode end = new StepEndNode(head.getExecution(),
-                        getBodyStartNode(), head.get());
-                end.addAction(new BodyInvocationAction());
-                head.setNewHead(end);
+            StepEndNode end = new StepEndNode(head.getExecution(),
+                    getBodyStartNode(), head.get());
+            end.addAction(new BodyInvocationAction());
+            head.setNewHead(end);
 
-                return end;
-            } catch (IOException e) {
-                LOGGER.log(WARNING, "Failed to grow the flow graph", e);
-                throw new Error(e);
-            }
-        } else {
-            return null;
+            return end;
+        } catch (IOException e) {
+            LOGGER.log(WARNING, "Failed to grow the flow graph", e);
+            throw new Error(e);
         }
     }
 
