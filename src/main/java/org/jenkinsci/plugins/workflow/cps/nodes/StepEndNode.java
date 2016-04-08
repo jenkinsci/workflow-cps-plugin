@@ -42,9 +42,9 @@ public class StepEndNode extends BlockEndNode<StepStartNode> implements StepNode
         StepDescriptor d = getDescriptor();
         boolean isBody = getStartNode().isBody();
         if (isBody) {
-            return "} //" + (d != null ? d.getFunctionName() : getStartNode().getStepName());
+            return "}";
         } else {
-            return getStartNode().getStepName() + " : End";
+            return "} // " + (d != null ? d.getFunctionName() : getStartNode().getStepName());
         }
     }
 
