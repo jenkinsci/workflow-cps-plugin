@@ -11,8 +11,6 @@ import org.apache.commons.io.IOUtils;
 import org.jenkinsci.plugins.workflow.SingleJobTestBase;
 import org.jenkinsci.plugins.workflow.actions.ThreadNameAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
-import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
-import org.jenkinsci.plugins.workflow.cps.steps.ParallelStepException;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
@@ -72,7 +70,6 @@ public class ParallelStepTest extends SingleJobTestBase {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(join(
                     "import "+AbortException.class.getName(),
-                    "import "+ParallelStepException.class.getName(),
 
                     "node {",
                     "  try {",
@@ -83,9 +80,8 @@ public class ParallelStepTest extends SingleJobTestBase {
                     "      a: { sleep 3; writeFile text: '', file: 'a.done' }",
                     "    )",
                     "    assert false;",
-                    "  } catch (ParallelStepException e) {",
-                    "    assert e.name=='b'",
-                    "    assert e.cause instanceof AbortException",
+                    "  } catch (AbortException e) {",
+                    "    assert e.message == 'died'",
                     "  }",
                     "}"
                 )));
@@ -111,7 +107,6 @@ public class ParallelStepTest extends SingleJobTestBase {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(join(
                     "import "+AbortException.class.getName(),
-                    "import "+ParallelStepException.class.getName(),
 
                     "node {",
                     "  try {",
@@ -123,10 +118,8 @@ public class ParallelStepTest extends SingleJobTestBase {
                     "      failFast: true",
                     "    )",
                     "    assert false",
-                    "  } catch (ParallelStepException e) {",
-                    "    echo e.toString()",
-                    "    assert e.name=='b'",
-                    "    assert e.cause instanceof AbortException",
+                    "  } catch (AbortException e) {",
+                    "    assert e.message == 'died'",
                     "  }",
                     "}"
                 )));
@@ -148,9 +141,6 @@ public class ParallelStepTest extends SingleJobTestBase {
             @Override public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(join(
-                    "import "+AbortException.class.getName(),
-                    "import "+ParallelStepException.class.getName(),
-
                     "node {",
                     "    parallel(",
                     "      a: { echo 'hello from a';sleep 1;echo 'goodbye from a' },",

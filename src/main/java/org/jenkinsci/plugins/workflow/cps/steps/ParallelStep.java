@@ -5,6 +5,7 @@ import com.cloudbees.groovy.cps.Outcome;
 import groovy.lang.Closure;
 import hudson.Extension;
 import hudson.model.TaskListener;
+import java.io.IOException;
 
 import org.jenkinsci.plugins.workflow.cps.CpsVmThreadOnly;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
@@ -23,6 +24,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
@@ -34,6 +37,8 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
  * @author Kohsuke Kawaguchi
  */
 public class ParallelStep extends Step {
+
+    private static final Logger LOGGER = Logger.getLogger(ParallelStep.class.getName());
 
     /** should a failure in a parallel branch terminate other still executing branches. */
     private final boolean failFast;
@@ -113,8 +118,15 @@ public class ParallelStep extends Step {
             @Override
             public void onFailure(StepContext context, Throwable t) {
                 handler.outcomes.put(name, new Outcome(null, t));
+                try {
+                    context.get(TaskListener.class).getLogger().println("Failed in branch " + name);
+                } catch (IOException | InterruptedException x) {
+                    LOGGER.log(Level.WARNING, null, x);
+                }
                 if (handler.originalFailure == null) {
                     handler.originalFailure = new SimpleEntry<String, Throwable>(name, t);
+                } else {
+                    handler.originalFailure.getValue().addSuppressed(t);
                 }
                 checkAllDone(true);
             }
@@ -149,8 +161,7 @@ public class ParallelStep extends Step {
                 }
                 // all done
                 if (handler.originalFailure!=null) {
-                    // wrap the exception so that the call stack leading up to parallel is visible
-                    handler.context.onFailure(new ParallelStepException(handler.originalFailure.getKey(), handler.originalFailure.getValue()));
+                    handler.context.onFailure(handler.originalFailure.getValue());
                 } else {
                     handler.context.onSuccess(success);
                 }
