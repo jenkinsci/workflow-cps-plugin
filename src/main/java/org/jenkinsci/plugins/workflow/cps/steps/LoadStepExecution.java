@@ -1,18 +1,15 @@
 package org.jenkinsci.plugins.workflow.cps.steps;
 
 import com.google.inject.Inject;
-import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
 import hudson.FilePath;
 import hudson.model.TaskListener;
 import javax.annotation.Nonnull;
-import org.jenkinsci.plugins.workflow.actions.LabelAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
 import org.jenkinsci.plugins.workflow.cps.CpsThread;
-import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
@@ -32,9 +29,6 @@ public class LoadStepExecution extends AbstractStepExecutionImpl {
     private transient LoadStep step;
 
     @StepContextParameter
-    private transient FlowNode node;
-
-    @StepContextParameter
     private transient TaskListener listener;
 
     @Override
@@ -51,11 +45,10 @@ public class LoadStepExecution extends AbstractStepExecutionImpl {
 
         Script script = execution.getShell().parse(text);
 
-        node.addAction(new LabelAction(step.getPath()));
-
         // execute body as another thread that shares the same head as this thread
         // as the body can pause.
         cps.newBodyInvoker(t.getGroup().export(script))
+                .withDisplayName(step.getPath())
                 .withCallback(BodyExecutionCallback.wrap(cps))
                 .start(); // when the body is done, the load step is done
 
