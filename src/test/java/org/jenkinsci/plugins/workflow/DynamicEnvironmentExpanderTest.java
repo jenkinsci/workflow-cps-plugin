@@ -82,7 +82,7 @@ public class DynamicEnvironmentExpanderTest {
                 context.newBodyInvoker().
                         withContexts(EnvironmentExpander.merge(context.get(EnvironmentExpander.class), new ExpanderImpl(this))).
                         withCallback(BodyExecutionCallback.wrap(context)).
-                        withDisplayName(null).start();
+                        start();
                 return false;
             }
             @Override public void onResume() {

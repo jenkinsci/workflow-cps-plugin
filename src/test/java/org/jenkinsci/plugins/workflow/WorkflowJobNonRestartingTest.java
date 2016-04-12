@@ -49,6 +49,8 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import javax.mail.Folder;
+import org.junit.ClassRule;
+import org.jvnet.hudson.test.BuildWatcher;
 
 /**
  * Test of {@link WorkflowJob} that doesn't involve Jenkins restarts.
@@ -56,6 +58,8 @@ import javax.mail.Folder;
  * @author Kohsuke Kawaguchi
  */
 public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
+
+    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
 
     WorkflowJob p;
 
@@ -132,7 +136,6 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
 
         String log = JenkinsRule.getLog(b);
         jenkins.assertLogNotContains("\tat ", b);
-        System.err.println(log);
 
         int idx = 0;
         for (String msg : new String[] {
@@ -152,14 +155,14 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
 
         idx = 0;
         for (String msg : new String[] {
-            "[Pipeline] Retry the body up to N times : Start",
-            "[Pipeline] retry {",
-            "[Pipeline] } //retry",
-            "[Pipeline] retry {",
-            "[Pipeline] } //retry",
-            "[Pipeline] retry {",
-            "[Pipeline] } //retry",
-            "[Pipeline] Retry the body up to N times : End",
+            "[Pipeline] retry",
+            "[Pipeline] {",
+            "[Pipeline] }",
+            "[Pipeline] {",
+            "[Pipeline] }",
+            "[Pipeline] {",
+            "[Pipeline] }",
+            "[Pipeline] // retry",
         }) {
             idx = log.indexOf(msg, idx + 1);
             assertTrue(msg + " not found", idx != -1);
