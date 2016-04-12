@@ -13,6 +13,7 @@ import org.jenkinsci.plugins.workflow.actions.ThreadNameAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.durable_task.BatchScriptStep;
@@ -159,6 +160,72 @@ public class ParallelStepTest extends SingleJobTestBase {
         });
     }
 
+    @Issue("JENKINS-25894")
+    @Test public void failureReporting() throws Exception {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition("parallel a: {semaphore 'a'}, b: {semaphore 'b'}", true));
+                // Original bug report: AbortException not properly handled.
+                WorkflowRun b1 = p.scheduleBuild2(0).waitForStart();
+                SemaphoreStep.success("a/1", null);
+                SemaphoreStep.failure("b/1", new AbortException("normal failure"));
+                story.j.assertBuildStatus(Result.FAILURE, story.j.waitForCompletion(b1));
+                story.j.assertLogContains("Failed in branch b", b1);
+                // Apparently !b1.isBuilding() before WorkflowRun.finish has printed the stack trace, so need to wait for StreamBuildListener.finished:
+                story.j.waitForMessage("Finished: FAILURE", b1);
+                story.j.assertLogContains("normal failure", b1);
+                story.j.assertLogNotContains("AbortException", b1);
+                // Other exceptions should include a stack trace.
+                WorkflowRun b2 = p.scheduleBuild2(0).waitForStart();
+                SemaphoreStep.success("a/2", null);
+                SemaphoreStep.failure("b/2", new IllegalStateException("ouch"));
+                story.j.assertBuildStatus(Result.FAILURE, story.j.waitForCompletion(b2));
+                story.j.assertLogContains("Failed in branch b", b2);
+                story.j.waitForMessage("Finished: FAILURE", b2);
+                story.j.assertLogContains("java.lang.IllegalStateException: ouch", b2);
+                story.j.assertLogContains("\tat " + ParallelStepTest.class.getName(), b2);
+                // If multiple branches fail, we want to see all the stack traces.
+                WorkflowRun b3 = p.scheduleBuild2(0).waitForStart();
+                try {
+                    failureInA();
+                    fail();
+                } catch (IllegalStateException x) {
+                    SemaphoreStep.failure("a/3", x);
+                }
+                try {
+                    failureInB();
+                    fail();
+                } catch (IllegalStateException x) {
+                    SemaphoreStep.failure("b/3", x);
+                }
+                story.j.assertBuildStatus(Result.FAILURE, story.j.waitForCompletion(b3));
+                story.j.assertLogContains("Failed in branch a", b3);
+                story.j.assertLogContains("Failed in branch b", b3);
+                story.j.waitForMessage("Finished: FAILURE", b3);
+                story.j.assertLogContains("java.lang.IllegalStateException: first problem", b3);
+                story.j.assertLogContains("\tat " + ParallelStepTest.class.getName() + ".failureInA", b3);
+                story.j.assertLogContains("java.lang.IllegalStateException: second problem", b3);
+                story.j.assertLogContains("\tat " + ParallelStepTest.class.getName() + ".failureInB", b3);
+                // Also check stack traces within the script.
+                p.setDefinition(new CpsFlowDefinition(
+                    "parallel bad: {\n" +
+                    "  throw new IllegalStateException('bad')\n" +
+                    "}"));
+                WorkflowRun b4 = story.j.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0).get());
+                story.j.assertLogContains("Failed in branch bad", b4);
+                story.j.waitForMessage("Finished: FAILURE", b4);
+                story.j.assertLogContains("java.lang.IllegalStateException: bad", b4);
+                story.j.assertLogContains("\tat WorkflowScript.run(WorkflowScript:2)", b4);
+            }
+        });
+    }
+    private static void failureInA() {
+        throw new IllegalStateException("first problem");
+    }
+    private static void failureInB() {
+        throw new IllegalStateException("second problem");
+    }
 
     @Test
     public void localMethodCallWithinBranch() {
