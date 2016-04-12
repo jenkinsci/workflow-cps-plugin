@@ -49,11 +49,11 @@ public class StepStartNode extends BlockStartNode implements StepNode {
 
     @Override
     protected String getTypeFunctionName() {
-        StepDescriptor d = getDescriptor();
         if (isBody()) {
             return "{";
         } else {
-            return (d != null ? d.getFunctionName() : descriptorId) + " {";
+            StepDescriptor d = getDescriptor();
+            return (d != null ? d.getFunctionName() : descriptorId);
         }
     }
 

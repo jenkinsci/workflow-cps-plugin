@@ -1,7 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps.nodes;
 
 import hudson.model.Action;
-import org.jenkinsci.plugins.workflow.actions.BodyInvocationAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.graph.BlockEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -39,12 +38,12 @@ public class StepEndNode extends BlockEndNode<StepStartNode> implements StepNode
 
     @Override
     protected String getTypeFunctionName() {
-        StepDescriptor d = getDescriptor();
         boolean isBody = getStartNode().isBody();
         if (isBody) {
             return "}";
         } else {
-            return "} // " + (d != null ? d.getFunctionName() : getStartNode().getStepName());
+            StepDescriptor d = getDescriptor();
+            return "// " + (d != null ? d.getFunctionName() : getStartNode().getStepName());
         }
     }
 
