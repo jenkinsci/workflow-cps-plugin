@@ -28,7 +28,6 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.junit.Assert.*;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
@@ -60,7 +59,6 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         assertTrue(exec.isComplete());
     }
 
-    @Ignore("TODO fails with new HtmlUnit: buildFormTree produces bogus \"$class\":[\"org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition\",\"org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition\"] rather than \"$class\":\"org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition\" as expected")
     @Test public void configRoundTrip() throws Exception {
         WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
         job.setDefinition(new CpsFlowDefinition("echo 'whatever'"));
