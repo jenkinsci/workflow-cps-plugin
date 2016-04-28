@@ -25,6 +25,7 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
+import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.junit.Assert.*;
 import org.junit.Test;
@@ -56,6 +57,12 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
         exec.waitForSuspension();
         assertTrue(exec.isComplete());
+    }
+
+    @Test public void configRoundTrip() throws Exception {
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("echo 'whatever'"));
+        jenkins.configRoundtrip(job);
     }
 
 }
