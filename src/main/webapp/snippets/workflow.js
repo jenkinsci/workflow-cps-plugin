@@ -62,19 +62,6 @@ snippet for++\n\
 	for (int ${1:i} = 0; $1 < ${2:Things}.length; $1++) {\n\
 		${3:$2[$1]}$0\n\
 	}\n\
-# stage\n\
-snippet stage\n\
-	stage '${1}'\n\
-# node\n\
-snippet node\n\
-	node {\n\
-	    ${1}\n\
-	}\n\
-# node-l ('label') \n\
-snippet node-l\n\
-	node ('${1}') {\n\
-	    \n\
-	}\n\
 ";
 
 // TODO: Would be nice to get this from the backend via an AJAX call.
@@ -82,7 +69,9 @@ snippet node-l\n\
 var workflowSnippets =
 "# stage\n\
 snippet stage\n\
-	stage '${1}'\n\
+	stage('${1}')\n\
+	    ${2}\n\
+	}\n\
 # node\n\
 snippet node\n\
 	node {\n\
@@ -90,7 +79,7 @@ snippet node\n\
 	}\n\
 # node-l ('label') \n\
 snippet node-l\n\
-	node ('${1}') {\n\
+	node('${1}') {\n\
 	    \n\
 	}\n\
 # echo \n\
@@ -113,7 +102,7 @@ snippet fileExists (in workspace)\n\
 	fileExists('${1}')\n\
 # dir (subDir) \n\
 snippet dir (subDir)\n\
-	dir ('${1}') {\n\
+	dir('${1}') {\n\
 	    ${2}\n\
 	}\n\
 # pwd \n\
@@ -124,12 +113,12 @@ snippet deleteDir\n\
 	deleteDir()\n\
 # deleteDir (subDir) \n\
 snippet deleteDir (subDir)\n\
-	dir ('${1}') {\n\
+	dir('${1}') {\n\
 	    deleteDir()\n\
 	}\n\
 # retry (count) \n\
 snippet retry (count)\n\
-	retry (${1:2}) {\n\
+	retry(${1:2}) {\n\
 	    \n\
 	}\n\
 # sleep \n\

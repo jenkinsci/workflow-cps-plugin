@@ -14,15 +14,15 @@
     Use the <b>Snippet Generator</b> to see them all and see how they should be configured.
     Step parameters are given as key-value pairs; if there is just one mandatory parameter the name may be omitted, so
 </p>
-<pre>stage 'Build'</pre>
+<pre>readFile 'build.properties'</pre>
 <p>
     is a shortcut for
 </p>
-<pre>stage name: 'Build'</pre>
+<pre>readFile file: 'build.properties'</pre>
 <p>
     but if you specify multiple parameters they must all be named:
 </p>
-<pre>stage name: 'Build', concurrency: 1</pre>
+<pre>readFile file: 'build.properties', encoding: 'ISO-8859-1'</pre>
 <p>
     There are also some predefined variables.
     Use the <b>Snippet Generator</b> to see them all with usage information.
