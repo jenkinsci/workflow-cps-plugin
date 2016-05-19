@@ -60,6 +60,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
+import javax.annotation.Nonnull;
 import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
@@ -149,17 +150,15 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     @CpsVmThreadOnly("root")
-    public BodyReference export(Closure body) {
+    public @Nonnull BodyReference export(@Nonnull Closure body) {
         assertVmThread();
-        if (body==null)     return null;
         int id = iota++;
         closures.put(id, body);
         return new StaticBodyReference(id,body);
     }
 
     @CpsVmThreadOnly("root")
-    public BodyReference export(final Script body) {
-        if (body==null)     return null;
+    public @Nonnull BodyReference export(@Nonnull final Script body) {
         return export(new Closure(null) {
             @Override
             public Object call() {
