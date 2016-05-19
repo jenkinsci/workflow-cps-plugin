@@ -157,6 +157,7 @@ public class SerializationTest extends SingleJobTestBase {
                     "for (def elt : arr) {echo \"running new-style loop on ${elt}\"; semaphore \"new-${elt}\"}"
                     , true));
                 ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.Collection java.lang.Object"); // TODO ought to be in generic-whitelist
+                ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.List java.lang.Object"); // Groovy 2.x adds this version. above line is for 1.x
                 startBuilding();
                 SemaphoreStep.waitForStart("C-one/1", b);
                 story.j.waitForMessage("running C-style loop on one", b);
@@ -202,7 +203,6 @@ public class SerializationTest extends SingleJobTestBase {
         });
     }
 
-    @Ignore("TODO backed out for JENKINS-34064")
     @Issue("JENKINS-26481")
     @Test public void eachClosure() {
         story.addStep(new Statement() {
