@@ -253,7 +253,9 @@ import org.kohsuke.stapler.StaplerRequest;
 
     }
 
-    @Restricted(NoExternalUse.class)
+    /**
+     * May be added to various contexts to offer the Pipeline Groovy link where it is appropriate.
+     */
     public static class LocalAction extends Snippetizer {
 
         @Override public String getDisplayName() {
