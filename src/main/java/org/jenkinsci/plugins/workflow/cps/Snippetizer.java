@@ -245,7 +245,7 @@ import org.kohsuke.stapler.StaplerRequest;
         @Override public Collection<? extends Action> createFor(Job target) {
             // TODO probably want an API for FlowExecutionContainer or something
             if (target.getClass().getName().equals("org.jenkinsci.plugins.workflow.job.WorkflowJob") && target.hasPermission(Item.EXTENDED_READ)) {
-                return Collections.singleton(new PerJobAction(target));
+                return Collections.singleton(new LocalAction());
             } else {
                 return Collections.emptySet();
             }
@@ -254,13 +254,7 @@ import org.kohsuke.stapler.StaplerRequest;
     }
 
     @Restricted(NoExternalUse.class)
-    public static class PerJobAction extends Snippetizer {
-
-        public final Job<?,?> job;
-
-        PerJobAction(Job<?,?> job) {
-            this.job = job;
-        }
+    public static class LocalAction extends Snippetizer {
 
         @Override public String getDisplayName() {
             return "Pipeline Groovy";
