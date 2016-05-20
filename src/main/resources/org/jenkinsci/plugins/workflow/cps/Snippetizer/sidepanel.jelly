@@ -24,19 +24,25 @@ THE SOFTWARE.
 -->
 
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:st="jelly:stapler">
+<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:local="local">
     <l:header/>
     <l:side-panel>
         <l:tasks>
+            <d:taglib uri="local">
+                <d:tag name="taskWithTarget"> <!-- TODO cannot use l:task since that does not support target -->
+                    <div class="task">
+                        <a href="${href}" class="task-icon-link" target="${target}"><l:icon class="${icon}" style="width: 24px; height: 24px; margin: 2px;"/></a>
+                        <st:nbsp/>
+                        <a href="${href}" class="task-link" target="${target}">${title}</a>
+                    </div>
+                </d:tag>
+            </d:taglib>
             <l:task href=".." icon="icon-up icon-md" title="${%Back}"/>
             <l:task href="." icon="icon-gear2 icon-md" title="${%Snippet Generator}"/>
             <l:task href="html" icon="icon-help icon-md" title="${%Reference}"/>
-            <div class="task"> <!-- TODO cannot use l:task since that does not support target -->
-                <a href="gdsl" class="task-icon-link" target="_blank"><l:icon class="icon-package icon-md" style="width: 24px; height: 24px; margin: 2px;"/></a>
-                <st:nbsp/>
-                <a href="gdsl" class="task-link" target="_blank">${%IntelliJ IDEA GDSL}</a>
-            </div>
-            <!-- TODO not yet ready: dsld “Eclipse DSLD” -->
+            <local:taskWithTarget href="https://jenkins.io/doc/pipeline/" icon="icon-help icon-md" target="_blank" title="${%Online Documentation}"/>
+            <local:taskWithTarget href="gdsl" icon="icon-package icon-md" target="_blank" title="${%IntelliJ IDEA GDSL}"/>
+            <!-- TODO not yet ready: <local:taskWithTarget href="dsld" icon="icon-package icon-md" target="_blank" title="${%Eclipse DSLD}"/> -->
         </l:tasks>
     </l:side-panel>
 </j:jelly>
