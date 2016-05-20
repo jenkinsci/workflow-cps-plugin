@@ -30,7 +30,7 @@ THE SOFTWARE.
         <l:tasks>
             <l:task href=".." icon="icon-up icon-md" title="${%Back}"/>
             <l:task href="." icon="icon-gear2 icon-md" title="${%Snippet Generator}"/>
-            <l:task href="html" icon="icon-help icon-md" title="${%Static Reference}"/>
+            <l:task href="html" icon="icon-help icon-md" title="${%Reference}"/>
             <div class="task"> <!-- TODO cannot use l:task since that does not support target -->
                 <a href="gdsl" class="task-icon-link" target="_blank"><l:icon class="icon-package icon-md" style="width: 24px; height: 24px; margin: 2px;"/></a>
                 <st:nbsp/>
