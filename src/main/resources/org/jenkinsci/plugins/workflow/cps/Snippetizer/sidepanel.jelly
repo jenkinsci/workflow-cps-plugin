@@ -24,17 +24,19 @@ THE SOFTWARE.
 -->
 
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout">
+<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:st="jelly:stapler">
     <l:header/>
     <l:side-panel>
         <l:tasks>
-            <l:task href="${rootURL}/" icon="icon-up icon-md" title="${%Back to Jenkins}"/>
-            <l:task href="${rootURL}/${it.ACTION_URL}" icon="icon-gear2 icon-md" title="${%Snippet Generator}"/>
+            <l:task href=".." icon="icon-up icon-md" title="${%Back}"/>
+            <l:task href="." icon="icon-gear2 icon-md" title="${%Snippet Generator}"/>
             <l:task href="html" icon="icon-help icon-md" title="${%Static Reference}"/>
-            <l:task href="gdsl" icon="icon-package icon-md" title="${%IntelliJ IDEA GDSL}"/>
-            <!-- TODO not yet ready:
-            <l:task href="dsld" icon="icon-package icon-md" title="${%Eclipse DSLD}"/>
-            -->
+            <div class="task"> <!-- TODO cannot use l:task since that does not support target -->
+                <a href="gdsl" class="task-icon-link" target="_blank"><l:icon class="icon-package icon-md" style="width: 24px; height: 24px; margin: 2px;"/></a>
+                <st:nbsp/>
+                <a href="gdsl" class="task-link" target="_blank">${%IntelliJ IDEA GDSL}</a>
+            </div>
+            <!-- TODO not yet ready: dsld “Eclipse DSLD” -->
         </l:tasks>
     </l:side-panel>
 </j:jelly>

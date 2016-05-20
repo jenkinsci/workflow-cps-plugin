@@ -29,7 +29,7 @@ import hudson.Functions;
 import hudson.model.Action;
 import hudson.model.Descriptor;
 import hudson.model.DescriptorByNameOwner;
-import hudson.model.InvisibleAction;
+import hudson.model.Item;
 import hudson.model.Job;
 import hudson.model.RootAction;
 import java.io.Serializable;
@@ -236,7 +236,7 @@ import org.kohsuke.stapler.StaplerRequest;
     }
 
     @Restricted(DoNotUse.class)
-    @Extension public static class SidepanelAdder extends TransientActionFactory<Job> {
+    @Extension public static class PerJobAdder extends TransientActionFactory<Job> {
 
         @Override public Class<Job> type() {
             return Job.class;
@@ -244,8 +244,8 @@ import org.kohsuke.stapler.StaplerRequest;
 
         @Override public Collection<? extends Action> createFor(Job target) {
             // TODO probably want an API for FlowExecutionContainer or something
-            if (target.getClass().getName().equals("org.jenkinsci.plugins.workflow.job.WorkflowJob")) {
-                return Collections.singleton(new SidepanelAction());
+            if (target.getClass().getName().equals("org.jenkinsci.plugins.workflow.job.WorkflowJob") && target.hasPermission(Item.EXTENDED_READ)) {
+                return Collections.singleton(new PerJobAction(target));
             } else {
                 return Collections.emptySet();
             }
@@ -254,11 +254,21 @@ import org.kohsuke.stapler.StaplerRequest;
     }
 
     @Restricted(NoExternalUse.class)
-    public static class SidepanelAction extends /* has a custom action.jelly anyway */ InvisibleAction {
+    public static class PerJobAction extends Snippetizer {
 
-        public static final String ACTION_URL = Snippetizer.ACTION_URL;
-        
-        // TODO should retain the Job reference, and pass it along as context
+        public final Job<?,?> job;
+
+        PerJobAction(Job<?,?> job) {
+            this.job = job;
+        }
+
+        @Override public String getDisplayName() {
+            return "Pipeline Groovy";
+        }
+
+        public String getIconClassName() {
+            return "icon-help";
+        }
 
     }
 
