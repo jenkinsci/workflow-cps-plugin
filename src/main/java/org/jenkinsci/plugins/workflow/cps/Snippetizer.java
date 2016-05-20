@@ -255,6 +255,9 @@ import org.kohsuke.stapler.StaplerRequest;
 
     /**
      * May be added to various contexts to offer the Pipeline Groovy link where it is appropriate.
+     * To use, define a {@link TransientActionFactory} of some kind of {@link Item}.
+     * If the target {@link Item#hasPermission} {@link Item#EXTENDED_READ},
+     * return one {@link LocalAction}. Otherwise return an empty set.
      */
     public static class LocalAction extends Snippetizer {
 
