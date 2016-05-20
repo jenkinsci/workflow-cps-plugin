@@ -2,7 +2,7 @@
 <!--
 The MIT License
 
-Copyright 2015 Jesse Glick.
+Copyright 2016 CloudBees, Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,11 +23,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 
-<!-- Deprecated, but kept for compatibility -->
-
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
-    <f:block>
-        <a href="${rootURL}/${it.ACTION_URL}" target="_blank">${%Pipeline Groovy Documentation}</a>
-    </f:block>
+<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout">
+    <l:header/>
+    <l:side-panel>
+        <l:tasks>
+            <l:task href="${rootURL}/" icon="icon-up icon-md" title="${%Back to Jenkins}"/>
+            <l:task href="${rootURL}/${it.ACTION_URL}" icon="icon-gear2 icon-md" title="${%Snippet Generator}"/>
+            <l:task href="html" icon="icon-help icon-md" title="${%Static Reference}"/>
+            <l:task href="gdsl" icon="icon-package icon-md" title="${%IntelliJ IDEA GDSL}"/>
+            <!-- TODO not yet ready:
+            <l:task href="dsld" icon="icon-package icon-md" title="${%Eclipse DSLD}"/>
+            -->
+        </l:tasks>
+    </l:side-panel>
 </j:jelly>

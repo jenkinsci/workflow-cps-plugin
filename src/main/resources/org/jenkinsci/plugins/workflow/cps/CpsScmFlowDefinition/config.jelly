@@ -29,5 +29,4 @@ THE SOFTWARE.
     <f:entry field="scriptPath" title="${%Script Path}">
         <f:textbox default="Jenkinsfile"/>
     </f:entry>
-    <st:include it="${descriptor.snippetizer}" page="block.jelly"/>
 </j:jelly>
