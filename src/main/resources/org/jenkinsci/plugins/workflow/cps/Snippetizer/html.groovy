@@ -23,13 +23,15 @@ Snippetizer snippetizer = my;
 def l = namespace(lib.LayoutTagLib)
 def st = namespace("jelly:stapler")
 
+l.layout(title:_("Pipeline Syntax: Reference"), norefresh: true) {
+    st.include(page: 'sidepanel')
+    l.main_panel {
+
+      h1(_("Overview"))
+      st.include(page: 'help')
+
 div(class:'dsl-reference'){
   h1(_("DSL Reference"))
-  div(class:'sub-header'){
-    a(href: "${rootURL}/${Snippetizer.GDSL_URL}", target: "_blank") {
-      raw(_("Click to download IntelliJ GDSL"))
-    }
-  }
   
   div(class:'steps-box basic'){
     h2(_("Steps"))
@@ -70,6 +72,9 @@ div(class:'dsl-reference'){
       }
     }
   }
+}
+
+    }
 }
 
 def generateStepHelp(StepDescriptor d) throws Exception {
@@ -194,4 +199,5 @@ def describeType(ParameterType type, int headerLevel) throws Exception {
     }
   }.call()
 }
+
 st.adjunct(includes: 'org.jenkinsci.plugins.workflow.cps.Snippetizer.workflow')

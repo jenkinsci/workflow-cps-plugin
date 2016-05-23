@@ -41,7 +41,6 @@ import hudson.slaves.WorkspaceList;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-import javax.inject.Inject;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.JOB;
@@ -132,8 +131,6 @@ public class CpsScmFlowDefinition extends FlowDefinition {
     }
 
     @Extension public static class DescriptorImpl extends FlowDefinitionDescriptor {
-
-        @Inject public Snippetizer snippetizer;
 
         @Override public String getDisplayName() {
             return "Pipeline script from SCM";
