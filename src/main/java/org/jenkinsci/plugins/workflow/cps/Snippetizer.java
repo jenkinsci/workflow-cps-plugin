@@ -162,7 +162,7 @@ import org.kohsuke.stapler.StaplerRequest;
         }
     }
 
-    public static final String ACTION_URL = "pipeline-groovy";
+    public static final String ACTION_URL = "pipeline-syntax";
 
     @Override public String getUrlName() {
         return ACTION_URL;
@@ -262,7 +262,7 @@ import org.kohsuke.stapler.StaplerRequest;
     public static class LocalAction extends Snippetizer {
 
         @Override public String getDisplayName() {
-            return "Pipeline Groovy";
+            return "Pipeline Syntax";
         }
 
         public String getIconClassName() {

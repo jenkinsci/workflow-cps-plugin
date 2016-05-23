@@ -23,7 +23,7 @@ Snippetizer snippetizer = my;
 def l = namespace(lib.LayoutTagLib)
 def st = namespace("jelly:stapler")
 
-l.layout(title:_("Pipeline Groovy: Reference"), norefresh: true) {
+l.layout(title:_("Pipeline Syntax: Reference"), norefresh: true) {
     st.include(page: 'sidepanel')
     l.main_panel {
 

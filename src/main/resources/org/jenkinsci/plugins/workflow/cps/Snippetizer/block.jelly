@@ -28,6 +28,6 @@ THE SOFTWARE.
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
     <f:block>
-        <a href="${rootURL}/${it.ACTION_URL}" target="_blank">${%Pipeline Groovy Documentation}</a>
+        <a href="${rootURL}/${it.ACTION_URL}" target="_blank">${%Pipeline Syntax}</a>
     </f:block>
 </j:jelly>
