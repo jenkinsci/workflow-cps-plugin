@@ -29,4 +29,7 @@ THE SOFTWARE.
     <f:entry field="scriptPath" title="${%Script Path}">
         <f:textbox default="Jenkinsfile"/>
     </f:entry>
+    <f:block>
+        <a href="pipeline-syntax" target="_blank">${%Pipeline Syntax}</a>
+    </f:block>
 </j:jelly>
