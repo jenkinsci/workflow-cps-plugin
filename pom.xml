@@ -89,7 +89,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1.18</version>
+            <version>1.20-SNAPSHOT</version> <!-- TODO -->
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -136,7 +136,7 @@
         <dependency>
             <groupId>com.cloudbees</groupId>
             <artifactId>groovy-cps</artifactId>
-            <version>1.6</version>
+            <version>1.8-SNAPSHOT</version> <!-- TODO https://github.com/cloudbees/groovy-cps/pull/24 -->
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.ui</groupId>
