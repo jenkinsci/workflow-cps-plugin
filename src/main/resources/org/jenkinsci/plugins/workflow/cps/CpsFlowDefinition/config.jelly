@@ -30,5 +30,7 @@
   <f:entry field="sandbox">
     <f:checkbox title="${%Use Groovy Sandbox}" default="true"/>
   </f:entry>
-  <st:include it="${descriptor.snippetizer}" page="block.jelly"/>
+    <f:block>
+        <a href="pipeline-syntax" target="_blank">${%Pipeline Syntax}</a>
+    </f:block>
 </j:jelly>

@@ -152,7 +152,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      *
      * This is the implicit closure block passed to the step invocation.
      */
-    private BodyReference body;
+    private @CheckForNull BodyReference body;
 
     private final int threadId;
 
@@ -174,12 +174,12 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     private transient volatile boolean loadingThreadGroup;
 
     @CpsVmThreadOnly
-    CpsStepContext(StepDescriptor step, CpsThread thread, FlowExecutionOwner executionRef, FlowNode node, Closure body) {
+    CpsStepContext(StepDescriptor step, CpsThread thread, FlowExecutionOwner executionRef, FlowNode node, @CheckForNull Closure body) {
         this.threadId = thread.id;
         this.executionRef = executionRef;
         this.id = node.getId();
         this.node = node;
-        this.body = thread.group.export(body);
+        this.body = body != null ? thread.group.export(body) : null;
         this.stepDescriptorId = step.getId();
     }
 
@@ -269,14 +269,19 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         }
     }
 
+    @Override public boolean hasBody() {
+        return body != null;
+    }
+
     @Override
     public CpsBodyInvoker newBodyInvoker() {
+        if (body == null) {
+            throw new IllegalStateException("There is no body to invoke");
+        }
         return newBodyInvoker(body);
     }
 
-    public CpsBodyInvoker newBodyInvoker(BodyReference body) {
-        if (body==null)
-            throw new IllegalStateException("There's no body to invoke");
+    public @Nonnull CpsBodyInvoker newBodyInvoker(@Nonnull BodyReference body) {
         return new CpsBodyInvoker(this,body);
     }
 

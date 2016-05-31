@@ -37,23 +37,12 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import javax.inject.Inject;
 import jenkins.model.Jenkins;
 import net.sf.json.JSON;
 import net.sf.json.JSONArray;
-import net.sf.json.JSONObject;
-import net.sf.json.util.JSONUtils;
-
-import org.apache.commons.lang.StringUtils;
 import org.codehaus.groovy.control.CompilationFailedException;
-import org.codehaus.groovy.control.CompilationUnit;
-import org.codehaus.groovy.control.MultipleCompilationErrorsException;
-import org.codehaus.groovy.control.ProcessingUnit;
-import org.codehaus.groovy.control.messages.SyntaxErrorMessage;
-import org.codehaus.groovy.syntax.SyntaxException;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ApprovalContext;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
@@ -118,8 +107,6 @@ public class CpsFlowDefinition extends FlowDefinition {
 
     @Extension
     public static class DescriptorImpl extends FlowDefinitionDescriptor {
-
-        @Inject public Snippetizer snippetizer;
 
         @Override
         public String getDisplayName() {
