@@ -237,6 +237,7 @@ public class SerializationTest extends SingleJobTestBase {
     @Test public void eachClosureNonCps() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
+                ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.Collection java.lang.Object");
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(
                     "@NonCPS def fine() {\n" +
@@ -246,7 +247,9 @@ public class SerializationTest extends SingleJobTestBase {
                     "}\n" +
                     "def takesMyOwnClosure(body) {\n" +
                     "  node {\n" +
-                    "    echo body()\n" +
+                    "    def list = []\n" +
+                    "    list += body\n" +
+                    "    echo list[0]()\n" +
                     "  }\n" +
                     "}\n" +
                     "takesMyOwnClosure {\n" +
