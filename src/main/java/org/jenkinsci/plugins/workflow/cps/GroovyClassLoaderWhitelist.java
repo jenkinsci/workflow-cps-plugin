@@ -6,8 +6,8 @@ import groovy.lang.GroovyClassLoader;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.Whitelist;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
+import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import org.codehaus.groovy.runtime.DefaultGroovyMethods;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
@@ -45,15 +45,15 @@ class GroovyClassLoaderWhitelist extends Whitelist {
     }
 
     @Override public boolean permitsMethod(Method method, Object receiver, Object[] args) {
-        return checkJenkins26481(args, method) || delegate.permitsMethod(method, receiver, args);
+        return checkJenkins26481(args, method, method.getParameterTypes()) || delegate.permitsMethod(method, receiver, args);
     }
 
     @Override public boolean permitsConstructor(Constructor<?> constructor, Object[] args) {
-        return checkJenkins26481(args, constructor) || delegate.permitsConstructor(constructor, args);
+        return checkJenkins26481(args, constructor, constructor.getParameterTypes()) || delegate.permitsConstructor(constructor, args);
     }
 
     @Override public boolean permitsStaticMethod(Method method, Object[] args) {
-        return checkJenkins26481(args, method) || delegate.permitsStaticMethod(method, args);
+        return checkJenkins26481(args, method, method.getParameterTypes()) || delegate.permitsStaticMethod(method, args);
     }
 
     @Override public boolean permitsFieldGet(Field field, Object receiver) {
@@ -77,11 +77,10 @@ class GroovyClassLoaderWhitelist extends Whitelist {
      * Only improves diagnostics for scripts using the sandbox.
      * Note that we do not simply return false for these cases, as that would throw {@link RejectedAccessException} without a meaningful explanation.
      */
-    private boolean checkJenkins26481(Object[] args, Executable method) throws UnsupportedOperationException {
+    private boolean checkJenkins26481(Object[] args, /* TODO Java 8: just take Executable */ Member method, Class<?>[] parameterTypes) throws UnsupportedOperationException {
         if (permits(method.getDeclaringClass())) { // fine for source-defined methods to take closures
             return true;
         }
-        Class<?>[] parameterTypes = method.getParameterTypes();
         for (int i = 0; i < args.length; i++) {
             if (args[i] instanceof CpsClosure && parameterTypes.length > i && parameterTypes[i] == Closure.class) {
                 throw new UnsupportedOperationException("Calling " + method + " on a CPS-transformed closure is not yet supported (JENKINS-26481); encapsulate in a @NonCPS method, or use Java-style loops");
