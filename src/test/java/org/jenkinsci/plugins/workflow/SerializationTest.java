@@ -233,6 +233,31 @@ public class SerializationTest extends SingleJobTestBase {
         });
     }
 
+    @Issue("JENKINS-26481")
+    @Test public void eachClosureNonCps() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                p = jenkins().createProject(WorkflowJob.class, "demo");
+                p.setDefinition(new CpsFlowDefinition(
+                    "@NonCPS def fine() {\n" +
+                    "  def text = ''\n" +
+                    "  ['a', 'b', 'c'].each {it -> text += it}\n" +
+                    "  text\n" +
+                    "}\n" +
+                    "def takesMyOwnClosure(body) {\n" +
+                    "  node {\n" +
+                    "    echo body()\n" +
+                    "  }\n" +
+                    "}\n" +
+                    "takesMyOwnClosure {\n" +
+                    "  fine()\n" +
+                    "}\n", true));
+                b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
+                story.j.assertLogContains("abc", b);
+            }
+        });
+    }
+
     @Ignore("TODO JENKINS-31314: calls writeFile just once, echoes null (i.e., return value of writeFile), then succeeds")
     @Test public void nonCpsContinuable() {
         story.addStep(new Statement() {
