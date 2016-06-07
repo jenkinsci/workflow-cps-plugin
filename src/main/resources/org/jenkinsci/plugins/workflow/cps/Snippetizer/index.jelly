@@ -90,6 +90,20 @@ THE SOFTWARE.
                         }
                     </script>
                 </f:block>
+                <f:section title="Global variables"/>
+                <f:dropdownList name="var" title="Variable">
+                    <j:forEach var="var" items="${it.globalVariables}">
+                        <f:dropdownListBlock title="${var.name}" lazy="var,it">
+                            <l:ajax>
+                                <f:block>
+                                    <st:include it="${var}" page="help" optional="true">
+                                        ${%This variable has not supplied a description.}
+                                    </st:include>
+                                </f:block>
+                            </l:ajax>
+                        </f:dropdownListBlock>
+                    </j:forEach>
+                </f:dropdownList>
             </f:form>
         </l:main-panel>
     </l:layout>
