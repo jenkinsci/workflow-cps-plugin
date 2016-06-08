@@ -91,6 +91,7 @@ THE SOFTWARE.
                     </script>
                 </f:block>
             </f:form>
+            <a href="globals"><h3>Global Variable documentation</h3></a>
         </l:main-panel>
     </l:layout>
 </j:jelly>
