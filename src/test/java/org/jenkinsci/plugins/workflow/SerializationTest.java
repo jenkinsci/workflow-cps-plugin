@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow;
 
+import groovy.lang.Closure;
 import hudson.model.Result;
 import hudson.slaves.DumbSlave;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
@@ -234,6 +235,15 @@ public class SerializationTest extends SingleJobTestBase {
         });
     }
 
+    /**
+     * Verifies that we are not throwing {@link UnsupportedOperationException} too aggressively.
+     * In particular:
+     * <ul>
+     * <li>on non-CPS-transformed {@link Closure}s
+     * <li>on closures passed to methods defined in Pipeline script
+     * <li>on closures passed to methods which did not declare {@link Closure} as a parameter type and so presumably are not going to try to call them
+     * </ul>
+     */
     @Issue("JENKINS-26481")
     @Test public void eachClosureNonCps() {
         story.addStep(new Statement() {
