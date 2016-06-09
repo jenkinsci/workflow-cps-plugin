@@ -103,9 +103,9 @@ import hudson.security.ACL;
 import java.beans.Introspector;
 import java.util.LinkedHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.annotation.CheckForNull;
 import javax.annotation.concurrent.GuardedBy;
+import jenkins.security.NotReallyRoleSensitiveCallable;
 
 import org.acegisecurity.Authentication;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
@@ -885,19 +885,24 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     @Restricted(DoNotUse.class)
-    @Terminator public static void suspendAll() throws InterruptedException, ExecutionException, TimeoutException {
-        LOGGER.fine("starting to suspend all executions");
-        for (FlowExecution execution : FlowExecutionList.get()) {
-            if (execution instanceof CpsFlowExecution) {
-                LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
-                CpsFlowExecution exec = (CpsFlowExecution) execution;
-                // Like waitForSuspension but with a timeout:
-                if (exec.programPromise != null) {
-                    exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
+    @Terminator public static void suspendAll() throws Exception {
+        ACL.impersonate(ACL.SYSTEM, new NotReallyRoleSensitiveCallable<Void,Exception>() { // TODO Jenkins 2.1+ remove JENKINS-34281 workaround
+            @Override public Void call() throws Exception {
+                LOGGER.fine("starting to suspend all executions");
+                for (FlowExecution execution : FlowExecutionList.get()) {
+                    if (execution instanceof CpsFlowExecution) {
+                        LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
+                        CpsFlowExecution exec = (CpsFlowExecution) execution;
+                        // Like waitForSuspension but with a timeout:
+                        if (exec.programPromise != null) {
+                            exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
+                        }
+                    }
                 }
+                LOGGER.fine("finished suspending all executions");
+                return null;
             }
-        }
-        LOGGER.fine("finished suspending all executions");
+        });
     }
 
     // TODO: write a custom XStream Converter so that while we are writing CpsFlowExecution, it holds that lock
