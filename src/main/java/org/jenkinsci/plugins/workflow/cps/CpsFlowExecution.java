@@ -104,6 +104,7 @@ import java.beans.Introspector;
 import java.util.LinkedHashMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.CheckForNull;
 import javax.annotation.concurrent.GuardedBy;
 import jenkins.security.NotReallyRoleSensitiveCallable;
@@ -433,7 +434,7 @@ public class CpsFlowExecution extends FlowExecution {
                     loadProgramAsync(getProgramDataFile());
                 }
             } catch (IOException e) {
-                SettableFuture<CpsThreadGroup> p = SettableFuture.create();
+                InterruptibleSettableFuture<CpsThreadGroup> p = new InterruptibleSettableFuture<>();
                 programPromise = p;
                 loadProgramFailed(e, p);
             }
@@ -451,17 +452,26 @@ public class CpsFlowExecution extends FlowExecution {
      * @param programDataFile
      */
     public void loadProgramAsync(File programDataFile) {
-        // TODO this is wrong, as SettableFuture does not override interruptTask
-        final SettableFuture<CpsThreadGroup> result = SettableFuture.create();
+        final AtomicReference<ListenableFuture<Unmarshaller>> pickleRestoration = new AtomicReference<>();
+        final InterruptibleSettableFuture<CpsThreadGroup> result = new InterruptibleSettableFuture<CpsThreadGroup>() {
+            @Override protected void interruptTask() {
+                LOGGER.fine("interrupted program load");
+                ListenableFuture<Unmarshaller> f = pickleRestoration.get();
+                if (f != null) {
+                    if (!f.cancel(true)) {
+                        LOGGER.log(Level.WARNING, "failed to cancel pickle restoration for {0}", owner);
+                    }
+                }
+            }
+        };
         programPromise = result;
 
         try {
             scriptClass = parseScript().getClass();
 
             final RiverReader r = new RiverReader(programDataFile, scriptClass.getClassLoader(), owner);
-            Futures.addCallback(
-                    r.restorePickles(),
-
+            pickleRestoration.set(r.restorePickles());
+            Futures.addCallback(pickleRestoration.get(),
                     new FutureCallback<Unmarshaller>() {
                         public void onSuccess(Unmarshaller u) {
                             try {
@@ -501,7 +511,7 @@ public class CpsFlowExecution extends FlowExecution {
      * Let the workflow interrupt by throwing an exception that indicates how it failed.
      * @param promise same as {@link #programPromise} but more strongly typed
      */
-    private void loadProgramFailed(final Throwable problem, SettableFuture<CpsThreadGroup> promise) {
+    private void loadProgramFailed(final Throwable problem, InterruptibleSettableFuture<CpsThreadGroup> promise) {
         FlowHead head;
 
         synchronized(this) {
@@ -536,7 +546,12 @@ public class CpsFlowExecution extends FlowExecution {
                 t.resume(new Outcome(null,null));
             }
             @Override public void onFailure(Throwable t) {
-                LOGGER.log(Level.WARNING, null, t);
+                if (t instanceof CancellationException) {
+                    LOGGER.log(Level.FINE, "cancelled program load in " + owner, t);
+                } else {
+                    LOGGER.log(Level.WARNING, "failed to set program failure on " + owner, t);
+                }
+                onProgramEnd(new Outcome(null, t));
             }
         });
     }
@@ -749,6 +764,8 @@ public class CpsFlowExecution extends FlowExecution {
 
     @Override
     public void interrupt(Result result, CauseOfInterruption... causes) throws IOException, InterruptedException {
+        setResult(result);
+
         LOGGER.log(Level.FINE, "Interrupting {0} as {1}", new Object[] {owner, result});
         if (!programPromise.isDone()) {
             LOGGER.fine("but we are not loaded yet, trying to cancel load");
@@ -756,8 +773,6 @@ public class CpsFlowExecution extends FlowExecution {
                 LOGGER.fine("failed to cancel load");
             }
         }
-
-        setResult(result);
 
         final FlowInterruptedException ex = new FlowInterruptedException(result,causes);
 

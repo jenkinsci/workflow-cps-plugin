@@ -231,10 +231,7 @@ public class CpsFlowExecutionTest {
                 WorkflowRun b = p.getLastBuild();
                 assertTrue(b.isBuilding());
                 story.j.waitForMessage("Cannot restore BadThing", b);
-                b.doKill(); // TODO polite interrupt does not yet work:
-                /*
                 b.getExecutor().interrupt();
-                */
                 story.j.assertBuildStatus(Result.ABORTED, story.j.waitForCompletion(b));
             }
         });
