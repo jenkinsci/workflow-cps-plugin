@@ -81,9 +81,11 @@ class GroovyClassLoaderWhitelist extends Whitelist {
         if (permits(method.getDeclaringClass())) { // fine for source-defined methods to take closures
             return true;
         }
-        for (int i = 0; i < args.length; i++) {
-            if (args[i] instanceof CpsClosure && parameterTypes.length > i && parameterTypes[i] == Closure.class) {
-                throw new UnsupportedOperationException("Calling " + method + " on a CPS-transformed closure is not yet supported (JENKINS-26481); encapsulate in a @NonCPS method, or use Java-style loops");
+        if (method.getDeclaringClass() != DefaultGroovyMethods.class) { // assume we have fixed all of these as part of JENKINS-26481, but could be others elsewhere
+            for (int i = 0; i < args.length; i++) {
+                if (args[i] instanceof CpsClosure && parameterTypes.length > i && parameterTypes[i] == Closure.class) {
+                    throw new UnsupportedOperationException("Calling " + method + " on a CPS-transformed closure is not yet supported (JENKINS-26481); encapsulate in a @NonCPS method or use a non-closure-based idiom");
+                }
             }
         }
         return false;
