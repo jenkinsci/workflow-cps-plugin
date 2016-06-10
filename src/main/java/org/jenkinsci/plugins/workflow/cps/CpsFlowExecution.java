@@ -102,6 +102,7 @@ import hudson.model.User;
 import hudson.security.ACL;
 import java.beans.Introspector;
 import java.util.LinkedHashMap;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.CheckForNull;
 import javax.annotation.concurrent.GuardedBy;
@@ -450,6 +451,7 @@ public class CpsFlowExecution extends FlowExecution {
      * @param programDataFile
      */
     public void loadProgramAsync(File programDataFile) {
+        // TODO this is wrong, as SettableFuture does not override interruptTask
         final SettableFuture<CpsThreadGroup> result = SettableFuture.create();
         programPromise = result;
 
@@ -747,6 +749,14 @@ public class CpsFlowExecution extends FlowExecution {
 
     @Override
     public void interrupt(Result result, CauseOfInterruption... causes) throws IOException, InterruptedException {
+        LOGGER.log(Level.FINE, "Interrupting {0} as {1}", new Object[] {owner, result});
+        if (!programPromise.isDone()) {
+            LOGGER.fine("but we are not loaded yet, trying to cancel load");
+            if (!programPromise.cancel(true)) {
+                LOGGER.fine("failed to cancel load");
+            }
+        }
+
         setResult(result);
 
         final FlowInterruptedException ex = new FlowInterruptedException(result,causes);
@@ -755,17 +765,23 @@ public class CpsFlowExecution extends FlowExecution {
         Futures.addCallback(getCurrentExecutions(/* cf. JENKINS-26148 */true), new FutureCallback<List<StepExecution>>() {
             @Override
             public void onSuccess(List<StepExecution> l) {
+                LOGGER.log(Level.FINE, "interrupt of {0} processed on {1}", new Object[] {owner, l});
                 for (StepExecution e : Iterators.reverse(l)) {
                     try {
                         e.stop(ex);
                     } catch (Exception x) {
-                        LOGGER.log(Level.WARNING, "Failed to abort " + CpsFlowExecution.this.toString(), x);
+                        LOGGER.log(Level.WARNING, "Failed to abort " + owner, x);
                     }
                 }
             }
 
             @Override
             public void onFailure(Throwable t) {
+                if (t instanceof CancellationException) {
+                    LOGGER.log(Level.FINE, "cancelled interrupt of steps in " + owner, t);
+                } else {
+                    LOGGER.log(Level.WARNING, "failed to interrupt steps in " + owner, t);
+                }
             }
         });
     }
