@@ -101,10 +101,9 @@ import hudson.model.Saveable;
 import hudson.model.User;
 import hudson.security.ACL;
 import java.beans.Introspector;
+import java.util.Collection;
 import java.util.LinkedHashMap;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.CheckForNull;
 import javax.annotation.concurrent.GuardedBy;
 import jenkins.security.NotReallyRoleSensitiveCallable;
@@ -222,6 +221,7 @@ public class CpsFlowExecution extends FlowExecution {
      * @see #runInCpsVmThread(FutureCallback)
      */
     public transient volatile ListenableFuture<CpsThreadGroup> programPromise;
+    private transient volatile Collection<ListenableFuture<?>> pickleFutures;
 
     /**
      * Recreated from {@link #owner}
@@ -434,7 +434,7 @@ public class CpsFlowExecution extends FlowExecution {
                     loadProgramAsync(getProgramDataFile());
                 }
             } catch (IOException e) {
-                InterruptibleSettableFuture<CpsThreadGroup> p = new InterruptibleSettableFuture<>();
+                SettableFuture<CpsThreadGroup> p = SettableFuture.create();
                 programPromise = p;
                 loadProgramFailed(e, p);
             }
@@ -452,28 +452,19 @@ public class CpsFlowExecution extends FlowExecution {
      * @param programDataFile
      */
     public void loadProgramAsync(File programDataFile) {
-        final AtomicReference<ListenableFuture<Unmarshaller>> pickleRestoration = new AtomicReference<>();
-        final InterruptibleSettableFuture<CpsThreadGroup> result = new InterruptibleSettableFuture<CpsThreadGroup>() {
-            @Override protected void interruptTask() {
-                LOGGER.fine("interrupted program load");
-                ListenableFuture<Unmarshaller> f = pickleRestoration.get();
-                if (f != null) {
-                    if (!f.cancel(true)) {
-                        LOGGER.log(Level.WARNING, "failed to cancel pickle restoration for {0}", owner);
-                    }
-                }
-            }
-        };
+        final SettableFuture<CpsThreadGroup> result = SettableFuture.create();
         programPromise = result;
 
         try {
             scriptClass = parseScript().getClass();
 
             final RiverReader r = new RiverReader(programDataFile, scriptClass.getClassLoader(), owner);
-            pickleRestoration.set(r.restorePickles());
-            Futures.addCallback(pickleRestoration.get(),
+            Futures.addCallback(
+                    r.restorePickles(pickleFutures = new ArrayList<>()),
+
                     new FutureCallback<Unmarshaller>() {
                         public void onSuccess(Unmarshaller u) {
+                            pickleFutures = null;
                             try {
                             CpsFlowExecution old = PROGRAM_STATE_SERIALIZATION.get();
                             PROGRAM_STATE_SERIALIZATION.set(CpsFlowExecution.this);
@@ -511,7 +502,7 @@ public class CpsFlowExecution extends FlowExecution {
      * Let the workflow interrupt by throwing an exception that indicates how it failed.
      * @param promise same as {@link #programPromise} but more strongly typed
      */
-    private void loadProgramFailed(final Throwable problem, InterruptibleSettableFuture<CpsThreadGroup> promise) {
+    private void loadProgramFailed(final Throwable problem, SettableFuture<CpsThreadGroup> promise) {
         FlowHead head;
 
         synchronized(this) {
@@ -546,11 +537,7 @@ public class CpsFlowExecution extends FlowExecution {
                 t.resume(new Outcome(null,null));
             }
             @Override public void onFailure(Throwable t) {
-                if (t instanceof CancellationException) {
-                    LOGGER.log(Level.FINE, "cancelled program load in " + owner, t);
-                } else {
-                    LOGGER.log(Level.WARNING, "failed to set program failure on " + owner, t);
-                }
+                LOGGER.log(Level.WARNING, "failed to set program failure on " + owner, t);
                 onProgramEnd(new Outcome(null, t));
             }
         });
@@ -767,13 +754,6 @@ public class CpsFlowExecution extends FlowExecution {
         setResult(result);
 
         LOGGER.log(Level.FINE, "Interrupting {0} as {1}", new Object[] {owner, result});
-        if (!programPromise.isDone()) {
-            LOGGER.fine("but we are not loaded yet, trying to cancel load");
-            if (!programPromise.cancel(true)) {
-                LOGGER.fine("failed to cancel load");
-            }
-        }
-
         final FlowInterruptedException ex = new FlowInterruptedException(result,causes);
 
         // stop all ongoing activities
@@ -792,13 +772,23 @@ public class CpsFlowExecution extends FlowExecution {
 
             @Override
             public void onFailure(Throwable t) {
-                if (t instanceof CancellationException) {
-                    LOGGER.log(Level.FINE, "cancelled interrupt of steps in " + owner, t);
-                } else {
-                    LOGGER.log(Level.WARNING, "failed to interrupt steps in " + owner, t);
-                }
+                LOGGER.log(Level.WARNING, "failed to interrupt steps in " + owner, t);
             }
         });
+
+        // If we are still rehydrating pickles, try to stop that now.
+        Collection<ListenableFuture<?>> futures = pickleFutures;
+        if (futures != null) {
+            LOGGER.log(Level.FINE, "we are still rehydrating pickles in {0}", owner);
+            for (ListenableFuture<?> future : futures) {
+                if (!future.isDone()) {
+                    LOGGER.log(Level.FINE, "trying to cancel {0} for {1}", new Object[] {future, owner});
+                    if (!future.cancel(true)) {
+                        LOGGER.log(Level.WARNING, "failed to cancel {0} for {1}", new Object[] {future, owner});
+                    }
+                }
+            }
+        }
     }
 
     @Override
