@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow;
 
+import groovy.lang.Closure;
 import hudson.model.Result;
 import hudson.slaves.DumbSlave;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
@@ -157,7 +158,7 @@ public class SerializationTest extends SingleJobTestBase {
                     "for (def elt : arr) {echo \"running new-style loop on ${elt}\"; semaphore \"new-${elt}\"}"
                     , true));
                 ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.Collection java.lang.Object"); // TODO ought to be in generic-whitelist
-                ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.List java.lang.Object"); // Groovy 2.x adds this version. above line is for 1.x
+                ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.List java.lang.Object"); // TODO ought to be in generic-whitelist-groovy2
                 startBuilding();
                 SemaphoreStep.waitForStart("C-one/1", b);
                 story.j.waitForMessage("running C-style loop on one", b);
@@ -228,6 +229,43 @@ public class SerializationTest extends SingleJobTestBase {
                 SemaphoreStep.waitForStart("c/1", b);
                 SemaphoreStep.success("c/1", null);
                 story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
+                story.j.assertLogContains("abc", b);
+            }
+        });
+    }
+
+    /**
+     * Verifies that we can use closures in ways that were not affected by JENKINS-26481.
+     * In particular:
+     * <ul>
+     * <li>on non-CPS-transformed {@link Closure}s
+     * <li>on closures passed to methods defined in Pipeline script
+     * <li>on closures passed to methods which did not declare {@link Closure} as a parameter type and so presumably are not going to try to call them
+     * </ul>
+     */
+    @Issue("JENKINS-26481")
+    @Test public void eachClosureNonCps() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.Collection java.lang.Object");
+                p = jenkins().createProject(WorkflowJob.class, "demo");
+                p.setDefinition(new CpsFlowDefinition(
+                    "@NonCPS def fine() {\n" +
+                    "  def text = ''\n" +
+                    "  ['a', 'b', 'c'].each {it -> text += it}\n" +
+                    "  text\n" +
+                    "}\n" +
+                    "def takesMyOwnClosure(body) {\n" +
+                    "  node {\n" +
+                    "    def list = []\n" +
+                    "    list += body\n" +
+                    "    echo list[0]()\n" +
+                    "  }\n" +
+                    "}\n" +
+                    "takesMyOwnClosure {\n" +
+                    "  fine()\n" +
+                    "}\n", true));
+                b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
                 story.j.assertLogContains("abc", b);
             }
         });
