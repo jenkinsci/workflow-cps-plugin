@@ -39,7 +39,8 @@ THE SOFTWARE.
             </d:taglib>
             <l:task href=".." icon="icon-up icon-md" title="${%Back}"/>
             <l:task href="." icon="icon-gear2 icon-md" title="${%Snippet Generator}"/>
-            <l:task href="html" icon="icon-help icon-md" title="${%Reference}"/>
+            <l:task href="html" icon="icon-help icon-md" title="${%Step Reference}"/>
+            <l:task href="globals" icon="icon-help icon-md" title="${%Variables Reference}"/>
             <local:taskWithTarget href="https://jenkins.io/doc/pipeline/" icon="icon-help icon-md" target="_blank" title="${%Online Documentation}"/>
             <local:taskWithTarget href="gdsl" icon="icon-package icon-md" target="_blank" title="${%IntelliJ IDEA GDSL}"/>
             <!-- TODO not yet ready: <local:taskWithTarget href="dsld" icon="icon-package icon-md" target="_blank" title="${%Eclipse DSLD}"/> -->
