@@ -24,34 +24,35 @@ def l = namespace(lib.LayoutTagLib)
 def st = namespace("jelly:stapler")
 
 l.layout(title:_("Pipeline Syntax: Reference"), norefresh: true) {
-  st.include(page: 'sidepanel')
-  l.main_panel {
+    st.include(page: 'sidepanel')
+    l.main_panel {
 
-    h1(_("Overview"))
-    st.include(page: 'help')
+      h1(_("Overview"))
+      st.include(page: 'help')
 
-    div(class: 'dsl-reference') {
-      h1(_("DSL Reference"))
-
-      div(class: 'steps-box basic') {
-        h2(_("Steps"))
-        dl(class: 'steps basic root') {
-          for (StepDescriptor d : snippetizer.getStepDescriptors(false)) {
-            generateStepHelp(d);
-          }
-        }
-      }
-
-      div(class: 'steps-box advanced') {
-        h2(_("Advanced/Deprecated Steps"))
-        dl(class: 'steps advanced root') {
-          for (StepDescriptor d : snippetizer.getStepDescriptors(true)) {
-            generateStepHelp(d);
-          }
-        }
+div(class:'dsl-reference'){
+  h1(_("DSL Reference"))
+  
+  div(class:'steps-box basic'){
+    h2(_("Steps"))
+    dl(class:'steps basic root'){
+      for (StepDescriptor d : snippetizer.getStepDescriptors(false)) {
+        generateStepHelp(d);
       }
     }
   }
+  
+  div(class:'steps-box advanced'){
+    h2(_("Advanced/Deprecated Steps"))
+    dl(class:'steps advanced root'){
+      for (StepDescriptor d : snippetizer.getStepDescriptors(true)) {
+        generateStepHelp(d);
+      }
+    }
+  }
+}
+
+    }
 }
 
 def generateStepHelp(StepDescriptor d) throws Exception {
