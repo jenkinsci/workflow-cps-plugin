@@ -50,28 +50,6 @@ div(class:'dsl-reference'){
       }
     }
   }
-  
-  div(class:'steps-box variables'){
-  
-    h2(_("Variables"))
-    dl(class:'steps variables root'){
-      for (GlobalVariable v : snippetizer.getGlobalVariables()) {
-        dt {
-          code(v.getName())
-        }
-        dd{
-          RequestDispatcher rd = request.getView(v, "help");
-          div(class:"help", style:"display: block") {
-            if (rd != null) {
-              st.include(page: "help", it: v)
-            } else {
-              raw("(no help)")
-            }
-          }
-        }
-      }
-    }
-  }
 }
 
     }
