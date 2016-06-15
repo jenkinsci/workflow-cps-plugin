@@ -537,7 +537,7 @@ public class CpsFlowExecution extends FlowExecution {
                 t.resume(new Outcome(null,null));
             }
             @Override public void onFailure(Throwable t) {
-                LOGGER.log(Level.WARNING, "failed to set program failure on " + owner, t);
+                LOGGER.log(Level.WARNING, "Failed to set program failure on " + owner, t);
                 onProgramEnd(new Outcome(null, t));
             }
         });
@@ -760,7 +760,7 @@ public class CpsFlowExecution extends FlowExecution {
         Futures.addCallback(getCurrentExecutions(/* cf. JENKINS-26148 */true), new FutureCallback<List<StepExecution>>() {
             @Override
             public void onSuccess(List<StepExecution> l) {
-                LOGGER.log(Level.FINE, "interrupt of {0} processed on {1}", new Object[] {owner, l});
+                LOGGER.log(Level.FINE, "Interrupt of {0} processed on {1}", new Object[] {owner, l});
                 for (StepExecution e : Iterators.reverse(l)) {
                     try {
                         e.stop(ex);
@@ -772,19 +772,19 @@ public class CpsFlowExecution extends FlowExecution {
 
             @Override
             public void onFailure(Throwable t) {
-                LOGGER.log(Level.WARNING, "failed to interrupt steps in " + owner, t);
+                LOGGER.log(Level.WARNING, "Failed to interrupt steps in " + owner, t);
             }
         });
 
         // If we are still rehydrating pickles, try to stop that now.
         Collection<ListenableFuture<?>> futures = pickleFutures;
         if (futures != null) {
-            LOGGER.log(Level.FINE, "we are still rehydrating pickles in {0}", owner);
+            LOGGER.log(Level.FINE, "We are still rehydrating pickles in {0}", owner);
             for (ListenableFuture<?> future : futures) {
                 if (!future.isDone()) {
-                    LOGGER.log(Level.FINE, "trying to cancel {0} for {1}", new Object[] {future, owner});
+                    LOGGER.log(Level.FINE, "Trying to cancel {0} for {1}", new Object[] {future, owner});
                     if (!future.cancel(true)) {
-                        LOGGER.log(Level.WARNING, "failed to cancel {0} for {1}", new Object[] {future, owner});
+                        LOGGER.log(Level.WARNING, "Failed to cancel {0} for {1}", new Object[] {future, owner});
                     }
                 }
             }
