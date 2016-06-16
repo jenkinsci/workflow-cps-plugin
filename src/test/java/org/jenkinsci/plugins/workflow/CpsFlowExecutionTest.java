@@ -26,32 +26,48 @@ package org.jenkinsci.plugins.workflow;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import hudson.AbortException;
+import hudson.model.Result;
+import hudson.model.TaskListener;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.codehaus.groovy.transform.ASTTransformationVisitor;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.pickles.Pickle;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
+import org.jenkinsci.plugins.workflow.support.pickles.TryRepeatedly;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.junit.Assert.*;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runners.model.Statement;
+import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.MemoryAssert;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
+import org.jvnet.hudson.test.TestExtension;
 
 public class CpsFlowExecutionTest {
 
+    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
     
     private static WeakReference<ClassLoader> LOADER;
@@ -192,6 +208,56 @@ public class CpsFlowExecutionTest {
             r.add(d.getFunctionName());
         }
         return r;
+    }
+
+    @Issue("JENKINS-26130")
+    @Test public void interruptProgramLoad() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition("def x = new " + BadThing.class.getCanonicalName() + "(); semaphore 'wait'", true));
+                WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+                SemaphoreStep.waitForStart("wait/1", b);
+            }
+        });
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                Logger LOGGER = Logger.getLogger("org.jenkinsci.plugins.workflow");
+                LOGGER.setLevel(Level.FINE);
+                Handler handler = new ConsoleHandler();
+                handler.setLevel(Level.ALL);
+                LOGGER.addHandler(handler);
+                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+                WorkflowRun b = p.getLastBuild();
+                assertTrue(b.isBuilding());
+                story.j.waitForMessage("Cannot restore BadThing", b);
+                b.getExecutor().interrupt();
+                story.j.assertBuildStatus(Result.ABORTED, story.j.waitForCompletion(b));
+            }
+        });
+    }
+    public static class BadThing {
+        @Whitelisted public BadThing() {}
+    }
+    private static class BadThingPickle extends Pickle {
+        @Override public ListenableFuture<?> rehydrate(final FlowExecutionOwner owner) {
+            return new TryRepeatedly<BadThing>(1) {
+                @Override protected BadThing tryResolve() throws Exception {
+                    return null;
+                }
+                @Override protected FlowExecutionOwner getOwner() {
+                    return owner;
+                }
+                @Override protected void printWaitingMessage(TaskListener listener) {
+                    listener.getLogger().println("Cannot restore BadThing");
+                }
+            };
+        }
+    }
+    @TestExtension("interruptProgramLoad") public static class BadThingPickleFactory extends SingleTypedPickleFactory<BadThing> {
+        @Override protected Pickle pickle(BadThing object) {
+            return new BadThingPickle();
+        }
     }
 
 }

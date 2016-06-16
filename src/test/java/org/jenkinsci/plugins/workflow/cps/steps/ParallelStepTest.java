@@ -18,7 +18,6 @@ import org.jenkinsci.plugins.workflow.steps.EchoStep;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.durable_task.BatchScriptStep;
 import org.jenkinsci.plugins.workflow.steps.durable_task.ShellStep;
-import org.jenkinsci.plugins.workflow.support.steps.input.InputAction;
 import org.jenkinsci.plugins.workflow.support.visualization.table.FlowGraphTable;
 import org.jenkinsci.plugins.workflow.support.visualization.table.FlowGraphTable.Row;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
@@ -425,7 +424,7 @@ public class ParallelStepTest extends SingleJobTestBase {
                     "      }\n" +
                     "      ,\n" +
                     "      'waitForever' : {\n" +
-                    "        input message: 'This is just to prove a point' \n" +
+                    "        semaphore 'wait'\n" +
                     "      }\n" +
                     "      ,\n" +
                     "      'someSimpleError' : {\n" +
@@ -441,12 +440,11 @@ public class ParallelStepTest extends SingleJobTestBase {
                 for (int i=0; i<10; i++)
                     waitForWorkflowToSuspend();
 
-                InputAction a = b.getAction(InputAction.class);
-                assertNotNull("Expected to pause on input",a);
+                SemaphoreStep.waitForStart("wait/1", b);
 
                 assertEquals("Expecting 3 heads for 3 branches", 3,e.getCurrentHeads().size());
 
-                a.getExecutions().get(0).proceed(null);
+                SemaphoreStep.success("wait/1", null);
                 waitForWorkflowToComplete();
 
                 story.j.assertBuildStatus(Result.FAILURE, b);
