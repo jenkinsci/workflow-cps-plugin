@@ -42,6 +42,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
 import javax.lang.model.SourceVersion;
 import jenkins.model.Jenkins;
 import jenkins.model.TransientActionFactory;
@@ -225,6 +226,11 @@ import org.kohsuke.stapler.StaplerRequest;
             Logger.getLogger(CpsFlowExecution.class.getName()).log(Level.WARNING, "failed to render " + json, x);
             return HttpResponses.plainText(x.getMessage());
         }
+    }
+
+    @Restricted(DoNotUse.class) // for stapler
+    public @CheckForNull Item getItem(StaplerRequest req) {
+         return req.findAncestorObject(Item.class);
     }
 
     private static class StepDescriptorComparator implements Comparator<StepDescriptor>, Serializable {
