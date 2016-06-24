@@ -3,6 +3,7 @@ package com.cloudbees.groovy.cps
 import com.cloudbees.groovy.cps.impl.ContinuationGroup
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import com.cloudbees.groovy.cps.impl.DGMPatcher
+import groovy.transform.NotYetImplemented
 import org.junit.Ignore
 import org.junit.Test
 import org.jvnet.hudson.test.Issue
@@ -622,5 +623,24 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             [1, 2, 3].each { y -> x+=y; }
             return x;
         """) == 6;
+    }
+
+    @Test
+    @NotYetImplemented
+    void rehydrateClosure() {
+        assert evalCPS('''
+            class MyStrategy {
+                Closure<String> process() {
+                    return {
+                        speak()
+                    }
+                }
+            }
+            String speak() {
+                'from Script instance'
+            }
+            Closure<String> closure = new MyStrategy().process()
+            closure.rehydrate(this, this, this).call()
+        ''') == 'from Script instance';
     }
 }
