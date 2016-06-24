@@ -3,6 +3,7 @@ package com.cloudbees.groovy.cps
 import com.cloudbees.groovy.cps.impl.ContinuationGroup
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import com.cloudbees.groovy.cps.impl.DGMPatcher
+import groovy.transform.NotYetImplemented
 import org.junit.Ignore
 import org.junit.Test
 import org.jvnet.hudson.test.Issue
@@ -125,6 +126,16 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         assert evalCPS("""
             new String()
         """)=="";
+    }
+
+    @Issue('https://github.com/cloudbees/groovy-cps/issues/31')
+    @Test
+    @NotYetImplemented
+    void constructorList() {
+        assert evalCPS('''\
+            File f = ['/parent', 'name']
+            return f
+        '''.stripIndent()) == new File('/parent', 'name')
     }
 
     @Test
