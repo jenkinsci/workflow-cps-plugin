@@ -378,9 +378,8 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             String text = 'Foobar';
             String result = """${ w -> w << text}""".toString();
             return result;
-        ''';
-        def cpsResult = evalCPSonly(script);
-        assert cpsResult.getClass() == java.lang.String.class;
+        '''.stripIndent();
+        assert evalCPSonly(script).getClass() == java.lang.String.class;
         assert evalCPS(script) == 'Foobar';
     }
 
