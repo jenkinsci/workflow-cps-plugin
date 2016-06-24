@@ -3,6 +3,7 @@ package com.cloudbees.groovy.cps
 import com.cloudbees.groovy.cps.impl.ContinuationGroup
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import com.cloudbees.groovy.cps.impl.DGMPatcher
+import groovy.transform.NotYetImplemented
 import org.junit.Ignore
 import org.junit.Test
 import org.jvnet.hudson.test.Issue
@@ -367,6 +368,20 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             def x = "foo";
             return "hello ${1+3}=${x}";
 ''')=="hello 4=foo";
+    }
+
+    @Issue('https://github.com/cloudbees/groovy-cps/issues/15')
+    @Test
+    @NotYetImplemented
+    void gstringWithStringWriterClosure() {
+        String script = '''
+            String text = 'Foobar';
+            String result = """${ w -> w << text}""".toString();
+            return result;
+        ''';
+        def cpsResult = evalCPSonly(script);
+        assert cpsResult.getClass() == java.lang.String.class;
+        assert evalCPS(script) == 'Foobar';
     }
 
     @Test
