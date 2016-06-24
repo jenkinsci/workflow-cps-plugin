@@ -625,6 +625,7 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         """) == 6;
     }
 
+    @Issue('https://github.com/cloudbees/groovy-cps/issues/28')
     @Test
     @NotYetImplemented
     void rehydrateClosure() {
