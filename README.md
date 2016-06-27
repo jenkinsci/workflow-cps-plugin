@@ -55,3 +55,15 @@ Pipeline scripts may mark designated methods with the annotation `@NonCPS`.
 These are then compiled normally (except for sandbox security checks), and so behave much like “binary” methods from the Java Platform, Groovy runtime, or Jenkins core or plugin code.
 `@NonCPS` methods may safely use non-`Serializable` objects as local variables, though they should not accept nonserializable parameters or return or store nonserializable values.
 You may not call regular (CPS-transformed) methods, or Pipeline steps, from a `@NonCPS` method, so they are best used for performing some calculations before passing a summary back to the main script.
+
+Some kinds of objects are intrinsically not safe to serialize as such, yet we want to retain a reference to them in the program graph.
+An example is the `Executor` (~ executor slot on a master or agent node) which is part of the context passed by a `node` step to any step in its block, especially `sh`/`bat`.
+Pipeline uses the `Pickle` API to substitute serialization-safe versions of these objects.
+When a `WorkflowRun` is loaded from disk after a restart, the program state is deserialized, and pickles are deserialized (“rehydrated”) in parallel.
+If and when all pickles are successfully deserialized and the resulting objects placed back in the program state, the program begins running again, and `StepExecution.onResume` is called to restore timers and the like.
+
+All program logic is run inside a “CPS VM thread”, which is just a Java thread pool that can run binary methods and figure out which continuation to do next.
+The `parallel` step uses “green threads” (also known as coöperative multitasking): it records logical thread (~ branch) names for various actions, but does not literally run them simultaneously.
+The program may seem to perform tasks concurrently, but only because most steps run asynchronously, while the VM thread is idle, and they may overlap in time.
+No Java thread is consumed except during the typically brief intervals when Groovy code is actually being run on the VM thread.
+The executor widget only displays an entry for the “flyweight” executor on the master node when the VM thread is busy; normally it is hidden.

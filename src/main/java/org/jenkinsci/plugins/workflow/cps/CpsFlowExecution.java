@@ -101,6 +101,7 @@ import hudson.model.Saveable;
 import hudson.model.User;
 import hudson.security.ACL;
 import java.beans.Introspector;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.CheckForNull;
@@ -220,6 +221,7 @@ public class CpsFlowExecution extends FlowExecution {
      * @see #runInCpsVmThread(FutureCallback)
      */
     public transient volatile ListenableFuture<CpsThreadGroup> programPromise;
+    private transient volatile Collection<ListenableFuture<?>> pickleFutures;
 
     /**
      * Recreated from {@link #owner}
@@ -458,10 +460,11 @@ public class CpsFlowExecution extends FlowExecution {
 
             final RiverReader r = new RiverReader(programDataFile, scriptClass.getClassLoader(), owner);
             Futures.addCallback(
-                    r.restorePickles(),
+                    r.restorePickles(pickleFutures = new ArrayList<>()),
 
                     new FutureCallback<Unmarshaller>() {
                         public void onSuccess(Unmarshaller u) {
+                            pickleFutures = null;
                             try {
                             CpsFlowExecution old = PROGRAM_STATE_SERIALIZATION.get();
                             PROGRAM_STATE_SERIALIZATION.set(CpsFlowExecution.this);
@@ -534,7 +537,8 @@ public class CpsFlowExecution extends FlowExecution {
                 t.resume(new Outcome(null,null));
             }
             @Override public void onFailure(Throwable t) {
-                LOGGER.log(Level.WARNING, null, t);
+                LOGGER.log(Level.WARNING, "Failed to set program failure on " + owner, t);
+                onProgramEnd(new Outcome(null, t));
             }
         });
     }
@@ -749,25 +753,42 @@ public class CpsFlowExecution extends FlowExecution {
     public void interrupt(Result result, CauseOfInterruption... causes) throws IOException, InterruptedException {
         setResult(result);
 
+        LOGGER.log(Level.FINE, "Interrupting {0} as {1}", new Object[] {owner, result});
         final FlowInterruptedException ex = new FlowInterruptedException(result,causes);
 
         // stop all ongoing activities
         Futures.addCallback(getCurrentExecutions(/* cf. JENKINS-26148 */true), new FutureCallback<List<StepExecution>>() {
             @Override
             public void onSuccess(List<StepExecution> l) {
+                LOGGER.log(Level.FINE, "Interrupt of {0} processed on {1}", new Object[] {owner, l});
                 for (StepExecution e : Iterators.reverse(l)) {
                     try {
                         e.stop(ex);
                     } catch (Exception x) {
-                        LOGGER.log(Level.WARNING, "Failed to abort " + CpsFlowExecution.this.toString(), x);
+                        LOGGER.log(Level.WARNING, "Failed to abort " + owner, x);
                     }
                 }
             }
 
             @Override
             public void onFailure(Throwable t) {
+                LOGGER.log(Level.WARNING, "Failed to interrupt steps in " + owner, t);
             }
         });
+
+        // If we are still rehydrating pickles, try to stop that now.
+        Collection<ListenableFuture<?>> futures = pickleFutures;
+        if (futures != null) {
+            LOGGER.log(Level.FINE, "We are still rehydrating pickles in {0}", owner);
+            for (ListenableFuture<?> future : futures) {
+                if (!future.isDone()) {
+                    LOGGER.log(Level.FINE, "Trying to cancel {0} for {1}", new Object[] {future, owner});
+                    if (!future.cancel(true)) {
+                        LOGGER.log(Level.WARNING, "Failed to cancel {0} for {1}", new Object[] {future, owner});
+                    }
+                }
+            }
+        }
     }
 
     @Override

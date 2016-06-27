@@ -29,20 +29,24 @@ THE SOFTWARE.
         <st:include page="sidepanel"/>
         <l:main-panel>
             <f:form name="config">
+                <f:section title="Overview"/>
                 <f:block>
-                    Utility to help you learn the Groovy code which can be used to define various steps.
-                    Pick a step you are interested in from the list, configure it, click <b>Generate Groovy</b>,
-                    and you will see a Groovy statement that would call the step with that configuration.
-                    You may copy and paste the whole statement into your script, or pick up just the options you care about.
-                    (Most parameters are optional and can be omitted in your script, leaving them at default values.)
+                    This <b>Snippet Generator</b> will help you learn the Groovy code which can be used to
+                    define various steps. Pick a step you are interested in from the list, configure it,
+                    click <b>Generate Groovy</b>, and you will see a Groovy statement that would call the
+                    step with that configuration. You may copy and paste the whole statement into your
+                    script, or pick up just the options you care about. (Most parameters are optional
+                    and can be omitted in your script, leaving them at default values.)
                 </f:block>
                 <f:section title="Steps"/>
                 <!-- Similar to f:dropdownDescriptorSelector, but adds fallback content to block, and JENKINS-25130 adds per-selection help: -->
+                <j:set var="item" value="${it.getItem(request)}"/>
                 <d:taglib uri="local">
                     <d:tag name="listSteps">
                         <j:forEach var="stepDescriptor" items="${stepDescriptors}">
-                            <f:dropdownListBlock title="${stepDescriptor.functionName}: ${stepDescriptor.displayName}" staplerClass="${stepDescriptor.clazz.name}" lazy="stepDescriptor,it">
+                            <f:dropdownListBlock title="${stepDescriptor.functionName}: ${stepDescriptor.displayName}" staplerClass="${stepDescriptor.clazz.name}" lazy="stepDescriptor,item">
                                 <l:ajax>
+                                    <j:set var="it" value="${item}"/>
                                     <j:set var="instance" value="${null}"/>
                                     <j:set var="descriptor" value="${stepDescriptor}"/>
                                     <j:set var="help" value="${descriptor.helpFile}"/>
@@ -89,6 +93,12 @@ THE SOFTWARE.
                             });
                         }
                     </script>
+                </f:block>
+                <f:section title="Global Variables"/>
+                <f:block>
+                    There are many features of the Pipeline that are not steps. These are often exposed
+                    via global variables, which are not supported by the snippet generator. See the
+                    <a href="globals">Global Variables Reference</a> for details.
                 </f:block>
             </f:form>
         </l:main-panel>

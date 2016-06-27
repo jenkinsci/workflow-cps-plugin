@@ -56,6 +56,7 @@ import org.jenkinsci.plugins.workflow.steps.EchoStep;
 import org.jenkinsci.plugins.workflow.steps.PwdStep;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+// TODO these tests would better be moved to the respective plugins
 import org.jenkinsci.plugins.workflow.support.steps.ExecutorStep;
 import org.jenkinsci.plugins.workflow.support.steps.StageStep;
 import org.jenkinsci.plugins.workflow.support.steps.WorkspaceStep;
@@ -211,6 +212,13 @@ public class SnippetizerTest {
         assertThat("text from LoadStep/help-path.html is included", html, containsString("the Groovy file to load"));
         assertThat("SubversionSCM.workspaceUpdater is mentioned as an attribute of a value of GenericSCMStep.delegate", html, containsString("workspaceUpdater"));
         assertThat("CheckoutUpdater is mentioned as an option", html, containsString("CheckoutUpdater"));
+        assertThat("content is written to the end", html, containsString("</body></html>"));
+    }
+
+    @Issue("JENKINS-35395")
+    @Test public void doGlobalsRef() throws Exception {
+        JenkinsRule.WebClient wc = r.createWebClient();
+        String html = wc.goTo(Snippetizer.ACTION_URL + "/globals").getWebResponse().getContentAsString();
         assertThat("text from RunWrapperBinder/help.jelly is included", html, containsString("may be used to refer to the currently running build"));
         assertThat("content is written to the end", html, containsString("</body></html>"));
     }
