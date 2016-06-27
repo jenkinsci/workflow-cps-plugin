@@ -627,7 +627,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Issue('https://github.com/cloudbees/groovy-cps/issues/26')
     @Test
-    @NotYetImplemented
     void interfaceDeclaration() {
         assert evalCPS('''
             interface Strategy {
@@ -639,7 +638,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Issue('https://github.com/cloudbees/groovy-cps/issues/26')
     @Test
-    @NotYetImplemented
     void emptyInterfaceDeclaration() {
         assert evalCPS('''
             interface Empty {}
