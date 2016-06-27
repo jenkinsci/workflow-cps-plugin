@@ -46,7 +46,13 @@ public final class CpsThreadDump {
                     StepDescriptor d = ((CpsStepContext) s.getContext()).getStepDescriptor();
                     if (d != null) {
                         if (Util.isOverridden(StepExecution.class, s.getClass(), "toString")) {
-                            stack.add(new StackTraceElement("DSL", d.getFunctionName(), s.toString(), -1));
+                            String status;
+                            try {
+                                status = s.toString();
+                            } catch (RuntimeException x) {
+                                status = x.toString();
+                            }
+                            stack.add(new StackTraceElement("DSL", d.getFunctionName(), status, -1));
                         } else {
                             stack.add(new StackTraceElement("DSL", d.getFunctionName(), null, -2));
                         }
