@@ -1,6 +1,7 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.Util;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 import java.io.PrintStream;
@@ -44,7 +45,11 @@ public final class CpsThreadDump {
                 if (s !=null) {
                     StepDescriptor d = ((CpsStepContext) s.getContext()).getStepDescriptor();
                     if (d != null) {
-                        stack.add(new StackTraceElement("DSL", d.getFunctionName(), null, -2));
+                        if (Util.isOverridden(StepExecution.class, s.getClass(), "toString")) {
+                            stack.add(new StackTraceElement("DSL", d.getFunctionName(), s.toString(), -1));
+                        } else {
+                            stack.add(new StackTraceElement("DSL", d.getFunctionName(), null, -2));
+                        }
                     }
                 }
                 stack.addAll(t.getStackTrace());
