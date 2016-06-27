@@ -76,12 +76,18 @@ class GroovyClassLoaderWhitelist extends Whitelist {
      * Blocks accesses to some {@link DefaultGroovyMethods}, or any other binary method taking a closure, until JENKINS-26481 is fixed.
      * Only improves diagnostics for scripts using the sandbox.
      * Note that we do not simply return false for these cases, as that would throw {@link RejectedAccessException} without a meaningful explanation.
+     *
+     * @return
+     *      true to permit the call, false if the JENKINS-26481 check passes but the method needs to be whitelisted elsewhere.
+     *      Throws an exception with diagnostic message if the kind of invocation is not supported.
      */
     private boolean checkJenkins26481(Object[] args, /* TODO Java 8: just take Executable */ Member method, Class<?>[] parameterTypes) throws UnsupportedOperationException {
         if (permits(method.getDeclaringClass())) { // fine for source-defined methods to take closures
             return true;
         }
-        if (method.getDeclaringClass() != DefaultGroovyMethods.class) { // assume we have fixed all of these as part of JENKINS-26481, but could be others elsewhere
+        if (method.getDeclaringClass() != DefaultGroovyMethods.class && !method.getDeclaringClass().getName().contains(".cps.")) {
+            // assume we have fixed all of these as part of JENKINS-26481, but could be others elsewhere
+            //
             for (int i = 0; i < args.length; i++) {
                 if (args[i] instanceof CpsClosure && parameterTypes.length > i && parameterTypes[i] == Closure.class) {
                     throw new UnsupportedOperationException("Calling " + method + " on a CPS-transformed closure is not yet supported (JENKINS-26481); encapsulate in a @NonCPS method or use a non-closure-based idiom");
