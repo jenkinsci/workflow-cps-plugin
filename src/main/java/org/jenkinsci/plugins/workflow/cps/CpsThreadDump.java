@@ -14,6 +14,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
@@ -23,6 +25,9 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
  * @author Kohsuke Kawaguchi
  */
 public final class CpsThreadDump {
+
+    private static final Logger LOGGER = Logger.getLogger(CpsThreadDump.class.getName());
+
     private final List<ThreadInfo> threads = new ArrayList<ThreadInfo>();
 
     public static final class ThreadInfo {
@@ -49,8 +54,9 @@ public final class CpsThreadDump {
                             String status;
                             try {
                                 status = s.toString();
-                            } catch (RuntimeException x) {
-                                status = x.toString();
+                            } catch (RuntimeException x) { // try our best to show something meaningful for the rest of the stack trace
+                                status = "failed to get status";
+                                LOGGER.log(Level.WARNING, null, x);
                             }
                             stack.add(new StackTraceElement("DSL", d.getFunctionName(), status, -1));
                         } else {
