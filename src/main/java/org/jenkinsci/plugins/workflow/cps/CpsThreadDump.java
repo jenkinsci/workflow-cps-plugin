@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import javax.annotation.Nonnull;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
 /**
@@ -133,17 +134,27 @@ public final class CpsThreadDump {
     }
 
     /**
+     * A mock thread dump that merely displays some fixed text.
+     * @param text possibly multiline string
+     */
+    @SuppressWarnings("serial")
+    public static @Nonnull CpsThreadDump fromText(@Nonnull final String text) {
+        return CpsThreadDump.from(new Throwable() {
+            @Override public String toString() {
+                return text;
+            }
+            @Override public Throwable fillInStackTrace() {
+                return this; // irrelevant
+            }
+        });
+    }
+
+    /**
      * Constant that indicates everything is done and no thread is alive.
      */
     public static final CpsThreadDump EMPTY = new CpsThreadDump();
 
-    /**
-     * Constant that indicates the state of {@link CpsThreadGroup} is unknown and so it is not possible
-     * to produce a thread dump.
-     */
-    public static final CpsThreadDump UNKNOWN = from(new Exception("Program state is not yet known") {
-        @Override public Throwable fillInStackTrace() {
-            return this; // irrelevant
-        }
-    });
+    @Deprecated
+    public static final CpsThreadDump UNKNOWN = fromText("Program state is not yet known");
+
 }

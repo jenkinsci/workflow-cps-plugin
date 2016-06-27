@@ -680,7 +680,22 @@ public class CpsFlowExecution extends FlowExecution {
         if (!programPromise.isDone()) {
             // CpsThreadGroup state isn't ready yet, but this is probably one of the common cases
             // when one wants to obtain the stack trace. Cf. JENKINS-26130.
-            return CpsThreadDump.UNKNOWN;
+            Collection<ListenableFuture<?>> _pickleFutures = pickleFutures;
+            if (_pickleFutures != null) {
+                StringBuilder b = new StringBuilder("Program is not yet loaded");
+                for (ListenableFuture<?> pickleFuture : _pickleFutures) {
+                    b.append("\n\t").append(pickleFuture);
+                    if (pickleFuture.isCancelled()) {
+                        b.append(" (cancelled)");
+                    }
+                    if (pickleFuture.isDone()) {
+                        b.append(" (complete)");
+                    }
+                }
+                return CpsThreadDump.fromText(b.toString());
+            } else {
+                return CpsThreadDump.fromText("Program state is unknown");
+            }
         }
 
         try {
