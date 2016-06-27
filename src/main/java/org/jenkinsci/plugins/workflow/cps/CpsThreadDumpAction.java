@@ -1,13 +1,22 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import com.cloudbees.jenkins.support.api.Component;
+import com.cloudbees.jenkins.support.api.Container;
+import com.cloudbees.jenkins.support.api.Content;
 import hudson.Extension;
 import hudson.model.Action;
+import hudson.security.Permission;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import jenkins.model.Jenkins;
 import jenkins.model.TransientActionFactory;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 
 /**
@@ -64,6 +73,34 @@ public final class CpsThreadDumpAction implements Action {
                 }
             }
             return Collections.emptySet();
+        }
+
+    }
+
+    @Extension(optional=true) public static class PipelineThreadDump extends Component {
+
+        @Override public Set<Permission> getRequiredPermissions() {
+            return Collections.singleton(Jenkins.ADMINISTER);
+        }
+
+        @Override public String getDisplayName() {
+            return "Thread dumps of running Pipeline builds";
+        }
+
+        @Override public void addContents(Container container) {
+            container.add(new Content("nodes/master/pipeline-thread-dump.txt") {
+                @Override public void writeTo(OutputStream outputStream) throws IOException {
+                    PrintWriter pw = new PrintWriter(outputStream);
+                    for (FlowExecution flow : FlowExecutionList.get()) {
+                        if (flow instanceof CpsFlowExecution) {
+                            pw.println("Build: " + flow.getOwner().getExecutable());
+                            ((CpsFlowExecution) flow).getThreadDump().print(pw);
+                            pw.println();
+                        }
+                    }
+                    pw.flush();
+                }
+            });
         }
 
     }

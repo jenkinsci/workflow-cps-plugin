@@ -97,6 +97,12 @@
             <version>1.1</version>
         </dependency>
         <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>support-core</artifactId>
+            <version>2.32</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>workflow-support</artifactId>
             <version>1.15</version>
