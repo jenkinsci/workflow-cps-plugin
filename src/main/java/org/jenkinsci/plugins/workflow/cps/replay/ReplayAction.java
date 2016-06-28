@@ -37,6 +37,7 @@ import hudson.model.CauseAction;
 import hudson.model.Item;
 import hudson.model.Job;
 import hudson.model.ParametersAction;
+import hudson.model.Queue;
 import hudson.model.Run;
 import hudson.model.queue.QueueTaskFuture;
 import hudson.security.Permission;
@@ -165,6 +166,18 @@ public class ReplayAction implements Action {
      * @return a way to wait for the replayed build to complete
      */
     public @CheckForNull QueueTaskFuture/*<Run>*/ run(@Nonnull String replacementMainScript, @Nonnull Map<String,String> replacementLoadedScripts) {
+        Queue.Item item = run2(replacementMainScript, replacementLoadedScripts);
+        return item == null ? null : item.getFuture();
+    }
+
+    /**
+     * For use in projectis that want initiate a replay via the Java API.
+     *
+     * @param replacementMainScript main script; replacement for {@link #getOriginalScript}
+     * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
+     * @return build queue item
+     */
+    public @CheckForNull Queue.Item run2(@Nonnull String replacementMainScript, @Nonnull Map<String,String> replacementLoadedScripts) {
         List<Action> actions = new ArrayList<Action>();
         CpsFlowExecution execution = getExecution();
         if (execution == null) {
@@ -175,11 +188,7 @@ public class ReplayAction implements Action {
         for (Class<? extends Action> c : COPIED_ACTIONS) {
             actions.addAll(run.getActions(c));
         }
-        return new ParameterizedJobMixIn() {
-            @Override protected Job asJob() {
-                return run.getParent();
-            }
-        }.scheduleBuild2(0, actions.toArray(new Action[actions.size()]));
+        return ParameterizedJobMixIn.scheduleBuild2(run.getParent(), 0, actions.toArray(new Action[actions.size()]));
     }
 
     public String getDiff() {
