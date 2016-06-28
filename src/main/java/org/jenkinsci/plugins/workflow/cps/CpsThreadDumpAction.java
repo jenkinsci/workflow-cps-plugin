@@ -8,6 +8,7 @@ import hudson.model.Action;
 import hudson.security.Permission;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.Collections;
@@ -15,6 +16,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import jenkins.model.Jenkins;
 import jenkins.model.TransientActionFactory;
+import org.apache.commons.io.Charsets;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
@@ -90,7 +92,7 @@ public final class CpsThreadDumpAction implements Action {
         @Override public void addContents(Container container) {
             container.add(new Content("nodes/master/pipeline-thread-dump.txt") {
                 @Override public void writeTo(OutputStream outputStream) throws IOException {
-                    PrintWriter pw = new PrintWriter(outputStream);
+                    PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, Charsets.UTF_8));
                     for (FlowExecution flow : FlowExecutionList.get()) {
                         if (flow instanceof CpsFlowExecution) {
                             pw.println("Build: " + flow.getOwner().getExecutable());
