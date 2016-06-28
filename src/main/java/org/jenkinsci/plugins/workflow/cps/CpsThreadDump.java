@@ -1,7 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import hudson.Util;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 import java.io.PrintStream;
@@ -50,14 +49,14 @@ public final class CpsThreadDump {
                 if (s !=null) {
                     StepDescriptor d = ((CpsStepContext) s.getContext()).getStepDescriptor();
                     if (d != null) {
-                        if (Util.isOverridden(StepExecution.class, s.getClass(), "toString")) {
-                            String status;
-                            try {
-                                status = s.toString();
-                            } catch (RuntimeException x) { // try our best to show something meaningful for the rest of the stack trace
-                                status = "failed to get status";
-                                LOGGER.log(Level.WARNING, null, x);
-                            }
+                        String status = null;
+                        try {
+                            status = s.getStatus();
+                        } catch (RuntimeException x) { // try our best to show something meaningful for the rest of the stack trace
+                            status = "failed to get status";
+                            LOGGER.log(Level.WARNING, null, x);
+                        }
+                        if (status != null) {
                             stack.add(new StackTraceElement("DSL", d.getFunctionName(), status, -1));
                         } else {
                             stack.add(new StackTraceElement("DSL", d.getFunctionName(), null, -2));
