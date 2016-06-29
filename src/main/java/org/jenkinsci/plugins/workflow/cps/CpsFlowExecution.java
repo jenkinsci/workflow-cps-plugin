@@ -94,6 +94,7 @@ import java.util.logging.Logger;
 
 import static com.thoughtworks.xstream.io.ExtendedHierarchicalStreamWriterHelper.*;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import groovy.lang.GroovyCodeSource;
 import hudson.BulkChange;
 import hudson.init.Terminator;
 import hudson.model.Queue;
@@ -204,7 +205,7 @@ public class CpsFlowExecution extends FlowExecution {
     private final String script;
 
     /**
-     * Any additional scripts {@linkplain CpsGroovyShell#parse(String) parsed} afterward, keyed by
+     * Any additional scripts {@linkplain CpsGroovyShell#parse(GroovyCodeSource) parsed} afterward, keyed by
      * their FQCN.
      */
     /*package*/ /*final*/ Map<String,String> loadedScripts = new HashMap<String, String>();
