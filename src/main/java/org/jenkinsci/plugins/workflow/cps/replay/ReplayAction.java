@@ -171,7 +171,7 @@ public class ReplayAction implements Action {
     }
 
     /**
-     * For use in projectis that want initiate a replay via the Java API.
+     * For use in projects that want initiate a replay via the Java API.
      *
      * @param replacementMainScript main script; replacement for {@link #getOriginalScript}
      * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
