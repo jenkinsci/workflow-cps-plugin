@@ -13,6 +13,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.annotation.Nonnull;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
 /**
@@ -21,6 +24,9 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
  * @author Kohsuke Kawaguchi
  */
 public final class CpsThreadDump {
+
+    private static final Logger LOGGER = Logger.getLogger(CpsThreadDump.class.getName());
+
     private final List<ThreadInfo> threads = new ArrayList<ThreadInfo>();
 
     public static final class ThreadInfo {
@@ -43,7 +49,18 @@ public final class CpsThreadDump {
                 if (s !=null) {
                     StepDescriptor d = ((CpsStepContext) s.getContext()).getStepDescriptor();
                     if (d != null) {
-                        stack.add(new StackTraceElement("DSL", d.getFunctionName(), null, -2));
+                        String status = null;
+                        try {
+                            status = s.getStatus();
+                        } catch (RuntimeException x) { // try our best to show something meaningful for the rest of the stack trace
+                            status = "failed to get status";
+                            LOGGER.log(Level.WARNING, null, x);
+                        }
+                        if (status != null) {
+                            stack.add(new StackTraceElement("DSL", d.getFunctionName(), status, -1));
+                        } else {
+                            stack.add(new StackTraceElement("DSL", d.getFunctionName(), null, -2));
+                        }
                     }
                 }
                 stack.addAll(t.getStackTrace());
@@ -133,17 +150,27 @@ public final class CpsThreadDump {
     }
 
     /**
+     * A mock thread dump that merely displays some fixed text.
+     * @param text possibly multiline string
+     */
+    @SuppressWarnings("serial")
+    public static @Nonnull CpsThreadDump fromText(@Nonnull final String text) {
+        return CpsThreadDump.from(new Throwable() {
+            @Override public String toString() {
+                return text;
+            }
+            @Override public Throwable fillInStackTrace() {
+                return this; // irrelevant
+            }
+        });
+    }
+
+    /**
      * Constant that indicates everything is done and no thread is alive.
      */
     public static final CpsThreadDump EMPTY = new CpsThreadDump();
 
-    /**
-     * Constant that indicates the state of {@link CpsThreadGroup} is unknown and so it is not possible
-     * to produce a thread dump.
-     */
-    public static final CpsThreadDump UNKNOWN = from(new Exception("Program state is not yet known") {
-        @Override public Throwable fillInStackTrace() {
-            return this; // irrelevant
-        }
-    });
+    @Deprecated
+    public static final CpsThreadDump UNKNOWN = fromText("Program state is not yet known");
+
 }
