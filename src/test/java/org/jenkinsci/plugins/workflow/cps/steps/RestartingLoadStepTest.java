@@ -128,13 +128,15 @@ public class RestartingLoadStepTest {
                 WorkflowJob p = jenkins.createProject(WorkflowJob.class, "p");
                 jenkins.getWorkspaceFor(p).child("a.groovy").write("def call(arg) {echo \"a ran on ${arg}\"}; this", null);
                 ScriptApproval.get().approveSignature("method groovy.lang.Binding getVariables");
-                // TODO does not work (fails in first build below) if you invoke as a(…) rather than a.call(…) without setting sandbox=false; get NoSuchMethodError: No such DSL method 'a' found among […]
-                jenkins.getWorkspaceFor(p).child("b.groovy").write("def m(arg) {echo \"binding=${binding.variables}\"; a.call(\"${arg} from b\")}; this", null);
+                jenkins.getWorkspaceFor(p).child("b.groovy").write("def m(arg) {echo \"binding=${binding.variables}\"; a(\"${arg} from b\")}; this", null);
                 // Control case:
-                p.setDefinition(new CpsFlowDefinition("a = 0; def b; node {a = load 'a.groovy'; b = load 'b.groovy'}; echo \"binding=${binding.variables}\"; b.m('value')", true));
+                // TODO if you enable sandbox here, build fails: NoSuchMethodError: No such DSL method 'a' found among […]
+                // SandboxInterceptor.onMethodCall is given Script2 as the receiver and "a" as the method, when really it should be asked about onGetProperty(Script2.a) followed by onMethodCall(Script1.call).
+                // Works fine if you use a.call(…) rather than a(…).
+                p.setDefinition(new CpsFlowDefinition("a = 0; def b; node {a = load 'a.groovy'; b = load 'b.groovy'}; echo \"binding=${binding.variables}\"; b.m('value')", false));
                 story.j.assertLogContains("a ran on value from b", story.j.assertBuildStatusSuccess(p.scheduleBuild2(0)));
                 // Test case:
-                p.setDefinition(new CpsFlowDefinition("a = 0; def b; node {a = load 'a.groovy'; b = load 'b.groovy'}; semaphore 'wait'; echo \"binding=${binding.variables}\"; b.m('value')", true));
+                p.setDefinition(new CpsFlowDefinition("a = 0; def b; node {a = load 'a.groovy'; b = load 'b.groovy'}; semaphore 'wait'; echo \"binding=${binding.variables}\"; b.m('value')", /* TODO ditto */false));
                 WorkflowRun b = p.scheduleBuild2(0).getStartCondition().get();
                 SemaphoreStep.waitForStart("wait/1", b);
             }
@@ -142,11 +144,11 @@ public class RestartingLoadStepTest {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 WorkflowJob p = jenkins.getItemByFullName("p", WorkflowJob.class);
-                WorkflowRun b = p.getBuildByNumber(1);
+                WorkflowRun b = p.getBuildByNumber(2);
                 SemaphoreStep.success("wait/1", null);
-                story.j.assertLogContains("a ran on value from b", story.j.waitForCompletion(b));
+                story.j.assertLogContains("a ran on value from b", story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b)));
                 // Better case:
-                jenkins.getWorkspaceFor(p).child("b.groovy").write("def m(a, arg) {a.call(\"${arg} from b\")}; this", null);
+                jenkins.getWorkspaceFor(p).child("b.groovy").write("def m(a, arg) {a(\"${arg} from b\")}; this", null);
                 p.setDefinition(new CpsFlowDefinition("def a; def b; node {a = load 'a.groovy'; b = load 'b.groovy'}; b.m(a, 'value')", true));
                 story.j.assertLogContains("a ran on value from b", story.j.assertBuildStatusSuccess(p.scheduleBuild2(0)));
             }
