@@ -58,9 +58,11 @@ import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.*;
@@ -214,9 +216,45 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         } else {
             try {
                 // execute this Describable through a meta-step
-                // TODO: split args to those that are given to Describable to those that are
-                // given to metaStep
-                return invokeStep(metaStep,ud.instantiate());
+
+                // split args between MetaStep (represented by mm) and Describable (represented by dm)
+                DescribableModel<?> mm = new DescribableModel(metaStep.clazz);
+                DescribableModel<?> dm = new DescribableModel(d.clazz);
+                DescribableParameter p = mm.getFirstRequiredParameter();
+
+                // order of preference:
+                //      1. mandatory parameter in mm
+                //      2. mandatory parameter in dm
+                //      3. other parameters in mm
+                //      4. other parameters in dm
+                // mm is preferred over dm because that way at least the arguments that dm defines
+                // act consistently
+                Map<String,Object> margs = new TreeMap<>();
+                Map<String,Object> dargs = new TreeMap<>();
+                for (Entry<String, ?> e : ud.getArguments().entrySet()) {
+                    String n = e.getKey();
+                    Object v = e.getValue();
+                    DescribableParameter mp = mm.getParameter(n);
+                    DescribableParameter dp = dm.getParameter(n);
+
+                    if (mp!=null && mp.isRequired()) {
+                        margs.put(n,v);
+                    } else
+                    if (dp!=null && dp.isRequired()) {
+                        dargs.put(n,v);
+                    } else
+                    if (mp!=null) {
+                        margs.put(n,v);
+                    } else {
+                        // dp might be null, but this error will be caught by UD.instantiate() later
+                        dargs.put(n,v);
+                    }
+                }
+
+                ud = new UninstantiatedDescribable(symbol, null, dargs);
+                margs.put(p.getName(),ud);
+
+                return invokeStep(metaStep,margs);
             } catch (Exception e) {
                 throw new IllegalArgumentException("Failed to prepare "+symbol+" step",e);
             }
@@ -247,13 +285,13 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * Finds a meta step that can handle a Describable of the given type 'd'
      */
     private StepDescriptor findMetaStep(Descriptor d) {
+        OUTER:
         for (StepDescriptor sd : StepDescriptor.all()) {
             if (sd.isMetaStep()) {
                 DescribableModel<?> m = new DescribableModel(sd.clazz);
-                for (DescribableParameter p : m.getParameters()) {
-                    if (p.isRequired() && p.getErasedType().isAssignableFrom(d.clazz)) {
-                        return sd;
-                    }
+                DescribableParameter p = m.getFirstRequiredParameter();
+                if (p!=null && p.getErasedType().isAssignableFrom(d.clazz)) {
+                    return sd;
                 }
             }
         }
