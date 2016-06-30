@@ -89,4 +89,15 @@ public class DSLTest {
         p.setDefinition(new CpsFlowDefinition("nevada()"));
         r.assertLogContains("All For Our Country", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
+
+    /**
+     * Single argument state
+     */
+    @Issue("JENKINS-29922")
+    @Test
+    public void dollar_class_must_die_onearg() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die4");
+        p.setDefinition(new CpsFlowDefinition("newYork 'Empire'"));
+        r.assertLogContains("The Empire State", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
 }
