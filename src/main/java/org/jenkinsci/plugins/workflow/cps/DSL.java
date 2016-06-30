@@ -265,13 +265,23 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * Used to parse arguments Groovy gave us into a Map that {@link UninstantiatedDescribable} expects.
      */
     private Map parseArgsToDescribable(Object args) {
+        if (args instanceof Object[]) {
+            Object[] ary = (Object[]) args;
+            switch (ary.length) {
+            case 0:
+                return Collections.emptyMap();
+            case 1:
+                args = ary[0];
+                break;
+            default:
+                throw new IllegalArgumentException("Expected named arguments but got "+Arrays.asList((Object[])args));
+            }
+        }
+
+
         if (args instanceof Map) {
             // this happens when named arguments are used, like: f(a:1, b:2)
             return (Map) args;
-        }
-
-        if (args instanceof Object[]) {
-            throw new IllegalArgumentException("Expected named arguments but got "+Arrays.asList((Object[])args));
         }
 
         if (args instanceof Closure) {

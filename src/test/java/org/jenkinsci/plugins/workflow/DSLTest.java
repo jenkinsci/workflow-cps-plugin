@@ -58,13 +58,24 @@ public class DSLTest {
     }
 
     /**
-     * Tests the avility to execute meta-step with clean syntax
+     * Tests the ability to execute meta-step with clean syntax
      */
     @Issue("JENKINS-29922")
     @Test
-    public void $class_must_die() throws Exception {
+    public void dollar_class_must_die() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "demo");
         p.setDefinition(new CpsFlowDefinition("california ocean:'pacific', mountain:'sierra'"));
-        r.assertLogContains("test echo: hello world", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+        r.assertLogContains("California from pacific to sierra", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
+
+    /**
+     * Split arguments between meta step and state
+     */
+    @Issue("JENKINS-29922")
+    @Test
+    public void dollar_class_must_die2() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "demo");
+        p.setDefinition(new CpsFlowDefinition("california ocean:'pacific', mountain:'sierra', moderate:true"));
+        r.assertLogContains("Introducing california\nCalifornia from pacific to sierra", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
 }
