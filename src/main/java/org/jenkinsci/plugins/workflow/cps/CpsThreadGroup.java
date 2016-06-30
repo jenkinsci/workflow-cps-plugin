@@ -61,7 +61,6 @@ import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
 import javax.annotation.Nonnull;
-import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
@@ -371,15 +370,7 @@ public final class CpsThreadGroup implements Serializable {
             } finally {
                 w.close();
             }
-            try {
-                Class.forName("java.nio.file.Files");
-                rename(tmpFile, f);
-            } catch (ClassNotFoundException x) { // Java 6
-                Util.deleteFile(f);
-                if (!tmpFile.renameTo(f)) {
-                    throw new IOException("rename " + tmpFile + " to " + f + " failed");
-                }
-            }
+            Files.move(tmpFile.toPath(), f.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             LOGGER.log(FINE, "program state saved");
         } catch (RuntimeException e) {
             LOGGER.log(WARNING, "program state save failed",e);
@@ -393,10 +384,6 @@ public final class CpsThreadGroup implements Serializable {
             PROGRAM_STATE_SERIALIZATION.set(old);
             Util.deleteFile(tmpFile);
         }
-    }
-    @IgnoreJRERequirement
-    private static void rename(File from, File to) throws IOException {
-        Files.move(from.toPath(), to.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
     }
 
     /**
