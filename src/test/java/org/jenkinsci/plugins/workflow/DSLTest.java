@@ -30,6 +30,7 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 /**
@@ -56,4 +57,14 @@ public class DSLTest {
         r.assertLogContains("What is the message?", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
 
+    /**
+     * Tests the avility to execute meta-step with clean syntax
+     */
+    @Issue("JENKINS-29922")
+    @Test
+    public void $class_must_die() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "demo");
+        p.setDefinition(new CpsFlowDefinition("california ocean:'pacific', mountain:'sierra'"));
+        r.assertLogContains("test echo: hello world", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
 }
