@@ -278,7 +278,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             }
         }
 
-
         if (args instanceof Map) {
             // this happens when named arguments are used, like: f(a:1, b:2)
             return (Map) args;
