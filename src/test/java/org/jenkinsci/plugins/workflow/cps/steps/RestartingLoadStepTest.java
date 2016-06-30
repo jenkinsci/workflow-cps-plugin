@@ -9,7 +9,6 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.junit.Assert.*;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runners.model.Statement;
@@ -125,7 +124,6 @@ public class RestartingLoadStepTest {
     }
 
     @Issue("JENKINS-36372")
-    @Ignore("TODO Script2 after resume gets a binding only for steps=DSL, not a=Script1")
     @Test public void accessToSiblingScripts() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
