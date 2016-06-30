@@ -215,6 +215,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         } else {
             try {
                 // execute this Describable through a meta-step
+                // TODO: split args to those that are given to Describable to those that are
+                // given to metaStep
                 return invokeStep(metaStep,ud.instantiate());
             } catch (Exception e) {
                 throw new IllegalArgumentException("Failed to prepare "+symbol+" step",e);
