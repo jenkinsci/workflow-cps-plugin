@@ -296,13 +296,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      */
     private StepDescriptor findMetaStep(Descriptor d) {
         OUTER:
-        for (StepDescriptor sd : StepDescriptor.all()) {
-            if (sd.isMetaStep()) {
-                DescribableModel<?> m = new DescribableModel(sd.clazz);
-                DescribableParameter p = m.getFirstRequiredParameter();
-                if (p!=null && p.getErasedType().isAssignableFrom(d.clazz)) {
-                    return sd;
-                }
+        for (StepDescriptor sd : StepDescriptor.allMeta()) {
+            if (sd.getMetaStepArgumentType().isAssignableFrom(d.clazz)) {
+                return sd;
             }
         }
         return null;
