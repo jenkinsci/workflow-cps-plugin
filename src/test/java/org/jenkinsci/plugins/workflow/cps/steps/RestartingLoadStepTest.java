@@ -126,6 +126,7 @@ public class RestartingLoadStepTest {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 WorkflowJob p = jenkins.createProject(WorkflowJob.class, "p");
+                // TODO does not work if you rename [a.]m to call and invoke as a(…) without setting sandbox=false; get NoSuchMethodError: No such DSL method 'a' found among […]
                 jenkins.getWorkspaceFor(p).child("a.groovy").write("def m(arg) {echo \"a ran on ${arg}\"}; this", null);
                 ScriptApproval.get().approveSignature("method groovy.lang.Binding getVariables");
                 jenkins.getWorkspaceFor(p).child("b.groovy").write("def m(arg) {echo \"binding=${binding.variables}\"; a.m(\"${arg} from b\")}; this", null);
