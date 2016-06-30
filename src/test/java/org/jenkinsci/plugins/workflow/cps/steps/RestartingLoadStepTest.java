@@ -126,10 +126,10 @@ public class RestartingLoadStepTest {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 WorkflowJob p = jenkins.createProject(WorkflowJob.class, "p");
-                // TODO does not work if you rename [a.]m to call and invoke as a(…) without setting sandbox=false; get NoSuchMethodError: No such DSL method 'a' found among […]
-                jenkins.getWorkspaceFor(p).child("a.groovy").write("def m(arg) {echo \"a ran on ${arg}\"}; this", null);
+                jenkins.getWorkspaceFor(p).child("a.groovy").write("def call(arg) {echo \"a ran on ${arg}\"}; this", null);
                 ScriptApproval.get().approveSignature("method groovy.lang.Binding getVariables");
-                jenkins.getWorkspaceFor(p).child("b.groovy").write("def m(arg) {echo \"binding=${binding.variables}\"; a.m(\"${arg} from b\")}; this", null);
+                // TODO does not work (fails in first build below) if you invoke as a(…) rather than a.call(…) without setting sandbox=false; get NoSuchMethodError: No such DSL method 'a' found among […]
+                jenkins.getWorkspaceFor(p).child("b.groovy").write("def m(arg) {echo \"binding=${binding.variables}\"; a.call(\"${arg} from b\")}; this", null);
                 // Control case:
                 p.setDefinition(new CpsFlowDefinition("a = 0; def b; node {a = load 'a.groovy'; b = load 'b.groovy'}; echo \"binding=${binding.variables}\"; b.m('value')", true));
                 story.j.assertLogContains("a ran on value from b", story.j.assertBuildStatusSuccess(p.scheduleBuild2(0)));
@@ -146,7 +146,7 @@ public class RestartingLoadStepTest {
                 SemaphoreStep.success("wait/1", null);
                 story.j.assertLogContains("a ran on value from b", story.j.waitForCompletion(b));
                 // Better case:
-                jenkins.getWorkspaceFor(p).child("b.groovy").write("def m(a, arg) {a.m(\"${arg} from b\")}; this", null);
+                jenkins.getWorkspaceFor(p).child("b.groovy").write("def m(a, arg) {a.call(\"${arg} from b\")}; this", null);
                 p.setDefinition(new CpsFlowDefinition("def a; def b; node {a = load 'a.groovy'; b = load 'b.groovy'}; b.m(a, 'value')", true));
                 story.j.assertLogContains("a ran on value from b", story.j.assertBuildStatusSuccess(p.scheduleBuild2(0)));
             }
