@@ -30,7 +30,12 @@ import groovy.lang.Closure;
 import groovy.lang.GString;
 import groovy.lang.GroovyObject;
 import groovy.lang.GroovyObjectSupport;
+import hudson.model.Describable;
+import hudson.model.Descriptor;
 import hudson.model.TaskListener;
+import org.jenkinsci.plugins.structs.describable.DescribableModel;
+import org.jenkinsci.plugins.structs.describable.DescribableParameter;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
@@ -45,6 +50,7 @@ import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.structs.SymbolLookup;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -59,6 +65,8 @@ import java.util.TreeMap;
 
 import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+
+import org.jvnet.tiger_types.Types;
 import org.kohsuke.stapler.ClassDescriptor;
 
 /**
@@ -98,16 +106,27 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
 
         if (functions == null) {
-            functions = new TreeMap<String,StepDescriptor>();
+            functions = new TreeMap<>();
             for (StepDescriptor d : StepDescriptor.all()) {
                 functions.put(d.getFunctionName(), d);
             }
         }
-        final StepDescriptor d = functions.get(name);
-        if (d == null) {
-            throw new NoSuchMethodError("No such DSL method '" + name + "' found among " + functions.keySet());
+        final StepDescriptor sd = functions.get(name);
+        if (sd != null) {
+            return invokeStep(sd,args);
+        }
+        Descriptor d = SymbolLookup.get().findDescriptor(Describable.class, name);
+        if (d != null) {
+            return invokeDescribable(d,name,args);
         }
 
+        throw new NoSuchMethodError("No such DSL method '" + name + "' found among " + functions.keySet());
+    }
+
+    /**
+     * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
+     */
+    private Object invokeStep(StepDescriptor d, Object args) {
         final NamedArgsAndClosure ps = parseArgs(d,args);
 
         CpsThread thread = CpsThread.current();
@@ -172,6 +191,52 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // so the execution will never reach here.
             throw new AssertionError();
         }
+    }
+
+    /**
+     * When {@link #invokeMethod(String, Object)} is calling a generic {@link Descriptor}
+     */
+    private Object invokeDescribable(Descriptor d, String symbol, Object args) {
+        // TODO: when args is not a map
+        UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, (Map) args);
+
+        StepDescriptor metaStep = findMetaStep(d);
+        if (metaStep==null) {
+            // there's no meta-step associated with it, so this symbol is not executable.
+            // in this case we assume this is building a nested object used as an eventual
+            // parameter of an executable symbol, e.g.,
+            //
+            // hg source: 'https://whatever/', clean: true, browser: kallithea('https://whatever/')
+
+            // also note that in this case 'd' is not trustworthy, as depending on
+            // where this UninstantiatedDescribable is ultimately used, the symbol
+            // might be resolved with a specific type.
+            return ud;
+        } else {
+            try {
+                // execute this Describable through a meta-step
+                return invokeStep(metaStep,ud.instantiate());
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Failed to prepare "+symbol+" step",e);
+            }
+        }
+    }
+
+    /**
+     * Finds a meta step that can handle a Describable of the given type 'd'
+     */
+    private StepDescriptor findMetaStep(Descriptor d) {
+        for (StepDescriptor sd : StepDescriptor.all()) {
+            if (sd.isMetaStep()) {
+                DescribableModel<?> m = new DescribableModel(sd.clazz);
+                for (DescribableParameter p : m.getParameters()) {
+                    if (p.isRequired() && p.getErasedType().isAssignableFrom(d.clazz)) {
+                        return sd;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     /**
