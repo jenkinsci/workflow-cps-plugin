@@ -197,8 +197,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * When {@link #invokeMethod(String, Object)} is calling a generic {@link Descriptor}
      */
     private Object invokeDescribable(Descriptor d, String symbol, Object args) {
-        // TODO: when args is not a map
-        UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, (Map) args);
+        UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, parseArgsToDescribable(args));
 
         StepDescriptor metaStep = findMetaStep(d);
         if (metaStep==null) {
@@ -222,6 +221,26 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 throw new IllegalArgumentException("Failed to prepare "+symbol+" step",e);
             }
         }
+    }
+
+    /**
+     * Used to parse arguments Groovy gave us into a Map that {@link UninstantiatedDescribable} expects.
+     */
+    private Map parseArgsToDescribable(Object args) {
+        if (args instanceof Map) {
+            // this happens when named arguments are used, like: f(a:1, b:2)
+            return (Map) args;
+        }
+
+        if (args instanceof Object[]) {
+            throw new IllegalArgumentException("Expected named arguments but got "+Arrays.asList((Object[])args));
+        }
+
+        if (args instanceof Closure) {
+            throw new IllegalArgumentException("Block is not expected");
+        }
+
+        return Collections.singletonMap(UninstantiatedDescribable.ANONYMOUS_KEY,args);
     }
 
     /**
