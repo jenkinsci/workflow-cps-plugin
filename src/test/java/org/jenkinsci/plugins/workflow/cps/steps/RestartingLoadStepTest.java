@@ -2,6 +2,7 @@ package org.jenkinsci.plugins.workflow.cps.steps;
 
 import javax.inject.Inject;
 import jenkins.model.Jenkins;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -120,4 +121,35 @@ public class RestartingLoadStepTest {
             }
         });
     }
+
+    @Test public void accessToSiblingScripts() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = jenkins.createProject(WorkflowJob.class, "p");
+                jenkins.getWorkspaceFor(p).child("a.groovy").write("def m(arg) {echo \"a ran on ${arg}\"}; this", null);
+                ScriptApproval.get().approveSignature("method groovy.lang.Binding getVariables");
+                jenkins.getWorkspaceFor(p).child("b.groovy").write("def m(arg) {echo \"binding=${binding.variables}\"; a.m(\"${arg} from b\")}; this", null);
+                // Control case:
+                p.setDefinition(new CpsFlowDefinition("a = 0; def b; node {a = load 'a.groovy'; b = load 'b.groovy'}; echo \"binding=${binding.variables}\"; b.m('value')", true));
+                story.j.assertLogContains("a ran on value from b", story.j.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+                // Test case:
+                p.setDefinition(new CpsFlowDefinition("a = 0; def b; node {a = load 'a.groovy'; b = load 'b.groovy'}; semaphore 'wait'; echo \"binding=${binding.variables}\"; b.m('value')", true));
+                WorkflowRun b = p.scheduleBuild2(0).getStartCondition().get();
+                SemaphoreStep.waitForStart("wait/1", b);
+            }
+        });
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = jenkins.getItemByFullName("p", WorkflowJob.class);
+                WorkflowRun b = p.getBuildByNumber(1);
+                SemaphoreStep.success("wait/1", null);
+                story.j.assertLogContains("a ran on value from b", story.j.waitForCompletion(b));
+                // Better case:
+                jenkins.getWorkspaceFor(p).child("b.groovy").write("def m(a, arg) {a.m(\"${arg} from b\")}; this", null);
+                p.setDefinition(new CpsFlowDefinition("def a; def b; node {a = load 'a.groovy'; b = load 'b.groovy'}; b.m(a, 'value')", true));
+                story.j.assertLogContains("a ran on value from b", story.j.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+            }
+        });
+    }
+
 }
