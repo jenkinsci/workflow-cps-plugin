@@ -9,10 +9,12 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.junit.Assert.*;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
@@ -122,21 +124,23 @@ public class RestartingLoadStepTest {
         });
     }
 
+    @Issue("JENKINS-36372")
+    @Ignore("TODO Script2 after resume gets a binding only for steps=DSL, not a=Script1")
     @Test public void accessToSiblingScripts() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 WorkflowJob p = jenkins.createProject(WorkflowJob.class, "p");
                 jenkins.getWorkspaceFor(p).child("a.groovy").write("def call(arg) {echo \"a ran on ${arg}\"}; this", null);
                 ScriptApproval.get().approveSignature("method groovy.lang.Binding getVariables");
-                jenkins.getWorkspaceFor(p).child("b.groovy").write("def m(arg) {echo \"binding=${binding.variables}\"; a(\"${arg} from b\")}; this", null);
+                jenkins.getWorkspaceFor(p).child("b.groovy").write("def m(arg) {echo \"${this} binding=${binding.variables}\"; a(\"${arg} from b\")}; this", null);
                 // Control case:
                 // TODO if you enable sandbox here, build fails: NoSuchMethodError: No such DSL method 'a' found among […]
                 // SandboxInterceptor.onMethodCall is given Script2 as the receiver and "a" as the method, when really it should be asked about onGetProperty(Script2.a) followed by onMethodCall(Script1.call).
                 // Works fine if you use a.call(…) rather than a(…).
-                p.setDefinition(new CpsFlowDefinition("a = 0; def b; node {a = load 'a.groovy'; b = load 'b.groovy'}; echo \"binding=${binding.variables}\"; b.m('value')", false));
+                p.setDefinition(new CpsFlowDefinition("a = 0; node {a = load 'a.groovy'}; def b; node {b = load 'b.groovy'}; echo \"${this} binding=${binding.variables}\"; b.m('value')", false));
                 story.j.assertLogContains("a ran on value from b", story.j.assertBuildStatusSuccess(p.scheduleBuild2(0)));
                 // Test case:
-                p.setDefinition(new CpsFlowDefinition("a = 0; def b; node {a = load 'a.groovy'; b = load 'b.groovy'}; semaphore 'wait'; echo \"binding=${binding.variables}\"; b.m('value')", /* TODO ditto */false));
+                p.setDefinition(new CpsFlowDefinition("a = 0; node {a = load 'a.groovy'}; semaphore 'wait'; def b; node {b = load 'b.groovy'}; echo \"${this} binding=${binding.variables}\"; b.m('value')", /* TODO ditto */false));
                 WorkflowRun b = p.scheduleBuild2(0).getStartCondition().get();
                 SemaphoreStep.waitForStart("wait/1", b);
             }
