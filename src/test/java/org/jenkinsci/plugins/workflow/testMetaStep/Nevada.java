@@ -1,7 +1,6 @@
 package org.jenkinsci.plugins.workflow.testMetaStep;
 
 import hudson.Extension;
-import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
 import org.jenkinsci.Symbol;
@@ -9,27 +8,24 @@ import org.jenkinsci.plugins.workflow.DSLTest;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
- * Example of {@link Describable} with lots of arguments.
+ * Example of zero-arg Describable
  *
  * @author Kohsuke Kawaguchi
- * @see DSLTest#dollar_class_must_die()
+ * @see DSLTest#dollar_class_must_die3()
  */
-public class California extends State {
-    private final String ocean;
-    private final String mountain;
+public class Nevada extends State {
 
     @DataBoundConstructor
-    public California(String ocean, String mountain) {
-        this.ocean = ocean;
-        this.mountain = mountain;
+    public Nevada() {
     }
 
     @Override
     public void sayHello(TaskListener hello) {
-        hello.getLogger().println("California from "+ocean+" to "+mountain);
+        hello.getLogger().println("All For Our Country");
     }
 
-    @Extension @Symbol("california")
+    @Extension
+    @Symbol("nevada")
     public static class DescriptorImpl extends Descriptor<State> {
     }
 }

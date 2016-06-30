@@ -63,7 +63,7 @@ public class DSLTest {
     @Issue("JENKINS-29922")
     @Test
     public void dollar_class_must_die() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "demo");
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die1");
         p.setDefinition(new CpsFlowDefinition("california ocean:'pacific', mountain:'sierra'"));
         r.assertLogContains("California from pacific to sierra", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
@@ -74,8 +74,19 @@ public class DSLTest {
     @Issue("JENKINS-29922")
     @Test
     public void dollar_class_must_die2() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "demo");
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die2");
         p.setDefinition(new CpsFlowDefinition("california ocean:'pacific', mountain:'sierra', moderate:true"));
         r.assertLogContains("Introducing california\nCalifornia from pacific to sierra", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
+
+    /**
+     * Split arguments between meta step and state
+     */
+    @Issue("JENKINS-29922")
+    @Test
+    public void dollar_class_must_die3() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die3");
+        p.setDefinition(new CpsFlowDefinition("nevada()"));
+        r.assertLogContains("All For Our Country", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
 }
