@@ -114,13 +114,19 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
         owner = r;
     }
 
-    public static @Nonnull EnvActionImpl forRun(@Nonnull Run<?,?> run) {
-        EnvActionImpl action = run.getAction(EnvActionImpl.class);
-        if (action == null) {
-            action = new EnvActionImpl();
-            run.addAction(action);
+    /**
+     * Gets the singleton instance for a given build, creating it on demand.
+     */
+    public static @Nonnull EnvActionImpl forRun(@Nonnull Run<?,?> run) throws IOException {
+        synchronized (run) {
+            EnvActionImpl action = run.getAction(EnvActionImpl.class);
+            if (action == null) {
+                action = new EnvActionImpl();
+                run.addAction(action);
+                run.save();
+            }
+            return action;
         }
-        return action;
     }
 
     @Extension public static class Binder extends GlobalVariable {
