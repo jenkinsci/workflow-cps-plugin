@@ -26,10 +26,15 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import hudson.Extension;
 import hudson.Functions;
+import hudson.model.Action;
+import hudson.model.Descriptor;
+import hudson.model.DescriptorByNameOwner;
+import hudson.model.Item;
+import hudson.model.Job;
 import hudson.model.RootAction;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -37,9 +42,10 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
 import javax.lang.model.SourceVersion;
-import javax.servlet.ServletException;
 import jenkins.model.Jenkins;
+import jenkins.model.TransientActionFactory;
 import net.sf.json.JSONObject;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -51,13 +57,11 @@ import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
 
 /**
  * Takes a {@link Step} as configured through the UI and tries to produce equivalent Groovy code.
- * Render using: {@code <st:include it="${theSnippetizerInstance}" page="block.jelly"/>}
  */
-@Extension public class Snippetizer implements RootAction {
+@Extension public class Snippetizer implements RootAction, DescriptorByNameOwner {
     
     static String object2Groovy(Object o) throws UnsupportedOperationException {
         Class<? extends Object> clazz = o.getClass();
@@ -159,7 +163,7 @@ import org.kohsuke.stapler.StaplerResponse;
         }
     }
 
-    private static final String ACTION_URL = "workflow-cps-snippetizer";
+    public static final String ACTION_URL = "pipeline-syntax";
 
     @Override public String getUrlName() {
         return ACTION_URL;
@@ -170,7 +174,12 @@ import org.kohsuke.stapler.StaplerResponse;
     }
 
     @Override public String getDisplayName() {
+        // Do not want to add to main Jenkins sidepanel.
         return null;
+    }
+
+    @Override public Descriptor getDescriptorByName(String id) {
+        return Jenkins.getActiveInstance().getDescriptorByName(id);
     }
 
     @Restricted(DoNotUse.class)
@@ -188,14 +197,6 @@ import org.kohsuke.stapler.StaplerResponse;
     public Iterable<GlobalVariable> getGlobalVariables() {
         // TODO order TBD. Alphabetical? Extension.ordinal?
         return GlobalVariable.ALL;
-    }
-
-    @Restricted(NoExternalUse.class)
-    public static final String HELP_URL = ACTION_URL + "/help";
-
-    @Restricted(DoNotUse.class)
-    public void doHelp(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException {
-        rsp.serveLocalizedFile(req, Snippetizer.class.getResource("Snippetizer/help.html"));
     }
 
     @Restricted(NoExternalUse.class)
@@ -227,17 +228,10 @@ import org.kohsuke.stapler.StaplerResponse;
         }
     }
 
-    @Restricted(NoExternalUse.class)
-    public static final String GDSL_URL = ACTION_URL + "/gdsl";
-
-    @Restricted(NoExternalUse.class)
-    public static final String DSLD_URL = ACTION_URL + "/dsld";
-
-    @Restricted(NoExternalUse.class)
-    public static final String DSL_REF_URL = ACTION_URL + "/dslReference";
-
-    @Restricted(NoExternalUse.class)
-    public static final String DSL_HELP_URL = ACTION_URL + "/dslHelp";
+    @Restricted(DoNotUse.class) // for stapler
+    public @CheckForNull Item getItem(StaplerRequest req) {
+         return req.findAncestorObject(Item.class);
+    }
 
     private static class StepDescriptorComparator implements Comparator<StepDescriptor>, Serializable {
         @Override
@@ -245,6 +239,42 @@ import org.kohsuke.stapler.StaplerResponse;
             return o1.getFunctionName().compareTo(o2.getFunctionName());
         }
         private static final long serialVersionUID = 1L;
+    }
+
+    @Restricted(DoNotUse.class)
+    @Extension public static class PerJobAdder extends TransientActionFactory<Job> {
+
+        @Override public Class<Job> type() {
+            return Job.class;
+        }
+
+        @Override public Collection<? extends Action> createFor(Job target) {
+            // TODO probably want an API for FlowExecutionContainer or something
+            if (target.getClass().getName().equals("org.jenkinsci.plugins.workflow.job.WorkflowJob") && target.hasPermission(Item.EXTENDED_READ)) {
+                return Collections.singleton(new LocalAction());
+            } else {
+                return Collections.emptySet();
+            }
+        }
+
+    }
+
+    /**
+     * May be added to various contexts to offer the Pipeline Groovy link where it is appropriate.
+     * To use, define a {@link TransientActionFactory} of some kind of {@link Item}.
+     * If the target {@link Item#hasPermission} {@link Item#EXTENDED_READ},
+     * return one {@link LocalAction}. Otherwise return an empty set.
+     */
+    public static class LocalAction extends Snippetizer {
+
+        @Override public String getDisplayName() {
+            return "Pipeline Syntax";
+        }
+
+        public String getIconClassName() {
+            return "icon-help";
+        }
+
     }
 
 }

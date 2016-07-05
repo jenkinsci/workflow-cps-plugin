@@ -64,7 +64,8 @@ samples.push({
         "   }\n" +
         "   stage('Build') {\n" +
         "      // Run the maven build\n" +
-        "      sh \"${mvnHome}/bin/mvn clean install\"\n" +
+        "      sh \"${mvnHome}/bin/mvn -Dmaven.test.failure.ignore clean package\"\n" +
+        "      step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/TEST-*.xml'])\n" +
         "   }\n" +
         "}"
 });

@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
 import jenkins.model.RunAction2;
 import org.jenkinsci.plugins.workflow.steps.EnvironmentExpander;
 import org.jenkinsci.plugins.workflow.support.actions.EnvironmentAction;
@@ -113,6 +114,21 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
         owner = r;
     }
 
+    /**
+     * Gets the singleton instance for a given build, creating it on demand.
+     */
+    public static @Nonnull EnvActionImpl forRun(@Nonnull Run<?,?> run) throws IOException {
+        synchronized (run) {
+            EnvActionImpl action = run.getAction(EnvActionImpl.class);
+            if (action == null) {
+                action = new EnvActionImpl();
+                run.addAction(action);
+                run.save();
+            }
+            return action;
+        }
+    }
+
     @Extension public static class Binder extends GlobalVariable {
         @Override public String getName() {
             return "env";
@@ -120,12 +136,7 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
         @Override public Object getValue(CpsScript script) throws Exception {
             Run<?,?> run = script.$build();
             if (run != null) {
-                EnvActionImpl action = run.getAction(EnvActionImpl.class);
-                if (action == null) {
-                    action = new EnvActionImpl();
-                    run.addAction(action);
-                }
-                return action;
+                return forRun(run);
             } else {
                 throw new IllegalStateException("no associated build");
             }

@@ -2,7 +2,7 @@
 <!--
 The MIT License
 
-Copyright 2015 Jesse Glick.
+Copyright 2016 CloudBees, Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,11 +23,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 
-<!-- Deprecated, but kept for compatibility -->
-
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
-    <f:block>
-        <a href="${rootURL}/${it.ACTION_URL}" target="_blank">${%Pipeline Syntax}</a>
-    </f:block>
-</j:jelly>
+<div>
+    <p>
+        Global variables are available in Pipeline directly, not as steps. They expose methods and variables to be accessed within your Pipeline script.
+    </p>
+</div>

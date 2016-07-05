@@ -7,9 +7,11 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.junit.Assert.*;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runners.model.Statement;
+import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
@@ -19,6 +21,8 @@ import org.jvnet.hudson.test.RestartableJenkinsRule;
  * @author Kohsuke Kawaguchi
  */
 public class RestartingLoadStepTest {
+
+    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
 
     @Inject
@@ -34,8 +38,8 @@ public class RestartingLoadStepTest {
                 WorkflowJob p = jenkins.createProject(WorkflowJob.class, "p");
                 jenkins.getWorkspaceFor(p).child("test.groovy").write(
                     "def answer(i) { return i*2; }\n" +
-                    "def foo() {\n" +
-                    "    def i=21;\n" +
+                    "def foo(body) {\n" +
+                    "    def i = body()\n" +
                     "    semaphore 'watchA'\n" +
                     "    return answer(i);\n" +
                     "}\n" +
@@ -44,7 +48,7 @@ public class RestartingLoadStepTest {
                     "node {\n" +
                     "  println 'started'\n" +
                     "  def o = load 'test.groovy'\n" +
-                    "  println 'o=' + o.foo();\n" +
+                    "  println 'o=' + o.foo({21})\n" +
                     "}"));
 
                 // get the build going

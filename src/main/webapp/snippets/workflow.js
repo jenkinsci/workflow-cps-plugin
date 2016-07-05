@@ -96,7 +96,7 @@ snippet readFile (from workspace)\n\
 	def text = readFile '${1}'\n\
 # writeFile \n\
 snippet writeFile (to workspace)\n\
-	writeFile file: '${1}', text '${2}'\n\
+	writeFile file: '${1}', text: '${2}'\n\
 # fileExists \n\
 snippet fileExists (in workspace)\n\
 	fileExists('${1}')\n\

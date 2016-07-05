@@ -57,6 +57,7 @@ import org.jenkinsci.plugins.workflow.steps.PwdStep;
 import org.jenkinsci.plugins.workflow.steps.ReadFileStep;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+// TODO these tests would better be moved to the respective plugins
 import org.jenkinsci.plugins.workflow.support.steps.ExecutorStep;
 import org.jenkinsci.plugins.workflow.support.steps.WorkspaceStep;
 import org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep;
@@ -207,10 +208,17 @@ public class SnippetizerTest {
     @Issue("JENKINS-26126")
     @Test public void doDslRef() throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
-        String html = wc.goTo(Snippetizer.DSL_REF_URL).getWebResponse().getContentAsString();
+        String html = wc.goTo(Snippetizer.ACTION_URL + "/html").getWebResponse().getContentAsString();
         assertThat("text from LoadStep/help-path.html is included", html, containsString("the Groovy file to load"));
         assertThat("SubversionSCM.workspaceUpdater is mentioned as an attribute of a value of GenericSCMStep.delegate", html, containsString("workspaceUpdater"));
         assertThat("CheckoutUpdater is mentioned as an option", html, containsString("CheckoutUpdater"));
+        assertThat("content is written to the end", html, containsString("</body></html>"));
+    }
+
+    @Issue("JENKINS-35395")
+    @Test public void doGlobalsRef() throws Exception {
+        JenkinsRule.WebClient wc = r.createWebClient();
+        String html = wc.goTo(Snippetizer.ACTION_URL + "/globals").getWebResponse().getContentAsString();
         assertThat("text from RunWrapperBinder/help.jelly is included", html, containsString("may be used to refer to the currently running build"));
         assertThat("content is written to the end", html, containsString("</body></html>"));
     }
@@ -218,7 +226,7 @@ public class SnippetizerTest {
     @Issue("JENKINS-26126")
     @Test public void doGdsl() throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
-        String gdsl = wc.goTo(Snippetizer.GDSL_URL, "text/plain").getWebResponse().getContentAsString();
+        String gdsl = wc.goTo(Snippetizer.ACTION_URL + "/gdsl", "text/plain").getWebResponse().getContentAsString();
         assertThat("Description is included as doc", gdsl, containsString("Build a job"));
         assertThat("Timeout step appears", gdsl, containsString("name: 'timeout'"));
 
@@ -230,7 +238,7 @@ public class SnippetizerTest {
     @Issue("JENKINS-26126")
     @Test public void doDsld() throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
-        String dsld = wc.goTo(Snippetizer.DSLD_URL, "text/plain").getWebResponse().getContentAsString();
+        String dsld = wc.goTo(Snippetizer.ACTION_URL + "/dsld", "text/plain").getWebResponse().getContentAsString();
         assertThat("Description is included as doc", dsld, containsString("Build a job"));
         assertThat("Timeout step appears", dsld, containsString("name: 'timeout'"));
 

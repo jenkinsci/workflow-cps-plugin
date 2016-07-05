@@ -94,6 +94,7 @@ import java.util.logging.Logger;
 
 import static com.thoughtworks.xstream.io.ExtendedHierarchicalStreamWriterHelper.*;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import groovy.lang.GroovyCodeSource;
 import hudson.BulkChange;
 import hudson.init.Terminator;
 import hudson.model.Queue;
@@ -101,11 +102,12 @@ import hudson.model.Saveable;
 import hudson.model.User;
 import hudson.security.ACL;
 import java.beans.Introspector;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.annotation.CheckForNull;
 import javax.annotation.concurrent.GuardedBy;
+import jenkins.security.NotReallyRoleSensitiveCallable;
 
 import org.acegisecurity.Authentication;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
@@ -203,7 +205,7 @@ public class CpsFlowExecution extends FlowExecution {
     private final String script;
 
     /**
-     * Any additional scripts {@linkplain CpsGroovyShell#parse(String) parsed} afterward, keyed by
+     * Any additional scripts {@linkplain CpsGroovyShell#parse(GroovyCodeSource) parsed} afterward, keyed by
      * their FQCN.
      */
     /*package*/ /*final*/ Map<String,String> loadedScripts = new HashMap<String, String>();
@@ -220,6 +222,7 @@ public class CpsFlowExecution extends FlowExecution {
      * @see #runInCpsVmThread(FutureCallback)
      */
     public transient volatile ListenableFuture<CpsThreadGroup> programPromise;
+    private transient volatile Collection<ListenableFuture<?>> pickleFutures;
 
     /**
      * Recreated from {@link #owner}
@@ -458,10 +461,11 @@ public class CpsFlowExecution extends FlowExecution {
 
             final RiverReader r = new RiverReader(programDataFile, scriptClass.getClassLoader(), owner);
             Futures.addCallback(
-                    r.restorePickles(),
+                    r.restorePickles(pickleFutures = new ArrayList<>()),
 
                     new FutureCallback<Unmarshaller>() {
                         public void onSuccess(Unmarshaller u) {
+                            pickleFutures = null;
                             try {
                             CpsFlowExecution old = PROGRAM_STATE_SERIALIZATION.get();
                             PROGRAM_STATE_SERIALIZATION.set(CpsFlowExecution.this);
@@ -534,7 +538,8 @@ public class CpsFlowExecution extends FlowExecution {
                 t.resume(new Outcome(null,null));
             }
             @Override public void onFailure(Throwable t) {
-                LOGGER.log(Level.WARNING, null, t);
+                LOGGER.log(Level.WARNING, "Failed to set program failure on " + owner, t);
+                onProgramEnd(new Outcome(null, t));
             }
         });
     }
@@ -676,7 +681,22 @@ public class CpsFlowExecution extends FlowExecution {
         if (!programPromise.isDone()) {
             // CpsThreadGroup state isn't ready yet, but this is probably one of the common cases
             // when one wants to obtain the stack trace. Cf. JENKINS-26130.
-            return CpsThreadDump.UNKNOWN;
+            Collection<ListenableFuture<?>> _pickleFutures = pickleFutures;
+            if (_pickleFutures != null) {
+                StringBuilder b = new StringBuilder("Program is not yet loaded");
+                for (ListenableFuture<?> pickleFuture : _pickleFutures) {
+                    b.append("\n\t").append(pickleFuture);
+                    if (pickleFuture.isCancelled()) {
+                        b.append(" (cancelled)");
+                    }
+                    if (pickleFuture.isDone()) {
+                        b.append(" (complete)");
+                    }
+                }
+                return CpsThreadDump.fromText(b.toString());
+            } else {
+                return CpsThreadDump.fromText("Program state is unknown");
+            }
         }
 
         try {
@@ -749,25 +769,42 @@ public class CpsFlowExecution extends FlowExecution {
     public void interrupt(Result result, CauseOfInterruption... causes) throws IOException, InterruptedException {
         setResult(result);
 
+        LOGGER.log(Level.FINE, "Interrupting {0} as {1}", new Object[] {owner, result});
         final FlowInterruptedException ex = new FlowInterruptedException(result,causes);
 
         // stop all ongoing activities
         Futures.addCallback(getCurrentExecutions(/* cf. JENKINS-26148 */true), new FutureCallback<List<StepExecution>>() {
             @Override
             public void onSuccess(List<StepExecution> l) {
+                LOGGER.log(Level.FINE, "Interrupt of {0} processed on {1}", new Object[] {owner, l});
                 for (StepExecution e : Iterators.reverse(l)) {
                     try {
                         e.stop(ex);
                     } catch (Exception x) {
-                        LOGGER.log(Level.WARNING, "Failed to abort " + CpsFlowExecution.this.toString(), x);
+                        LOGGER.log(Level.WARNING, "Failed to abort " + owner, x);
                     }
                 }
             }
 
             @Override
             public void onFailure(Throwable t) {
+                LOGGER.log(Level.WARNING, "Failed to interrupt steps in " + owner, t);
             }
         });
+
+        // If we are still rehydrating pickles, try to stop that now.
+        Collection<ListenableFuture<?>> futures = pickleFutures;
+        if (futures != null) {
+            LOGGER.log(Level.FINE, "We are still rehydrating pickles in {0}", owner);
+            for (ListenableFuture<?> future : futures) {
+                if (!future.isDone()) {
+                    LOGGER.log(Level.FINE, "Trying to cancel {0} for {1}", new Object[] {future, owner});
+                    if (!future.cancel(true)) {
+                        LOGGER.log(Level.WARNING, "Failed to cancel {0} for {1}", new Object[] {future, owner});
+                    }
+                }
+            }
+        }
     }
 
     @Override
@@ -885,19 +922,24 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     @Restricted(DoNotUse.class)
-    @Terminator public static void suspendAll() throws InterruptedException, ExecutionException, TimeoutException {
-        LOGGER.fine("starting to suspend all executions");
-        for (FlowExecution execution : FlowExecutionList.get()) {
-            if (execution instanceof CpsFlowExecution) {
-                LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
-                CpsFlowExecution exec = (CpsFlowExecution) execution;
-                // Like waitForSuspension but with a timeout:
-                if (exec.programPromise != null) {
-                    exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
+    @Terminator public static void suspendAll() throws Exception {
+        ACL.impersonate(ACL.SYSTEM, new NotReallyRoleSensitiveCallable<Void,Exception>() { // TODO Jenkins 2.1+ remove JENKINS-34281 workaround
+            @Override public Void call() throws Exception {
+                LOGGER.fine("starting to suspend all executions");
+                for (FlowExecution execution : FlowExecutionList.get()) {
+                    if (execution instanceof CpsFlowExecution) {
+                        LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
+                        CpsFlowExecution exec = (CpsFlowExecution) execution;
+                        // Like waitForSuspension but with a timeout:
+                        if (exec.programPromise != null) {
+                            exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
+                        }
+                    }
                 }
+                LOGGER.fine("finished suspending all executions");
+                return null;
             }
-        }
-        LOGGER.fine("finished suspending all executions");
+        });
     }
 
     // TODO: write a custom XStream Converter so that while we are writing CpsFlowExecution, it holds that lock
