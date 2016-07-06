@@ -105,6 +105,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
         final StepDescriptor d = functions.get(name);
         if (d == null) {
+            // TODO probably this should be throwing a subtype of groovy.lang.MissingMethodException
             throw new NoSuchMethodError("No such DSL method '" + name + "' found among " + functions.keySet());
         }
 
