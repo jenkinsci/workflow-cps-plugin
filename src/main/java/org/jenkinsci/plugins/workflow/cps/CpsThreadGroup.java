@@ -224,9 +224,11 @@ public final class CpsThreadGroup implements Serializable {
         try {
         f = runner.submit(new Callable<Future<?>>() {
             public Future<?> call() throws Exception {
+                // TODO consider treating Jenkins.isQuietingDown as an implicit pause as well
                 if (paused.get()) {
                     // by doing the pause check inside, we make sure that scheduleRun() returns a
                     // future that waits for any previously scheduled tasks to be completed.
+                    saveProgram();
                     return Futures.immediateFuture(null);
                 }
 
