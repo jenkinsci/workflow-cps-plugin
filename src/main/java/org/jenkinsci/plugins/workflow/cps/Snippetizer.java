@@ -65,9 +65,51 @@ import org.kohsuke.stapler.StaplerRequest;
  * Takes a {@link Step} as configured through the UI and tries to produce equivalent Groovy code.
  */
 @Extension public class Snippetizer implements RootAction, DescriptorByNameOwner {
-    
+
+    /**
+     * Short-hand for the top-level invocation.
+     */
     static String object2Groovy(Object o) throws UnsupportedOperationException {
-        Class<? extends Object> clazz = o.getClass();
+        return object2Groovy(new StringBuilder(),o).toString();
+    }
+
+    /**
+     * Renders the invocation syntax to re-create a given object 'o' into 'b'
+     *
+     * @return  the same object as 'b'
+     */
+    static StringBuilder object2Groovy(StringBuilder b, Object o) throws UnsupportedOperationException {
+        if (o == null) {
+            return b.append("null");
+        }
+        final Class<?> clazz = o.getClass();
+
+        if (clazz == String.class || clazz == Character.class) {
+            String text = String.valueOf(o);
+            if (text.contains("\n")) {
+                b.append("'''").append(text.replace("\\", "\\\\").replace("'", "\\'")).append("'''");
+            } else {
+                b.append('\'').append(text.replace("\\", "\\\\").replace("'", "\\'")).append('\'');
+            }
+            return b;
+        }
+
+        if (clazz == Boolean.class || clazz == Integer.class || clazz == Long.class) {
+            return b.append(o);
+        }
+
+        if (o instanceof List) {
+            return list2groovy(b, (List<?>) o);
+        }
+
+        if (o instanceof Map) {
+            return map2groovy(b, (Map) o);
+        }
+
+        if (o instanceof UninstantiatedDescribable) {
+            return ud2groovy(b,(UninstantiatedDescribable)o, false);
+        }
+
         for (StepDescriptor d : StepDescriptor.all()) {
             if (d.clazz.equals(clazz)) {
                 Step step = (Step) o;
@@ -107,22 +149,70 @@ import org.kohsuke.stapler.StaplerRequest;
                                     nested.getSymbol(), nested.getKlass(), copy);
                             combined.setModel(nested.getModel());
 
-                            return writeFunction(combined, false);
+                            return ud2groovy(b, combined, false);
                         }
                     }
                 }
 
+                // reuse 'ud2groovy' to write out a step as a function, and to do that
+                // fill in the function name as the symbol
                 uninst.setSymbol(d.getFunctionName());
-                return writeFunction(uninst, d.takesImplicitBlockArgument());
+                return ud2groovy(b, uninst, d.takesImplicitBlockArgument());
             }
         }
-        throw new UnsupportedOperationException("Unknown step " + clazz);
+
+        // unknown type
+        return b.append("<object of type ").append(clazz.getCanonicalName()).append('>');
+    }
+
+    private static StringBuilder list2groovy(StringBuilder b, List<?> o) {
+        b.append('[');
+        boolean first = true;
+        for (Object elt : o) {
+            if (first) {
+                first = false;
+            } else {
+                b.append(", ");
+            }
+            object2Groovy(b, elt);
+        }
+        return b.append(']');
+    }
+
+    private static StringBuilder map2groovy(StringBuilder b, Map<?,?> map) {
+        b.append('[');
+        mapWithoutBracket2groovy(b, map);
+        return b.append(']');
+    }
+
+    private static void mapWithoutBracket2groovy(StringBuilder b, Map<?, ?> map) {
+        boolean first = true;
+        for (Entry<?, ?> entry : map.entrySet()) {
+            if (first) {
+                first = false;
+            } else {
+                b.append(", ");
+            }
+            Object key = entry.getKey();
+            if (key instanceof String && SourceVersion.isName((String) key)) {
+                b.append(key);
+            } else {
+                object2Groovy(b, key);
+            }
+            b.append(": ");
+            object2Groovy(b, entry.getValue());
+        }
     }
 
     /**
      * Writes out a given {@link UninstantiatedDescribable} as a function call form.
      */
-    private static String writeFunction(UninstantiatedDescribable ud, boolean blockArgument) {
+    private static StringBuilder ud2groovy(StringBuilder b, UninstantiatedDescribable ud, boolean blockArgument) {
+        if (ud.getSymbol()==null) {
+            // if there's no symbol, we need to write this as [$class:...]
+            return map2groovy(b,ud.toMap());
+        }
+
         final Map<String, ?> args = ud.getArguments();
 
         // if the whole argument is just one map?
@@ -133,26 +223,17 @@ import org.kohsuke.stapler.StaplerRequest;
         //   but not if both is the case!
         final boolean needParenthesis = (blockArgument ^ args.isEmpty()) || singleMap;
 
-        StringBuilder b = new StringBuilder(ud.getSymbol());
+        b.append(ud.getSymbol());
         b.append(needParenthesis ? '(': ' ');
 
         if (ud.hasSoleRequiredArgument()) {
             // lone argument optimization, which gets rid of named arguments and just write one value, like
             // retry 5 { ... }
-            render(b, args.values().iterator().next());
+            object2Groovy(b, args.values().iterator().next());
         } else {
             // usual form, which calls out argument names, like
             // git url:'...', browser:'...'
-            boolean first = true;
-            for (Map.Entry<String, ?> entry : args.entrySet()) {
-                if (first) {
-                    first = false;
-                } else {
-                    b.append(", ");
-                }
-                b.append(entry.getKey()).append(": ");
-                render(b, entry.getValue());
-            }
+            mapWithoutBracket2groovy(b,args);
         }
 
         if (needParenthesis)
@@ -162,60 +243,7 @@ import org.kohsuke.stapler.StaplerRequest;
             b.append(" {\n    // some block\n}");
         }
 
-        return b.toString();
-    }
-
-    private static void render(StringBuilder b, Object value) {
-        if (value == null) {
-            b.append("null");
-            return;
-        }
-        Class<?> valueC = value.getClass();
-        if (valueC == String.class || valueC == Character.class) {
-            String text = String.valueOf(value);
-            if (text.contains("\n")) {
-                b.append("'''").append(text.replace("\\", "\\\\").replace("'", "\\'")).append("'''");
-            } else {
-                b.append('\'').append(text.replace("\\", "\\\\").replace("'", "\\'")).append('\'');
-            }
-        } else if (valueC == Boolean.class || valueC == Integer.class || valueC == Long.class) {
-            b.append(value);
-        } else if (value instanceof List) {
-            List<?> list = (List<?>) value;
-            b.append('[');
-            boolean first = true;
-            for (Object elt : list) {
-                if (first) {
-                    first = false;
-                } else {
-                    b.append(", ");
-                }
-                render(b, elt);
-            }
-            b.append(']');
-        } else if (value instanceof Map) {
-            Map<?,?> map = (Map) value;
-            b.append('[');
-            boolean first = true;
-            for (Map.Entry<?,?> entry : map.entrySet()) {
-                if (first) {
-                    first = false;
-                } else {
-                    b.append(", ");
-                }
-                Object key = entry.getKey();
-                if (key instanceof String && SourceVersion.isName((String) key)) {
-                    b.append(key);
-                } else {
-                    render(b, key);
-                }
-                b.append(": ");
-                render(b, entry.getValue());
-            }
-            b.append(']');
-        } else {
-            b.append("<object of type ").append(valueC.getCanonicalName()).append('>');
-        }
+        return b;
     }
 
     public static final String ACTION_URL = "pipeline-syntax";
