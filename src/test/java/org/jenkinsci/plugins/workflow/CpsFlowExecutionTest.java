@@ -220,6 +220,7 @@ public class CpsFlowExecutionTest {
                 WorkflowRun b = p.scheduleBuild2(0).waitForStart();
                 SemaphoreStep.waitForStart("one/1", b);
                 CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
+                assertFalse(e.isPaused());
                 e.pause(true);
                 story.j.waitForMessage("before", b);
                 SemaphoreStep.success("one/1", null);
@@ -227,6 +228,7 @@ public class CpsFlowExecutionTest {
                 // not a very strong way of ensuring that the pause actually happens
                 Thread.sleep(1000);
                 assertTrue(b.isBuilding());
+                assertTrue(e.isPaused());
             }
         });
         story.addStep(new Statement() {
@@ -237,7 +239,9 @@ public class CpsFlowExecutionTest {
                 CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
                 assertTrue(e.isPaused());
                 e.pause(false);
+                assertFalse(e.isPaused());
                 story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
+                assertFalse(e.isPaused());
             }
         });
     }
