@@ -129,7 +129,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
      */
     private Object invokeStep(StepDescriptor d, Object args) {
-        final NamedArgsAndClosure ps = parseArgs(args, d.takesImplicitBlockArgument(), loadSoleArgumentKey(d));
+        final NamedArgsAndClosure ps = parseArgs(args, d);
 
         CpsThread thread = CpsThread.current();
 
@@ -195,7 +195,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    private String loadSoleArgumentKey(StepDescriptor d) {
+    private static String loadSoleArgumentKey(StepDescriptor d) {
         try {
             String[] names = new ClassDescriptor(d.clazz).loadConstructorParamNames();
             return names.length == 1 ? names[0] : null;
@@ -336,6 +336,10 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 this.namedArgs.put(k, v);
             }
         }
+    }
+
+    static NamedArgsAndClosure parseArgs(Object arg, StepDescriptor d) {
+        return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d));
     }
 
     /**

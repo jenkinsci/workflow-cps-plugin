@@ -141,7 +141,7 @@ public class SnippetizerTest {
             @Override public Object invokeMethod(String name, Object args) {
                 if (name.equals(desc.getFunctionName())) {
                     try {
-                        return desc.newInstance(DSL.parseArgs(desc, args).namedArgs);
+                        return desc.newInstance(DSL.parseArgs(args, desc).namedArgs);
                     } catch (RuntimeException x) {
                         throw x;
                     } catch (Exception x) {
