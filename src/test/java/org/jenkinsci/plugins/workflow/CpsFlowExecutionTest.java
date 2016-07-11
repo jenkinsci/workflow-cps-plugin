@@ -227,7 +227,15 @@ public class CpsFlowExecutionTest {
                 // not a very strong way of ensuring that the pause actually happens
                 Thread.sleep(1000);
                 assertTrue(b.isBuilding());
-
+            }
+        });
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+                WorkflowRun b = p.getLastBuild();
+                assertTrue(b.isBuilding());
+                CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
+                assertTrue(e.isPaused());
                 e.pause(false);
                 story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
             }

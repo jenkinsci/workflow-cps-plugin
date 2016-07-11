@@ -473,6 +473,13 @@ public class CpsFlowExecution extends FlowExecution {
                             try {
                                 CpsThreadGroup g = (CpsThreadGroup) u.readObject();
                                 result.set(g);
+                                if (g.isPaused()) {
+                                    try {
+                                        owner.getListener().getLogger().println("Still paused");
+                                    } catch (IOException x) {
+                                        LOGGER.log(Level.WARNING, null, x);
+                                    }
+                                }
                             } catch (Throwable t) {
                                 onFailure(t);
                             } finally {
@@ -918,6 +925,17 @@ public class CpsFlowExecution extends FlowExecution {
         return shell.generateScriptName().replaceFirst("[.]groovy$", "");
     }
 
+    public boolean isPaused() {
+        if (programPromise.isDone()) {
+            try {
+                return programPromise.get().isPaused();
+            } catch (ExecutionException | InterruptedException x) { // not supposed to happen
+                LOGGER.log(Level.WARNING, null, x);
+            }
+        }
+        return false;
+    }
+
     /**
      * Pause or unpause the execution.
      *
@@ -932,8 +950,15 @@ public class CpsFlowExecution extends FlowExecution {
                 } else {
                     g.unpause();
                 }
+                try {
+                    owner.getListener().getLogger().println(v ? "Pausing" : "Unpausing");
+                } catch (IOException x) {
+                    LOGGER.log(Level.WARNING, null, x);
+                }
             }
-            @Override public void onFailure(Throwable _) {}
+            @Override public void onFailure(Throwable x) {
+                LOGGER.log(Level.WARNING, "cannot pause/unpause " + this, x);
+            }
         });
     }
 

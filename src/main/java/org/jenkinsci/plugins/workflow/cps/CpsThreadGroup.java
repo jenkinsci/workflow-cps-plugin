@@ -325,12 +325,14 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     /**
-     * If the execution is {@linkplain #pause() paused}, cancel the pause state.
+     * If the execution is {@link isPaused}, cancel the pause state.
      */
     public void unpause() {
         if (paused.getAndSet(false)) {
             // some threads might have became executable while we were pausing.
             scheduleRun();
+        } else {
+            LOGGER.warning("were not paused to begin with");
         }
     }
 
