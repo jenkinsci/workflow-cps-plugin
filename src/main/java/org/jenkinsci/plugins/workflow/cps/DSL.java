@@ -68,6 +68,7 @@ import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
 import org.kohsuke.stapler.ClassDescriptor;
+import org.kohsuke.stapler.NoStaplerConstructorException;
 
 /**
  * Scaffolding to experiment with the call into {@link Step}.
@@ -128,10 +129,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
      */
     private Object invokeStep(StepDescriptor d, Object args) {
-        String[] names = new ClassDescriptor(d.clazz).loadConstructorParamNames();
-        final NamedArgsAndClosure ps = parseArgs(args, d.takesImplicitBlockArgument(),
-                names.length==1 ? names[0] : null
-        );
+        final NamedArgsAndClosure ps = parseArgs(args, d.takesImplicitBlockArgument(), loadSoleArgumentKey(d));
 
         CpsThread thread = CpsThread.current();
 
@@ -194,6 +192,15 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // the control then goes back to CpsFlowExecution.runNextChunk
             // so the execution will never reach here.
             throw new AssertionError();
+        }
+    }
+
+    private String loadSoleArgumentKey(StepDescriptor d) {
+        try {
+            String[] names = new ClassDescriptor(d.clazz).loadConstructorParamNames();
+            return names.length == 1 ? names[0] : null;
+        } catch (NoStaplerConstructorException e) {
+            return null;
         }
     }
 
