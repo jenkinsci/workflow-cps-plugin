@@ -28,6 +28,7 @@ import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.WebResponse;
 import com.gargoylesoftware.htmlunit.util.NameValuePair;
+import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
 import hudson.model.BooleanParameterDefinition;
 import hudson.model.BooleanParameterValue;
@@ -54,6 +55,7 @@ import javax.annotation.Nonnull;
 import static org.hamcrest.CoreMatchers.*;
 
 import hudson.tasks.junit.JUnitResultArchiver;
+import org.codehaus.groovy.control.CompilerConfiguration;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
@@ -70,6 +72,7 @@ import org.jenkinsci.plugins.workflow.support.steps.WorkspaceStep;
 import org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStep;
 import static org.junit.Assert.*;
+
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -125,10 +128,10 @@ public class SnippetizerTest {
     }
 
     @Test public void recursiveSymbolUse() throws Exception {
-        RedBlackTestStep top = new RedBlackTestStep();
-        top.setRed(new RedBlackTestStep());
-        top.setBlack(new RedBlackTestStep());
-        assertRoundTrip(new CoreStep(top), "rb black: rb(), red: rb()");
+        RedBlack tree = new RedBlack();
+        tree.setRed(new RedBlack());
+        tree.setBlack(new RedBlack());
+        assertRoundTrip(new CoreStep(new RedBlackTestStep(tree)), "rbTree rb(black: rb(), red: rb())");
     }
 
     @Test public void blockSteps() throws Exception {
@@ -160,8 +163,12 @@ public class SnippetizerTest {
 
     private static void assertRoundTrip(Step step, String expected) throws Exception {
         assertEquals(expected, Snippetizer.object2Groovy(step));
-        GroovyShell shell = new GroovyShell(r.jenkins.getPluginManager().uberClassLoader);
-        shell.setVariable("steps", new DSL(new DummyOwner()) {
+        CompilerConfiguration cc = new CompilerConfiguration();
+        cc.setScriptBaseClass(DelegatingScript.class.getName());
+        GroovyShell shell = new GroovyShell(r.jenkins.getPluginManager().uberClassLoader,new Binding(),cc);
+
+        DelegatingScript s = (DelegatingScript) shell.parse(expected);
+        s.o = new DSL(new DummyOwner()) {
             // for testing, instead of executing the step just return an instantiated Step
             @Override
             protected Object invokeStep(StepDescriptor d, Object args) {
@@ -171,8 +178,9 @@ public class SnippetizerTest {
                     throw new AssertionError(e);
                 }
             }
-        });
-        Step actual = (Step) shell.evaluate("steps." + expected);
+        };
+
+        Step actual = (Step) s.run();
         r.assertEqualDataBoundBeans(step, actual);
     }
 

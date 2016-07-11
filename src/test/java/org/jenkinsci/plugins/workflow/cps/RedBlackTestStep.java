@@ -13,7 +13,6 @@ import hudson.tasks.Recorder;
 import jenkins.tasks.SimpleBuildStep;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -24,20 +23,11 @@ import java.io.IOException;
  * @author Kohsuke Kawaguchi
  */
 public class RedBlackTestStep extends Recorder implements SimpleBuildStep {
-    public RedBlackTestStep red, black;
+    public RedBlack tree;
 
     @DataBoundConstructor
-    public RedBlackTestStep() {
-    }
-
-    @DataBoundSetter
-    public void setRed(RedBlackTestStep v) {
-        this.red = v;
-    }
-
-    @DataBoundSetter
-    public void setBlack(RedBlackTestStep v) {
-        this.black = v;
+    public RedBlackTestStep(RedBlack tree) {
+        this.tree=tree;
     }
 
     @Override
@@ -51,7 +41,7 @@ public class RedBlackTestStep extends Recorder implements SimpleBuildStep {
     }
 
     @Extension
-    @Symbol("rb")
+    @Symbol("rbTree")
     public static class DescriptorImpl extends BuildStepDescriptor<Publisher> {
         @Override
         public boolean isApplicable(Class<? extends AbstractProject> jobType) {
