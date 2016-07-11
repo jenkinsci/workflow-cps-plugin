@@ -221,18 +221,15 @@ public class CpsFlowExecutionTest {
                 SemaphoreStep.waitForStart("one/1", b);
                 CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
                 e.pause(true);
-                e.waitForSuspension();
-                story.j.assertLogContains("before", b);
+                story.j.waitForMessage("before", b);
                 SemaphoreStep.success("one/1", b);
 
                 // not a very strong way of ensuring that the pause actually happens
-                e.waitForSuspension();
                 Thread.sleep(1000);
-                assertTrue(!e.isComplete());
+                assertTrue(b.isBuilding());
 
                 e.pause(false);
-                e.waitForSuspension();
-                story.j.assertBuildStatusSuccess(b);
+                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
             }
         });
     }
