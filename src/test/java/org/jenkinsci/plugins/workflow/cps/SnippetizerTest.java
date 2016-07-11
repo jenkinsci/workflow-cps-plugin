@@ -28,15 +28,18 @@ import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.WebResponse;
 import com.gargoylesoftware.htmlunit.util.NameValuePair;
-import groovy.lang.GroovyObjectSupport;
 import groovy.lang.GroovyShell;
 import hudson.model.BooleanParameterDefinition;
 import hudson.model.BooleanParameterValue;
 import hudson.model.FreeStyleProject;
 import hudson.model.ParametersDefinitionProperty;
+import hudson.model.Queue;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.tasks.ArtifactArchiver;
+
+import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,9 +50,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+
 import static org.hamcrest.CoreMatchers.*;
 
+import hudson.tasks.junit.JUnitResultArchiver;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.steps.CatchErrorStep;
 import org.jenkinsci.plugins.workflow.steps.CoreStep;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
@@ -106,6 +113,17 @@ public class SnippetizerTest {
         assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "step([$class: 'ArtifactArchiver', artifacts: 'x.jar'])");
     }
 
+    @Test public void coreStepWithSymbol() throws Exception {
+        JUnitResultArchiver aa = new JUnitResultArchiver("target/surefire/*.xml");
+        aa.setAllowEmptyResults(true);
+        assertRoundTrip(new CoreStep(aa), "junit allowEmptyResults: true, testResults: 'target/surefire/*.xml'");
+    }
+
+    @Test public void coreStepWithSymbolWithSoleArg() throws Exception {
+        JUnitResultArchiver aa = new JUnitResultArchiver("target/surefire/*.xml");
+        assertRoundTrip(new CoreStep(aa), "junit 'target/surefire/*.xml'");
+    }
+
     @Test public void blockSteps() throws Exception {
         assertRoundTrip(new ExecutorStep(null), "node {\n    // some block\n}");
         assertRoundTrip(new ExecutorStep("linux"), "node('linux') {\n    // some block\n}");
@@ -136,19 +154,14 @@ public class SnippetizerTest {
     private static void assertRoundTrip(Step step, String expected) throws Exception {
         assertEquals(expected, Snippetizer.object2Groovy(step));
         GroovyShell shell = new GroovyShell(r.jenkins.getPluginManager().uberClassLoader);
-        final StepDescriptor desc = step.getDescriptor();
-        shell.setVariable("steps", new GroovyObjectSupport() {
-            @Override public Object invokeMethod(String name, Object args) {
-                if (name.equals(desc.getFunctionName())) {
-                    try {
-                        return desc.newInstance(DSL.parseArgs(args, desc).namedArgs);
-                    } catch (RuntimeException x) {
-                        throw x;
-                    } catch (Exception x) {
-                        throw new RuntimeException(x);
-                    }
-                } else {
-                    return super.invokeMethod(name, args);
+        shell.setVariable("steps", new DSL(new DummyOwner()) {
+            // for testing, instead of executing the step just return an instantiated Step
+            @Override
+            protected Object invokeStep(StepDescriptor d, Object args) {
+                try {
+                    return d.newInstance(parseArgs(args, d).namedArgs);
+                } catch (Exception e) {
+                    throw new AssertionError(e);
                 }
             }
         });
@@ -245,5 +258,27 @@ public class SnippetizerTest {
         // Verify valid groovy sntax.
         GroovyShell shell = new GroovyShell(r.jenkins.getPluginManager().uberClassLoader);
         shell.parse(dsld);
+    }
+
+    private static class DummyOwner extends FlowExecutionOwner {
+        DummyOwner() {}
+        @Override public FlowExecution get() throws IOException {
+            return null;
+        }
+        @Override public File getRootDir() throws IOException {
+            throw new IOException("not implemented");
+        }
+        @Override public Queue.Executable getExecutable() throws IOException {
+            throw new IOException("not implemented");
+        }
+        @Override public String getUrl() throws IOException {
+            throw new IOException("not implemented");
+        }
+        @Override public boolean equals(Object o) {
+            return true;
+        }
+        @Override public int hashCode() {
+            return 0;
+        }
     }
 }

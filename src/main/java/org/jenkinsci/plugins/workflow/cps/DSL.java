@@ -128,7 +128,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     /**
      * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
      */
-    private Object invokeStep(StepDescriptor d, Object args) {
+    protected Object invokeStep(StepDescriptor d, Object args) {
         final NamedArgsAndClosure ps = parseArgs(args, d);
 
         CpsThread thread = CpsThread.current();
@@ -207,7 +207,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     /**
      * When {@link #invokeMethod(String, Object)} is calling a generic {@link Descriptor}
      */
-    private Object invokeDescribable(Descriptor d, String symbol, Object _args) {
+    protected Object invokeDescribable(Descriptor d, String symbol, Object _args) {
         StepDescriptor metaStep = findMetaStep(d);
 
         // The only time a closure is valid is when the resulting Describable is immediately executed via a meta-step
