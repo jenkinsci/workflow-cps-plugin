@@ -918,6 +918,25 @@ public class CpsFlowExecution extends FlowExecution {
         return shell.generateScriptName().replaceFirst("[.]groovy$", "");
     }
 
+    /**
+     * Pause or unpause the execution.
+     *
+     * @param v
+     *      true to pause, false to unpause.
+     */
+    public void pause(final boolean v) {
+        Futures.addCallback(programPromise, new FutureCallback<CpsThreadGroup>() {
+            @Override public void onSuccess(CpsThreadGroup g) {
+                if (v) {
+                    g.pause();
+                } else {
+                    g.unpause();
+                }
+            }
+            @Override public void onFailure(Throwable _) {}
+        });
+    }
+
     @Override public String toString() {
         return "CpsFlowExecution[" + owner + "]";
     }

@@ -210,6 +210,33 @@ public class CpsFlowExecutionTest {
         return r;
     }
 
+    @Issue("JENKINS-25736")
+    @Test public void pause() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition(
+                        "echo 'before'; semaphore 'one';  echo 'after';"));
+                WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+                SemaphoreStep.waitForStart("one/1", b);
+                CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
+                e.pause(true);
+                e.waitForSuspension();
+                story.j.assertLogContains("before", b);
+                SemaphoreStep.success("one/1", b);
+
+                // not a very strong way of ensuring that the pause actually happens
+                e.waitForSuspension();
+                Thread.sleep(1000);
+                assertTrue(!e.isComplete());
+
+                e.pause(false);
+                e.waitForSuspension();
+                story.j.assertBuildStatusSuccess(b);
+            }
+        });
+    }
+
     @Issue("JENKINS-26130")
     @Test public void interruptProgramLoad() {
         story.addStep(new Statement() {
