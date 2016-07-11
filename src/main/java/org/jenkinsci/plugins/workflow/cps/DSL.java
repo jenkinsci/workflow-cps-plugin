@@ -122,6 +122,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             return invokeDescribable(d,name,args);
         }
 
+        // TODO probably this should be throwing a subtype of groovy.lang.MissingMethodException
         throw new NoSuchMethodError("No such DSL method '" + name + "' found among " + functions.keySet());
     }
 

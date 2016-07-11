@@ -28,6 +28,7 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.Futures;
 import groovy.lang.Closure;
+import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 import hudson.Util;
 import hudson.model.Result;
@@ -61,7 +62,6 @@ import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
 import javax.annotation.Nonnull;
-import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
@@ -108,6 +108,8 @@ public final class CpsThreadGroup implements Serializable {
      */
     public final Map<Integer,Closure> closures = new HashMap<Integer,Closure>();
 
+    private final List<Script> scripts = new ArrayList<>();
+
     CpsThreadGroup(CpsFlowExecution execution) {
         this.execution = execution;
         setupTransients();
@@ -117,10 +119,28 @@ public final class CpsThreadGroup implements Serializable {
         return execution;
     }
 
+    /** Track a script so that we can fix up its {@link Script#getBinding}s after deserialization. */
+    void register(Script script) {
+        scripts.add(script);
+    }
+
+    @SuppressWarnings("unchecked")
     private Object readResolve() {
         execution = CpsFlowExecution.PROGRAM_STATE_SERIALIZATION.get();
         setupTransients();
         assert execution!=null;
+        if (scripts != null) { // compatibility: the field will be null in old programs
+            GroovyShell shell = execution.getShell();
+            assert shell.getContext().getVariables().isEmpty();
+            assert !scripts.isEmpty();
+            // Take the canonical bindings from the main script and relink that object with that of the shell and all other loaded scripts which kept the same bindings.
+            shell.getContext().getVariables().putAll(scripts.get(0).getBinding().getVariables());
+            for (Script script : scripts) {
+                if (script.getBinding().getVariables().equals(shell.getContext().getVariables())) {
+                    script.setBinding(shell.getContext());
+                }
+            }
+        }
         return this;
     }
 
@@ -159,6 +179,7 @@ public final class CpsThreadGroup implements Serializable {
 
     @CpsVmThreadOnly("root")
     public @Nonnull BodyReference export(@Nonnull final Script body) {
+        register(body);
         return export(new Closure(null) {
             @Override
             public Object call() {
@@ -371,15 +392,7 @@ public final class CpsThreadGroup implements Serializable {
             } finally {
                 w.close();
             }
-            try {
-                Class.forName("java.nio.file.Files");
-                rename(tmpFile, f);
-            } catch (ClassNotFoundException x) { // Java 6
-                Util.deleteFile(f);
-                if (!tmpFile.renameTo(f)) {
-                    throw new IOException("rename " + tmpFile + " to " + f + " failed");
-                }
-            }
+            Files.move(tmpFile.toPath(), f.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             LOGGER.log(FINE, "program state saved");
         } catch (RuntimeException e) {
             LOGGER.log(WARNING, "program state save failed",e);
@@ -393,10 +406,6 @@ public final class CpsThreadGroup implements Serializable {
             PROGRAM_STATE_SERIALIZATION.set(old);
             Util.deleteFile(tmpFile);
         }
-    }
-    @IgnoreJRERequirement
-    private static void rename(File from, File to) throws IOException {
-        Files.move(from.toPath(), to.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
     }
 
     /**

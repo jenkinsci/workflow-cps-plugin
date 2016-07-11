@@ -354,6 +354,7 @@ public class CpsFlowExecution extends FlowExecution {
         h.newStartNode(new FlowStartNode(this, iotaStr()));
 
         final CpsThreadGroup g = new CpsThreadGroup(this);
+        g.register(s);
         final SettableFuture<CpsThreadGroup> f = SettableFuture.create();
         programPromise = f;
         g.runner.submit(new Runnable() {
