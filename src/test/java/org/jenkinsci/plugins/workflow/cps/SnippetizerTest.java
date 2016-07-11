@@ -124,6 +124,13 @@ public class SnippetizerTest {
         assertRoundTrip(new CoreStep(aa), "junit 'target/surefire/*.xml'");
     }
 
+    @Test public void recursiveSymbolUse() throws Exception {
+        RedBlackTestStep top = new RedBlackTestStep();
+        top.setRed(new RedBlackTestStep());
+        top.setBlack(new RedBlackTestStep());
+        assertRoundTrip(new CoreStep(top), "rb black: rb(), red: rb()");
+    }
+
     @Test public void blockSteps() throws Exception {
         assertRoundTrip(new ExecutorStep(null), "node {\n    // some block\n}");
         assertRoundTrip(new ExecutorStep("linux"), "node('linux') {\n    // some block\n}");
