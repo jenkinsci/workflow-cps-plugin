@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.SerializableScript;
 import groovy.lang.GroovyShell;
+import groovy.lang.Script;
 import hudson.EnvVars;
 import hudson.model.ParameterValue;
 import hudson.model.ParametersAction;
@@ -46,6 +47,9 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 
 /**
  * The script of a workflow.
+ *
+ * Every {@link Script} we load in Pipeline execution derives from this subtype.
+ *
  * @author Kohsuke Kawaguchi
  */
 @PersistIn(PROGRAM)
