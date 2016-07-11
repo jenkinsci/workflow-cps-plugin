@@ -38,6 +38,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
@@ -47,12 +48,14 @@ import javax.lang.model.SourceVersion;
 import jenkins.model.Jenkins;
 import jenkins.model.TransientActionFactory;
 import net.sf.json.JSONObject;
+import org.jenkinsci.plugins.structs.describable.DescribableModel;
+import org.jenkinsci.plugins.structs.describable.DescribableParameter;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.ClassDescriptor;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.QueryParameter;
@@ -67,47 +70,99 @@ import org.kohsuke.stapler.StaplerRequest;
         Class<? extends Object> clazz = o.getClass();
         for (StepDescriptor d : StepDescriptor.all()) {
             if (d.clazz.equals(clazz)) {
-                StringBuilder b = new StringBuilder(d.getFunctionName());
                 Step step = (Step) o;
-                Map<String,Object> args = new TreeMap<String,Object>(d.defineArguments(step));
-                boolean first = true;
-                boolean singleMap = args.size() == 1 && args.values().iterator().next() instanceof Map;
-                for (Map.Entry<String,Object> entry : args.entrySet()) {
-                    if (first) {
-                        first = false;
-                        if (d.takesImplicitBlockArgument() || singleMap) {
-                            b.append('(');
-                        } else {
-                            b.append(' ');
+                UninstantiatedDescribable uninst = d.uninstantiate(step);
+
+                if (d.isMetaStep()) {
+                    // if we cannot represent this 'o' in a concise syntax that hides meta-step, set this to true
+                    boolean failSimplification = false;
+
+                    // if we have a symbol name for the wrapped Describable, we can produce
+                    // a more concise form that hides it
+                    DescribableModel<?> m = new DescribableModel(d.clazz);
+                    DescribableParameter p = m.getFirstRequiredParameter();
+                    Object wrapped = uninst.getArguments().get(p.getName());
+                    if (wrapped instanceof UninstantiatedDescribable) {
+                        UninstantiatedDescribable nested = (UninstantiatedDescribable) wrapped;
+                        TreeMap<String, Object> copy = new TreeMap<>(nested.getArguments());
+                        for (Entry<String, ?> e : uninst.getArguments().entrySet()) {
+                            if (!e.getKey().equals(p.getName())) {
+                                if (copy.put(e.getKey(),e.getValue())!=null) {
+                                    // collision between a parameter in meta-step and wrapped-step,
+                                    // which cannot be reconcilled unless we explicitly write out
+                                    // meta-step
+                                    failSimplification = true;
+                                }
+                            }
                         }
-                    } else {
-                        b.append(", ");
+
+                        if (nested.getSymbol()==null) {
+                            // no symbol name on the nested object means there's no short name
+                            failSimplification = true;
+                        }
+
+                        if (!failSimplification) {
+                            // write out in a short-form
+                            UninstantiatedDescribable combined = new UninstantiatedDescribable(
+                                    nested.getSymbol(), nested.getKlass(), copy);
+                            combined.setModel(nested.getModel());
+
+                            return writeFunction(combined, false);
+                        }
                     }
-                    String key = entry.getKey();
-                    if (args.size() > 1 || !isDefaultKey(step, key)) {
-                        b.append(key).append(": ");
-                    }
-                    render(b, entry.getValue());
                 }
-                if (d.takesImplicitBlockArgument()) {
-                    if (!args.isEmpty()) {
-                        b.append(')');
-                    }
-                    b.append(" {\n    // some block\n}");
-                } else if (singleMap) {
-                    b.append(')');
-                } else if (args.isEmpty()) {
-                    b.append("()");
-                }
-                return b.toString();
+
+                uninst.setSymbol(d.getFunctionName());
+                return writeFunction(uninst, d.takesImplicitBlockArgument());
             }
         }
         throw new UnsupportedOperationException("Unknown step " + clazz);
     }
 
-    private static boolean isDefaultKey(Step step, String key) {
-        String[] names = new ClassDescriptor(step.getClass()).loadConstructorParamNames();
-        return names.length == 1 && key.equals(names[0]);
+    /**
+     * Writes out a given {@link UninstantiatedDescribable} as a function call form.
+     */
+    private static String writeFunction(UninstantiatedDescribable ud, boolean blockArgument) {
+        final Map<String, ?> args = ud.getArguments();
+
+        // if the whole argument is just one map?
+        final boolean singleMap = args.size() == 1 && args.values().iterator().next() instanceof Map;
+
+        // the call needs explicit parenthesis sometimes
+        //   a block argument normally requires a () around arguments, and if arguments are empty you need explicit (),
+        //   but not if both is the case!
+        final boolean needParenthesis = (blockArgument ^ args.isEmpty()) || singleMap;
+
+        StringBuilder b = new StringBuilder(ud.getSymbol());
+        b.append(needParenthesis ? '(': ' ');
+
+        if (ud.hasSoleRequiredArgument()) {
+            // lone argument optimization, which gets rid of named arguments and just write one value, like
+            // retry 5 { ... }
+            render(b, args.values().iterator().next());
+        } else {
+            // usual form, which calls out argument names, like
+            // git url:'...', browser:'...'
+            boolean first = true;
+            for (Map.Entry<String, ?> entry : args.entrySet()) {
+                if (first) {
+                    first = false;
+                } else {
+                    b.append(", ");
+                }
+                b.append(entry.getKey()).append(": ");
+                render(b, entry.getValue());
+            }
+        }
+
+        if (needParenthesis)
+            b.append(')');
+
+        if (blockArgument) {
+            b.append(" {\n    // some block\n}");
+        }
+
+        return b.toString();
     }
 
     private static void render(StringBuilder b, Object value) {
