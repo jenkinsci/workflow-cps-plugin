@@ -216,12 +216,11 @@ import org.kohsuke.stapler.StaplerRequest;
         final Map<String, ?> args = ud.getArguments();
 
         // if the whole argument is just one map?
-        final boolean singleMap = args.size() == 1 && args.values().iterator().next() instanceof Map;
 
         // the call needs explicit parenthesis sometimes
         //   a block argument normally requires a () around arguments, and if arguments are empty you need explicit (),
         //   but not if both is the case!
-        final boolean needParenthesis = (blockArgument ^ args.isEmpty()) || singleMap;
+        final boolean needParenthesis = (blockArgument ^ args.isEmpty()) || isSingleMap(args);
 
         b.append(ud.getSymbol());
         b.append(needParenthesis ? '(': ' ');
@@ -240,10 +239,51 @@ import org.kohsuke.stapler.StaplerRequest;
             b.append(')');
 
         if (blockArgument) {
-            b.append(" {\n    // some block\n}");
+            if (!args.isEmpty())    b.append(' ');
+            b.append("{\n    // some block\n}");
         }
 
         return b;
+    }
+
+    /**
+     * If the sole argument is a map, its [...] bracket cannot be present.
+     *
+     * Historically we've disambiguated this by adding (...) around the function call.
+     * TODO: I claim removing both () and [] would be better.
+     *
+       % groovysh
+       Groovy Shell (2.0.2, JVM: 1.7.0_07)
+       Type 'help' or '\h' for help.
+       ---------------------------------------------------------------------------------------------------------------------------------------------
+       groovy:000> def foo(o) { println o }
+       ===> true
+       groovy:000> foo abc:1, def:2
+       [abc:1, def:2]
+       ===> null
+       groovy:000> foo(abc:1, def:2)
+       [abc:1, def:2]
+       ===> null
+       groovy:000> foo [abc:1,def:2]
+       ERROR org.codehaus.groovy.control.MultipleCompilationErrorsException:
+       startup failed:
+       groovysh_evaluate: 2: No map entry allowed at this place
+       . At [2:9]  @ line 2, column 9.
+          foo [abc:1,def:2]
+                  ^
+
+       1 error
+
+               at java_lang_Runnable$run.call (Unknown Source)
+       groovy:000> foo([abc:1,def:2])
+       [abc:1, def:2]
+       ===> null
+     */
+    private static boolean isSingleMap(Map<String, ?> args) {
+        // UninstantiatedDescribable can be written out as a Map so treat it as a map
+        if (args.size()!=1) return false;
+        Object v = args.values().iterator().next();
+        return v instanceof Map || v instanceof UninstantiatedDescribable;
     }
 
     public static final String ACTION_URL = "pipeline-syntax";
