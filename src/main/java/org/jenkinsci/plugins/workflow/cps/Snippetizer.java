@@ -70,15 +70,17 @@ import org.kohsuke.stapler.StaplerRequest;
      * Short-hand for the top-level invocation.
      */
     static String object2Groovy(Object o) throws UnsupportedOperationException {
-        return object2Groovy(new StringBuilder(),o).toString();
+        return object2Groovy(new StringBuilder(),o, false).toString();
     }
 
     /**
      * Renders the invocation syntax to re-create a given object 'o' into 'b'
      *
+     * @param nestedExp
+     *      true if this object is written as a nested expression (in which case we always produce parenthesis for readability
      * @return  the same object as 'b'
      */
-    static StringBuilder object2Groovy(StringBuilder b, Object o) throws UnsupportedOperationException {
+    static StringBuilder object2Groovy(StringBuilder b, Object o, boolean nestedExp) throws UnsupportedOperationException {
         if (o == null) {
             return b.append("null");
         }
@@ -107,7 +109,7 @@ import org.kohsuke.stapler.StaplerRequest;
         }
 
         if (o instanceof UninstantiatedDescribable) {
-            return ud2groovy(b,(UninstantiatedDescribable)o, false);
+            return ud2groovy(b,(UninstantiatedDescribable)o, false, nestedExp);
         }
 
         for (StepDescriptor d : StepDescriptor.all()) {
@@ -149,7 +151,7 @@ import org.kohsuke.stapler.StaplerRequest;
                                     nested.getSymbol(), nested.getKlass(), copy);
                             combined.setModel(nested.getModel());
 
-                            return ud2groovy(b, combined, false);
+                            return ud2groovy(b, combined, false, nestedExp);
                         }
                     }
                 }
@@ -157,7 +159,7 @@ import org.kohsuke.stapler.StaplerRequest;
                 // reuse 'ud2groovy' to write out a step as a function, and to do that
                 // fill in the function name as the symbol
                 uninst.setSymbol(d.getFunctionName());
-                return ud2groovy(b, uninst, d.takesImplicitBlockArgument());
+                return ud2groovy(b, uninst, d.takesImplicitBlockArgument(), nestedExp);
             }
         }
 
@@ -174,7 +176,7 @@ import org.kohsuke.stapler.StaplerRequest;
             } else {
                 b.append(", ");
             }
-            object2Groovy(b, elt);
+            object2Groovy(b, elt, true);
         }
         return b.append(']');
     }
@@ -197,17 +199,20 @@ import org.kohsuke.stapler.StaplerRequest;
             if (key instanceof String && SourceVersion.isName((String) key)) {
                 b.append(key);
             } else {
-                object2Groovy(b, key);
+                object2Groovy(b, key, true);
             }
             b.append(": ");
-            object2Groovy(b, entry.getValue());
+            object2Groovy(b, entry.getValue(), true);
         }
     }
 
     /**
      * Writes out a given {@link UninstantiatedDescribable} as a function call form.
+     *
+     * @param nested
+     *      true if this object is written as a nested expression (in which case we always produce parenthesis for readability
      */
-    private static StringBuilder ud2groovy(StringBuilder b, UninstantiatedDescribable ud, boolean blockArgument) {
+    private static StringBuilder ud2groovy(StringBuilder b, UninstantiatedDescribable ud, boolean blockArgument, boolean nested) {
         if (ud.getSymbol()==null) {
             // if there's no symbol, we need to write this as [$class:...]
             return map2groovy(b,ud.toMap());
@@ -220,7 +225,7 @@ import org.kohsuke.stapler.StaplerRequest;
         // the call needs explicit parenthesis sometimes
         //   a block argument normally requires a () around arguments, and if arguments are empty you need explicit (),
         //   but not if both is the case!
-        final boolean needParenthesis = (blockArgument ^ args.isEmpty()) || isSingleMap(args);
+        final boolean needParenthesis = (blockArgument ^ args.isEmpty()) || isSingleMap(args) || nested;
 
         b.append(ud.getSymbol());
         b.append(needParenthesis ? '(': ' ');
@@ -228,7 +233,7 @@ import org.kohsuke.stapler.StaplerRequest;
         if (ud.hasSoleRequiredArgument()) {
             // lone argument optimization, which gets rid of named arguments and just write one value, like
             // retry 5 { ... }
-            object2Groovy(b, args.values().iterator().next());
+            object2Groovy(b, args.values().iterator().next(), true);
         } else {
             // usual form, which calls out argument names, like
             // git url:'...', browser:'...'
@@ -280,10 +285,15 @@ import org.kohsuke.stapler.StaplerRequest;
        ===> null
      */
     private static boolean isSingleMap(Map<String, ?> args) {
-        // UninstantiatedDescribable can be written out as a Map so treat it as a map
         if (args.size()!=1) return false;
         Object v = args.values().iterator().next();
-        return v instanceof Map || v instanceof UninstantiatedDescribable;
+        if (v instanceof Map)
+            return true;
+        if (v instanceof UninstantiatedDescribable) {
+            // UninstantiatedDescribable can be written out as a Map so treat it as a map
+            return ((UninstantiatedDescribable)v).getSymbol()==null;
+        }
+        return false;
     }
 
     public static final String ACTION_URL = "pipeline-syntax";
