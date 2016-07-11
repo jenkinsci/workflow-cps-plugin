@@ -75,6 +75,7 @@ import static org.junit.Assert.*;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.jvnet.hudson.test.Email;
 import org.jvnet.hudson.test.Issue;
@@ -153,7 +154,16 @@ public class SnippetizerTest {
         BuildTriggerStep step = new BuildTriggerStep("downstream");
         assertRoundTrip(step, "build 'downstream'");
         step.setParameters(Arrays.asList(new StringParameterValue("branch", "default"), new BooleanParameterValue("correct", true)));
+        // when this test fails because of new core, see below "buildTriggerStepWith_2_2"
         assertRoundTrip(step, "build job: 'downstream', parameters: [[$class: 'StringParameterValue', name: 'branch', value: 'default'], [$class: 'BooleanParameterValue', name: 'correct', value: true]]");
+    }
+
+    @Test @Ignore("until this module can be compiled with 2.2 core")
+    public void buildTriggerStepWith_2_2() throws Exception {
+        BuildTriggerStep step = new BuildTriggerStep("downstream");
+        assertRoundTrip(step, "build 'downstream'");
+        step.setParameters(Arrays.asList(new StringParameterValue("branch", "default"), new BooleanParameterValue("correct", true)));
+        assertRoundTrip(step, "build job: 'downstream', parameters: [string(name: 'branch', value: 'default'), booleanParam(name: 'correct', value: true)]");
     }
 
     @Issue("JENKINS-25779")
