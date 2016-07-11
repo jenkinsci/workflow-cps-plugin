@@ -222,7 +222,7 @@ public class CpsFlowExecutionTest {
                 CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
                 e.pause(true);
                 story.j.waitForMessage("before", b);
-                SemaphoreStep.success("one/1", b);
+                SemaphoreStep.success("one/1", null);
 
                 // not a very strong way of ensuring that the pause actually happens
                 Thread.sleep(1000);
