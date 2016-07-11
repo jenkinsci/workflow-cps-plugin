@@ -58,7 +58,6 @@ import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +67,6 @@ import java.util.TreeMap;
 import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
-import org.jvnet.tiger_types.Types;
 import org.kohsuke.stapler.ClassDescriptor;
 
 /**
@@ -130,7 +128,10 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
      */
     private Object invokeStep(StepDescriptor d, Object args) {
-        final NamedArgsAndClosure ps = parseArgs(d,args);
+        String[] names = new ClassDescriptor(d.clazz).loadConstructorParamNames();
+        final NamedArgsAndClosure ps = parseArgs(args, d.takesImplicitBlockArgument(),
+                names.length==1 ? names[0] : null
+        );
 
         CpsThread thread = CpsThread.current();
 
@@ -199,10 +200,13 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     /**
      * When {@link #invokeMethod(String, Object)} is calling a generic {@link Descriptor}
      */
-    private Object invokeDescribable(Descriptor d, String symbol, Object args) {
-        UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, parseArgsToDescribable(args));
-
+    private Object invokeDescribable(Descriptor d, String symbol, Object _args) {
         StepDescriptor metaStep = findMetaStep(d);
+
+        // The only time a closure is valid is when the resulting Describable is immediately executed via a meta-step
+        NamedArgsAndClosure args = parseArgs(_args, metaStep!=null && metaStep.takesImplicitBlockArgument(), UninstantiatedDescribable.ANONYMOUS_KEY);
+        UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
+
         if (metaStep==null) {
             // there's no meta-step associated with it, so this symbol is not executable.
             // in this case we assume this is building a nested object used as an eventual
@@ -255,40 +259,11 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 ud = new UninstantiatedDescribable(symbol, null, dargs);
                 margs.put(p.getName(),ud);
 
-                return invokeStep(metaStep,margs);
+                return invokeStep(metaStep,new NamedArgsAndClosure(margs,args.body));
             } catch (Exception e) {
                 throw new IllegalArgumentException("Failed to prepare "+symbol+" step",e);
             }
         }
-    }
-
-    /**
-     * Used to parse arguments Groovy gave us into a Map that {@link UninstantiatedDescribable} expects.
-     */
-    private Map parseArgsToDescribable(Object args) {
-        if (args instanceof Object[]) {
-            Object[] ary = (Object[]) args;
-            switch (ary.length) {
-            case 0:
-                return Collections.emptyMap();
-            case 1:
-                args = ary[0];
-                break;
-            default:
-                throw new IllegalArgumentException("Expected named arguments but got "+Arrays.asList((Object[])args));
-            }
-        }
-
-        if (args instanceof Map) {
-            // this happens when named arguments are used, like: f(a:1, b:2)
-            return (Map) args;
-        }
-
-        if (args instanceof Closure) {
-            throw new IllegalArgumentException("Block is not expected");
-        }
-
-        return Collections.singletonMap(UninstantiatedDescribable.ANONYMOUS_KEY,args);
     }
 
     /**
@@ -370,10 +345,18 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      *
      * <p>
      * This handling is designed after how Java defines literal syntax for {@link Annotation}.
+     *
+     * @param arg
+     *      Argument object of {@link GroovyObject#invokeMethod(String, Object)}
+     * @param expectsBlock
+     *      If a closure is a valid possible argument. If false and we see a block, this method throws an exception.
+     * @param soleArgumentKey
+     *      If the context in which this method call happens allow implicit sole default argument, specify its name.
+     *      If null, the call must be with names arguments.
      */
-    static NamedArgsAndClosure parseArgs(StepDescriptor d, Object arg) {
-        boolean expectsBlock = d.takesImplicitBlockArgument();
-
+    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey) {
+        if (arg instanceof NamedArgsAndClosure)
+            return (NamedArgsAndClosure) arg;
         if (arg instanceof Map) // TODO is this clause actually used?
             return new NamedArgsAndClosure((Map) arg, null);
         if (arg instanceof Closure && expectsBlock)
@@ -401,18 +384,17 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             case 0:
                 return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),c);
             case 1:
-                return new NamedArgsAndClosure(singleParam(d, a.get(0)), c);
+                return new NamedArgsAndClosure(singleParam(soleArgumentKey, a.get(0)), c);
             default:
                 throw new IllegalArgumentException("Expected named arguments but got "+a);
             }
         }
 
-        return new NamedArgsAndClosure(singleParam(d, arg), null);
+        return new NamedArgsAndClosure(singleParam(soleArgumentKey, arg), null);
     }
-    private static Map<String,Object> singleParam(StepDescriptor d, Object arg) {
-        String[] names = new ClassDescriptor(d.clazz).loadConstructorParamNames();
-        if (names.length == 1) {
-            return Collections.singletonMap(names[0], arg);
+    private static Map<String,Object> singleParam(String soleArgumentKey, Object arg) {
+        if (soleArgumentKey != null) {
+            return Collections.singletonMap(soleArgumentKey, arg);
         } else {
             throw new IllegalArgumentException("Expected named arguments but got " + arg);
         }
