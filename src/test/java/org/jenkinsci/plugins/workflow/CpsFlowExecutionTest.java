@@ -242,6 +242,30 @@ public class CpsFlowExecutionTest {
         });
     }
 
+    @Issue("JENKINS-32015")
+    @Test public void quietDown() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+                WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+                SemaphoreStep.waitForStart("wait/1", b);
+                story.j.jenkins.doQuietDown(true, 0);
+                SemaphoreStep.success("wait/1", null);
+                // as above, this is rather weak
+                Thread.sleep(1000);
+                assertTrue(b.isBuilding());
+            }
+        });
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+                WorkflowRun b = p.getLastBuild();
+                story.j.assertLogContains("I am done", story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b)));
+            }
+        });
+    }
+
     @Issue("JENKINS-26130")
     @Test public void interruptProgramLoad() {
         story.addStep(new Statement() {

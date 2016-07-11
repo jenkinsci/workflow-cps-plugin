@@ -63,6 +63,7 @@ import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
 import javax.annotation.Nonnull;
+import jenkins.model.Jenkins;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
@@ -224,8 +225,8 @@ public final class CpsThreadGroup implements Serializable {
         try {
         f = runner.submit(new Callable<Future<?>>() {
             public Future<?> call() throws Exception {
-                // TODO consider treating Jenkins.isQuietingDown as an implicit pause as well
-                if (paused.get()) {
+                Jenkins j = Jenkins.getInstance();
+                if (paused.get() || j == null || j.isQuietingDown()) {
                     // by doing the pause check inside, we make sure that scheduleRun() returns a
                     // future that waits for any previously scheduled tasks to be completed.
                     saveProgram();
@@ -446,6 +447,11 @@ public final class CpsThreadGroup implements Serializable {
 
         CpsFlowExecution old = PROGRAM_STATE_SERIALIZATION.get();
         PROGRAM_STATE_SERIALIZATION.set(execution);
+
+        if (Jenkins.getInstance() == null) {
+            LOGGER.log(WARNING, "Skipping save to {0} since Jenkins seems to be shutting down", f);
+            return;
+        }
 
         try {
             RiverWriter w = new RiverWriter(tmpFile, execution.getOwner());

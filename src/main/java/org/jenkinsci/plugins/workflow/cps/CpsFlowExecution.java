@@ -479,6 +479,9 @@ public class CpsFlowExecution extends FlowExecution {
                                     } catch (IOException x) {
                                         LOGGER.log(Level.WARNING, null, x);
                                     }
+                                } else {
+                                    // In case we last paused execution due to Jenkins.isQuietingDown, make sure we do something after we restart.
+                                    g.scheduleRun();
                                 }
                             } catch (Throwable t) {
                                 onFailure(t);
