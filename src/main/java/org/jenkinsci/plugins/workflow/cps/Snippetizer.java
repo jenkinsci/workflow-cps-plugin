@@ -144,6 +144,11 @@ import org.kohsuke.stapler.StaplerRequest;
                             if (nested.getSymbol() == null) {
                                 // no symbol name on the nested object means there's no short name
                                 failSimplification = true;
+                            } else
+                            if (StepDescriptor.byFunctionName(nested.getSymbol())!=null) {
+                                // there's a step that has the same name. DSL.invokeMethod prefers step over describable
+                                // so this needs to be written out as a literal map
+                                failSimplification = true;
                             }
 
                             if (!failSimplification) {
@@ -221,7 +226,12 @@ import org.kohsuke.stapler.StaplerRequest;
     private static StringBuilder ud2groovy(StringBuilder b, UninstantiatedDescribable ud, boolean blockArgument, boolean nested) {
         if (ud.getSymbol()==null) {
             // if there's no symbol, we need to write this as [$class:...]
-            return map2groovy(b,ud.toMap());
+            return map2groovy(b,ud.toShallowMap());
+        }
+
+        if (StepDescriptor.byFunctionName(ud.getSymbol())!=null) {
+            // if the symbol collides with existing step name, then we cannot use it
+            return map2groovy(b,ud.toShallowMap());
         }
 
         final Map<String, ?> args = ud.getArguments();

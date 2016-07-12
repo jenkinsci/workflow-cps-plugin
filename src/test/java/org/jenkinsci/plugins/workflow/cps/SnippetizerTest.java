@@ -44,6 +44,7 @@ import org.jenkinsci.plugins.workflow.support.steps.WorkspaceStep;
 import org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Hawaii;
+import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -108,6 +109,11 @@ public class SnippetizerTest {
     @Test public void recursiveSymbolUse() throws Exception {
         Hawaii hawaii = new Hawaii(new Hawaii(new Hawaii(null,null),null),new Hawaii(null,null));
         st.assertRoundTrip(new StateMetaStep(hawaii), "hawaii lhs: hawaii(lhs: hawaii()), rhs: hawaii()");
+    }
+
+    @Test public void collisionWithStep() throws Exception {
+        // this cannot use "or()" due to a collision with OrStep
+        st.assertRoundTrip(new StateMetaStep(new Oregon()), "state [$class: 'Oregon']");
     }
 
     @Test public void blockSteps() throws Exception {
