@@ -119,9 +119,6 @@ import org.kohsuke.stapler.StaplerRequest;
                 UninstantiatedDescribable uninst = d.uninstantiate(step);
 
                 if (d.isMetaStep()) {
-                    // if we cannot represent this 'o' in a concise syntax that hides meta-step, set this to true
-                    boolean failSimplification = false;
-
                     // if we have a symbol name for the wrapped Describable, we can produce
                     // a more concise form that hides it
                     DescribableModel<?> m = new DescribableModel(d.clazz);
@@ -129,6 +126,9 @@ import org.kohsuke.stapler.StaplerRequest;
                     if (p!=null) {
                         Object wrapped = uninst.getArguments().get(p.getName());
                         if (wrapped instanceof UninstantiatedDescribable) {
+                            // if we cannot represent this 'o' in a concise syntax that hides meta-step, set this to true
+                            boolean failSimplification = false;
+
                             UninstantiatedDescribable nested = (UninstantiatedDescribable) wrapped;
                             TreeMap<String, Object> copy = new TreeMap<>(nested.getArguments());
                             for (Entry<String, ?> e : uninst.getArguments().entrySet()) {
