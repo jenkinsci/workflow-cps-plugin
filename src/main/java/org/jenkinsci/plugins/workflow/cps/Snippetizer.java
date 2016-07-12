@@ -48,7 +48,6 @@ import javax.lang.model.SourceVersion;
 import jenkins.model.Jenkins;
 import jenkins.model.TransientActionFactory;
 import net.sf.json.JSONObject;
-import org.jenkinsci.plugins.structs.SymbolLookup;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
@@ -142,14 +141,13 @@ import org.kohsuke.stapler.StaplerRequest;
                                 }
                             }
 
-                            final String symbol = nested.getSymbol();
-                            if (!canUseSymbol(symbol))
+                            if (!canUseMetaStep(nested))
                                 failSimplification = true;
 
                             if (!failSimplification) {
                                 // write out in a short-form
                                 UninstantiatedDescribable combined = new UninstantiatedDescribable(
-                                        symbol, nested.getKlass(), copy);
+                                        nested.getSymbol(), nested.getKlass(), copy);
                                 combined.setModel(nested.getModel());
 
                                 return ud2groovy(b, combined, false, nestedExp);
@@ -174,22 +172,8 @@ import org.kohsuke.stapler.StaplerRequest;
     /**
      * Can this symbol name be used to produce a short hand?
      */
-    private static boolean canUseSymbol(String symbol) {
-        if (symbol == null) {
-            // no symbol name on the nested object means there's no short name
-            return false;
-        } else
-        if (StepDescriptor.byFunctionName(symbol)!=null) {
-            // there's a step that has the same name. DSL.invokeMethod prefers step over describable
-            // so this needs to be written out as a literal map
-            return false;
-        }
-        if (StepDescriptor.metaStepsOf(symbol).size()>1) {
-            // maybe there are multiple meta-steps that wants to process this symbol?
-            return false;
-        }
-
-        return true;
+    private static boolean canUseMetaStep(UninstantiatedDescribable ud) {
+        return canUseSymbol(ud) && StepDescriptor.metaStepsOf(ud.getSymbol()).size()==1;
     }
 
     private static StringBuilder list2groovy(StringBuilder b, List<?> o) {
@@ -238,17 +222,26 @@ import org.kohsuke.stapler.StaplerRequest;
      *      true if this object is written as a nested expression (in which case we always produce parenthesis for readability
      */
     private static StringBuilder ud2groovy(StringBuilder b, UninstantiatedDescribable ud, boolean blockArgument, boolean nested) {
-        if (ud.getSymbol() == null) {
+        if (!canUseSymbol(ud)) {
             // if there's no symbol, we need to write this as [$class:...]
             return map2groovy(b, ud.toShallowMap());
         }
 
-        if (StepDescriptor.byFunctionName(ud.getSymbol()) != null) {
-            // if the symbol collides with existing step name, then we cannot use it
-            return map2groovy(b, ud.toShallowMap());
+        return functionCall(b, ud, blockArgument, nested);
+    }
+
+    private static boolean canUseSymbol(UninstantiatedDescribable ud) {
+        if (ud.getSymbol() == null) {
+            // if there's no symbol, we need to write this as [$class:...]
+            return false;
         }
 
-        return functionCall(b, ud, blockArgument, nested);
+        if (StepDescriptor.byFunctionName(ud.getSymbol()) != null) {
+            // if the symbol collides with existing step name, then we cannot use it
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -331,7 +324,7 @@ import org.kohsuke.stapler.StaplerRequest;
             return true;
         if (v instanceof UninstantiatedDescribable) {
             // UninstantiatedDescribable can be written out as a Map so treat it as a map
-            return !canUseSymbol(((UninstantiatedDescribable)v).getSymbol());
+            return !canUseSymbol((UninstantiatedDescribable)v);
         }
         return false;
     }
