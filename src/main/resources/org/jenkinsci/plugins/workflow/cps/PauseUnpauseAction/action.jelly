@@ -25,12 +25,5 @@ THE SOFTWARE.
 
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout">
-    <j:choose>
-        <j:when test="${action.paused}">
-            <l:task icon="plugin/workflow-cps/images/24x24/play.png" title="${%Unpause}" href="${h.getActionUrl(it.url, action)}/unpause" post="true" contextMenu="true"/>
-        </j:when>
-        <j:otherwise>
-            <l:task icon="plugin/workflow-cps/images/24x24/pause.png" title="${%Pause}" href="${h.getActionUrl(it.url, action)}/pause" post="true" contextMenu="true"/>
-        </j:otherwise>
-    </j:choose>
+    <l:task icon="plugin/workflow-cps/images/24x24/pause.png" title="${%Pause/resume}" href="${h.getActionUrl(it.url, action)}/toggle" post="true" contextMenu="true"/>
 </j:jelly>

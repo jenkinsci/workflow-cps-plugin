@@ -954,7 +954,7 @@ public class CpsFlowExecution extends FlowExecution {
                     g.unpause();
                 }
                 try {
-                    owner.getListener().getLogger().println(v ? "Pausing" : "Unpausing");
+                    owner.getListener().getLogger().println(v ? "Pausing" : "Resuming");
                 } catch (IOException x) {
                     LOGGER.log(Level.WARNING, null, x);
                 }

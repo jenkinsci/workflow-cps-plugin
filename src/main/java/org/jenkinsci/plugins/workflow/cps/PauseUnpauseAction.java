@@ -25,7 +25,6 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import hudson.model.Action;
-import hudson.model.InvisibleAction;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
@@ -39,12 +38,8 @@ public class PauseUnpauseAction implements Action {
         this.execution = execution;
     }
 
-    public boolean isPaused() {
-        return execution.isPaused();
-    }
-
     @Override public String getUrlName() {
-        return "pausing";
+        return "pause";
     }
 
     @Override public String getIconFileName() {
@@ -56,13 +51,8 @@ public class PauseUnpauseAction implements Action {
     }
 
     @RequirePOST
-    public void doPause() {
-        execution.pause(true);
-    }
-
-    @RequirePOST
-    public void doUnpause() {
-        execution.pause(false);
+    public void doToggle() {
+        execution.pause(!execution.isPaused());
     }
 
 }
