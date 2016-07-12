@@ -32,7 +32,7 @@ import hudson.model.ParametersDefinitionProperty;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.tasks.ArtifactArchiver;
-import hudson.tasks.junit.JUnitResultArchiver;
+import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.workflow.steps.CatchErrorStep;
 import org.jenkinsci.plugins.workflow.steps.CoreStep;
@@ -45,7 +45,6 @@ import org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStep;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.jvnet.hudson.test.Email;
 import org.jvnet.hudson.test.Issue;
@@ -130,16 +129,12 @@ public class SnippetizerTest {
         BuildTriggerStep step = new BuildTriggerStep("downstream");
         st.assertRoundTrip(step, "build 'downstream'");
         step.setParameters(Arrays.asList(new StringParameterValue("branch", "default"), new BooleanParameterValue("correct", true)));
-        // when this test fails because of new core, see below "buildTriggerStepWith_2_2"
-        st.assertRoundTrip(step, "build job: 'downstream', parameters: [[$class: 'StringParameterValue', name: 'branch', value: 'default'], [$class: 'BooleanParameterValue', name: 'correct', value: true]]");
-    }
-
-    @Test @Ignore("until this module can be compiled with 2.2 core")
-    public void buildTriggerStepWith_2_2() throws Exception {
-        BuildTriggerStep step = new BuildTriggerStep("downstream");
-        st.assertRoundTrip(step, "build 'downstream'");
-        step.setParameters(Arrays.asList(new StringParameterValue("branch", "default"), new BooleanParameterValue("correct", true)));
-        st.assertRoundTrip(step, "build job: 'downstream', parameters: [string(name: 'branch', value: 'default'), booleanParam(name: 'correct', value: true)]");
+        if (StringParameterDefinition.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
+            // with newer core that defines symbols for StringParameterDefinition
+            st.assertRoundTrip(step, "build job: 'downstream', parameters: [string(name: 'branch', value: 'default'), booleanParam(name: 'correct', value: true)]");
+        } else {
+            st.assertRoundTrip(step, "build job: 'downstream', parameters: [[$class: 'StringParameterValue', name: 'branch', value: 'default'], [$class: 'BooleanParameterValue', name: 'correct', value: true]]");
+        }
     }
 
     @Issue("JENKINS-25779")
