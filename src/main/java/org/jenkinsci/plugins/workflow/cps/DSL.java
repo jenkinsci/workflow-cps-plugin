@@ -239,7 +239,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 //      2. mandatory parameter in dm
                 //      3. other parameters in mm
                 //      4. other parameters in dm
-                // mm is preferred over dm because that way at least the arguments that dm defines
+                // mm is preferred over dm because that way at least the arguments that mm defines
                 // act consistently
                 Map<String,Object> margs = new TreeMap<>();
                 Map<String,Object> dargs = new TreeMap<>();
