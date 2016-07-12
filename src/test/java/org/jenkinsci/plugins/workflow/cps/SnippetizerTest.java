@@ -104,17 +104,6 @@ public class SnippetizerTest {
         st.assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "step([$class: 'ArtifactArchiver', artifacts: 'x.jar'])");
     }
 
-    @Test public void coreStepWithSymbol() throws Exception {
-        JUnitResultArchiver aa = new JUnitResultArchiver("target/surefire/*.xml");
-        aa.setAllowEmptyResults(true);
-        st.assertRoundTrip(new CoreStep(aa), "junit allowEmptyResults: true, testResults: 'target/surefire/*.xml'");
-    }
-
-    @Test public void coreStepWithSymbolWithSoleArg() throws Exception {
-        JUnitResultArchiver aa = new JUnitResultArchiver("target/surefire/*.xml");
-        st.assertRoundTrip(new CoreStep(aa), "junit 'target/surefire/*.xml'");
-    }
-
     @Test public void recursiveSymbolUse() throws Exception {
         RedBlack tree = new RedBlack();
         tree.setRed(new RedBlack());
