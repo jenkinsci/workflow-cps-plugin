@@ -233,6 +233,10 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 DescribableModel<?> mm = new DescribableModel(metaStep.clazz);
                 DescribableModel<?> dm = new DescribableModel(d.clazz);
                 DescribableParameter p = mm.getFirstRequiredParameter();
+                if (p==null) {
+                    // meta-step not having a required parameter is a bug in this meta step
+                    throw new IllegalArgumentException("Attempted to use meta-step "+metaStep.getFunctionName()+" to process "+symbol+" but this meta-step is buggy; it has no mandatory parameter");
+                }
 
                 // order of preference:
                 //      1. mandatory parameter in mm
