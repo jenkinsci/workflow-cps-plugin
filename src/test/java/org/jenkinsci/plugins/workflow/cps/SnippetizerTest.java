@@ -117,7 +117,7 @@ public class SnippetizerTest {
 
     @Test public void collisionWithStep() throws Exception {
         // this cannot use "or()" due to a collision with OrStep
-        st.assertRoundTrip(new StateMetaStep(new Oregon()), "state [$class: 'Oregon']");
+        st.assertRoundTrip(new StateMetaStep(new Oregon()), "state([$class: 'Oregon'])");
     }
 
     @Test public void collisionWithAnotherMetaStep() throws Exception {

@@ -143,20 +143,8 @@ import org.kohsuke.stapler.StaplerRequest;
                             }
 
                             final String symbol = nested.getSymbol();
-
-                            if (symbol == null) {
-                                // no symbol name on the nested object means there's no short name
+                            if (!canUseSymbol(symbol))
                                 failSimplification = true;
-                            } else
-                            if (StepDescriptor.byFunctionName(symbol)!=null) {
-                                // there's a step that has the same name. DSL.invokeMethod prefers step over describable
-                                // so this needs to be written out as a literal map
-                                failSimplification = true;
-                            }
-                            if (StepDescriptor.metaStepsOf(symbol).size()>1) {
-                                // maybe there are multiple meta-steps that wants to process this symbol?
-                                failSimplification = true;
-                            }
 
                             if (!failSimplification) {
                                 // write out in a short-form
@@ -181,6 +169,27 @@ import org.kohsuke.stapler.StaplerRequest;
 
         // unknown type
         return b.append("<object of type ").append(clazz.getCanonicalName()).append('>');
+    }
+
+    /**
+     * Can this symbol name be used to produce a short hand?
+     */
+    private static boolean canUseSymbol(String symbol) {
+        if (symbol == null) {
+            // no symbol name on the nested object means there's no short name
+            return false;
+        } else
+        if (StepDescriptor.byFunctionName(symbol)!=null) {
+            // there's a step that has the same name. DSL.invokeMethod prefers step over describable
+            // so this needs to be written out as a literal map
+            return false;
+        }
+        if (StepDescriptor.metaStepsOf(symbol).size()>1) {
+            // maybe there are multiple meta-steps that wants to process this symbol?
+            return false;
+        }
+
+        return true;
     }
 
     private static StringBuilder list2groovy(StringBuilder b, List<?> o) {
@@ -322,7 +331,7 @@ import org.kohsuke.stapler.StaplerRequest;
             return true;
         if (v instanceof UninstantiatedDescribable) {
             // UninstantiatedDescribable can be written out as a Map so treat it as a map
-            return ((UninstantiatedDescribable)v).getSymbol()==null;
+            return !canUseSymbol(((UninstantiatedDescribable)v).getSymbol());
         }
         return false;
     }
