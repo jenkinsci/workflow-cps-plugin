@@ -125,34 +125,40 @@ import org.kohsuke.stapler.StaplerRequest;
                     // a more concise form that hides it
                     DescribableModel<?> m = new DescribableModel(d.clazz);
                     DescribableParameter p = m.getFirstRequiredParameter();
-                    Object wrapped = uninst.getArguments().get(p.getName());
-                    if (wrapped instanceof UninstantiatedDescribable) {
-                        UninstantiatedDescribable nested = (UninstantiatedDescribable) wrapped;
-                        TreeMap<String, Object> copy = new TreeMap<>(nested.getArguments());
-                        for (Entry<String, ?> e : uninst.getArguments().entrySet()) {
-                            if (!e.getKey().equals(p.getName())) {
-                                if (copy.put(e.getKey(),e.getValue())!=null) {
-                                    // collision between a parameter in meta-step and wrapped-step,
-                                    // which cannot be reconciled unless we explicitly write out
-                                    // meta-step
-                                    failSimplification = true;
+                    if (p!=null) {
+                        Object wrapped = uninst.getArguments().get(p.getName());
+                        if (wrapped instanceof UninstantiatedDescribable) {
+                            UninstantiatedDescribable nested = (UninstantiatedDescribable) wrapped;
+                            TreeMap<String, Object> copy = new TreeMap<>(nested.getArguments());
+                            for (Entry<String, ?> e : uninst.getArguments().entrySet()) {
+                                if (!e.getKey().equals(p.getName())) {
+                                    if (copy.put(e.getKey(), e.getValue()) != null) {
+                                        // collision between a parameter in meta-step and wrapped-step,
+                                        // which cannot be reconciled unless we explicitly write out
+                                        // meta-step
+                                        failSimplification = true;
+                                    }
                                 }
                             }
-                        }
 
-                        if (nested.getSymbol()==null) {
-                            // no symbol name on the nested object means there's no short name
-                            failSimplification = true;
-                        }
+                            if (nested.getSymbol() == null) {
+                                // no symbol name on the nested object means there's no short name
+                                failSimplification = true;
+                            }
 
-                        if (!failSimplification) {
-                            // write out in a short-form
-                            UninstantiatedDescribable combined = new UninstantiatedDescribable(
-                                    nested.getSymbol(), nested.getKlass(), copy);
-                            combined.setModel(nested.getModel());
+                            if (!failSimplification) {
+                                // write out in a short-form
+                                UninstantiatedDescribable combined = new UninstantiatedDescribable(
+                                        nested.getSymbol(), nested.getKlass(), copy);
+                                combined.setModel(nested.getModel());
 
-                            return ud2groovy(b, combined, false, nestedExp);
+                                return ud2groovy(b, combined, false, nestedExp);
+                            }
                         }
+                    } else {
+                        // this can only happen with buggy meta-step
+                        LOGGER.log(Level.WARNING, "Buggy meta-step "+d.clazz+" defines no mandatory parameter");
+                        // use the default code path to write it out as: metaStep(describable(...))
                     }
                 }
 
@@ -410,4 +416,5 @@ import org.kohsuke.stapler.StaplerRequest;
 
     }
 
+    private static final Logger LOGGER = Logger.getLogger(Snippetizer.class.getName());
 }
