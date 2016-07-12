@@ -6,7 +6,6 @@ import hudson.model.TaskListener;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.workflow.cps.SnippetizerTest;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
 
 /**
  * Recursive state
@@ -15,26 +14,11 @@ import org.kohsuke.stapler.DataBoundSetter;
  * @see SnippetizerTest#recursiveSymbolUse()
  */
 public class Hawaii extends State {
-    public Hawaii lhs;
-    public Hawaii rhs;
+    public Island island;
 
     @DataBoundConstructor
-    public Hawaii() {
-    }
-
-    public Hawaii(Hawaii lhs, Hawaii rhs) {
-        this.lhs = lhs;
-        this.rhs = rhs;
-    }
-
-    @DataBoundSetter
-    public void setLhs(Hawaii lhs) {
-        this.lhs = lhs;
-    }
-
-    @DataBoundSetter
-    public void setRhs(Hawaii rhs) {
-        this.rhs = rhs;
+    public Hawaii(Island island) {
+        this.island = island;
     }
 
     @Override

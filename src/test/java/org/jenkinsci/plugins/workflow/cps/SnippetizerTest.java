@@ -44,6 +44,7 @@ import org.jenkinsci.plugins.workflow.support.steps.WorkspaceStep;
 import org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Hawaii;
+import org.jenkinsci.plugins.workflow.testMetaStep.Island;
 import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.junit.BeforeClass;
@@ -107,8 +108,8 @@ public class SnippetizerTest {
     }
 
     @Test public void recursiveSymbolUse() throws Exception {
-        Hawaii hawaii = new Hawaii(new Hawaii(new Hawaii(null,null),null),new Hawaii(null,null));
-        st.assertRoundTrip(new StateMetaStep(hawaii), "hawaii lhs: hawaii(lhs: hawaii()), rhs: hawaii()");
+        Island hawaii = new Island(new Island(new Island(),null),new Island());
+        st.assertRoundTrip(new StateMetaStep(new Hawaii(hawaii)), "hawaii island(lhs: island(lhs: island()), rhs: island())");
     }
 
     @Test public void collisionWithStep() throws Exception {
