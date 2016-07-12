@@ -91,6 +91,19 @@ public class DSLTest {
     }
 
     /**
+     * Split arguments between meta step and state, when argument is colliding
+     */
+    @Issue("JENKINS-29922")
+    @Test
+    public void dollar_class_must_die_colliding_argument() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die5");
+        p.setDefinition(new CpsFlowDefinition("newYork motto:'Empire', moderate:true"));
+        WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("Introducing newYork\nThe Empire State", run);
+        r.assertLogNotContains("New York can be moderate in spring or fall", run);
+    }
+
+    /**
      * Single argument state
      */
     @Issue("JENKINS-29922")
