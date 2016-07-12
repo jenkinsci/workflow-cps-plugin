@@ -48,6 +48,7 @@ import javax.lang.model.SourceVersion;
 import jenkins.model.Jenkins;
 import jenkins.model.TransientActionFactory;
 import net.sf.json.JSONObject;
+import org.jenkinsci.plugins.structs.SymbolLookup;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
@@ -141,20 +142,26 @@ import org.kohsuke.stapler.StaplerRequest;
                                 }
                             }
 
-                            if (nested.getSymbol() == null) {
+                            final String symbol = nested.getSymbol();
+
+                            if (symbol == null) {
                                 // no symbol name on the nested object means there's no short name
                                 failSimplification = true;
                             } else
-                            if (StepDescriptor.byFunctionName(nested.getSymbol())!=null) {
+                            if (StepDescriptor.byFunctionName(symbol)!=null) {
                                 // there's a step that has the same name. DSL.invokeMethod prefers step over describable
                                 // so this needs to be written out as a literal map
+                                failSimplification = true;
+                            }
+                            if (StepDescriptor.metaStepsOf(symbol).size()>1) {
+                                // maybe there are multiple meta-steps that wants to process this symbol?
                                 failSimplification = true;
                             }
 
                             if (!failSimplification) {
                                 // write out in a short-form
                                 UninstantiatedDescribable combined = new UninstantiatedDescribable(
-                                        nested.getSymbol(), nested.getKlass(), copy);
+                                        symbol, nested.getKlass(), copy);
                                 combined.setModel(nested.getModel());
 
                                 return ud2groovy(b, combined, false, nestedExp);

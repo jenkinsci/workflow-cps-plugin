@@ -116,9 +116,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         if (sd != null) {
             return invokeStep(sd,args);
         }
-        Descriptor d = SymbolLookup.get().findDescriptor(Describable.class, name);
-        if (d != null) {
-            return invokeDescribable(d,name,args);
+        if (SymbolLookup.get().findDescriptor(Describable.class, name) != null) {
+            return invokeDescribable(name,args);
         }
 
         // TODO probably this should be throwing a subtype of groovy.lang.MissingMethodException
@@ -207,8 +206,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     /**
      * When {@link #invokeMethod(String, Object)} is calling a generic {@link Descriptor}
      */
-    protected Object invokeDescribable(Descriptor d, String symbol, Object _args) {
-        StepDescriptor metaStep = findMetaStep(d);
+    protected Object invokeDescribable(String symbol, Object _args) {
+        List<StepDescriptor> metaSteps = StepDescriptor.metaStepsOf(symbol);
+        StepDescriptor metaStep = metaSteps.size()==1 ? metaSteps.get(0) : null;
 
         // The only time a closure is valid is when the resulting Describable is immediately executed via a meta-step
         NamedArgsAndClosure args = parseArgs(_args, metaStep!=null && metaStep.takesImplicitBlockArgument(), UninstantiatedDescribable.ANONYMOUS_KEY);
@@ -226,6 +226,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // might be resolved with a specific type.
             return ud;
         } else {
+            Descriptor d = SymbolLookup.get().findDescriptor(metaStep.getMetaStepArgumentType(), symbol);
+
             try {
                 // execute this Describable through a meta-step
 
@@ -280,7 +282,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     /**
      * Finds a meta step that can handle a Describable of the given type 'd'
      */
-    private StepDescriptor findMetaStep(Descriptor d) {
+    private static StepDescriptor findMetaStep(Descriptor d) {
         OUTER:
         for (StepDescriptor sd : StepDescriptor.allMeta()) {
             if (sd.getMetaStepArgumentType().isAssignableFrom(d.clazz)) {

@@ -43,10 +43,13 @@ import org.jenkinsci.plugins.workflow.support.steps.StageStep;
 import org.jenkinsci.plugins.workflow.support.steps.WorkspaceStep;
 import org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.Colorado;
 import org.jenkinsci.plugins.workflow.testMetaStep.Hawaii;
 import org.jenkinsci.plugins.workflow.testMetaStep.Island;
 import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.chemical.CarbonMonoxide;
+import org.jenkinsci.plugins.workflow.testMetaStep.chemical.DetectionMetaStep;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -115,6 +118,12 @@ public class SnippetizerTest {
     @Test public void collisionWithStep() throws Exception {
         // this cannot use "or()" due to a collision with OrStep
         st.assertRoundTrip(new StateMetaStep(new Oregon()), "state [$class: 'Oregon']");
+    }
+
+    @Test public void collisionWithAnotherMetaStep() throws Exception {
+        // neither should produce "CO()" because that would prevent disambiguation
+        st.assertRoundTrip(new StateMetaStep(new Colorado()), "state CO()");
+        st.assertRoundTrip(new DetectionMetaStep(new CarbonMonoxide()), "detect CO()");
     }
 
     @Test public void blockSteps() throws Exception {
