@@ -77,7 +77,7 @@ import org.kohsuke.stapler.StaplerRequest;
      * Renders the invocation syntax to re-create a given object 'o' into 'b'
      *
      * @param nestedExp
-     *      true if this object is written as a nested expression (in which case we always produce parenthesis for readability
+     *      true if this object is written as a nested expression (in which case we always produce parenthesis for readability)
      * @return  the same object as 'b'
      */
     static StringBuilder object2Groovy(StringBuilder b, Object o, boolean nestedExp) throws UnsupportedOperationException {
@@ -133,7 +133,7 @@ import org.kohsuke.stapler.StaplerRequest;
                             if (!e.getKey().equals(p.getName())) {
                                 if (copy.put(e.getKey(),e.getValue())!=null) {
                                     // collision between a parameter in meta-step and wrapped-step,
-                                    // which cannot be reconcilled unless we explicitly write out
+                                    // which cannot be reconciled unless we explicitly write out
                                     // meta-step
                                     failSimplification = true;
                                 }
@@ -232,7 +232,7 @@ import org.kohsuke.stapler.StaplerRequest;
 
         if (ud.hasSoleRequiredArgument()) {
             // lone argument optimization, which gets rid of named arguments and just write one value, like
-            // retry 5 { ... }
+            // retry (5) { ... }
             object2Groovy(b, args.values().iterator().next(), true);
         } else {
             // usual form, which calls out argument names, like
