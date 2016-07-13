@@ -29,6 +29,7 @@ class ClosureCallEnv extends CallEnv {
 
     public void declareVariable(Class type, String name) {
         locals.put(name,null);
+        getTypes().put(name, type);
     }
 
     public Object getLocalVariable(String name) {
@@ -43,6 +44,10 @@ class ClosureCallEnv extends CallEnv {
             locals.put(name, value);
         else
             captured.setLocalVariable(name, value);
+    }
+
+    public Class getLocalVariableType(String name) {
+        return (locals.containsKey(name)) ? getTypes().get(name) : captured.getLocalVariableType(name);
     }
 
     public Object closureOwner() {

@@ -707,6 +707,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         if (ref instanceof VariableExpression /* local variable */
         ||  ref instanceof Parameter) {
             makeNode("localVariable") {
+                loc(exp)
                 literal(exp.name)
             }
         } else

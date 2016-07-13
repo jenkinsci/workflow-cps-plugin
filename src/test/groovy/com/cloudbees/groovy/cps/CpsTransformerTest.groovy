@@ -130,12 +130,15 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Issue('https://github.com/cloudbees/groovy-cps/issues/31')
     @Test
-    @NotYetImplemented
     void constructorList() {
+        File f =  ['/parent', 'name'];
+        println(f);
         assert evalCPS('''\
             File f = ['/parent', 'name']
             return f
         '''.stripIndent()) == new File('/parent', 'name')
+
+        // TODO test for closure env with a File declaration
     }
 
     @Test

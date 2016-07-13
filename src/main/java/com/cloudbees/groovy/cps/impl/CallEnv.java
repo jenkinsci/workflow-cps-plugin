@@ -6,7 +6,9 @@ import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 
 import javax.annotation.Nullable;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Common part between {@link FunctionCallEnv} and {@link ClosureCallEnv}.
@@ -15,6 +17,7 @@ import java.util.List;
  */
 /*package*/ abstract class CallEnv implements Env {
     private final Continuation returnAddress;
+    private Map<String, Class> types = new HashMap<String, Class>();
 
     /**
      * Caller environment, used for throwing an exception.
@@ -41,6 +44,18 @@ import java.util.List;
         this.callSiteLoc = loc;
         this.invoker = caller==null ? Invoker.INSTANCE : caller.getInvoker();
         assert returnAddress!=null;
+    }
+
+    /** Because might deserialize old version of class with null value for field */
+    protected Map<String, Class> getTypes() {
+        if (types == null) {
+            this.types = new HashMap<String, Class>();
+        }
+        return this.types;
+    }
+
+    public Class getLocalVariableType(String name) {
+        return getTypes().get(name);
     }
 
     /**

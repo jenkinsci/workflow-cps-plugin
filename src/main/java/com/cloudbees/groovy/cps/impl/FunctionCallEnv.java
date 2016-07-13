@@ -24,7 +24,8 @@ public class FunctionCallEnv extends CallEnv {
     }
 
     public void declareVariable(Class type, String name) {
-        // no-op
+        locals.put(name, null);
+        getTypes().put(name, type);
     }
 
     public Object getLocalVariable(String name) {
