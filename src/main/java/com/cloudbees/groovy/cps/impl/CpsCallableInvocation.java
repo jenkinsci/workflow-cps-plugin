@@ -10,7 +10,15 @@ import java.util.List;
 import static java.util.Arrays.*;
 
 /**
- * Invocation of {@link CpsCallable}.
+ * When an CPS-interpreted method is invoked, it immediately throws this error
+ * to signal that the method execution needs to be interpreted.
+ *
+ * <p>
+ * The instance captures everything necessary to invoke a function,
+ * which is
+ * {@linkplain #call the definition of the function},
+ * {@linkplain #receiver object that the function is invoked on}, and
+ * {@linkplain #arguments actual arguments to the function}.
  *
  * When we invoke CPS-transformed closure or function, this throwable gets thrown.
  *

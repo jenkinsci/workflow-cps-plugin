@@ -1,21 +1,56 @@
 package com.cloudbees.groovy.cps;
 
+import com.cloudbees.groovy.cps.impl.LocalVariableBlock;
+import com.cloudbees.groovy.cps.impl.VariableDeclBlock;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 import groovy.lang.Closure;
 
+import javax.annotation.Nonnull;
 import java.io.Serializable;
 import java.util.List;
 
 /**
- * For variable lookup. This is local variables.
+ * Represents an environment in which {@link Block} is evaluated.
+ *
+ * In the <a href="https://en.wikipedia.org/wiki/Harvard_architecture">Harvard architecture</a> terms,
+ * {@link Block} is instruction and {@link Env} is data.
+ *
+ * <p>
+ * See {@code cps-model.md}
  *
  * @author Kohsuke Kawaguchi
  */
 public interface Env extends Serializable {
-    void declareVariable(Class type, String name);
+    /**
+     * Defines a local variable in the current environment.
+     *
+     * This method is called when a variable declaration is encountered.
+     *
+     * @param type
+     *      Type of the local variable. {@link Object} when unknown/implicit (e.g. "def x")
+     * @param name
+     *      Name of the local variable.
+     * @see VariableDeclBlock
+     */
+    void declareVariable(@Nonnull Class type, @Nonnull  String name);
 
-    Object getLocalVariable(String name);
-    void setLocalVariable(String name, Object value);
+    /**
+     * Obtains the current value of a local variable in the current environment.
+     * @param name
+     *      Name of the local variable.
+     * @see LocalVariableBlock
+     */
+    Object getLocalVariable(@Nonnull String name);
+
+    /**
+     * Sets the local variable to a new value.
+     * @param name
+     *      Name of the local variable.
+     * @param value
+     *      New value
+     * @see LocalVariableBlock
+     */
+    void setLocalVariable(@Nonnull String name, Object value);
 
     /**
      * Closure instance or 'this' object that surrounds the currently executing code.
