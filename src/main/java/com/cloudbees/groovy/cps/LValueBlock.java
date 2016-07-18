@@ -1,7 +1,7 @@
 package com.cloudbees.groovy.cps;
 
 /**
- * Base class for {@link Block} that can come to the left hand side of an assignement, aka "l-value"
+ * Base class for {@link Block} that can come to the left hand side of an assignment, aka "l-value"
  *
  * Subtypes implement {@link #evalLValue(Env, Continuation)} that computes {@link LValue} object,
  * which provides read/write access.
