@@ -37,6 +37,7 @@ import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
+import org.jenkinsci.plugins.workflow.cps.steps.ingroovy.StepInGroovy.StepDescriptorInGroovy;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
@@ -116,7 +117,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         FlowNode an;
 
         // TODO: generalize the notion of Step taking over the FlowNode creation.
-        boolean hack = d instanceof ParallelStep.DescriptorImpl || d instanceof LoadStep.DescriptorImpl;
+        boolean hack = d instanceof ParallelStep.DescriptorImpl || d instanceof LoadStep.DescriptorImpl
+                    || d instanceof StepDescriptorInGroovy;
 
         if (ps.body == null && !hack) {
             an = new StepAtomNode(exec, d, thread.head.get());
