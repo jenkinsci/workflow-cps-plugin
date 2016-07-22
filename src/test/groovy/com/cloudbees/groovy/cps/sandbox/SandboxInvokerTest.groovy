@@ -5,6 +5,8 @@ import com.cloudbees.groovy.cps.impl.FunctionCallEnv
 import org.junit.Test
 import org.kohsuke.groovy.sandbox.ClassRecorder
 
+import java.awt.Point
+
 /**
  * @author Kohsuke Kawaguchi
  */
@@ -84,5 +86,29 @@ ScriptBytecodeAdapter:compareEqual(Integer,Integer)
 
     def assertIntercept(String... expected) {
         assertEquals(expected.join("\n").trim(), cr.toString().trim())
+    }
+
+    class TrustedCpsCompiler extends AbstractGroovyCpsTest {
+    }
+
+    /**
+     * Untrusted code -> trusted code -> untrusted code.
+     */
+    @Test
+    public void mixingTrustedAndUntrusted() {
+        def trusted = new TrustedCpsCompiler();
+        trusted.setUp();
+
+        def untrusted = this;
+
+        untrusted.binding.setVariable("trusted",  trusted.csh.parse("def foo(x) { return [new java.awt.Point(1,x),untrusted.bar()] }"));
+        trusted.binding.setVariable("untrusted",untrusted.csh.parse("def bar() { return new File('foo') }"));
+
+        assert [new Point(1,4),new File("foo")]==evalCpsSandbox("trusted.foo(4)");
+        assertIntercept("""
+Script2.trusted
+Script1.foo(Integer)
+new File(String)
+""")
     }
 }

@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps.sandbox;
 
+import com.cloudbees.groovy.cps.impl.CallSiteBlock;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
@@ -45,6 +46,10 @@ public class DefaultInvoker implements Invoker {
 
     public void setArray(Object lhs, Object index, Object value) throws Throwable {
         fakeCallSite("putAt").call(lhs,index,value);
+    }
+
+    public Invoker contextualize(CallSiteBlock tags) {
+        return this;
     }
 
     /*TODO: specify the proper owner value (to the script that includes the call site) */

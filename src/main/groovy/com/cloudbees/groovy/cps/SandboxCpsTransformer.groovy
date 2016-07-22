@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps
 
+import com.cloudbees.groovy.cps.sandbox.Untrusted
 import org.codehaus.groovy.ast.ClassCodeExpressionTransformer
 import org.codehaus.groovy.ast.ClassNode
 import org.codehaus.groovy.ast.MethodNode
@@ -29,5 +30,10 @@ class SandboxCpsTransformer extends CpsTransformer {
     @Override
     protected void visitNontransformedMethod(MethodNode m) {
         stv.visitMethod(m);
+    }
+
+    @Override
+    protected Class getTrustTag() {
+        return Untrusted.class;
     }
 }

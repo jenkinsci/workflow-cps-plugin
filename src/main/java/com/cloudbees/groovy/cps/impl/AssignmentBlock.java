@@ -6,6 +6,9 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.LValue;
 import com.cloudbees.groovy.cps.LValueBlock;
 import com.cloudbees.groovy.cps.Next;
+import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
+
+import java.util.Collection;
 
 /**
  * Assignment operator {@code exp=rhs}
@@ -14,7 +17,7 @@ import com.cloudbees.groovy.cps.Next;
  *
  * @author Kohsuke Kawaguchi
  */
-public class AssignmentBlock implements Block {
+public class AssignmentBlock extends CallSiteBlockSupport {
     private final Block lhsExp,rhsExp;
 
     /**
@@ -24,7 +27,8 @@ public class AssignmentBlock implements Block {
 
     private final SourceLocation loc;
 
-    public AssignmentBlock(SourceLocation loc, LValueBlock lhsExp, Block rhsExp, String compoundOp) {
+    public AssignmentBlock(SourceLocation loc, Collection<CallSiteTag> tags, LValueBlock lhsExp, Block rhsExp, String compoundOp) {
+        super(tags);
         this.loc = loc;
         this.compoundOp = compoundOp;
         this.lhsExp = lhsExp.asLValue();
@@ -80,7 +84,7 @@ public class AssignmentBlock implements Block {
          * Invoke the operator
          */
         public Next fixRhs(Object rhs) {
-            return methodCall(e, loc, assignAndDone, this.cur, compoundOp, rhs);
+            return methodCall(e, loc, assignAndDone, AssignmentBlock.this, this.cur, compoundOp, rhs);
         }
 
         private static final long serialVersionUID = 1L;

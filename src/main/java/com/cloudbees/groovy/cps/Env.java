@@ -16,6 +16,9 @@ import java.util.List;
  * {@link Block} is instruction and {@link Env} is data.
  *
  * <p>
+ * This interface is not to be implemented outside this library.
+ *
+ * <p>
  * See {@code cps-model.md}
  *
  * @author Kohsuke Kawaguchi
