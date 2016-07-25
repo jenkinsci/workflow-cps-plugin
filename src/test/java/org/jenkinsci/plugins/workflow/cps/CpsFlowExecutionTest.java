@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.workflow;
+package org.jenkinsci.plugins.workflow.cps;
 
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.gargoylesoftware.htmlunit.HttpMethod;
@@ -35,7 +35,6 @@ import hudson.model.TaskListener;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -47,10 +46,6 @@ import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import org.codehaus.groovy.transform.ASTTransformationVisitor;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
-import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
-import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
-import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
-import org.jenkinsci.plugins.workflow.cps.PauseUnpauseAction;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;

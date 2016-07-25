@@ -33,7 +33,7 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
  */
 public class PauseUnpauseAction implements Action {
 
-    public static final String URL = "pause";
+    static final String URL = "pause";
 
     private final CpsFlowExecution execution;
 
