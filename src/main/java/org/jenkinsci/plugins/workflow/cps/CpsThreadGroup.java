@@ -57,11 +57,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
 import javax.annotation.Nonnull;
+import jenkins.model.Jenkins;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
@@ -102,6 +104,20 @@ public final class CpsThreadGroup implements Serializable {
 
     /** Set while {@link #runner} is doing something. */
     transient boolean busy;
+
+    /**
+     * True if the execution suspension is requested.
+     *
+     * <p>
+     * This doesn't necessarily mean the CPS VM has responded and suspended the execution.
+     * For that you need to do {@code scheduleRun().get()}.
+     *
+     * <p>
+     * This state is intended for a use by humans to put the state of workflow execution
+     * on hold (for example while inspecting a suspicious state or to perform a maintenance
+     * when a failure is predictable.)
+     */
+    private /*almost final*/ AtomicBoolean paused = new AtomicBoolean();
 
     /**
      * "Exported" closures that are referenced by live {@link CpsStepContext}s.
@@ -146,6 +162,9 @@ public final class CpsThreadGroup implements Serializable {
 
     private void setupTransients() {
         runner = new CpsVmExecutorService(this);
+        if (paused == null) { // earlier versions did not have this field.
+            paused = new AtomicBoolean();
+        }
     }
 
     @CpsVmThreadOnly
@@ -197,12 +216,23 @@ public final class CpsThreadGroup implements Serializable {
 
     /**
      * Schedules the execution of all the runnable threads.
+     *
+     * @return
+     *      {@link Future} object that represents when the CPS VM is executed.
      */
     public Future<?> scheduleRun() {
         final Future<Future<?>> f;
         try {
         f = runner.submit(new Callable<Future<?>>() {
             public Future<?> call() throws Exception {
+                Jenkins j = Jenkins.getInstance();
+                if (paused.get() || j == null || j.isQuietingDown()) {
+                    // by doing the pause check inside, we make sure that scheduleRun() returns a
+                    // future that waits for any previously scheduled tasks to be completed.
+                    saveProgram();
+                    return Futures.immediateFuture(null);
+                }
+
                 run();
                 // we ensure any tasks submitted during run() will complete before we declare us complete
                 // those include things like notifying listeners or updating various other states
@@ -281,6 +311,39 @@ public final class CpsThreadGroup implements Serializable {
                 return f.get(timeout,unit).get(timeout,unit);
             }
         };
+    }
+
+    /**
+     * Pauses the execution.
+     *
+     * @return
+     *      {@link Future} object that represents the actual suspension of the CPS VM.
+     *      When the {@link #pause()} method is called, CPS VM might be still executing.
+     */
+    public Future<?> pause() {
+        paused.set(true);
+        // CPS VM might have a long queue in its task list, so to properly ensure
+        // that the execution has actually suspended, call scheduleRun() excessively
+        return scheduleRun();
+    }
+
+    /**
+     * If the execution is {@link isPaused}, cancel the pause state.
+     */
+    public void unpause() {
+        if (paused.getAndSet(false)) {
+            // some threads might have became executable while we were pausing.
+            scheduleRun();
+        } else {
+            LOGGER.warning("were not paused to begin with");
+        }
+    }
+
+    /**
+     * Returns true if pausing has been requested.
+     */
+    public boolean isPaused() {
+        return paused.get();
     }
 
     /**
@@ -384,6 +447,11 @@ public final class CpsThreadGroup implements Serializable {
 
         CpsFlowExecution old = PROGRAM_STATE_SERIALIZATION.get();
         PROGRAM_STATE_SERIALIZATION.set(execution);
+
+        if (Jenkins.getInstance() == null) {
+            LOGGER.log(WARNING, "Skipping save to {0} since Jenkins seems to be shutting down", f);
+            return;
+        }
 
         try {
             RiverWriter w = new RiverWriter(tmpFile, execution.getOwner());

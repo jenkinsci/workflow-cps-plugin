@@ -22,14 +22,19 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.workflow;
+package org.jenkinsci.plugins.workflow.cps;
 
+import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
+import com.gargoylesoftware.htmlunit.HttpMethod;
+import com.gargoylesoftware.htmlunit.WebRequest;
 import com.google.common.util.concurrent.ListenableFuture;
 import hudson.AbortException;
+import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.TaskListener;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
+import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -38,11 +43,9 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import jenkins.model.Jenkins;
 import org.codehaus.groovy.transform.ASTTransformationVisitor;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
-import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
-import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
-import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -61,7 +64,9 @@ import org.junit.Test;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
+import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MemoryAssert;
+import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
 
@@ -208,6 +213,81 @@ public class CpsFlowExecutionTest {
             r.add(d.getFunctionName());
         }
         return r;
+    }
+
+    @Issue("JENKINS-25736")
+    @Test public void pause() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                story.j.jenkins.setSecurityRealm(story.j.createDummySecurityRealm());
+                story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
+                    grant(Jenkins.READ, Item.READ).everywhere().toEveryone().
+                    grant(Jenkins.ADMINISTER).everywhere().to("admin").
+                    grant(Item.BUILD).onItems(p).to("dev"));
+                story.j.jenkins.save();
+                p.setDefinition(new CpsFlowDefinition("echo 'before'; semaphore 'one'; echo 'after'", true));
+                WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+                SemaphoreStep.waitForStart("one/1", b);
+                final CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
+                assertFalse(e.isPaused());
+                JenkinsRule.WebClient wc = story.j.createWebClient();
+                WebRequest wrs = new WebRequest(wc.createCrumbedUrl(b.getUrl() + PauseUnpauseAction.URL + "/toggle"), HttpMethod.POST);
+                try { // like JenkinsRule.assertFails but taking a WebRequest:
+                    fail("should have been rejected but produced: " + wc.getPage(wrs).getWebResponse().getContentAsString());
+                } catch (FailingHttpStatusCodeException x) {
+                    assertEquals(HttpURLConnection.HTTP_FORBIDDEN, x.getStatusCode());
+                }
+                wc.login("admin").getPage(wrs);
+                assertTrue(e.isPaused());
+                story.j.waitForMessage("before", b);
+                SemaphoreStep.success("one/1", null);
+
+                // not a very strong way of ensuring that the pause actually happens
+                Thread.sleep(1000);
+                assertTrue(b.isBuilding());
+                assertTrue(e.isPaused());
+            }
+        });
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+                WorkflowRun b = p.getLastBuild();
+                assertTrue(b.isBuilding());
+                CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
+                assertTrue(e.isPaused());
+                JenkinsRule.WebClient wc = story.j.createWebClient();
+                WebRequest wrs = new WebRequest(wc.createCrumbedUrl(b.getUrl() + PauseUnpauseAction.URL + "/toggle"), HttpMethod.POST);
+                wc.login("dev").getPage(wrs);
+                assertFalse(e.isPaused());
+                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
+                assertFalse(e.isPaused());
+            }
+        });
+    }
+
+    @Issue("JENKINS-32015")
+    @Test public void quietDown() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+                WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+                SemaphoreStep.waitForStart("wait/1", b);
+                story.j.jenkins.doQuietDown(true, 0);
+                SemaphoreStep.success("wait/1", null);
+                // as above, this is rather weak
+                Thread.sleep(1000);
+                assertTrue(b.isBuilding());
+            }
+        });
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+                WorkflowRun b = p.getLastBuild();
+                story.j.assertLogContains("I am done", story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b)));
+            }
+        });
     }
 
     @Issue("JENKINS-26130")
