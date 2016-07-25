@@ -87,7 +87,7 @@ class CpsGroovyShell extends GroovyShell {
 
     /**
      * When loading additional scripts, we need to remember its source text so that
-     * when we come back from persistent we can load them again.
+     * when we come back from persistence we can load them again.
      */
     @Override
     public Script parse(GroovyCodeSource codeSource) throws CompilationFailedException {
