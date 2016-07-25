@@ -25,12 +25,15 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import hudson.model.Action;
+import java.io.IOException;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
  * Allows a running flow to be paused or unpaused.
  */
 public class PauseUnpauseAction implements Action {
+
+    public static final String URL = "pause";
 
     private final CpsFlowExecution execution;
 
@@ -39,7 +42,7 @@ public class PauseUnpauseAction implements Action {
     }
 
     @Override public String getUrlName() {
-        return "pause";
+        return URL;
     }
 
     @Override public String getIconFileName() {
@@ -51,7 +54,7 @@ public class PauseUnpauseAction implements Action {
     }
 
     @RequirePOST
-    public void doToggle() {
+    public void doToggle() throws IOException {
         execution.pause(!execution.isPaused());
     }
 

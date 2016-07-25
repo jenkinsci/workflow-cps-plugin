@@ -24,12 +24,18 @@
 
 package org.jenkinsci.plugins.workflow;
 
+import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
+import com.gargoylesoftware.htmlunit.HttpMethod;
+import com.gargoylesoftware.htmlunit.WebRequest;
 import com.google.common.util.concurrent.ListenableFuture;
 import hudson.AbortException;
+import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.TaskListener;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -38,11 +44,13 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import jenkins.model.Jenkins;
 import org.codehaus.groovy.transform.ASTTransformationVisitor;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
+import org.jenkinsci.plugins.workflow.cps.PauseUnpauseAction;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -61,7 +69,9 @@ import org.junit.Test;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
+import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MemoryAssert;
+import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
 
@@ -215,13 +225,26 @@ public class CpsFlowExecutionTest {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
-                p.setDefinition(new CpsFlowDefinition(
-                        "echo 'before'; semaphore 'one';  echo 'after';"));
+                story.j.jenkins.setSecurityRealm(story.j.createDummySecurityRealm());
+                story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
+                    grant(Jenkins.READ, Item.READ).everywhere().toEveryone().
+                    grant(Jenkins.ADMINISTER).everywhere().to("admin").
+                    grant(Item.BUILD).onItems(p).to("dev"));
+                story.j.jenkins.save();
+                p.setDefinition(new CpsFlowDefinition("echo 'before'; semaphore 'one'; echo 'after'", true));
                 WorkflowRun b = p.scheduleBuild2(0).waitForStart();
                 SemaphoreStep.waitForStart("one/1", b);
-                CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
+                final CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
                 assertFalse(e.isPaused());
-                e.pause(true);
+                JenkinsRule.WebClient wc = story.j.createWebClient();
+                WebRequest wrs = new WebRequest(wc.createCrumbedUrl(b.getUrl() + PauseUnpauseAction.URL + "/toggle"), HttpMethod.POST);
+                try { // like JenkinsRule.assertFails but taking a WebRequest:
+                    fail("should have been rejected but produced: " + wc.getPage(wrs).getWebResponse().getContentAsString());
+                } catch (FailingHttpStatusCodeException x) {
+                    assertEquals(HttpURLConnection.HTTP_FORBIDDEN, x.getStatusCode());
+                }
+                wc.login("admin").getPage(wrs);
+                assertTrue(e.isPaused());
                 story.j.waitForMessage("before", b);
                 SemaphoreStep.success("one/1", null);
 
@@ -238,7 +261,9 @@ public class CpsFlowExecutionTest {
                 assertTrue(b.isBuilding());
                 CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
                 assertTrue(e.isPaused());
-                e.pause(false);
+                JenkinsRule.WebClient wc = story.j.createWebClient();
+                WebRequest wrs = new WebRequest(wc.createCrumbedUrl(b.getUrl() + PauseUnpauseAction.URL + "/toggle"), HttpMethod.POST);
+                wc.login("dev").getPage(wrs);
                 assertFalse(e.isPaused());
                 story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
                 assertFalse(e.isPaused());

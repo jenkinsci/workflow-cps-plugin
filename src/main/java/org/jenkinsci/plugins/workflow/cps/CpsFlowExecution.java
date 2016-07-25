@@ -97,10 +97,12 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.GroovyCodeSource;
 import hudson.BulkChange;
 import hudson.init.Terminator;
+import hudson.model.Item;
 import hudson.model.Queue;
 import hudson.model.Saveable;
 import hudson.model.User;
 import hudson.security.ACL;
+import hudson.security.AccessControlled;
 import java.beans.Introspector;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -945,7 +947,12 @@ public class CpsFlowExecution extends FlowExecution {
      * @param v
      *      true to pause, false to unpause.
      */
-    public void pause(final boolean v) {
+    public void pause(final boolean v) throws IOException {
+        // TODO make FlowExecutionOwner implement AccessControlled (cf. PlaceholderTask.getACL):
+        Queue.Executable executable = owner.getExecutable();
+        if (executable instanceof AccessControlled) {
+            ((AccessControlled) executable).checkPermission(Item.CANCEL);
+        }
         Futures.addCallback(programPromise, new FutureCallback<CpsThreadGroup>() {
             @Override public void onSuccess(CpsThreadGroup g) {
                 if (v) {
