@@ -268,6 +268,16 @@ public class CpsFlowExecution extends FlowExecution {
      * It is reset to null after completion.
      */
     private transient CpsGroovyShell shell;
+
+    /**
+     * Groovy compiler wih CPS transformation but not sandbox.
+     * Used by plugins to insert code that runs outside sandbox.
+     *
+     * By the time the script starts running, this field is set to non-null.
+     * It is reset to null after completion.
+     */
+    private transient CpsGroovyShell trusted;
+
     /** Class of the {@link CpsScript}; its loader is a {@link groovy.lang.GroovyClassLoader.InnerLoader}, not the same as {@code shell.getClassLoader()}. */
     private transient Class<?> scriptClass;
 
@@ -300,10 +310,20 @@ public class CpsFlowExecution extends FlowExecution {
     /**
      * Returns a groovy compiler used to load the script.
      *
+     * @see "doc/classloader.md"
      * @see GroovyShell#getClassLoader()
      */
     public GroovyShell getShell() {
         return shell;
+    }
+
+    /**
+     * Returns a groovy compiler used to load the trusted script.
+     *
+     * @see "doc/classloader.md"
+     */
+    public GroovyShell getTrustedShell() {
+        return trusted;
     }
 
     public FlowNodeStorage getStorage() {
@@ -376,7 +396,10 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     private CpsScript parseScript() throws IOException {
-        shell = new CpsGroovyShell(this);
+        // classloader hierarchy. See doc/classloader.md
+        trusted = new CpsGroovyShellFactory(this).forTrusted().build();
+        shell = new CpsGroovyShellFactory(this).withParent(trusted).build();
+
         CpsScript s = (CpsScript) shell.reparse("WorkflowScript",script);
 
         for (Entry<String, String> e : loadedScripts.entrySet()) {
@@ -852,6 +875,7 @@ public class CpsFlowExecution extends FlowExecution {
 
         // clean up heap
         shell = null;
+        trusted = null;
         SerializableClassRegistry.getInstance().release(scriptClass.getClassLoader());
         Introspector.flushFromCaches(scriptClass); // does not handle other derived script classes, but this is only SoftReference anyway
         scriptClass = null;

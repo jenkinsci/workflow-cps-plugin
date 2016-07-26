@@ -25,11 +25,14 @@
 package org.jenkinsci.plugins.workflow;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import groovy.lang.GroovyShell;
 import hudson.AbortException;
 import hudson.model.Result;
 import hudson.model.TaskListener;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -43,6 +46,7 @@ import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
+import org.jenkinsci.plugins.workflow.cps.GroovyShellDecorator;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -53,6 +57,9 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
 import org.jenkinsci.plugins.workflow.support.pickles.TryRepeatedly;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
+
+import static java.security.KeyRep.Type.SECRET;
+import static org.eclipse.jgit.lib.ObjectChecker.object;
 import static org.junit.Assert.*;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -64,6 +71,8 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.MemoryAssert;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
+
+import javax.annotation.CheckForNull;
 
 public class CpsFlowExecutionTest {
 
@@ -260,4 +269,60 @@ public class CpsFlowExecutionTest {
         }
     }
 
+    @Test public void trustedShell() {
+        trustedShell(true);
+    }
+
+    @Test public void trustedShell_control() {
+        trustedShell(false);
+    }
+
+    /**
+     * Insert trusted/ dir into the trusted shell to enable trusted code execution
+     */
+    @TestExtension("trustedShell")
+    public static class TrustedShell extends GroovyShellDecorator {
+        @Override
+        public GroovyShellDecorator forTrusted() {
+            return new UntrustedShellDecorator();
+        }
+    }
+
+    @TestExtension("trustedShell_control")
+    public static class UntrustedShellDecorator extends GroovyShellDecorator {
+        @Override
+        public void configureShell(@CheckForNull CpsFlowExecution context, GroovyShell shell) {
+            try {
+                URL u = TrustedShell.class.getClassLoader().getResource("trusted/foo.groovy");
+                shell.getClassLoader().addURL(new URL(u,"."));
+            } catch (MalformedURLException e) {
+                throw new AssertionError(e);
+            }
+        }
+    }
+
+    private void trustedShell(final boolean pos) {
+        SECRET = false;
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition("new foo().attempt()", true));
+                WorkflowRun b = story.j.waitForCompletion(p.scheduleBuild2(0).get());
+                if (pos) {
+                    story.j.assertBuildStatusSuccess(b);
+                    assertTrue(SECRET);
+                } else {
+                    // should have failed with RejectedAccessException trying to touch 'SECRET'
+                    story.j.assertBuildStatus(Result.FAILURE, b);
+                    story.j.assertLogContains("RejectedAccessException: Scripts not permitted to use staticField org.jenkinsci.plugins.workflow.CpsFlowExecutionTest SECRET",b);
+                    assertFalse(SECRET);
+                }
+            }
+        });
+    }
+
+    /**
+     * This field shouldn't be visible to regular script.
+     */
+    public static boolean SECRET;
 }

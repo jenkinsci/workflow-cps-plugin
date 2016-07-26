@@ -26,6 +26,7 @@ class SandboxContinuable extends Continuable {
     @Override
     public Outcome run0(final Outcome cn) {
         try {
+            CpsFlowExecution e = thread.group.getExecution();
             return GroovySandbox.runInSandbox(new Callable<Outcome>() {
                 @Override
                 public Outcome call() {
@@ -36,7 +37,9 @@ class SandboxContinuable extends Continuable {
                     }
                     return outcome;
                 }
-            }, new GroovyClassLoaderWhitelist(thread.group.getExecution().getShell().getClassLoader(), CpsWhitelist.get()));
+            }, new GroovyClassLoaderWhitelist(CpsWhitelist.get(),
+                    e.getTrustedShell().getClassLoader(),
+                    e.getShell().getClassLoader()));
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {

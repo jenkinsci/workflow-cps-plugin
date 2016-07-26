@@ -1,26 +1,21 @@
 package org.jenkinsci.plugins.workflow.cps;
 
-import com.cloudbees.groovy.cps.CpsTransformer;
-import com.cloudbees.groovy.cps.NonCPS;
-import com.cloudbees.groovy.cps.SandboxCpsTransformer;
-import com.cloudbees.groovy.cps.TransformerConfiguration;
 import groovy.lang.Binding;
 import groovy.lang.GroovyCodeSource;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
-import jenkins.model.Jenkins;
 import org.codehaus.groovy.control.CompilationFailedException;
 import org.codehaus.groovy.control.CompilerConfiguration;
-import org.codehaus.groovy.control.customizers.ImportCustomizer;
-import org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.GroovySandbox;
 
-import java.io.IOException;
 import javax.annotation.CheckForNull;
+import java.io.IOException;
 
 /**
  * {@link GroovyShell} with additional tweaks necessary to run {@link CpsScript}
  *
  * @author Kohsuke Kawaguchi
+ * @see "doc/clasloader.md"
+ * @see CpsGroovyShellFactory
  */
 class CpsGroovyShell extends GroovyShell {
     /**
@@ -30,46 +25,12 @@ class CpsGroovyShell extends GroovyShell {
      */
     private final @CheckForNull CpsFlowExecution execution;
 
-    CpsGroovyShell(@CheckForNull CpsFlowExecution execution) {
-        super(makeClassLoader(),new Binding(),makeConfig(execution));
+    /**
+     * Use {@link CpsGroovyShellFactory} to instantiate it.
+     */
+    CpsGroovyShell(ClassLoader parent, @CheckForNull CpsFlowExecution execution, CompilerConfiguration cc) {
+        super(parent,new Binding(),cc);
         this.execution = execution;
-
-        for (GroovyShellDecorator d : GroovyShellDecorator.all()) {
-            d.configureShell(execution,this);
-        }
-    }
-
-    private static ClassLoader makeClassLoader() {
-        Jenkins j = Jenkins.getInstance();
-        ClassLoader cl = j != null ? j.getPluginManager().uberClassLoader : CpsGroovyShell.class.getClassLoader();
-        return GroovySandbox.createSecureClassLoader(cl);
-    }
-
-    private static CompilerConfiguration makeConfig(@CheckForNull CpsFlowExecution execution) {
-        ImportCustomizer ic = new ImportCustomizer();
-        ic.addStarImports(NonCPS.class.getPackage().getName());
-        ic.addStarImports("hudson.model","jenkins.model");
-
-        for (GroovyShellDecorator d : GroovyShellDecorator.all()) {
-            d.customizeImports(execution,ic);
-        }
-
-        CompilerConfiguration cc = new CompilerConfiguration();
-        cc.addCompilationCustomizers(ic);
-        cc.addCompilationCustomizers(makeCpsTransformer(execution));
-        cc.setScriptBaseClass(CpsScript.class.getName());
-
-        for (GroovyShellDecorator d : GroovyShellDecorator.all()) {
-            d.configureCompiler(execution,cc);
-        }
-
-        return cc;
-    }
-
-    private static CpsTransformer makeCpsTransformer(CpsFlowExecution execution) {
-        CpsTransformer t = (execution!=null && execution.isSandbox()) ? new SandboxCpsTransformer() : new CpsTransformer();
-        t.setConfiguration(new TransformerConfiguration().withClosureType(CpsClosure2.class));
-        return t;
     }
 
     public void prepareScript(Script script) {
