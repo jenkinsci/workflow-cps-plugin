@@ -28,8 +28,8 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>2.5</version>
-        <relativePath />
+        <version>2.11</version>
+        <relativePath/>
     </parent>
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
     <artifactId>workflow-cps</artifactId>
@@ -63,6 +63,7 @@
     </pluginRepositories>
     <properties>
         <jenkins.version>1.642.3</jenkins.version>
+        <jenkins-test-harness.version>2.11</jenkins-test-harness.version>
         <npm.loglevel>--silent</npm.loglevel>
     </properties>
     <dependencies>
@@ -89,7 +90,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1.18</version>
+            <version>1.20</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -160,7 +161,7 @@
         <dependency>
             <groupId>com.cloudbees</groupId>
             <artifactId>groovy-cps</artifactId>
-            <version>1.6</version>
+            <version>1.8-SNAPSHOT</version> <!-- TODO https://github.com/cloudbees/groovy-cps/pull/24 -->
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.ui</groupId>

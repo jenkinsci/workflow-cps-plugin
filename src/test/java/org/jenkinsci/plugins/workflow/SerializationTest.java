@@ -245,7 +245,6 @@ public class SerializationTest extends SingleJobTestBase {
         });
     }
 
-    @Ignore("TODO backed out for JENKINS-34064")
     @Issue("JENKINS-26481")
     @Test public void eachClosure() {
         story.addStep(new Statement() {
@@ -277,7 +276,7 @@ public class SerializationTest extends SingleJobTestBase {
     }
 
     /**
-     * Verifies that we are not throwing {@link UnsupportedOperationException} too aggressively.
+     * Verifies that we can use closures in ways that were not affected by JENKINS-26481.
      * In particular:
      * <ul>
      * <li>on non-CPS-transformed {@link Closure}s
