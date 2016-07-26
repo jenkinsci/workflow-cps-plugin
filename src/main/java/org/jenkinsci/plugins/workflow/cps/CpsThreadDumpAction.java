@@ -10,16 +10,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import jenkins.model.Jenkins;
-import jenkins.model.TransientActionFactory;
 import org.apache.commons.io.Charsets;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
-import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 
 /**
  * Shows thread dump for {@link CpsFlowExecution}.
@@ -28,7 +25,7 @@ public final class CpsThreadDumpAction implements Action {
 
     private final CpsFlowExecution execution;
 
-    private CpsThreadDumpAction(CpsFlowExecution execution) {
+    CpsThreadDumpAction(CpsFlowExecution execution) {
         this.execution = execution;
     }
 
@@ -58,25 +55,6 @@ public final class CpsThreadDumpAction implements Action {
 
     public String getThreadDump() {
         return execution.getThreadDump().toString();
-    }
-
-    @Extension public static class Factory extends TransientActionFactory<FlowExecutionOwner.Executable> {
-
-        @Override public Class<FlowExecutionOwner.Executable> type() {
-            return FlowExecutionOwner.Executable.class;
-        }
-
-        @Override public Collection<? extends Action> createFor(FlowExecutionOwner.Executable executable) {
-            FlowExecutionOwner owner = executable.asFlowExecutionOwner();
-            if (owner != null) {
-                FlowExecution exec = owner.getOrNull();
-                if (exec instanceof CpsFlowExecution && !exec.isComplete()) {
-                    return Collections.singleton(new CpsThreadDumpAction((CpsFlowExecution) exec));
-                }
-            }
-            return Collections.emptySet();
-        }
-
     }
 
     @Extension(optional=true) public static class PipelineThreadDump extends Component {
