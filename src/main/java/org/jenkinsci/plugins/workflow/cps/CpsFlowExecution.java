@@ -97,10 +97,12 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.GroovyCodeSource;
 import hudson.BulkChange;
 import hudson.init.Terminator;
+import hudson.model.Item;
 import hudson.model.Queue;
 import hudson.model.Saveable;
 import hudson.model.User;
 import hudson.security.ACL;
+import hudson.security.AccessControlled;
 import java.beans.Introspector;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -496,6 +498,16 @@ public class CpsFlowExecution extends FlowExecution {
                             try {
                                 CpsThreadGroup g = (CpsThreadGroup) u.readObject();
                                 result.set(g);
+                                if (g.isPaused()) {
+                                    try {
+                                        owner.getListener().getLogger().println("Still paused");
+                                    } catch (IOException x) {
+                                        LOGGER.log(Level.WARNING, null, x);
+                                    }
+                                } else {
+                                    // In case we last paused execution due to Jenkins.isQuietingDown, make sure we do something after we restart.
+                                    g.scheduleRun();
+                                }
                             } catch (Throwable t) {
                                 onFailure(t);
                             } finally {
@@ -940,6 +952,48 @@ public class CpsFlowExecution extends FlowExecution {
     @Restricted(NoExternalUse.class)
     public String getNextScriptName(String path) {
         return shell.generateScriptName().replaceFirst("[.]groovy$", "");
+    }
+
+    public boolean isPaused() {
+        if (programPromise.isDone()) {
+            try {
+                return programPromise.get().isPaused();
+            } catch (ExecutionException | InterruptedException x) { // not supposed to happen
+                LOGGER.log(Level.WARNING, null, x);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Pause or unpause the execution.
+     *
+     * @param v
+     *      true to pause, false to unpause.
+     */
+    public void pause(final boolean v) throws IOException {
+        // TODO make FlowExecutionOwner implement AccessControlled (cf. PlaceholderTask.getACL):
+        Queue.Executable executable = owner.getExecutable();
+        if (executable instanceof AccessControlled) {
+            ((AccessControlled) executable).checkPermission(Item.CANCEL);
+        }
+        Futures.addCallback(programPromise, new FutureCallback<CpsThreadGroup>() {
+            @Override public void onSuccess(CpsThreadGroup g) {
+                if (v) {
+                    g.pause();
+                } else {
+                    g.unpause();
+                }
+                try {
+                    owner.getListener().getLogger().println(v ? "Pausing" : "Resuming");
+                } catch (IOException x) {
+                    LOGGER.log(Level.WARNING, null, x);
+                }
+            }
+            @Override public void onFailure(Throwable x) {
+                LOGGER.log(Level.WARNING, "cannot pause/unpause " + this, x);
+            }
+        });
     }
 
     @Override public String toString() {
