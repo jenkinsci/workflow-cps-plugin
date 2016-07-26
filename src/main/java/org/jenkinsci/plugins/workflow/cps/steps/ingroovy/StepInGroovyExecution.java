@@ -20,11 +20,23 @@ import java.util.Map;
 import static java.awt.SystemColor.text;
 
 /**
+ * Persisted part of the program state that captures executing {@link StepInGroovy}.
+ *
  * @author Kohsuke Kawaguchi
  */
 public class StepInGroovyExecution extends StepExecution {
+    /**
+     * Arguments.
+     */
     private final Map<String,Object> arguments;
+    /**
+     * Represents the currently executing groovy code that defines the step.
+     */
     private BodyExecution execution;
+    /**
+     * Back pointer to the descriptor that instantiated this.
+     * Only needed until {@link #start()} so not persisting.
+     */
     private transient StepDescriptorInGroovy descriptor;
 
     StepInGroovyExecution(StepDescriptorInGroovy d, Map<String,Object> arguments, StepContext context) {

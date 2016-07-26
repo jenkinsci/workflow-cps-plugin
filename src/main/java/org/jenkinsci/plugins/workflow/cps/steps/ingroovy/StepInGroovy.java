@@ -21,6 +21,11 @@ import java.util.Set;
 import java.util.zip.ZipFile;
 
 /**
+ * A {@link Step} written entirely in Groovy.
+ *
+ * Unlike regular extensions, there will be one instance of {@link StepDescriptorInGroovy}
+ * for every step written in Groovy.
+ *
  * @author Kohsuke Kawaguchi
  */
 public class StepInGroovy extends Step {
