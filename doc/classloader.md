@@ -8,19 +8,22 @@ We create two classloaders in the following hierarchy
 
 Jenkins uber classloader (`PluginManager.uberClassLoader`) defines
 visibility to every code in every plugins, so that every domain model
-of Jenkins can be accessed.
+of Jenkins can be accessed. This is the starting point of the hierarchy.
 
-"Trusted classloader" (TCL) and "regular classloader" (RCL) are
-`GroovyClassLoader`. Groovy compiler associated with them are modified.
+"Trusted classloader" (TCL) and "regular classloader" (RCL) are both
+`GroovyClassLoader`. Groovy compiler associated with them are configured for Jenkins Pipeline.
 For example, scripts loaded by those are CPS transformed to run with groovy-cps.
+See `CpsGroovyShellFactory` for more about the customizations that happen here.
 
 Additionally, scripts loaded in RCL lives in the security sandbox
-(unless the user opts out of it.) This classloader is meant to be
-used to load user-written Groovy scripts.
+(unless the user opts out of it, in which case it requires approval.)
+This classloader is meant to be used to load user-written Groovy scripts,
+which is not trusted.
 
-Scripts loaded in TCL does not live in the security sandbox. This
+Scripts loaded in TCL, OTOH, does not live in the security sandbox. This
 classloader is meant to be used to load Groovy code packaged inside
-plugins.
+plugins and global libraries. Write access to these sources should be
+restricted to `RUN_SCRIPT` permission.
 
 ## Persisting code & surviving restarts
 When a Groovy script is loaded via one of `GroovyShell.parse*()` and
