@@ -103,11 +103,19 @@ public class SnippetizerTest {
     @Test public void coreStep() throws Exception {
         ArtifactArchiver aa = new ArtifactArchiver("x.jar");
         aa.setAllowEmptyArchive(true);
-        st.assertRoundTrip(new CoreStep(aa), "step([$class: 'ArtifactArchiver', allowEmptyArchive: true, artifacts: 'x.jar'])");
+        if (ArtifactArchiver.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
+            st.assertRoundTrip(new CoreStep(aa), "step archiveArtifacts(allowEmptyArchive: true, artifacts: 'x.jar')");
+        } else { // TODO 2.x delete
+            st.assertRoundTrip(new CoreStep(aa), "step([$class: 'ArtifactArchiver', allowEmptyArchive: true, artifacts: 'x.jar'])");
+        }
     }
 
     @Test public void coreStep2() throws Exception {
-        st.assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "step([$class: 'ArtifactArchiver', artifacts: 'x.jar'])");
+        if (ArtifactArchiver.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
+            st.assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "step archiveArtifacts('x.jar')");
+        } else { // TODO 2.x delete
+            st.assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "step([$class: 'ArtifactArchiver', artifacts: 'x.jar'])");
+        }
     }
 
     @Test public void recursiveSymbolUse() throws Exception {
@@ -146,9 +154,8 @@ public class SnippetizerTest {
         st.assertRoundTrip(step, "build 'downstream'");
         step.setParameters(Arrays.asList(new StringParameterValue("branch", "default"), new BooleanParameterValue("correct", true)));
         if (StringParameterDefinition.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
-            // with newer core that defines symbols for StringParameterDefinition
             st.assertRoundTrip(step, "build job: 'downstream', parameters: [string(name: 'branch', value: 'default'), booleanParam(name: 'correct', value: true)]");
-        } else {
+        } else { // TODO 2.x delete
             st.assertRoundTrip(step, "build job: 'downstream', parameters: [[$class: 'StringParameterValue', name: 'branch', value: 'default'], [$class: 'BooleanParameterValue', name: 'correct', value: true]]");
         }
     }
@@ -170,7 +177,13 @@ public class SnippetizerTest {
         // Really this would be a WorkflowJob, but we cannot depend on that here, and it should not matter since we are just looking for Job:
         FreeStyleProject us = d2.createProject(FreeStyleProject.class, "us");
         ds.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("key", ""), new BooleanParameterDefinition("flag", false, "")));
-        st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'../d1/ds', 'parameter': [{'name':'key', 'value':'stuff'}, {'name':'flag', 'value':true}]}", "build job: '../d1/ds', parameters: [[$class: 'StringParameterValue', name: 'key', value: 'stuff'], [$class: 'BooleanParameterValue', name: 'flag', value: true]]", us.getAbsoluteUrl() + "configure");
+        String snippet;
+        if (StringParameterDefinition.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
+            snippet = "build job: '../d1/ds', parameters: [string(name: 'key', value: 'stuff'), booleanParam(name: 'flag', value: true)]";
+        } else { // TODO 2.x delete
+            snippet = "build job: '../d1/ds', parameters: [[$class: 'StringParameterValue', name: 'key', value: 'stuff'], [$class: 'BooleanParameterValue', name: 'flag', value: true]]";
+        }
+        st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'../d1/ds', 'parameter': [{'name':'key', 'value':'stuff'}, {'name':'flag', 'value':true}]}", snippet, us.getAbsoluteUrl() + "configure");
     }
 
     @Issue("JENKINS-29739")
@@ -178,7 +191,13 @@ public class SnippetizerTest {
         FreeStyleProject ds = r.jenkins.createProject(FreeStyleProject.class, "ds1");
         FreeStyleProject us = r.jenkins.createProject(FreeStyleProject.class, "us1");
         ds.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("key", "")));
-        st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'ds1', 'parameter': {'name':'key', 'value':'stuff'}}", "build job: 'ds1', parameters: [[$class: 'StringParameterValue', name: 'key', value: 'stuff']]", us.getAbsoluteUrl() + "configure");
+        String snippet;
+        if (StringParameterDefinition.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
+            snippet = "build job: 'ds1', parameters: [string(name: 'key', value: 'stuff')]";
+        } else { // TODO 2.x delete
+            snippet = "build job: 'ds1', parameters: [[$class: 'StringParameterValue', name: 'key', value: 'stuff']]";
+        }
+        st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'ds1', 'parameter': {'name':'key', 'value':'stuff'}}", snippet, us.getAbsoluteUrl() + "configure");
     }
 
     @Test public void generateSnippetForBuildTriggerNone() throws Exception {
