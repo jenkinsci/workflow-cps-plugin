@@ -23,6 +23,7 @@ import java.util.Set;
  * Unlike regular extensions, there will be one instance of {@link StepDescriptorInGroovy}
  * for every step written in Groovy.
  *
+ * @see 'doc/step-in-groovy.md'
  * @author Kohsuke Kawaguchi
  */
 public class StepInGroovy extends Step {

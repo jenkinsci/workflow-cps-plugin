@@ -11,6 +11,7 @@ import javax.inject.Inject;
 /**
  * Insert Groovy content roots into trusted shell.
  *
+ * @see 'doc/step-in-groovy.md'
  * @author Kohsuke Kawaguchi
  */
 @Extension
