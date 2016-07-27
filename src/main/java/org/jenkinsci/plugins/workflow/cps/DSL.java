@@ -60,7 +60,6 @@ import java.util.TreeMap;
 
 import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
-import org.kohsuke.stapler.ClassDescriptor;
 
 /**
  * Scaffolding to experiment with the call into {@link Step}.
@@ -283,9 +282,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         return new NamedArgsAndClosure(singleParam(d, arg), null);
     }
     private static Map<String,Object> singleParam(StepDescriptor d, Object arg) {
-        String[] names = new ClassDescriptor(d.clazz).loadConstructorParamNames();
-        if (names.length == 1) {
-            return Collections.singletonMap(names[0], arg);
+        Map<String, Object> m = d.singleArgument(arg);
+        if (m!=null) {
+            return m;
         } else {
             throw new IllegalArgumentException("Expected named arguments but got " + arg);
         }
