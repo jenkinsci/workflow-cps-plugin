@@ -14,8 +14,8 @@ import org.kohsuke.stapler.DataBoundSetter;
  *
  */
 public class Island extends AbstractDescribableImpl<Island> {
-    public Island lhs;
-    public Island rhs;
+    private Island lhs;
+    private Island rhs;
 
     @DataBoundConstructor
     public Island() {
@@ -26,9 +26,17 @@ public class Island extends AbstractDescribableImpl<Island> {
         this.rhs = rhs;
     }
 
+    public Island getLhs() {
+        return lhs;
+    }
+
     @DataBoundSetter
     public void setLhs(Island lhs) {
         this.lhs = lhs;
+    }
+
+    public Island getRhs() {
+        return rhs;
     }
 
     @DataBoundSetter

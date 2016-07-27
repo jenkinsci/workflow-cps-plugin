@@ -21,11 +21,15 @@ import org.kohsuke.stapler.DataBoundSetter;
 public class StateMetaStep extends AbstractStepImpl {
 
     public final State state;
-    public boolean moderate;
+    private boolean moderate;
 
     @DataBoundConstructor
     public StateMetaStep(State state) {
         this.state = state;
+    }
+
+    public boolean getModerate() {
+        return moderate;
     }
 
     @DataBoundSetter
