@@ -9,6 +9,7 @@ import hudson.model.Hudson;
 import jenkins.ExtensionComponentSet;
 import jenkins.ExtensionRefreshException;
 import org.jenkinsci.plugins.workflow.cps.steps.ingroovy.StepInGroovy.StepDescriptorInGroovy;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
 import javax.inject.Inject;
 import java.io.BufferedReader;
@@ -41,8 +42,7 @@ public class ExtensionFinderImpl extends ExtensionFinder {
 
     @Override
     public <T> Collection<ExtensionComponent<T>> find(Class<T> type, Hudson jenkins) {
-        // discovery is invoked with Descriptor, not StepDescriptor nor StepDescriptorInGroovy
-        if (type==Descriptor.class)
+        if (type==StepDescriptor.class)
             return (List)discover();
         else
             return Collections.emptyList();

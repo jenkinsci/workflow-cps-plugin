@@ -27,10 +27,13 @@ public class StepInGroovyTest {
         }
     }
 
+    /**
+     * Invokes helloWorldGroovy.groovy in resources/stepsInGroovy and make sure that works
+     */
     @Test
     public void helloWorld() throws Exception {
         WorkflowJob p = j.createProject(WorkflowJob.class, "demo");
-        p.setDefinition(new CpsFlowDefinition("helloWorldInGroovy 'Duke'"));
+        p.setDefinition(new CpsFlowDefinition("helloWorldGroovy var0:'Duke'"));
         WorkflowRun b = j.assertBuildStatusSuccess(p.scheduleBuild2(0));
         j.assertLogContains("Hello Duke",b);
     }

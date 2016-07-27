@@ -7,7 +7,6 @@ import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
-import org.kohsuke.stapler.ClassDescriptor;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -28,9 +27,11 @@ import java.util.Set;
  */
 public class StepInGroovy extends Step {
     private final Map<String, Object> arguments;
+    private final StepDescriptorInGroovy descriptor;
 
     // not data bindable
-    public StepInGroovy(Map<String, Object> arguments) {
+    public StepInGroovy(StepDescriptorInGroovy descriptor, Map<String, Object> arguments) {
+        this.descriptor = descriptor;
         this.arguments = arguments;
     }
 
@@ -42,7 +43,7 @@ public class StepInGroovy extends Step {
 
     @Override
     public StepDescriptorInGroovy getDescriptor() {
-        return (StepDescriptorInGroovy)super.getDescriptor();
+        return descriptor;
     }
 
     // not @Extension by itself
@@ -151,7 +152,7 @@ public class StepInGroovy extends Step {
 
         @Override
         public Step newInstance(Map<String, Object> arguments) throws Exception {
-            return new StepInGroovy(arguments);
+            return new StepInGroovy(this, arguments);
         }
     }
 }
