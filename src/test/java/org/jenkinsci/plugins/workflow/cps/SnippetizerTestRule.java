@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import org.jenkinsci.plugins.workflow.util.StaplerReferer;
 
 import static org.junit.Assert.*;
 
@@ -54,7 +55,7 @@ public class SnippetizerTestRule implements TestRule {
      * @param responseText
      *      Expected snippet to be generated
      * @param referer
-     *      (I don't understand why implementation relies on this ¯\_(ツ)_/¯
+     *      needed because of {@link StaplerReferer}
      */
     public void assertGenerateSnippet(@Nonnull String json, @Nonnull String responseText, @CheckForNull String referer) throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
