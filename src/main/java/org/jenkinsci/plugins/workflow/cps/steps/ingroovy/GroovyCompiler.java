@@ -8,6 +8,8 @@ import hudson.Extension;
 import hudson.PluginWrapper;
 import jenkins.model.Jenkins;
 import org.codehaus.groovy.control.CompilerConfiguration;
+import org.codehaus.groovy.control.customizers.ASTTransformationCustomizer;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.steps.ingroovy.StepInGroovy.StepDescriptorInGroovy;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -29,6 +31,12 @@ import java.util.logging.Logger;
 @Extension
 @Restricted(NoExternalUse.class) // SezPoz demands that this is public, but this is an implementation detail in this plugin
 public class GroovyCompiler {
+    /**
+     * Used to compile steps in Groovy for introspection.
+     *
+     * When actually executed in Jenkins Pipeline, {@link org.jenkinsci.plugins.workflow.cps.CpsGroovyShell} is used
+     * and the code will be recompiled in each {@link CpsFlowExecution}.
+     */
     private GroovyShell sh;
 
     // debug hook to insert additional content roots
@@ -38,6 +46,9 @@ public class GroovyCompiler {
         if (sh==null) {
             CompilerConfiguration cc = new CompilerConfiguration();
             cc.setScriptBaseClass(StepInGroovyScript.class.getName());
+
+            // needed to introspect the compiled step
+            cc.addCompilationCustomizers(new ASTTransformationCustomizer(new ParameterNameCaptureTransformation()));
 
             sh = new GroovyShell(Jenkins.getActiveInstance().getPluginManager().uberClassLoader, new Binding(), cc);
 

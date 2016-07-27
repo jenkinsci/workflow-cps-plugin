@@ -7,6 +7,7 @@ import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.kohsuke.stapler.ClassDescriptor;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -76,18 +77,10 @@ public class StepInGroovy extends Step {
             this.callMethod = findCallMethod();
 
             Class<?>[] p = callMethod.getParameterTypes();
-            /*
-                TODO: ClassDescriptor.loadParameterNames requires .class file to be present, which isn't
-                We need AST tranformation to capture CapturedParameterNames
-             */
-//            String[] n = ClassDescriptor.loadParameterNames(callMethod);
-//            assert p.length==n.length;
-//            for (int i=0; i<n.length; i++) {
-//                params.add(new Parameter(p[i],n[i]));
-//            }
-
-            for (int i=0; i<p.length; i++) {
-                params.add(new Parameter(p[i],"var"+i));
+            String[] n = ClassDescriptor.loadParameterNames(callMethod);
+            assert p.length==n.length;
+            for (int i=0; i<n.length; i++) {
+                params.add(new Parameter(p[i],n[i]));
             }
         }
 
