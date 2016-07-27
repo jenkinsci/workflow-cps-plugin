@@ -34,7 +34,7 @@ public class OrStep extends AbstractStepImpl {
 
         @Override
         public String getDisplayName() {
-            return "Oregon? or logiacal or?";
+            return "Oregon? or logical or?";
         }
     }
 
