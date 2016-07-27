@@ -1,7 +1,7 @@
-def getDisplayName() {
+String getDisplayName() {
     return 'This is a step written in Groovy'
 }
 
-def call(String message) {
+void call(String message) {
     echo "Hello ${message}";
 }

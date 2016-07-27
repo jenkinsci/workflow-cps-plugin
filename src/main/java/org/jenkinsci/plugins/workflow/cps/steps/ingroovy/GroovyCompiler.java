@@ -1,9 +1,11 @@
 package org.jenkinsci.plugins.workflow.cps.steps.ingroovy;
 
+import com.google.common.collect.AbstractIterator;
+import com.google.common.collect.Iterators;
 import groovy.lang.Binding;
-import groovy.lang.GroovyCodeSource;
 import groovy.lang.GroovyShell;
 import hudson.Extension;
+import hudson.PluginWrapper;
 import jenkins.model.Jenkins;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.jenkinsci.plugins.workflow.cps.steps.ingroovy.StepInGroovy.StepDescriptorInGroovy;
@@ -11,6 +13,13 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Used to compile Groovy step implementation to be able to reflect on its properties.
@@ -20,23 +29,78 @@ import java.io.IOException;
 @Extension
 @Restricted(NoExternalUse.class) // SezPoz demands that this is public, but this is an implementation detail in this plugin
 public class GroovyCompiler {
-    private final GroovyShell sh;
+    private GroovyShell sh;
 
-    public GroovyCompiler() {
-        CompilerConfiguration cc = new CompilerConfiguration();
-        cc.setScriptBaseClass(StepInGroovyScript.class.getName());
-        sh = new GroovyShell(Jenkins.getActiveInstance().getPluginManager().uberClassLoader, new Binding(), cc);
+    // debug hook to insert additional content roots
+    /*package*/ static final List<URL> additionalContentRoots = new ArrayList<>();
+
+    private synchronized GroovyShell sh() {
+        if (sh==null) {
+            CompilerConfiguration cc = new CompilerConfiguration();
+            cc.setScriptBaseClass(StepInGroovyScript.class.getName());
+
+            sh = new GroovyShell(Jenkins.getActiveInstance().getPluginManager().uberClassLoader, new Binding(), cc);
+
+            // register all the content roots
+            addContentRootsTo(sh);
+        }
+        return sh;
     }
 
-    /*package*/ Class compile(StepDescriptorInGroovy d) throws IOException {
-        return sh.getClassLoader().parseClass(new GroovyCodeSource(d.getSourceFile()));
+    /*package*/ Class compile(StepDescriptorInGroovy d) throws ClassNotFoundException {
+        return sh().getClassLoader().loadClass(d.getClassName());
     }
 
     /*package*/ StepInGroovyScript parse(StepDescriptorInGroovy d) throws IOException {
-        return (StepInGroovyScript)sh.parse(new GroovyCodeSource(d.getSourceFile()));
+        try {
+            return (StepInGroovyScript)compile(d).newInstance();
+        } catch (ReflectiveOperationException e) {
+            throw new IOException("Failed to instantiate "+d.getClassName(),e);
+        }
+    }
+
+    /**
+     * Obtains the content root folders for CPS classpath
+     */
+    public Iterable<URL> getContentRoots() {
+        return new Iterable<URL>() {
+            @Override
+            public Iterator<URL> iterator() {
+                return Iterators.concat(
+                        additionalContentRoots.iterator(),
+                        new AbstractIterator<URL>() {
+                            final Iterator<PluginWrapper> base = Jenkins.getActiveInstance().getPluginManager().getPlugins().iterator();
+                            @Override
+                            protected URL computeNext() {
+                                while (base.hasNext()) {
+                                    PluginWrapper pw = base.next();
+                                    try {
+                                        return new URL(pw.baseResourceURL,"WEB-INF/steps");
+                                    } catch (MalformedURLException e) {
+                                        // impossible but let's be defensive
+                                        LOGGER.log(Level.WARNING, "Failed to figure out content root for "+pw.baseResourceURL);
+                                        // continue the while loop
+                                    }
+                                }
+                                return endOfData();
+                            }
+                        });
+            }
+        };
+    }
+
+    /**
+     * Adds all the content roots to the given Groovy shell.
+     */
+    public void addContentRootsTo(GroovyShell sh) {
+        for (URL root : getContentRoots()) {
+            sh.getClassLoader().addURL(root);
+        }
     }
 
     public static GroovyCompiler get() {
         return Jenkins.getActiveInstance().getInjector().getInstance(GroovyCompiler.class);
     }
+
+    private static final Logger LOGGER = Logger.getLogger(GroovyCompiler.class.getName());
 }

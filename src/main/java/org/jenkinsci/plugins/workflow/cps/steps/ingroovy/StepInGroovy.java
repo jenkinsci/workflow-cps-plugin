@@ -1,7 +1,7 @@
 package org.jenkinsci.plugins.workflow.cps.steps.ingroovy;
 
 import groovy.lang.Closure;
-import jenkins.model.Jenkins;
+import org.apache.commons.io.FilenameUtils;
 import org.jenkinsci.plugins.workflow.cps.CpsVmThreadOnly;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
@@ -12,13 +12,11 @@ import org.kohsuke.stapler.ClassDescriptor;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.zip.ZipFile;
 
 /**
  * A {@link Step} written entirely in Groovy.
@@ -49,6 +47,8 @@ public class StepInGroovy extends Step {
 
     // not @Extension by itself
     public static class StepDescriptorInGroovy extends StepDescriptor {
+        private final String className;
+
         private final String functionName;
 
         /**
@@ -62,16 +62,30 @@ public class StepInGroovy extends Step {
         private final Method callMethod;
         private final List<Parameter> params = new ArrayList<>();
 
-        public StepDescriptorInGroovy(String functionName) throws IOException {
-            this.functionName = functionName;
+        /**
+         * @param fqcn
+         *      Fully qualified class name of Groovy class that defines this step, to be loaded
+         *      from trusted CPS content root.
+         */
+        public StepDescriptorInGroovy(String fqcn) throws IOException {
+            this.className = fqcn;
+            this.functionName = FilenameUtils.getBaseName(fqcn);
             this.compiled = GroovyCompiler.get().parse(this);
             this.callMethod = findCallMethod();
 
             Class<?>[] p = callMethod.getParameterTypes();
-            String[] n = ClassDescriptor.loadParameterNames(callMethod);
-            assert p.length==n.length;
-            for (int i=0; i<n.length; i++) {
-                params.add(new Parameter(p[i],n[i]));
+            /*
+                TODO: ClassDescriptor.loadParameterNames requires .class file to be present, which isn't
+                We need AST tranformation to capture CapturedParameterNames
+             */
+//            String[] n = ClassDescriptor.loadParameterNames(callMethod);
+//            assert p.length==n.length;
+//            for (int i=0; i<n.length; i++) {
+//                params.add(new Parameter(p[i],n[i]));
+//            }
+
+            for (int i=0; i<p.length; i++) {
+                params.add(new Parameter(p[i],"var"+i));
             }
         }
 
@@ -81,7 +95,7 @@ public class StepInGroovy extends Step {
                     return m;
                 }
             }
-            throw new IllegalArgumentException(getSourceFile()+" does not have a public call method");
+            throw new IllegalArgumentException(getClassName()+" does not have a public call method");
         }
 
         /**
@@ -89,13 +103,6 @@ public class StepInGroovy extends Step {
          */
         public List<Parameter> getParameters() {
             return params;
-        }
-
-        /**
-         * Where is the Groovy source code of this step?
-         */
-        public URL getSourceFile() {
-            return Jenkins.getInstance().pluginManager.uberClassLoader.getResource("steps/"+functionName+".groovy");
         }
 
         /**
@@ -121,6 +128,16 @@ public class StepInGroovy extends Step {
             return Collections.emptySet();
         }
 
+        /**
+         * Fully qualified class name of this step.
+         */
+        public String getClassName() {
+            return className;
+        }
+
+        /**
+         * Function name in step.
+         */
         @Override
         public String getFunctionName() {
             return functionName;

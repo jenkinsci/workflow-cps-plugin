@@ -56,7 +56,9 @@ public class StepInGroovyExecution extends StepExecution {
             args[i] = arguments.get(pd.get(i).name);
         }
 
-        Script impl = t.getExecution().getShell().parse(new GroovyCodeSource(descriptor.getSourceFile()));
+        // see
+        Script impl = (Script)t.getExecution().getTrustedShell().getClassLoader()
+                .loadClass(descriptor.getClassName()).newInstance();
 
         Closure body = InvokerHelper.getMethodPointer(impl, "call").curry(args);
 
