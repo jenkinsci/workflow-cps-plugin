@@ -123,7 +123,7 @@ public class StepInGroovy extends Step {
          */
         @Override
         public boolean takesImplicitBlockArgument() {
-            return params.isEmpty() && Closure.class.isAssignableFrom(params.get(params.size()-1).type);
+            return !params.isEmpty() && Closure.class.isAssignableFrom(params.get(params.size()-1).type);
         }
 
         @Override
