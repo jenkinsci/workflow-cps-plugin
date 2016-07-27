@@ -113,4 +113,18 @@ public class DSLTest {
         p.setDefinition(new CpsFlowDefinition("newYork 'Empire'"));
         r.assertLogContains("The Empire State", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
+
+    @Issue("JENKINS-29922")
+    @Test public void runMetaBlockStep() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("circle {echo 'interior is a disk'}", true));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("wrapping in a circle", b);
+        r.assertLogContains("interior is a disk", b);
+        p.setDefinition(new CpsFlowDefinition("polygon(17) {echo 'constructible with compass and straightedge'}", true));
+        b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("wrapping in a 17-gon", b);
+        r.assertLogContains("constructible with compass and straightedge", b);
+    }
+
 }

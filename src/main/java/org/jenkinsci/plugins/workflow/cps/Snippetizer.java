@@ -116,6 +116,7 @@ import org.kohsuke.stapler.StaplerRequest;
             if (d.clazz.equals(clazz)) {
                 Step step = (Step) o;
                 UninstantiatedDescribable uninst = d.uninstantiate(step);
+                boolean blockArgument = d.takesImplicitBlockArgument();
 
                 if (d.isMetaStep()) {
                     // if we have a symbol name for the wrapped Describable, we can produce
@@ -150,7 +151,7 @@ import org.kohsuke.stapler.StaplerRequest;
                                         nested.getSymbol(), nested.getKlass(), copy);
                                 combined.setModel(nested.getModel());
 
-                                return ud2groovy(b, combined, false, nestedExp);
+                                return ud2groovy(b, combined, blockArgument, nestedExp);
                             }
                         }
                     } else {
@@ -161,7 +162,7 @@ import org.kohsuke.stapler.StaplerRequest;
                 }
 
                 uninst.setSymbol(d.getFunctionName());
-                return functionCall(b, uninst, d.takesImplicitBlockArgument(), nestedExp);
+                return functionCall(b, uninst, blockArgument, nestedExp);
             }
         }
 

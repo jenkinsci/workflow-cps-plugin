@@ -61,6 +61,9 @@ import java.util.Arrays;
 import java.util.logging.Level;
 
 import static org.hamcrest.CoreMatchers.*;
+import org.jenkinsci.plugins.workflow.testMetaStep.Circle;
+import org.jenkinsci.plugins.workflow.testMetaStep.CurveMetaStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.Polygon;
 import static org.junit.Assert.*;
 import org.jvnet.hudson.test.LoggerRule;
 
@@ -128,6 +131,12 @@ public class SnippetizerTest {
         st.assertRoundTrip(new ExecutorStep("linux"), "node('linux') {\n    // some block\n}");
         st.assertRoundTrip(new WorkspaceStep(null), "ws {\n    // some block\n}");
         st.assertRoundTrip(new WorkspaceStep("loc"), "ws('loc') {\n    // some block\n}");
+    }
+
+    @Issue("JENKINS-29922")
+    @Test public void blockMetaSteps() throws Exception {
+        st.assertRoundTrip(new CurveMetaStep(new Circle()), "circle {\n    // some block\n}");
+        st.assertRoundTrip(new CurveMetaStep(new Polygon(5)), "polygon(5) {\n    // some block\n}");
     }
 
     @Test public void escapes() throws Exception {
