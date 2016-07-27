@@ -29,22 +29,17 @@ import org.jenkinsci.plugins.workflow.util.StaplerReferer;
 import static org.junit.Assert.*;
 
 /**
- * Test harness to test snippetizer.
+ * Test harness to test {@link Snippetizer}.
  */
-public class SnippetizerTestRule implements TestRule {
+public class SnippetizerTester {
 
-    public final JenkinsRule r;
+    private final JenkinsRule r;
 
     /**
-     * This rule should be used together with {@link JenkinsRule}
+     * This helper requires {@link JenkinsRule}.
      */
-    public SnippetizerTestRule(JenkinsRule r) {
+    public SnippetizerTester(JenkinsRule r) {
         this.r = r;
-    }
-
-    @Override
-    public Statement apply(Statement base, Description description) {
-        return base;
     }
 
     /**

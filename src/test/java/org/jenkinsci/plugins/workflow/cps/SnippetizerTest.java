@@ -50,7 +50,6 @@ import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.CarbonMonoxide;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.DetectionMetaStep;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Email;
@@ -59,13 +58,11 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockFolder;
 
 import java.util.Arrays;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Handler;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
+import org.jvnet.hudson.test.LoggerRule;
 
 // TODO these tests would better be moved to the respective plugins
 
@@ -75,17 +72,9 @@ public class SnippetizerTest {
     public static JenkinsRule r = new JenkinsRule();
 
     @ClassRule
-    public static SnippetizerTestRule st = new SnippetizerTestRule(r);
+    public static LoggerRule logging = new LoggerRule().record(DescribableModel.class, Level.ALL);
 
-    private static final Logger logger = Logger.getLogger(DescribableModel.class.getName());
-
-    @BeforeClass
-    public static void logging() {
-        logger.setLevel(Level.ALL);
-        Handler handler = new ConsoleHandler();
-        handler.setLevel(Level.ALL);
-        logger.addHandler(handler);
-    }
+    private static SnippetizerTester st = new SnippetizerTester(r);
 
     @Test public void basics() throws Exception {
         st.assertRoundTrip(new EchoStep("hello world"), "echo 'hello world'");
