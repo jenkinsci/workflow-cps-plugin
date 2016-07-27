@@ -90,6 +90,14 @@ public class StepInGroovy extends Step {
             }
         }
 
+        @Override
+        public Map<String, Object> singleArgument(Object arg) {
+            if (params.size()==1)
+                return Collections.singletonMap(params.get(0).name, arg);
+            else
+                return null;
+        }
+
         private Method findCallMethod() {
             for (Method m : compiled.getClass().getMethods()) {
                 if (m.getName().equals("call"))  {

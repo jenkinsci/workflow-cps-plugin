@@ -33,7 +33,7 @@ public class StepInGroovyTest {
     @Test
     public void helloWorld() throws Exception {
         WorkflowJob p = j.createProject(WorkflowJob.class, "demo");
-        p.setDefinition(new CpsFlowDefinition("helloWorldGroovy var0:'Duke'"));
+        p.setDefinition(new CpsFlowDefinition("helloWorldGroovy 'Duke'"));
         WorkflowRun b = j.assertBuildStatusSuccess(p.scheduleBuild2(0));
         j.assertLogContains("Hello Duke",b);
     }
