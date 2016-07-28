@@ -30,6 +30,7 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 /**
@@ -54,6 +55,76 @@ public class DSLTest {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("def x = 'the message'; echo \"What is ${x}?\""));
         r.assertLogContains("What is the message?", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
+
+    /**
+     * Tests the ability to execute meta-step with clean syntax
+     */
+    @Issue("JENKINS-29922")
+    @Test
+    public void dollar_class_must_die() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die1");
+        p.setDefinition(new CpsFlowDefinition("california ocean:'pacific', mountain:'sierra'"));
+        r.assertLogContains("California from pacific to sierra", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
+
+    /**
+     * Split arguments between meta step and state
+     */
+    @Issue("JENKINS-29922")
+    @Test
+    public void dollar_class_must_die2() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die2");
+        p.setDefinition(new CpsFlowDefinition("california ocean:'pacific', mountain:'sierra', moderate:true"));
+        r.assertLogContains("Introducing california\nCalifornia from pacific to sierra", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
+
+    /**
+     * Split arguments between meta step and state
+     */
+    @Issue("JENKINS-29922")
+    @Test
+    public void dollar_class_must_die3() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die3");
+        p.setDefinition(new CpsFlowDefinition("nevada()"));
+        r.assertLogContains("All For Our Country", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
+
+    /**
+     * Split arguments between meta step and state, when argument is colliding
+     */
+    @Issue("JENKINS-29922")
+    @Test
+    public void dollar_class_must_die_colliding_argument() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die5");
+        p.setDefinition(new CpsFlowDefinition("newYork motto:'Empire', moderate:true"));
+        WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("Introducing newYork\nThe Empire State", run);
+        r.assertLogNotContains("New York can be moderate in spring or fall", run);
+    }
+
+    /**
+     * Single argument state
+     */
+    @Issue("JENKINS-29922")
+    @Test
+    public void dollar_class_must_die_onearg() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die4");
+        p.setDefinition(new CpsFlowDefinition("newYork 'Empire'"));
+        r.assertLogContains("The Empire State", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
+
+    @Issue("JENKINS-29922")
+    @Test public void runMetaBlockStep() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("circle {echo 'interior is a disk'}", true));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("wrapping in a circle", b);
+        r.assertLogContains("interior is a disk", b);
+        p.setDefinition(new CpsFlowDefinition("polygon(17) {echo 'constructible with compass and straightedge'}", true));
+        b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("wrapping in a 17-gon", b);
+        r.assertLogContains("constructible with compass and straightedge", b);
     }
 
 }
