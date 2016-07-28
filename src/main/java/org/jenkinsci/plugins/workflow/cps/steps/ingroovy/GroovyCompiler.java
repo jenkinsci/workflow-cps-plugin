@@ -17,6 +17,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -71,7 +72,17 @@ public class GroovyCompiler {
     }
 
     /**
-     * Obtains the content root folders for CPS classpath
+     * Obtains the content root folders for CPS classpath.
+     *
+     * <p>
+     * Content roots are directories in which package structures are defined and class/resources exist,
+     * like 'target/classes'. Those directories are added to {@link URLClassLoader#addURL(URL)} to form
+     * a classpath.
+     *
+     * <p>
+     * Paths designated here get loaded into trusted CPS classloader, which is exposed to untrusted
+     * user CPS classloader. So we need them to be isolated from the rest of the classpath of Jenkins,
+     * hence {@code WEB-INF/steps}
      */
     public Iterable<URL> getContentRoots() {
         return new Iterable<URL>() {
