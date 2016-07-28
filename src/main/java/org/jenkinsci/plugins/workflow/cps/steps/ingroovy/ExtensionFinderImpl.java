@@ -1,17 +1,15 @@
 package org.jenkinsci.plugins.workflow.cps.steps.ingroovy;
 
-import com.trilead.ssh2.util.IOUtils;
 import hudson.Extension;
 import hudson.ExtensionComponent;
 import hudson.ExtensionFinder;
-import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import jenkins.ExtensionComponentSet;
 import jenkins.ExtensionRefreshException;
+import org.apache.commons.io.IOUtils;
 import org.jenkinsci.plugins.workflow.cps.steps.ingroovy.StepInGroovy.StepDescriptorInGroovy;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
-import javax.inject.Inject;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
