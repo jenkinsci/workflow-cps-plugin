@@ -26,11 +26,17 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
+import com.google.common.base.Function;
 import groovy.lang.Closure;
 import groovy.lang.GString;
 import groovy.lang.GroovyObject;
 import groovy.lang.GroovyObjectSupport;
+import hudson.model.Describable;
+import hudson.model.Descriptor;
 import hudson.model.TaskListener;
+import org.jenkinsci.plugins.structs.describable.DescribableModel;
+import org.jenkinsci.plugins.structs.describable.DescribableParameter;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
@@ -46,6 +52,7 @@ import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.structs.SymbolLookup;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -56,10 +63,16 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+
+import org.kohsuke.stapler.ClassDescriptor;
+import org.kohsuke.stapler.NoStaplerConstructorException;
+
+import javax.annotation.Nullable;
 
 /**
  * Scaffolding to experiment with the call into {@link Step}.
@@ -98,18 +111,28 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
 
         if (functions == null) {
-            functions = new TreeMap<String,StepDescriptor>();
+            functions = new TreeMap<>();
             for (StepDescriptor d : StepDescriptor.all()) {
                 functions.put(d.getFunctionName(), d);
             }
         }
-        final StepDescriptor d = functions.get(name);
-        if (d == null) {
-            // TODO probably this should be throwing a subtype of groovy.lang.MissingMethodException
-            throw new NoSuchMethodError("No such DSL method '" + name + "' found among " + functions.keySet());
+        final StepDescriptor sd = functions.get(name);
+        if (sd != null) {
+            return invokeStep(sd,args);
+        }
+        if (SymbolLookup.get().findDescriptor(Describable.class, name) != null) {
+            return invokeDescribable(name,args);
         }
 
-        final NamedArgsAndClosure ps = parseArgs(d,args);
+        // TODO probably this should be throwing a subtype of groovy.lang.MissingMethodException
+        throw new NoSuchMethodError("No such DSL method '" + name + "' found among " + functions.keySet());
+    }
+
+    /**
+     * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
+     */
+    protected Object invokeStep(StepDescriptor d, Object args) {
+        final NamedArgsAndClosure ps = parseArgs(args, d);
 
         CpsThread thread = CpsThread.current();
 
@@ -176,6 +199,105 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
+    private static String loadSoleArgumentKey(StepDescriptor d) {
+        try {
+            String[] names = new ClassDescriptor(d.clazz).loadConstructorParamNames();
+            return names.length == 1 ? names[0] : null;
+        } catch (NoStaplerConstructorException e) {
+            return null;
+        }
+    }
+
+    /**
+     * When {@link #invokeMethod(String, Object)} is calling a generic {@link Descriptor}
+     */
+    protected Object invokeDescribable(String symbol, Object _args) {
+        List<StepDescriptor> metaSteps = StepDescriptor.metaStepsOf(symbol);
+        StepDescriptor metaStep = metaSteps.size()==1 ? metaSteps.get(0) : null;
+
+        // The only time a closure is valid is when the resulting Describable is immediately executed via a meta-step
+        NamedArgsAndClosure args = parseArgs(_args, metaStep != null && metaStep.takesImplicitBlockArgument(),
+                ANONYMOUS_KEY);
+        UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
+
+        if (metaStep==null) {
+            // there's no meta-step associated with it, so this symbol is not executable.
+            // in this case we assume this is building a nested object used as an eventual
+            // parameter of an executable symbol, e.g.,
+            //
+            // hg source: 'https://whatever/', clean: true, browser: kallithea('https://whatever/')
+
+            // also note that in this case 'd' is not trustworthy, as depending on
+            // where this UninstantiatedDescribable is ultimately used, the symbol
+            // might be resolved with a specific type.
+            return ud;
+        } else {
+            Descriptor d = SymbolLookup.get().findDescriptor(metaStep.getMetaStepArgumentType(), symbol);
+
+            try {
+                // execute this Describable through a meta-step
+
+                // split args between MetaStep (represented by mm) and Describable (represented by dm)
+                DescribableModel<?> mm = new DescribableModel(metaStep.clazz);
+                DescribableModel<?> dm = new DescribableModel(d.clazz);
+                DescribableParameter p = mm.getFirstRequiredParameter();
+                if (p==null) {
+                    // meta-step not having a required parameter is a bug in this meta step
+                    throw new IllegalArgumentException("Attempted to use meta-step "+metaStep.getFunctionName()+" to process "+symbol+" but this meta-step is buggy; it has no mandatory parameter");
+                }
+
+                // order of preference:
+                //      1. mandatory parameter in mm
+                //      2. mandatory parameter in dm
+                //      3. other parameters in mm
+                //      4. other parameters in dm
+                // mm is preferred over dm because that way at least the arguments that mm defines
+                // act consistently
+                Map<String,Object> margs = new TreeMap<>();
+                Map<String,Object> dargs = new TreeMap<>();
+                for (Entry<String, ?> e : ud.getArguments().entrySet()) {
+                    String n = e.getKey();
+                    Object v = e.getValue();
+                    DescribableParameter mp = mm.getParameter(n);
+                    DescribableParameter dp = dm.getParameter(n);
+
+                    if (mp!=null && mp.isRequired()) {
+                        margs.put(n,v);
+                    } else
+                    if (dp!=null && dp.isRequired()) {
+                        dargs.put(n,v);
+                    } else
+                    if (mp!=null) {
+                        margs.put(n,v);
+                    } else {
+                        // dp might be null, but this error will be caught by UD.instantiate() later
+                        dargs.put(n,v);
+                    }
+                }
+
+                ud = new UninstantiatedDescribable(symbol, null, dargs);
+                margs.put(p.getName(),ud);
+
+                return invokeStep(metaStep,new NamedArgsAndClosure(margs,args.body));
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Failed to prepare "+symbol+" step",e);
+            }
+        }
+    }
+
+    /**
+     * Finds a meta step that can handle a Describable of the given type 'd'
+     */
+    private static StepDescriptor findMetaStep(Descriptor d) {
+        OUTER:
+        for (StepDescriptor sd : StepDescriptor.allMeta()) {
+            if (sd.getMetaStepArgumentType().isAssignableFrom(d.clazz)) {
+                return sd;
+            }
+        }
+        return null;
+    }
+
     /**
      * Reports a user-friendly error message for {@link MissingContextVariableException}.
      */
@@ -228,6 +350,16 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
+    static NamedArgsAndClosure parseArgs(Object arg, final StepDescriptor d) {
+        return parseArgs(arg, d.takesImplicitBlockArgument(),
+                new Function<Object, Map<String,Object>>() {
+                    @Override
+                    public Map<String, Object> apply(Object arg) {
+                        return d.singleArgument(arg);
+                    }
+                });
+    }
+
     /**
      * Given the Groovy style argument packing used in the sole object parameter of {@link GroovyObject#invokeMethod(String, Object)},
      * compute the named argument map and an optional closure that represents the body.
@@ -242,10 +374,18 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      *
      * <p>
      * This handling is designed after how Java defines literal syntax for {@link Annotation}.
+     *
+     * @param arg
+     *      Argument object of {@link GroovyObject#invokeMethod(String, Object)}
+     * @param expectsBlock
+     *      If a closure is a valid possible argument. If false and we see a block, this method throws an exception.
+     * @param soleArgumentHandler
+     *      If the context in which this method call happens allow implicit sole default argument, specify the logic
+     *      that translates that into named argument map. If null, the call must be with names arguments.
      */
-    static NamedArgsAndClosure parseArgs(StepDescriptor d, Object arg) {
-        boolean expectsBlock = d.takesImplicitBlockArgument();
-
+    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, Function<Object,Map<String,Object>> soleArgumentHandler) {
+        if (arg instanceof NamedArgsAndClosure)
+            return (NamedArgsAndClosure) arg;
         if (arg instanceof Map) // TODO is this clause actually used?
             return new NamedArgsAndClosure((Map) arg, null);
         if (arg instanceof Closure && expectsBlock)
@@ -273,22 +413,29 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             case 0:
                 return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),c);
             case 1:
-                return new NamedArgsAndClosure(singleParam(d, a.get(0)), c);
+                return new NamedArgsAndClosure(singleParam(soleArgumentHandler, a.get(0)), c);
             default:
                 throw new IllegalArgumentException("Expected named arguments but got "+a);
             }
         }
 
-        return new NamedArgsAndClosure(singleParam(d, arg), null);
+        return new NamedArgsAndClosure(singleParam(soleArgumentHandler, arg), null);
     }
-    private static Map<String,Object> singleParam(StepDescriptor d, Object arg) {
-        Map<String, Object> m = d.singleArgument(arg);
-        if (m!=null) {
-            return m;
+
+    private static Map<String,Object> singleParam(Function<Object,Map<String,Object>> soleArgumentHandler, Object arg) {
+        if (soleArgumentHandler != null) {
+            return soleArgumentHandler.apply(arg);
         } else {
             throw new IllegalArgumentException("Expected named arguments but got " + arg);
         }
     }
+
+    private static final Function<Object, Map<String, Object>> ANONYMOUS_KEY = new Function<Object, Map<String,Object>>() {
+        @Override
+        public Map<String, Object> apply(Object input) {
+            return Collections.singletonMap(UninstantiatedDescribable.ANONYMOUS_KEY, input);
+        }
+    };
 
     /**
      * If the step starts executing asynchronously, this task

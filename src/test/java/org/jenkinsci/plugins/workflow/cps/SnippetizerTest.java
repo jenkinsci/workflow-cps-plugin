@@ -24,11 +24,6 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import com.gargoylesoftware.htmlunit.HttpMethod;
-import com.gargoylesoftware.htmlunit.WebRequest;
-import com.gargoylesoftware.htmlunit.WebResponse;
-import com.gargoylesoftware.htmlunit.util.NameValuePair;
-import groovy.lang.GroovyObjectSupport;
 import groovy.lang.GroovyShell;
 import hudson.model.BooleanParameterDefinition;
 import hudson.model.BooleanParameterValue;
@@ -37,33 +32,24 @@ import hudson.model.ParametersDefinitionProperty;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.tasks.ArtifactArchiver;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import static org.hamcrest.CoreMatchers.*;
-
+import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.workflow.steps.CatchErrorStep;
 import org.jenkinsci.plugins.workflow.steps.CoreStep;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
 import org.jenkinsci.plugins.workflow.steps.PwdStep;
-import org.jenkinsci.plugins.workflow.steps.Step;
-import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
-// TODO these tests would better be moved to the respective plugins
 import org.jenkinsci.plugins.workflow.support.steps.ExecutorStep;
 import org.jenkinsci.plugins.workflow.support.steps.StageStep;
 import org.jenkinsci.plugins.workflow.support.steps.WorkspaceStep;
 import org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStep;
-import static org.junit.Assert.*;
-import org.junit.BeforeClass;
+import org.jenkinsci.plugins.workflow.testMetaStep.Colorado;
+import org.jenkinsci.plugins.workflow.testMetaStep.Hawaii;
+import org.jenkinsci.plugins.workflow.testMetaStep.Island;
+import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
+import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.chemical.CarbonMonoxide;
+import org.jenkinsci.plugins.workflow.testMetaStep.chemical.DetectionMetaStep;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Email;
@@ -71,93 +57,114 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockFolder;
 
+import java.util.Arrays;
+import java.util.logging.Level;
+
+import static org.hamcrest.CoreMatchers.*;
+import org.jenkinsci.plugins.workflow.testMetaStep.Circle;
+import org.jenkinsci.plugins.workflow.testMetaStep.CurveMetaStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.Polygon;
+import static org.junit.Assert.*;
+import org.jvnet.hudson.test.LoggerRule;
+
+// TODO these tests would better be moved to the respective plugins
+
 public class SnippetizerTest {
 
-    @ClassRule public static JenkinsRule r = new JenkinsRule();
-    
-    private static final Logger logger = Logger.getLogger(DescribableModel.class.getName());
-    @BeforeClass public static void logging() {
-        logger.setLevel(Level.ALL);
-        Handler handler = new ConsoleHandler();
-        handler.setLevel(Level.ALL);
-        logger.addHandler(handler);
-    }
+    @ClassRule
+    public static JenkinsRule r = new JenkinsRule();
+
+    @ClassRule
+    public static LoggerRule logging = new LoggerRule().record(DescribableModel.class, Level.ALL);
+
+    private static SnippetizerTester st = new SnippetizerTester(r);
 
     @Test public void basics() throws Exception {
-        assertRoundTrip(new EchoStep("hello world"), "echo 'hello world'");
+        st.assertRoundTrip(new EchoStep("hello world"), "echo 'hello world'");
         StageStep s = new StageStep("Build");
-        assertRoundTrip(s, "stage 'Build'");
+        st.assertRoundTrip(s, "stage 'Build'");
         s.concurrency = 1;
-        assertRoundTrip(s, "stage concurrency: 1, name: 'Build'");
+        st.assertRoundTrip(s, "stage concurrency: 1, name: 'Build'");
     }
 
     @Email("https://groups.google.com/forum/#!topicsearchin/jenkinsci-users/workflow/jenkinsci-users/DJ15tkEQPw0")
     @Test public void noArgStep() throws Exception {
-        assertRoundTrip(new PwdStep(), "pwd()");
+        st.assertRoundTrip(new PwdStep(), "pwd()");
     }
 
     @Test public void coreStep() throws Exception {
         ArtifactArchiver aa = new ArtifactArchiver("x.jar");
         aa.setAllowEmptyArchive(true);
-        assertRoundTrip(new CoreStep(aa), "step([$class: 'ArtifactArchiver', allowEmptyArchive: true, artifacts: 'x.jar'])");
+        if (ArtifactArchiver.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
+            st.assertRoundTrip(new CoreStep(aa), "step archiveArtifacts(allowEmptyArchive: true, artifacts: 'x.jar')");
+        } else { // TODO 2.x delete
+            st.assertRoundTrip(new CoreStep(aa), "step([$class: 'ArtifactArchiver', allowEmptyArchive: true, artifacts: 'x.jar'])");
+        }
     }
 
     @Test public void coreStep2() throws Exception {
-        assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "step([$class: 'ArtifactArchiver', artifacts: 'x.jar'])");
+        if (ArtifactArchiver.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
+            st.assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "step archiveArtifacts('x.jar')");
+        } else { // TODO 2.x delete
+            st.assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "step([$class: 'ArtifactArchiver', artifacts: 'x.jar'])");
+        }
+    }
+
+    @Test public void recursiveSymbolUse() throws Exception {
+        Island hawaii = new Island(new Island(new Island(),null),new Island());
+        st.assertRoundTrip(new StateMetaStep(new Hawaii(hawaii)), "hawaii island(lhs: island(lhs: island()), rhs: island())");
+    }
+
+    @Test public void collisionWithStep() throws Exception {
+        // this cannot use "or()" due to a collision with OrStep
+        st.assertRoundTrip(new StateMetaStep(new Oregon()), "state([$class: 'Oregon'])");
+    }
+
+    @Test public void collisionWithAnotherMetaStep() throws Exception {
+        // neither should produce "CO()" because that would prevent disambiguation
+        st.assertRoundTrip(new StateMetaStep(new Colorado()), "state CO()");
+        st.assertRoundTrip(new DetectionMetaStep(new CarbonMonoxide()), "detect CO()");
     }
 
     @Test public void blockSteps() throws Exception {
-        assertRoundTrip(new ExecutorStep(null), "node {\n    // some block\n}");
-        assertRoundTrip(new ExecutorStep("linux"), "node('linux') {\n    // some block\n}");
-        assertRoundTrip(new WorkspaceStep(null), "ws {\n    // some block\n}");
-        assertRoundTrip(new WorkspaceStep("loc"), "ws('loc') {\n    // some block\n}");
+        st.assertRoundTrip(new ExecutorStep(null), "node {\n    // some block\n}");
+        st.assertRoundTrip(new ExecutorStep("linux"), "node('linux') {\n    // some block\n}");
+        st.assertRoundTrip(new WorkspaceStep(null), "ws {\n    // some block\n}");
+        st.assertRoundTrip(new WorkspaceStep("loc"), "ws('loc') {\n    // some block\n}");
+    }
+
+    @Issue("JENKINS-29922")
+    @Test public void blockMetaSteps() throws Exception {
+        st.assertRoundTrip(new CurveMetaStep(new Circle()), "circle {\n    // some block\n}");
+        st.assertRoundTrip(new CurveMetaStep(new Polygon(5)), "polygon(5) {\n    // some block\n}");
     }
 
     @Test public void escapes() throws Exception {
-        assertRoundTrip(new EchoStep("Bob's message \\/ here"), "echo 'Bob\\'s message \\\\/ here'");
+        st.assertRoundTrip(new EchoStep("Bob's message \\/ here"), "echo 'Bob\\'s message \\\\/ here'");
     }
 
     @Test public void multilineStrings() throws Exception {
-        assertRoundTrip(new EchoStep("echo hello\necho 1/2 way\necho goodbye"), "echo '''echo hello\necho 1/2 way\necho goodbye'''");
+        st.assertRoundTrip(new EchoStep("echo hello\necho 1/2 way\necho goodbye"), "echo '''echo hello\necho 1/2 way\necho goodbye'''");
     }
 
     @Test public void buildTriggerStep() throws Exception {
         BuildTriggerStep step = new BuildTriggerStep("downstream");
-        assertRoundTrip(step, "build 'downstream'");
+        st.assertRoundTrip(step, "build 'downstream'");
         step.setParameters(Arrays.asList(new StringParameterValue("branch", "default"), new BooleanParameterValue("correct", true)));
-        assertRoundTrip(step, "build job: 'downstream', parameters: [[$class: 'StringParameterValue', name: 'branch', value: 'default'], [$class: 'BooleanParameterValue', name: 'correct', value: true]]");
+        if (StringParameterDefinition.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
+            st.assertRoundTrip(step, "build job: 'downstream', parameters: [string(name: 'branch', value: 'default'), booleanParam(name: 'correct', value: true)]");
+        } else { // TODO 2.x delete
+            st.assertRoundTrip(step, "build job: 'downstream', parameters: [[$class: 'StringParameterValue', name: 'branch', value: 'default'], [$class: 'BooleanParameterValue', name: 'correct', value: true]]");
+        }
     }
 
     @Issue("JENKINS-25779")
     @Test public void defaultValues() throws Exception {
-        assertRoundTrip(new InputStep("Ready?"), "input 'Ready?'");
-    }
-
-    private static void assertRoundTrip(Step step, String expected) throws Exception {
-        assertEquals(expected, Snippetizer.object2Groovy(step));
-        GroovyShell shell = new GroovyShell(r.jenkins.getPluginManager().uberClassLoader);
-        final StepDescriptor desc = step.getDescriptor();
-        shell.setVariable("steps", new GroovyObjectSupport() {
-            @Override public Object invokeMethod(String name, Object args) {
-                if (name.equals(desc.getFunctionName())) {
-                    try {
-                        return desc.newInstance(DSL.parseArgs(desc, args).namedArgs);
-                    } catch (RuntimeException x) {
-                        throw x;
-                    } catch (Exception x) {
-                        throw new RuntimeException(x);
-                    }
-                } else {
-                    return super.invokeMethod(name, args);
-                }
-            }
-        });
-        Step actual = (Step) shell.evaluate("steps." + expected);
-        r.assertEqualDataBoundBeans(step, actual);
+        st.assertRoundTrip(new InputStep("Ready?"), "input 'Ready?'");
     }
 
     @Test public void generateSnippet() throws Exception {
-        assertGenerateSnippet("{'stapler-class':'" + EchoStep.class.getName() + "', 'message':'hello world'}", "echo 'hello world'", null);
+        st.assertGenerateSnippet("{'stapler-class':'" + EchoStep.class.getName() + "', 'message':'hello world'}", "echo 'hello world'", null);
     }
 
     @Issue("JENKINS-26093")
@@ -168,7 +175,13 @@ public class SnippetizerTest {
         // Really this would be a WorkflowJob, but we cannot depend on that here, and it should not matter since we are just looking for Job:
         FreeStyleProject us = d2.createProject(FreeStyleProject.class, "us");
         ds.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("key", ""), new BooleanParameterDefinition("flag", false, "")));
-        assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'../d1/ds', 'parameter': [{'name':'key', 'value':'stuff'}, {'name':'flag', 'value':true}]}", "build job: '../d1/ds', parameters: [[$class: 'StringParameterValue', name: 'key', value: 'stuff'], [$class: 'BooleanParameterValue', name: 'flag', value: true]]", us.getAbsoluteUrl() + "configure");
+        String snippet;
+        if (StringParameterDefinition.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
+            snippet = "build job: '../d1/ds', parameters: [string(name: 'key', value: 'stuff'), booleanParam(name: 'flag', value: true)]";
+        } else { // TODO 2.x delete
+            snippet = "build job: '../d1/ds', parameters: [[$class: 'StringParameterValue', name: 'key', value: 'stuff'], [$class: 'BooleanParameterValue', name: 'flag', value: true]]";
+        }
+        st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'../d1/ds', 'parameter': [{'name':'key', 'value':'stuff'}, {'name':'flag', 'value':true}]}", snippet, us.getAbsoluteUrl() + "configure");
     }
 
     @Issue("JENKINS-29739")
@@ -176,33 +189,23 @@ public class SnippetizerTest {
         FreeStyleProject ds = r.jenkins.createProject(FreeStyleProject.class, "ds1");
         FreeStyleProject us = r.jenkins.createProject(FreeStyleProject.class, "us1");
         ds.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("key", "")));
-        assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'ds1', 'parameter': {'name':'key', 'value':'stuff'}}", "build job: 'ds1', parameters: [[$class: 'StringParameterValue', name: 'key', value: 'stuff']]", us.getAbsoluteUrl() + "configure");
+        String snippet;
+        if (StringParameterDefinition.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
+            snippet = "build job: 'ds1', parameters: [string(name: 'key', value: 'stuff')]";
+        } else { // TODO 2.x delete
+            snippet = "build job: 'ds1', parameters: [[$class: 'StringParameterValue', name: 'key', value: 'stuff']]";
+        }
+        st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'ds1', 'parameter': {'name':'key', 'value':'stuff'}}", snippet, us.getAbsoluteUrl() + "configure");
     }
 
     @Test public void generateSnippetForBuildTriggerNone() throws Exception {
         FreeStyleProject ds = r.jenkins.createProject(FreeStyleProject.class, "ds0");
         FreeStyleProject us = r.jenkins.createProject(FreeStyleProject.class, "us0");
-        assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'ds0'}", "build 'ds0'", us.getAbsoluteUrl() + "configure");
+        st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'ds0'}", "build 'ds0'", us.getAbsoluteUrl() + "configure");
     }
 
     @Test public void generateSnippetAdvancedDeprecated() throws Exception {
-        assertGenerateSnippet("{'stapler-class':'" + CatchErrorStep.class.getName() + "'}", "// " + Messages.Snippetizer_this_step_should_not_normally_be_used_in() + "\ncatchError {\n    // some block\n}", null);
-    }
-
-    private void assertGenerateSnippet(@Nonnull String json, @Nonnull String responseText, @CheckForNull String referer) throws Exception {
-        JenkinsRule.WebClient wc = r.createWebClient();
-        WebRequest wrs = new WebRequest(new URL(r.getURL(), Snippetizer.GENERATE_URL), HttpMethod.POST);
-        if (referer != null) {
-            wrs.setAdditionalHeader("Referer", referer);
-        }
-        List<NameValuePair> params = new ArrayList<NameValuePair>();
-        params.add(new NameValuePair("json", json));
-        // WebClient.addCrumb *replaces* rather than *adds*:
-        params.add(new NameValuePair(r.jenkins.getCrumbIssuer().getDescriptor().getCrumbRequestField(), r.jenkins.getCrumbIssuer().getCrumb(null)));
-        wrs.setRequestParameters(params);
-        WebResponse response = wc.getPage(wrs).getWebResponse();
-        assertEquals("text/plain", response.getContentType());
-        assertEquals(responseText, response.getContentAsString().trim());
+        st.assertGenerateSnippet("{'stapler-class':'" + CatchErrorStep.class.getName() + "'}", "// " + Messages.Snippetizer_this_step_should_not_normally_be_used_in() + "\ncatchError {\n    // some block\n}", null);
     }
 
     @Issue("JENKINS-26126")

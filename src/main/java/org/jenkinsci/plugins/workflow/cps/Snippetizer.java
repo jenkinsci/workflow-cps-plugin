@@ -38,6 +38,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
@@ -47,12 +48,14 @@ import javax.lang.model.SourceVersion;
 import jenkins.model.Jenkins;
 import jenkins.model.TransientActionFactory;
 import net.sf.json.JSONObject;
+import org.jenkinsci.plugins.structs.describable.DescribableModel;
+import org.jenkinsci.plugins.structs.describable.DescribableParameter;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.ClassDescriptor;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.QueryParameter;
@@ -62,105 +65,269 @@ import org.kohsuke.stapler.StaplerRequest;
  * Takes a {@link Step} as configured through the UI and tries to produce equivalent Groovy code.
  */
 @Extension public class Snippetizer implements RootAction, DescriptorByNameOwner {
-    
+
+    /**
+     * Short-hand for the top-level invocation.
+     */
     static String object2Groovy(Object o) throws UnsupportedOperationException {
-        Class<? extends Object> clazz = o.getClass();
-        for (StepDescriptor d : StepDescriptor.all()) {
-            if (d.clazz.equals(clazz)) {
-                StringBuilder b = new StringBuilder(d.getFunctionName());
-                Step step = (Step) o;
-                Map<String,Object> args = new TreeMap<String,Object>(d.defineArguments(step));
-                boolean first = true;
-                boolean singleMap = args.size() == 1 && args.values().iterator().next() instanceof Map;
-                for (Map.Entry<String,Object> entry : args.entrySet()) {
-                    if (first) {
-                        first = false;
-                        if (d.takesImplicitBlockArgument() || singleMap) {
-                            b.append('(');
-                        } else {
-                            b.append(' ');
-                        }
-                    } else {
-                        b.append(", ");
-                    }
-                    String key = entry.getKey();
-                    if (args.size() > 1 || !isDefaultKey(step, key)) {
-                        b.append(key).append(": ");
-                    }
-                    render(b, entry.getValue());
-                }
-                if (d.takesImplicitBlockArgument()) {
-                    if (!args.isEmpty()) {
-                        b.append(')');
-                    }
-                    b.append(" {\n    // some block\n}");
-                } else if (singleMap) {
-                    b.append(')');
-                } else if (args.isEmpty()) {
-                    b.append("()");
-                }
-                return b.toString();
-            }
-        }
-        throw new UnsupportedOperationException("Unknown step " + clazz);
+        return object2Groovy(new StringBuilder(),o, false).toString();
     }
 
-    private static boolean isDefaultKey(Step step, String key) {
-        String[] names = new ClassDescriptor(step.getClass()).loadConstructorParamNames();
-        return names.length == 1 && key.equals(names[0]);
-    }
-
-    private static void render(StringBuilder b, Object value) {
-        if (value == null) {
-            b.append("null");
-            return;
+    /**
+     * Renders the invocation syntax to re-create a given object 'o' into 'b'
+     *
+     * @param nestedExp
+     *      true if this object is written as a nested expression (in which case we always produce parenthesis for readability)
+     * @return  the same object as 'b'
+     */
+    static StringBuilder object2Groovy(StringBuilder b, Object o, boolean nestedExp) throws UnsupportedOperationException {
+        if (o == null) {
+            return b.append("null");
         }
-        Class<?> valueC = value.getClass();
-        if (valueC == String.class || valueC == Character.class) {
-            String text = String.valueOf(value);
+        final Class<?> clazz = o.getClass();
+
+        if (clazz == String.class || clazz == Character.class) {
+            String text = String.valueOf(o);
             if (text.contains("\n")) {
                 b.append("'''").append(text.replace("\\", "\\\\").replace("'", "\\'")).append("'''");
             } else {
                 b.append('\'').append(text.replace("\\", "\\\\").replace("'", "\\'")).append('\'');
             }
-        } else if (valueC == Boolean.class || valueC == Integer.class || valueC == Long.class) {
-            b.append(value);
-        } else if (value instanceof List) {
-            List<?> list = (List<?>) value;
-            b.append('[');
-            boolean first = true;
-            for (Object elt : list) {
-                if (first) {
-                    first = false;
-                } else {
-                    b.append(", ");
-                }
-                render(b, elt);
-            }
-            b.append(']');
-        } else if (value instanceof Map) {
-            Map<?,?> map = (Map) value;
-            b.append('[');
-            boolean first = true;
-            for (Map.Entry<?,?> entry : map.entrySet()) {
-                if (first) {
-                    first = false;
-                } else {
-                    b.append(", ");
-                }
-                Object key = entry.getKey();
-                if (key instanceof String && SourceVersion.isName((String) key)) {
-                    b.append(key);
-                } else {
-                    render(b, key);
-                }
-                b.append(": ");
-                render(b, entry.getValue());
-            }
-            b.append(']');
-        } else {
-            b.append("<object of type ").append(valueC.getCanonicalName()).append('>');
+            return b;
         }
+
+        if (clazz == Boolean.class || clazz == Integer.class || clazz == Long.class) {
+            return b.append(o);
+        }
+
+        if (o instanceof List) {
+            return list2groovy(b, (List<?>) o);
+        }
+
+        if (o instanceof Map) {
+            return map2groovy(b, (Map) o);
+        }
+
+        if (o instanceof UninstantiatedDescribable) {
+            return ud2groovy(b,(UninstantiatedDescribable)o, false, nestedExp);
+        }
+
+        for (StepDescriptor d : StepDescriptor.all()) {
+            if (d.clazz.equals(clazz)) {
+                Step step = (Step) o;
+                UninstantiatedDescribable uninst = d.uninstantiate(step);
+                boolean blockArgument = d.takesImplicitBlockArgument();
+
+                if (d.isMetaStep()) {
+                    // if we have a symbol name for the wrapped Describable, we can produce
+                    // a more concise form that hides it
+                    DescribableModel<?> m = new DescribableModel(d.clazz);
+                    DescribableParameter p = m.getFirstRequiredParameter();
+                    if (p!=null) {
+                        Object wrapped = uninst.getArguments().get(p.getName());
+                        if (wrapped instanceof UninstantiatedDescribable) {
+                            // if we cannot represent this 'o' in a concise syntax that hides meta-step, set this to true
+                            boolean failSimplification = false;
+
+                            UninstantiatedDescribable nested = (UninstantiatedDescribable) wrapped;
+                            TreeMap<String, Object> copy = new TreeMap<>(nested.getArguments());
+                            for (Entry<String, ?> e : uninst.getArguments().entrySet()) {
+                                if (!e.getKey().equals(p.getName())) {
+                                    if (copy.put(e.getKey(), e.getValue()) != null) {
+                                        // collision between a parameter in meta-step and wrapped-step,
+                                        // which cannot be reconciled unless we explicitly write out
+                                        // meta-step
+                                        failSimplification = true;
+                                    }
+                                }
+                            }
+
+                            if (!canUseMetaStep(nested))
+                                failSimplification = true;
+
+                            if (!failSimplification) {
+                                // write out in a short-form
+                                UninstantiatedDescribable combined = new UninstantiatedDescribable(
+                                        nested.getSymbol(), nested.getKlass(), copy);
+                                combined.setModel(nested.getModel());
+
+                                return ud2groovy(b, combined, blockArgument, nestedExp);
+                            }
+                        }
+                    } else {
+                        // this can only happen with buggy meta-step
+                        LOGGER.log(Level.WARNING, "Buggy meta-step "+d.clazz+" defines no mandatory parameter");
+                        // use the default code path to write it out as: metaStep(describable(...))
+                    }
+                }
+
+                uninst.setSymbol(d.getFunctionName());
+                return functionCall(b, uninst, blockArgument, nestedExp);
+            }
+        }
+
+        // unknown type
+        return b.append("<object of type ").append(clazz.getCanonicalName()).append('>');
+    }
+
+    /**
+     * Can this symbol name be used to produce a short hand?
+     */
+    private static boolean canUseMetaStep(UninstantiatedDescribable ud) {
+        return canUseSymbol(ud) && StepDescriptor.metaStepsOf(ud.getSymbol()).size()==1;
+    }
+
+    private static StringBuilder list2groovy(StringBuilder b, List<?> o) {
+        b.append('[');
+        boolean first = true;
+        for (Object elt : o) {
+            if (first) {
+                first = false;
+            } else {
+                b.append(", ");
+            }
+            object2Groovy(b, elt, true);
+        }
+        return b.append(']');
+    }
+
+    private static StringBuilder map2groovy(StringBuilder b, Map<?,?> map) {
+        b.append('[');
+        mapWithoutBracket2groovy(b, map);
+        return b.append(']');
+    }
+
+    private static void mapWithoutBracket2groovy(StringBuilder b, Map<?, ?> map) {
+        boolean first = true;
+        for (Entry<?, ?> entry : map.entrySet()) {
+            if (first) {
+                first = false;
+            } else {
+                b.append(", ");
+            }
+            Object key = entry.getKey();
+            if (key instanceof String && SourceVersion.isName((String) key)) {
+                b.append(key);
+            } else {
+                object2Groovy(b, key, true);
+            }
+            b.append(": ");
+            object2Groovy(b, entry.getValue(), true);
+        }
+    }
+
+    /**
+     * Writes out a snippet that instantiates {@link UninstantiatedDescribable}
+     *
+     * @param nested
+     *      true if this object is written as a nested expression (in which case we always produce parenthesis for readability
+     */
+    private static StringBuilder ud2groovy(StringBuilder b, UninstantiatedDescribable ud, boolean blockArgument, boolean nested) {
+        if (!canUseSymbol(ud)) {
+            // if there's no symbol, we need to write this as [$class:...]
+            return map2groovy(b, ud.toShallowMap());
+        }
+
+        return functionCall(b, ud, blockArgument, nested);
+    }
+
+    private static boolean canUseSymbol(UninstantiatedDescribable ud) {
+        if (ud.getSymbol() == null) {
+            // if there's no symbol, we need to write this as [$class:...]
+            return false;
+        }
+
+        if (StepDescriptor.byFunctionName(ud.getSymbol()) != null) {
+            // if the symbol collides with existing step name, then we cannot use it
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Writes out a given {@link UninstantiatedDescribable} as a function call form.
+     *
+     * @param nested
+     *      true if this object is written as a nested expression (in which case we always produce parenthesis for readability
+     */
+    private static StringBuilder functionCall(StringBuilder b, UninstantiatedDescribable ud, boolean blockArgument, boolean nested) {
+        Map<String, ?> args = ud.getArguments();
+
+        // if the whole argument is just one map?
+
+        // the call needs explicit parenthesis sometimes
+        //   a block argument normally requires a () around arguments, and if arguments are empty you need explicit (),
+        //   but not if both is the case!
+        final boolean needParenthesis = (blockArgument ^ args.isEmpty()) || isSingleMap(args) || nested;
+
+        b.append(ud.getSymbol());
+        b.append(needParenthesis ? '(': ' ');
+
+        if (ud.hasSoleRequiredArgument()) {
+            // lone argument optimization, which gets rid of named arguments and just write one value, like
+            // retry (5) { ... }
+            object2Groovy(b, args.values().iterator().next(), true);
+        } else {
+            // usual form, which calls out argument names, like
+            // git url:'...', browser:'...'
+            mapWithoutBracket2groovy(b,args);
+        }
+
+        if (needParenthesis)
+            b.append(')');
+
+        if (blockArgument) {
+            if (!args.isEmpty())    b.append(' ');
+            b.append("{\n    // some block\n}");
+        }
+
+        return b;
+    }
+
+    /**
+     * If the sole argument is a map, its [...] bracket cannot be present.
+     *
+     * Historically we've disambiguated this by adding (...) around the function call.
+     * TODO: I claim removing both () and [] would be better.
+     *
+       % groovysh
+       Groovy Shell (2.0.2, JVM: 1.7.0_07)
+       Type 'help' or '\h' for help.
+       ---------------------------------------------------------------------------------------------------------------------------------------------
+       groovy:000> def foo(o) { println o }
+       ===> true
+       groovy:000> foo abc:1, def:2
+       [abc:1, def:2]
+       ===> null
+       groovy:000> foo(abc:1, def:2)
+       [abc:1, def:2]
+       ===> null
+       groovy:000> foo [abc:1,def:2]
+       ERROR org.codehaus.groovy.control.MultipleCompilationErrorsException:
+       startup failed:
+       groovysh_evaluate: 2: No map entry allowed at this place
+       . At [2:9]  @ line 2, column 9.
+          foo [abc:1,def:2]
+                  ^
+
+       1 error
+
+               at java_lang_Runnable$run.call (Unknown Source)
+       groovy:000> foo([abc:1,def:2])
+       [abc:1, def:2]
+       ===> null
+     */
+    private static boolean isSingleMap(Map<String, ?> args) {
+        if (args.size()!=1) return false;
+        Object v = args.values().iterator().next();
+        if (v instanceof Map)
+            return true;
+        if (v instanceof UninstantiatedDescribable) {
+            // UninstantiatedDescribable can be written out as a Map so treat it as a map
+            return !canUseSymbol((UninstantiatedDescribable)v);
+        }
+        return false;
     }
 
     public static final String ACTION_URL = "pipeline-syntax";
@@ -277,4 +444,5 @@ import org.kohsuke.stapler.StaplerRequest;
 
     }
 
+    private static final Logger LOGGER = Logger.getLogger(Snippetizer.class.getName());
 }
