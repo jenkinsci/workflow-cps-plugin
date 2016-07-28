@@ -54,6 +54,78 @@ THE SOFTWARE.
     </p>
     <pre>stage name: 'Build', concurrency: 1</pre>
     <p>
-        There are also some predefined variables, shown at the bottom.
+        Many steps require complex nested configuration for a parameter.
+        (And some nested configuration objects in turn have object-typed parameters.)
+        There are three ways these nested objects may be specified:
     </p>
+    <ol>
+        <li>
+            <p>
+                As maps of parameters. Default values may be omitted.
+                (Note that Groovy map literal syntax resembles list syntax in using square brackets, but keys and values are separated by colons.)
+            </p>
+            <p>
+                The special map key <code>$class</code> is used to represent the simple or (where necessary) fully-qualified class name
+                of the object being requested.
+                <code>$class</code> may be omitted where the containing parameter allows only a single kind of nested object (or list of them):
+            </p>
+            <pre>checkout([$class: 'GitSCM', userRemoteConfigs: [[url: 'git://…'], extensions: [[$class: 'CleanBeforeCheckout']]])</pre>
+            <p>
+                In this example, <code>GitSCM</code> must be specified to distinguish the kind of <code>SCM</code> used by the <code>delegate</code> of <code>checkout</code>
+                (the single mandatory parameter name <code>delegate</code> can be omitted),
+                and <code>CleanBeforeCheckout</code> must be specified to distinguish the kind of <code>GitSCMExtension</code> used by the <code>extensions</code> of <code>GitSCM</code> (a “heterogeneous” list);
+                but <code>$class: 'UserRemoteConfig'</code> may be omitted since the <code>userRemoteConfigs</code> of <code>GitSCM</code> are defined to contain only <code>UserRemoteConfig</code>s (it is a “homogeneous” list).
+            </p>
+            <p>
+                Note that in cases where a single parameter is given, with the name omitted, and that parameter is a map,
+                it must be enclosed in parentheses to avoid a syntactic ambiguity.
+                <!-- TODO see comment in Snippetizer about whether a shorter form is possible -->
+            </p>
+        </li>
+        <li>
+            <p>
+                Jenkins core 2.2+ and some newer plugins define custom <em>symbols</em> for many configuration objects.
+                These are used with a notation looking like a step call, or other function call taking a map of named parameters:
+            </p>
+            <pre>step archiveArtifacts('**.txt')</pre>
+            <p>
+                or to spell out the mandatory parameter names:
+            </p>
+            <pre>step delegate: archiveArtifacts(artifacts: '**.txt')</pre>
+            <p>
+                Some Pipeline steps (like <code>step</code>) delegating to a single object allow the actual step name to be omitted where unambiguous, so you can write simply:
+            </p>
+            <pre>archiveArtifacts '**.txt'</pre>
+            <p>
+                rather than the older form
+            </p>
+            <pre>step([$class: 'ArtifactArchiver', artifacts: '**.txt'])</pre>
+            <p>
+                The nested configuration is an actual value which can be saved into variables etc.:
+            </p>
+            <pre>def archiverConfig(fingerprinting) {
+    fingerprinting ? archiveArtifacts(artifacts: '**.txt', fingerprint: true) : archiveArtifacts('**.txt')
+}
+step archiverConfig(true)</pre>
+            <p>
+                Note that unlike with <code>$class</code> syntax, the symbol name must be specified even for elements of a homogeneous list.
+            </p>
+            <p>
+                The <b>Snippet Generator</b> tool will always produce this newer syntax when possible,
+                falling back to <code>$class</code> syntax only where necessary.
+            </p>
+        </li>
+        <li>
+            <p>
+                As actual Java objects:
+            </p>
+            <pre>import hudson.plugins.git.*
+import hudson.plugins.git.extensions.impl.*
+checkout(new GitSCM([new UserRemoteConfig('git://…', null, null, null)], null, false, [], null, null, [new CleanBeforeCheckout()]))</pre>
+            <p>
+                Besides the verbosity, such scripts cannot generally run in the Groovy sandbox without numerous signature approvals,
+                making this mode unusable in typical secured Jenkins installations.
+            </p>
+        </li>
+    </ol>
 </div>
