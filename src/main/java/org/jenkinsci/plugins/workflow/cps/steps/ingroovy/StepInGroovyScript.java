@@ -10,6 +10,10 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 /**
  * Base class that defines contract for steps written in Groovy.
  *
+ * <p>
+ * Any contracts/metadata that we want step-in-Groovy to define can
+ * go here.
+ *
  * @author Kohsuke Kawaguchi
  * @see GroovyCompiler
  */
