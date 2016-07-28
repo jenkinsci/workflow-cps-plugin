@@ -64,17 +64,21 @@ THE SOFTWARE.
                 Some configuration objects define custom <em>symbols</em>.
                 These are used with a notation looking like a step call, or other function call taking a map of named parameters:
             </p>
-            <pre>step archiveArtifacts('**.txt')</pre>
+            <pre>splitTests count(3)</pre>
             <p>
                 or to spell out the mandatory parameter names:
             </p>
-            <pre>step delegate: archiveArtifacts(artifacts: '**.txt')</pre>
+            <pre>splitTests parallelism: count(size: 3)</pre>
             <p>
-                Some Pipeline steps (like <code>step</code>) delegating to a single object allow the actual step name to be omitted where unambiguous, so you can write simply:
+                Compare to the equivalent using the older second syntax option:
+            </p>
+            <pre>splitTests parallelism: [$class: 'CountDrivenParallelism', size: 3]</pre>
+            <p>
+                Some Pipeline steps delegating to a single object allow the actual step name to be omitted where unambiguous, so you can write simply:
             </p>
             <pre>archiveArtifacts '**.txt'</pre>
             <p>
-                rather than the older form described below:
+                rather than:
             </p>
             <pre>step([$class: 'ArtifactArchiver', artifacts: '**.txt'])</pre>
             <p>
