@@ -5,9 +5,11 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
+import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import static com.cloudbees.groovy.cps.impl.SourceLocation.UNKNOWN;
@@ -17,7 +19,7 @@ import static com.cloudbees.groovy.cps.impl.SourceLocation.UNKNOWN;
  *
  * @author Kohsuke Kawaguchi
  */
-public class FunctionCallBlock implements Block {
+public class FunctionCallBlock extends CallSiteBlockSupport {
     /**
      * Receiver of the call
      */
@@ -38,7 +40,8 @@ public class FunctionCallBlock implements Block {
 
     private final boolean safe;
 
-    public FunctionCallBlock(SourceLocation loc, Block lhsExp, Block nameExp, boolean safe, Block[] argExps) {
+    public FunctionCallBlock(SourceLocation loc, Collection<CallSiteTag> tags, Block lhsExp, Block nameExp, boolean safe, Block[] argExps) {
+        super(tags);
         this.loc = loc;
         this.lhsExp = lhsExp;
         this.nameExp = nameExp;
@@ -90,7 +93,7 @@ public class FunctionCallBlock implements Block {
                     // constructor call
                     Object v;
                     try {
-                        v = e.getInvoker().constructorCall((Class)lhs,args);
+                        v = e.getInvoker().contextualize(FunctionCallBlock.this).constructorCall((Class)lhs,args);
                     } catch (Throwable t) {
                         return throwException(e, t, loc, new ReferenceStackTrace());
                     }
@@ -103,7 +106,7 @@ public class FunctionCallBlock implements Block {
                     if (safe && lhs == null) {
                         return k.receive(null);
                     } else {
-                        return methodCall(e, loc, k, lhs, name, args);
+                        return methodCall(e, loc, k, FunctionCallBlock.this, lhs, name, args);
                     }
                 }
             }

@@ -2,6 +2,9 @@ package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Env;
+import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
+
+import java.util.Collection;
 
 /**
  * Property access expression like {@code foo.bar}, which is an l-value.
@@ -9,16 +12,16 @@ import com.cloudbees.groovy.cps.Env;
  * @author Kohsuke Kawaguchi
  */
 public class PropertyAccessBlock extends PropertyishBlock {
-    public PropertyAccessBlock(SourceLocation loc, Block lhs, Block property, boolean safe) {
-        super(loc, lhs, property, safe);
+    public PropertyAccessBlock(SourceLocation loc, Collection<CallSiteTag> tags, Block lhs, Block property, boolean safe) {
+        super(loc, lhs, property, safe, tags);
     }
 
     protected Object rawGet(Env e, Object lhs, Object name) throws Throwable {
-        return e.getInvoker().getProperty(lhs,coerce(name));
+        return e.getInvoker().contextualize(this).getProperty(lhs,coerce(name));
     }
 
     protected void rawSet(Env e, Object lhs, Object name, Object v) throws Throwable {
-        e.getInvoker().setProperty(lhs,coerce(name),v);
+        e.getInvoker().contextualize(this).setProperty(lhs,coerce(name),v);
     }
 
     private String coerce(Object name) {

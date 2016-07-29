@@ -6,3 +6,4 @@ See the [Pipeline Groovy plugin for Jenkins](https://github.com/jenkinsci/workfl
 * [Basics of CPS](doc/cps-basics.md)
 * [Continuation, Next, and Env](doc/cps-model.md) and how we interpret Groovy program
 * [How interpreted program is represented](doc/block-tree.md)
+* [CPS + Sandbox](doc/sandbox.md)

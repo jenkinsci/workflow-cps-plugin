@@ -6,6 +6,9 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.LValue;
 import com.cloudbees.groovy.cps.LValueBlock;
 import com.cloudbees.groovy.cps.Next;
+import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
+
+import java.util.Collection;
 
 /**
  * "++x", "--x", "x++", or "x--" operator.
@@ -16,7 +19,7 @@ import com.cloudbees.groovy.cps.Next;
  *
  * @author Kohsuke Kawaguchi
  */
-public class ExcrementOperatorBlock implements Block {
+public class ExcrementOperatorBlock extends CallSiteBlockSupport {
     /**
      * "previous" for decrement and "next" for increment.
      */
@@ -30,7 +33,8 @@ public class ExcrementOperatorBlock implements Block {
 
     private final SourceLocation loc;
 
-    public ExcrementOperatorBlock(SourceLocation loc, String operatorMethod, boolean prefix, LValueBlock body) {
+    public ExcrementOperatorBlock(SourceLocation loc, Collection<CallSiteTag> tags, String operatorMethod, boolean prefix, LValueBlock body) {
+        super(tags);
         this.loc = loc;
         this.operatorMethod = operatorMethod;
         this.prefix = prefix;
@@ -67,7 +71,7 @@ public class ExcrementOperatorBlock implements Block {
          */
         public Next fixCur(Object v) {
             this.before = v;
-            return methodCall(e, loc, calc, v, operatorMethod);
+            return methodCall(e, loc, calc, ExcrementOperatorBlock.this, v, operatorMethod);
         }
 
         /**

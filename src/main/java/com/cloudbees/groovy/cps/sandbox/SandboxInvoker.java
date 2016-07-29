@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps.sandbox;
 
+import com.cloudbees.groovy.cps.impl.CallSiteBlock;
 import org.codehaus.groovy.syntax.Types;
 import org.kohsuke.groovy.sandbox.GroovyInterceptor;
 import org.kohsuke.groovy.sandbox.impl.Checker;
@@ -41,6 +42,17 @@ public class SandboxInvoker implements Invoker {
 
     public void setArray(Object lhs, Object index, Object value) throws Throwable {
         Checker.checkedSetArray(lhs,index,Types.ASSIGN,value);
+    }
+
+    public Invoker contextualize(CallSiteBlock tags) {
+        if (tags.getTags().contains(Untrusted.INSTANCE))
+            return this;
+        if (tags.getTags().contains(Trusted.INSTANCE))
+            return DefaultInvoker.INSTANCE;
+
+        // for compatibility reasons, if the call site doesn't have any tag, we'll assume it's untrusted.
+        // this is because we used to not put any tags
+        return this;
     }
 
     private static final long serialVersionUID = 1L;
