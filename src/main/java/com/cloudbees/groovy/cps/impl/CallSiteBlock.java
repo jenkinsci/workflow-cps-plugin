@@ -9,14 +9,14 @@ import java.io.Serializable;
 import java.util.Collection;
 
 /**
- * {@link Block}s that has {@link CallSiteTag}s.
+ * {@link Block} that has {@link CallSiteTag}s.
  *
  * @author Kohsuke Kawaguchi
  * @see Invoker#contextualize(CallSiteBlock)
  */
 public interface CallSiteBlock extends Serializable, Block {
     /**
-     * Tags assocaited with this call site.
+     * Tags associated with this call site.
      */
     @Nonnull Collection<CallSiteTag> getTags();
 }
