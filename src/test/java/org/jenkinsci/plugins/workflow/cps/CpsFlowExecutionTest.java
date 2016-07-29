@@ -397,7 +397,7 @@ public class CpsFlowExecutionTest {
                 } else {
                     // should have failed with RejectedAccessException trying to touch 'SECRET'
                     story.j.assertBuildStatus(Result.FAILURE, b);
-                    story.j.assertLogContains("RejectedAccessException: Scripts not permitted to use staticField org.jenkinsci.plugins.workflow.CpsFlowExecutionTest SECRET",b);
+                    story.j.assertLogContains("RejectedAccessException: Scripts not permitted to use staticField org.jenkinsci.plugins.workflow.cps.CpsFlowExecutionTest SECRET",b);
                     assertFalse(SECRET);
                 }
             }
