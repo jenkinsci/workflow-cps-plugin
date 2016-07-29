@@ -240,7 +240,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     /**
      * {@link Trusted} or {@link Untrusted} tag that gets added to call site.
      *
-     * @see 'doc/sandbox.md'
+     * @see "doc/sandbox.md"
      */
     protected Class getTrustTag() {
         return Trusted.class
