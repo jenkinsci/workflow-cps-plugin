@@ -23,7 +23,7 @@ import static java.awt.SystemColor.text;
  * Persisted part of the program state that captures executing {@link StepInGroovy}.
  *
  * @see StepInGroovy
- * @see 'doc/step-in-groovy.md'
+ * @see "doc/step-in-groovy.md"
  * @author Kohsuke Kawaguchi
  */
 public class StepInGroovyExecution extends StepExecution {

@@ -28,7 +28,7 @@ import static java.util.logging.Level.*;
 /**
  * Discover step implementations in Groovy.
  *
- * @see 'doc/step-in-groovy.md'
+ * @see "doc/step-in-groovy.md"
  * @author Kohsuke Kawaguchi
  */
 @Extension
