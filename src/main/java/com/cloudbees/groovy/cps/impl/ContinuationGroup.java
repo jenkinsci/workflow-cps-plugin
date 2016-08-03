@@ -34,18 +34,18 @@ abstract class ContinuationGroup implements Serializable {
     }
 
     /*TODO: specify the proper owner value (to the script that includes the call site) */
-    protected Next methodCall(Env e, SourceLocation loc, ContinuationPtr k, Object receiver, String methodName, Object... args) {
-        return methodCall(e,loc,k.bind(this),receiver,methodName,args);
+    protected Next methodCall(Env e, SourceLocation loc, ContinuationPtr k, CallSiteBlock callSite, Object receiver, String methodName, Object... args) {
+        return methodCall(e,loc,k.bind(this),callSite,receiver,methodName,args);
     }
 
     /**
      * Evaluates a function (possibly a workflow function), then pass the result to the given continuation.
      */
-    protected Next methodCall(final Env e, final SourceLocation loc, final Continuation k, final Object receiver, final String methodName, final Object... args) {
+    protected Next methodCall(final Env e, final SourceLocation loc, final Continuation k, final CallSiteBlock callSite, final Object receiver, final String methodName, final Object... args) {
         try {
             Caller.record(receiver,methodName,args);
             // TODO: spread
-            Object v = e.getInvoker().methodCall(receiver, methodName, args);
+            Object v = e.getInvoker().contextualize(callSite).methodCall(receiver, methodName, args);
             // if this was a normal function, the method had just executed synchronously
             return k.receive(v);
         } catch (CpsCallableInvocation inv) {

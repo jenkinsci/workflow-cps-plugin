@@ -3,6 +3,7 @@ package com.cloudbees.groovy.cps.sandbox;
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Envs;
+import com.cloudbees.groovy.cps.impl.CallSiteBlock;
 import groovy.lang.Script;
 
 import java.io.Serializable;
@@ -18,6 +19,7 @@ import java.io.Serializable;
  * @see Env#getInvoker()
  * @see Continuable#Continuable(Script, Env)
  * @see Envs#empty(Invoker)
+ * @see "doc/sandbox.md"
  */
 public interface Invoker extends Serializable {
     /**
@@ -40,4 +42,9 @@ public interface Invoker extends Serializable {
     Object getArray(Object lhs, Object index) throws Throwable;
 
     void setArray(Object lhs, Object index, Object value) throws Throwable;
+
+    /**
+     * Returns a child {@link Invoker} used to make a call on behalf of the given {@link CallSiteBlock}.
+     */
+    Invoker contextualize(CallSiteBlock tags);
 }

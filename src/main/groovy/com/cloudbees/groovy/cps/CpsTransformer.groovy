@@ -2,6 +2,8 @@ package com.cloudbees.groovy.cps
 
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import com.cloudbees.groovy.cps.impl.CpsFunction
+import com.cloudbees.groovy.cps.sandbox.Trusted
+import com.cloudbees.groovy.cps.sandbox.Untrusted
 import org.codehaus.groovy.ast.*
 import org.codehaus.groovy.ast.expr.*
 import org.codehaus.groovy.ast.stmt.*
@@ -90,6 +92,10 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     @Override
     void call(SourceUnit source, GeneratorContext context, ClassNode classNode) {
         this.sourceUnit = source;
+
+        if (classNode.isInterface())
+            return; // not touching interfaces
+
 //        copy(source.ast.methods)?.each { visitMethod(it) }
 //        classNode?.declaredConstructors?.each { visitMethod(it) } // can't transform constructor
         copy(classNode?.methods)?.each { visitMethod(it) }
@@ -170,8 +176,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
         /*
               CpsFunction ___cps___N() {
-                Builder b = new Builder(new MethodLocation(...));
-                b.withClosureType(...);
+                Builder b = new Builder(...);
                 return new CpsFunction( << parameters >>, << body: AST tree building code >>);
               }
          */
@@ -180,18 +185,8 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
         def builderMethod = m.declaringClass.addMethod(cpsName, PRIVATE_STATIC_FINAL, FUNCTION_TYPE, new Parameter[0], new ClassNode[0],
             new BlockStatement([
-                new ExpressionStatement(new DeclarationExpression(BUILDER, new Token(ASSIGN, "=", -1, -1),
-                        new ConstructorCallExpression(BUIDER_TYPE, new TupleExpression(
-                                        new ConstructorCallExpression(METHOD_LOCATION_TYPE, new TupleExpression(
-                                            new ConstantExpression(m.declaringClass.name),
-                                            new ConstantExpression(m.name),
-                                            new ConstantExpression(sourceUnit.name)
-                                        ))
-                                    )))),
-                new ExpressionStatement(
-                        new MethodCallExpression(BUILDER, "withClosureType",
-                                new TupleExpression(new ClassExpression(config.closureType)))),
-                new ReturnStatement(new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body)))
+                    new ExpressionStatement(new DeclarationExpression(BUILDER, new Token(ASSIGN, "=", -1, -1), makeBuilder(m))),
+                    new ReturnStatement(new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body)))
             ], new VariableScope())
         )
         builderMethod.addAnnotation(new AnnotationNode(WORKFLOW_TRANSFORMED_TYPE))
@@ -207,6 +202,48 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         m.code = new ThrowStatement(new ConstructorCallExpression(CPSCALLINVK_TYPE,args));
 
         m.addAnnotation(new AnnotationNode(WORKFLOW_TRANSFORMED_TYPE));
+    }
+
+    /**
+     * Generates code that instantiates a new {@link Builder}.
+     *
+     * <p>
+     * Hook for subtypes to tweak builder, for example to {@link Builder#contextualize(com.cloudbees.groovy.cps.sandbox.CallSiteTag...)}
+     *
+     * <pre>
+     * Builder b = new Builder(new MethodLocation(...));
+     * b.withClosureType(...);
+     * </pre>
+     *
+     * @param m
+     *      Method being transformed.
+     */
+    protected Expression makeBuilder(MethodNode m) {
+        Expression b = new ConstructorCallExpression(BUIDER_TYPE, new TupleExpression(
+                new ConstructorCallExpression(METHOD_LOCATION_TYPE, new TupleExpression(
+                        new ConstantExpression(m.declaringClass.name),
+                        new ConstantExpression(m.name),
+                        new ConstantExpression(sourceUnit.name)
+                ))
+        ));
+        b = new MethodCallExpression(b, "withClosureType",
+                new TupleExpression(new ClassExpression(config.closureType)));
+
+        def tag = getTrustTag()
+        if (tag!=null) {
+            b = new MethodCallExpression(b, "contextualize",
+                    new PropertyExpression(new ClassExpression(ClassHelper.makeCached(tag)), "INSTANCE"));
+        }
+        return b;
+    }
+
+    /**
+     * {@link Trusted} or {@link Untrusted} tag that gets added to call site.
+     *
+     * @see "doc/sandbox.md"
+     */
+    protected Class getTrustTag() {
+        return Trusted.class
     }
 
     /**

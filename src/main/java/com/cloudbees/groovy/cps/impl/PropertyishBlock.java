@@ -6,22 +6,34 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.LValue;
 import com.cloudbees.groovy.cps.LValueBlock;
 import com.cloudbees.groovy.cps.Next;
+import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
+
+import javax.annotation.Nonnull;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Common part of {@link PropertyAccessBlock} and {@link AttributeAccessBlock}.
  *
  * @author Kohsuke Kawaguchi
  */
-abstract class PropertyishBlock extends LValueBlock {
+abstract class PropertyishBlock extends LValueBlock implements CallSiteBlock,Block {
+    private final Collection<CallSiteTag> tags; // can be null for instances deserialized from the old form
     private final Block lhs, property;
     private final SourceLocation loc;
     private final boolean safe;
 
-    public PropertyishBlock(SourceLocation loc, Block lhs, Block property, boolean safe) {
+    public PropertyishBlock(SourceLocation loc, Block lhs, Block property, boolean safe, Collection<CallSiteTag> tags) {
         this.loc = loc;
         this.lhs = lhs;
         this.property = property;
         this.safe = safe;
+        this.tags = tags;
+    }
+
+    @Nonnull
+    public Collection<CallSiteTag> getTags() {
+        return tags !=null ? Collections.unmodifiableCollection(tags) : Collections.<CallSiteTag>emptySet();
     }
 
     public Next evalLValue(final Env e, final Continuation k) {

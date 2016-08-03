@@ -641,4 +641,24 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             return x;
         """) == 6;
     }
+
+    @Issue('https://github.com/cloudbees/groovy-cps/issues/26')
+    @Test
+    void interfaceDeclaration() {
+        assert evalCPS('''
+            interface Strategy {
+                Closure process(Object event)
+            }
+            return true
+        ''') == true;
+    }
+
+    @Issue('https://github.com/cloudbees/groovy-cps/issues/26')
+    @Test
+    void emptyInterfaceDeclaration() {
+        assert evalCPS('''
+            interface Empty {}
+            return true
+        ''') == true;
+    }
 }

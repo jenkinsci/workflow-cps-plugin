@@ -6,6 +6,7 @@ import com.cloudbees.groovy.cps.impl.AssignmentBlock;
 import com.cloudbees.groovy.cps.impl.AttributeAccessBlock;
 import com.cloudbees.groovy.cps.impl.BlockScopedBlock;
 import com.cloudbees.groovy.cps.impl.BreakBlock;
+import com.cloudbees.groovy.cps.impl.CallSiteBlock;
 import com.cloudbees.groovy.cps.impl.ClosureBlock;
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.ContinueBlock;
@@ -35,12 +36,13 @@ import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import com.cloudbees.groovy.cps.impl.TryCatchBlock;
 import com.cloudbees.groovy.cps.impl.VariableDeclBlock;
 import com.cloudbees.groovy.cps.impl.WhileBlock;
+import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
+import com.cloudbees.groovy.cps.sandbox.Invoker;
 import groovy.lang.Closure;
 import org.codehaus.groovy.runtime.GStringImpl;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 import static com.cloudbees.groovy.cps.Block.*;
 import static java.util.Arrays.*;
@@ -53,19 +55,46 @@ import static java.util.Arrays.*;
  * @author Kohsuke Kawaguchi
  */
 public class Builder {
-    private MethodLocation loc;
+    private final MethodLocation loc;
     private Class<? extends CpsClosure> closureType;
+    private final Collection<CallSiteTag> tags;
 
     public Builder(MethodLocation loc) {
         this.loc = loc;
+        this.tags = Collections.emptySet();
+    }
+
+    private Builder(Builder parent, Collection<CallSiteTag> newTags) {
+        this.loc = parent.loc;
+        this.closureType = parent.closureType;
+        this.tags = combine(parent.tags,newTags);
+    }
+
+    private Collection<CallSiteTag> combine(Collection<CallSiteTag> a, Collection<CallSiteTag> b) {
+        if (a.isEmpty())    return b;
+        if (b.isEmpty())    return a;
+        Collection<CallSiteTag> all = new ArrayList<CallSiteTag>(a);
+        all.addAll(b);
+        return all;
     }
 
     /**
      * Overrides the actual instance type of {@link CpsClosure} to be created.
+     *
+     * @return 'this' object for the fluent API pattern.
      */
     public Builder withClosureType(Class<? extends CpsClosure> t) {
         closureType = t;
         return this;
+    }
+
+    /**
+     * Returns a new {@link Builder} that contextualizes call sites with the given tags.
+     *
+     * @see Invoker#contextualize(CallSiteBlock)
+     */
+    public Builder contextualize(CallSiteTag... tags) {
+        return new Builder(this,Arrays.asList(tags));
     }
 
     /**
@@ -298,7 +327,7 @@ public class Builder {
     }
 
     public Block plusEqual(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line), lhs, rhs, "plus");
+        return new AssignmentBlock(loc(line), tags, lhs, rhs, "plus");
     }
 
     public Block minus(int line, Block lhs, Block rhs) {
@@ -306,7 +335,7 @@ public class Builder {
     }
 
     public Block minusEqual(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line), lhs, rhs, "minus");
+        return new AssignmentBlock(loc(line), tags, lhs, rhs, "minus");
     }
 
     public Block multiply(int line, Block lhs, Block rhs) {
@@ -314,7 +343,7 @@ public class Builder {
     }
 
     public Block multiplyEqual(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line), lhs, rhs, "multiply");
+        return new AssignmentBlock(loc(line), tags, lhs, rhs, "multiply");
     }
 
     public Block div(int line, Block lhs, Block rhs) {
@@ -322,7 +351,7 @@ public class Builder {
     }
 
     public Block divEqual(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line), lhs, rhs, "div");
+        return new AssignmentBlock(loc(line), tags, lhs, rhs, "div");
     }
 
     public Block intdiv(int line, Block lhs, Block rhs) {
@@ -330,7 +359,7 @@ public class Builder {
     }
 
     public Block intdivEqual(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line), lhs, rhs, "intdiv");
+        return new AssignmentBlock(loc(line), tags, lhs, rhs, "intdiv");
     }
 
     public Block mod(int line, Block lhs, Block rhs) {
@@ -338,7 +367,7 @@ public class Builder {
     }
 
     public Block modEqual(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line), lhs, rhs, "mod");
+        return new AssignmentBlock(loc(line), tags, lhs, rhs, "mod");
     }
 
     public Block power(int line, Block lhs, Block rhs) {
@@ -346,7 +375,7 @@ public class Builder {
     }
 
     public Block powerEqual(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line), lhs, rhs, "power");
+        return new AssignmentBlock(loc(line), tags, lhs, rhs, "power");
     }
 
     public Block unaryMinus(int line, Block lhs) {
@@ -442,7 +471,7 @@ public class Builder {
      * {@code lhs <<= rhs}
      */
     public Block leftShiftEqual(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line), lhs, rhs, "leftShift");
+        return new AssignmentBlock(loc(line), tags, lhs, rhs, "leftShift");
     }
 
     /**
@@ -456,7 +485,7 @@ public class Builder {
      * {@code lhs >>= rhs}
      */
     public Block rightShiftEqual(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line), lhs, rhs, "rightShift");
+        return new AssignmentBlock(loc(line), tags, lhs, rhs, "rightShift");
     }
 
     /**
@@ -470,7 +499,7 @@ public class Builder {
      * {@code lhs >>>= rhs}
      */
     public Block rightShiftUnsignedEqual(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line), lhs, rhs, "rightShiftUnsigned");
+        return new AssignmentBlock(loc(line), tags, lhs, rhs, "rightShiftUnsigned");
     }
 
     /**
@@ -485,7 +514,7 @@ public class Builder {
     }
 
     public Block bitwiseAndEqual(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line), lhs, rhs, "and");
+        return new AssignmentBlock(loc(line), tags, lhs, rhs, "and");
     }
 
     public Block bitwiseOr(int line, Block lhs, Block rhs) {
@@ -493,7 +522,7 @@ public class Builder {
     }
 
     public Block bitwiseOrEqual(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line), lhs, rhs, "or");
+        return new AssignmentBlock(loc(line), tags, lhs, rhs, "or");
     }
 
     public Block bitwiseXor(int line, Block lhs, Block rhs) {
@@ -501,7 +530,7 @@ public class Builder {
     }
 
     public Block bitwiseXorEqual(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line), lhs, rhs, "xor");
+        return new AssignmentBlock(loc(line), tags, lhs, rhs, "xor");
     }
 
     public Block bitwiseNegation(int line, Block b) {
@@ -512,28 +541,28 @@ public class Builder {
      * {@code ++x}
      */
     public Block prefixInc(int line, LValueBlock body) {
-        return new ExcrementOperatorBlock(loc(line),"next",true,body);
+        return new ExcrementOperatorBlock(loc(line),tags,"next",true,body);
     }
 
     /**
      * {@code --x}
      */
     public Block prefixDec(int line, LValueBlock body) {
-        return new ExcrementOperatorBlock(loc(line),"previous",true,body);
+        return new ExcrementOperatorBlock(loc(line),tags,"previous",true,body);
     }
 
     /**
      * {@code x++}
      */
     public Block postfixInc(int line, LValueBlock body) {
-        return new ExcrementOperatorBlock(loc(line),"next",false,body);
+        return new ExcrementOperatorBlock(loc(line),tags,"next",false,body);
     }
 
     /**
      * {@code x--}
      */
     public Block postfixDec(int line, LValueBlock body) {
-        return new ExcrementOperatorBlock(loc(line),"previous",false,body);
+        return new ExcrementOperatorBlock(loc(line),tags,"previous",false,body);
     }
 
     /**
@@ -556,15 +585,15 @@ public class Builder {
      * {@code LHS.name(...)}
      */
     public Block functionCall(int line, Block lhs, String name, Block... argExps) {
-        return new FunctionCallBlock(loc(line), lhs, constant(name), false, argExps);
+        return functionCall(line, lhs, constant(name), false, argExps);
     }
 
     public Block functionCall(int line, Block lhs, Block name, boolean safe, Block... argExps) {
-        return new FunctionCallBlock(loc(line), lhs, name, safe, argExps);
+        return new FunctionCallBlock(loc(line), tags, lhs, name, safe, argExps);
     }
 
     public Block assign(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line),lhs,rhs, null);
+        return new AssignmentBlock(loc(line),tags,lhs,rhs, null);
     }
 
     public LValueBlock property(int line, Block lhs, String property) {
@@ -572,15 +601,15 @@ public class Builder {
     }
 
     public LValueBlock property(int line, Block lhs, Block property, boolean safe) {
-        return new PropertyAccessBlock(loc(line), lhs, property, safe);
+        return new PropertyAccessBlock(loc(line), tags, lhs, property, safe);
     }
 
     public LValueBlock array(int line, Block lhs, Block index) {
-        return new ArrayAccessBlock(loc(line),lhs,index);
+        return new ArrayAccessBlock(loc(line),tags,lhs,index);
     }
 
     public LValueBlock attribute(int line, Block lhs, Block property, boolean safe) {
-        return new AttributeAccessBlock(loc(line), lhs, property, safe);
+        return new AttributeAccessBlock(loc(line), tags, lhs, property, safe);
     }
 
     public LValueBlock staticField(int line, Class type, String name) {
@@ -603,7 +632,7 @@ public class Builder {
     }
 
     public Block new_(int line, Block type, Block... argExps) {
-        return new FunctionCallBlock(loc(line), type, constant("<init>"), false, argExps);
+        return new FunctionCallBlock(loc(line), tags, type, constant("<init>"), false, argExps);
     }
 
     /**

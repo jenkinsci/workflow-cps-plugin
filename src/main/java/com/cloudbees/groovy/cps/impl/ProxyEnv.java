@@ -7,6 +7,10 @@ import com.cloudbees.groovy.cps.sandbox.Invoker;
 import java.util.List;
 
 /**
+ * {@link Env} that delegates to another {@link Env}.
+ *
+ * Useful base class for {@link Env} impls.
+ *
  * @author Kohsuke Kawaguchi
  */
 public class ProxyEnv implements Env {
