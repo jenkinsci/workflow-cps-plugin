@@ -138,7 +138,11 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             return f
         '''.stripIndent()) == new File('/parent', 'name')
 
-        // TODO test for closure env with a File declaration
+        // Test the closure env
+        assert evalCPS('''\
+            def close = {String parent, String name -> [parent, name] as File}
+            return close('/parent', 'name')
+        '''.stripIndent()) == new File('/parent', 'name')
     }
 
     @Test
