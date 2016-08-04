@@ -38,7 +38,26 @@ public abstract class GroovyShellDecorator implements ExtensionPoint {
      */
     public void configureShell(@CheckForNull CpsFlowExecution context, GroovyShell shell) {}
 
+    /**
+     * Obtains a contextualized {@link GroovyShellDecorator} used to decorate the trusted shell.
+     *
+     * <p>
+     * By default, this method returns null decorator that doesn't do anything.
+     *
+     * <p>
+     * See {@code classloader.md} for details.
+     */
+    public GroovyShellDecorator forTrusted() {
+        return NULL;
+    }
+
     public static ExtensionList<GroovyShellDecorator> all() {
         return ExtensionList.lookup(GroovyShellDecorator.class);
     }
+
+    /**
+     * {@link GroovyShellDecorator} that doesn't do anything.
+     */
+    public static final GroovyShellDecorator NULL = new GroovyShellDecorator() {
+    };
 }

@@ -9,6 +9,10 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+
 import org.codehaus.groovy.runtime.DefaultGroovyMethods;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.EnumeratingWhitelist;
@@ -21,7 +25,7 @@ import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.ProxyWhitelist;
  */
 class GroovyClassLoaderWhitelist extends Whitelist {
 
-    private final ClassLoader scriptLoader;
+    private final Collection<ClassLoader> scriptLoaders;
 
     /**
      * {@link ProxyWhitelist} has an optimization which bypasses {@code permits*} calls
@@ -31,17 +35,17 @@ class GroovyClassLoaderWhitelist extends Whitelist {
      */
     private final Whitelist delegate;
 
-    GroovyClassLoaderWhitelist(GroovyClassLoader scriptLoader, Whitelist delegate) {
-        this.scriptLoader = scriptLoader;
+    GroovyClassLoaderWhitelist(Whitelist delegate, GroovyClassLoader... scriptLoaders) {
+        this.scriptLoaders = Arrays.<ClassLoader>asList(scriptLoaders);
         this.delegate = delegate;
     }
 
     private boolean permits(Class<?> declaringClass) {
         ClassLoader cl = declaringClass.getClassLoader();
         if (cl instanceof GroovyClassLoader.InnerLoader) {
-            return cl.getParent()==scriptLoader;
+            return scriptLoaders.contains(cl.getParent());
         }
-        return cl == scriptLoader;
+        return scriptLoaders.contains(cl);
     }
 
     @Override public boolean permitsMethod(Method method, Object receiver, Object[] args) {
