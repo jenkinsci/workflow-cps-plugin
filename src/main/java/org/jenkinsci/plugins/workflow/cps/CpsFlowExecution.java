@@ -117,6 +117,7 @@ import org.jboss.marshalling.reflect.SerializableClassRegistry;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
+import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 
 /**
@@ -408,7 +409,13 @@ public class CpsFlowExecution extends FlowExecution {
         return iota.incrementAndGet();
     }
 
-    int currentNodeCount() {
+    /**
+     * Returns an approximate size of the flow graph, based on the heuristic that the iota is incremented once per new node.
+     * The exact count may be a little different due to special cases.
+     * ({@link FlowNodeStorage} does not currently offer a size, or a set of all nodes.
+     * An exact count could be obtained with {@link FlowGraphWalker}, but this could be more overhead.)
+     */
+    int approximateNodeCount() {
         return iota.get();
     }
 
