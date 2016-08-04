@@ -390,7 +390,7 @@ public class CpsFlowExecutionTest {
             @Override public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("new foo().attempt()", true));
-                WorkflowRun b = story.j.waitForCompletion(p.scheduleBuild2(0).get());
+                WorkflowRun b = p.scheduleBuild2(0).get();
                 if (pos) {
                     story.j.assertBuildStatusSuccess(b);
                     assertTrue(SECRET);
