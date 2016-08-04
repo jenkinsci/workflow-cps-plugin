@@ -75,6 +75,7 @@ public final class CpsThreadDumpAction implements Action {
                         if (flow instanceof CpsFlowExecution) {
                             pw.println("Build: " + flow.getOwner().getExecutable());
                             ((CpsFlowExecution) flow).getThreadDump().print(pw);
+                            pw.println("Current graph size: " + ((CpsFlowExecution) flow).currentNodeCount());
                             pw.println();
                         }
                     }

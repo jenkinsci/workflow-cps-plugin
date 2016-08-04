@@ -408,6 +408,10 @@ public class CpsFlowExecution extends FlowExecution {
         return iota.incrementAndGet();
     }
 
+    int currentNodeCount() {
+        return iota.get();
+    }
+
     protected void initializeStorage() throws IOException {
         storage = createStorage();
         synchronized (this) {
