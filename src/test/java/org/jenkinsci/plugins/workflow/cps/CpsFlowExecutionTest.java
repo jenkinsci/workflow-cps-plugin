@@ -48,6 +48,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import org.codehaus.groovy.transform.ASTTransformationVisitor;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
@@ -390,14 +391,16 @@ public class CpsFlowExecutionTest {
             @Override public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("new foo().attempt()", true));
-                WorkflowRun b = story.j.waitForCompletion(p.scheduleBuild2(0).get());
+                WorkflowRun b = p.scheduleBuild2(0).get();
                 if (pos) {
                     story.j.assertBuildStatusSuccess(b);
                     assertTrue(SECRET);
                 } else {
                     // should have failed with RejectedAccessException trying to touch 'SECRET'
                     story.j.assertBuildStatus(Result.FAILURE, b);
-                    story.j.assertLogContains("RejectedAccessException: Scripts not permitted to use staticField org.jenkinsci.plugins.workflow.cps.CpsFlowExecutionTest SECRET",b);
+                    story.j.assertLogContains(
+                            new RejectedAccessException("staticField",CpsFlowExecutionTest.class.getName()+" SECRET").getMessage(),
+                            b);
                     assertFalse(SECRET);
                 }
             }

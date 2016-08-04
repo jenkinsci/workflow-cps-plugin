@@ -23,7 +23,7 @@ which is not trusted.
 Scripts loaded in TCL, OTOH, does not live in the security sandbox. This
 classloader is meant to be used to load Groovy code packaged inside
 plugins and global libraries. Write access to these sources should be
-restricted to `RUN_SCRIPT` permission.
+restricted to `RUN_SCRIPTS` permission.
 
 ## Persisting code & surviving restarts
 When a Groovy script is loaded via one of `GroovyShell.parse*()` and
@@ -41,4 +41,9 @@ It's also possible to augument `GroovyClassLoader` classpath via
 This is more suitable for scripts that are considered a part of the
 system, such as global libraries or plugin code.
 
-
+Those scripts are not snapshotted & persisted with the running program,
+so if they change while the program is running, with or without Jenkins restarts
+in the middle, then the program could fail. (For example, if a program
+call stack includes a class from a global library and that class goes away,
+then the program fails to survive the restart because the call stack cannot
+be deserialized.
