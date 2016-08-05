@@ -399,6 +399,14 @@ import org.kohsuke.stapler.StaplerRequest;
             return getSymbol().compareTo(o.getSymbol());
         }
 
+        @Override public boolean equals(Object obj) {
+            return obj instanceof QuasiDescriptor && real == ((QuasiDescriptor) obj).real;
+        }
+
+        @Override public int hashCode() {
+            return real.hashCode();
+        }
+
         @Override public String toString() {
             return getSymbol() + "=" + real.clazz.getSimpleName();
         }
