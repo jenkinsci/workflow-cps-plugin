@@ -5,10 +5,12 @@ import hudson.Functions
 import org.jenkinsci.plugins.structs.describable.DescribableModel
 import org.jenkinsci.plugins.workflow.cps.GlobalVariable
 import org.jenkinsci.plugins.workflow.cps.Snippetizer
+import org.jenkinsci.plugins.workflow.steps.Step
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor
 
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
+import jenkins.model.Jenkins
 
 Snippetizer snippetizer = my;
 
@@ -17,16 +19,20 @@ Map<StepDescriptor,DescribableModel> steps = new LinkedHashMap<StepDescriptor, D
 def errorSteps = [:]
 
 [false, true].each { isAdvanced ->
-    snippetizer.getStepDescriptors(isAdvanced).each { d ->
+    snippetizer.getQuasiDescriptors(isAdvanced).each { d ->
+        if (!Step.isAssignableFrom(d.real.clazz)) {
+            return // TODO JENKINS-37215
+        }
+        StepDescriptor step = Jenkins.instance.getDescriptor(d.real.clazz)
         DescribableModel model
         try {
-            model = new DescribableModel(d.clazz)
+            model = new DescribableModel(d.real.clazz)
         } catch (Exception e) {
-            println "Error on ${d.clazz}: ${Functions.printThrowable(e)}"
-            errorSteps.put(d.clazz, e.message)
+            println "Error on ${d.real.clazz}: ${Functions.printThrowable(e)}"
+            errorSteps.put(d.real.clazz, e.message)
         }
         if (model != null) {
-            steps.put(d, model)
+            steps.put(step, model)
         }
 
     }

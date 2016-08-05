@@ -81,7 +81,7 @@ public class SnippetizerTester {
      *      Expected snippet to be generated.
      */
     public void assertRoundTrip(Step step, String expected) throws Exception {
-        assertEquals(expected, Snippetizer.object2Groovy(step));
+        assertEquals(expected, Snippetizer.step2Groovy(step));
         CompilerConfiguration cc = new CompilerConfiguration();
         cc.setScriptBaseClass(DelegatingScript.class.getName());
         GroovyShell shell = new GroovyShell(r.jenkins.getPluginManager().uberClassLoader,new Binding(),cc);

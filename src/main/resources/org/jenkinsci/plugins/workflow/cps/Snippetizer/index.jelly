@@ -43,12 +43,12 @@ THE SOFTWARE.
                 <j:set var="item" value="${it.getItem(request)}"/>
                 <d:taglib uri="local">
                     <d:tag name="listSteps">
-                        <j:forEach var="stepDescriptor" items="${stepDescriptors}">
-                            <f:dropdownListBlock title="${stepDescriptor.functionName}: ${stepDescriptor.displayName}" staplerClass="${stepDescriptor.clazz.name}" lazy="stepDescriptor,item">
+                        <j:forEach var="quasiDescriptor" items="${quasiDescriptors}">
+                            <j:set var="descriptor" value="${quasiDescriptor.real}"/>
+                            <f:dropdownListBlock title="${quasiDescriptor.symbol}: ${descriptor.displayName}" staplerClass="${descriptor.clazz.name}" lazy="descriptor,item">
                                 <l:ajax>
                                     <j:set var="it" value="${item}"/>
                                     <j:set var="instance" value="${null}"/>
-                                    <j:set var="descriptor" value="${stepDescriptor}"/>
                                     <j:set var="help" value="${descriptor.helpFile}"/>
                                     <j:if test="${help != null}">
                                         <tr>
@@ -68,9 +68,9 @@ THE SOFTWARE.
                     </d:tag>
                 </d:taglib>
                 <f:dropdownList name="prototype" title="Sample Step">
-                    <local:listSteps stepDescriptors="${it.getStepDescriptors(false)}"/>
+                    <local:listSteps quasiDescriptors="${it.getQuasiDescriptors(false)}"/>
                     <f:dropdownListBlock title="${%— Advanced/Deprecated —}"/>
-                    <local:listSteps stepDescriptors="${it.getStepDescriptors(true)}"/>
+                    <local:listSteps quasiDescriptors="${it.getQuasiDescriptors(true)}"/>
                 </f:dropdownList>
                 <j:set var="id" value="${h.generateId()}"/>
                 <f:block>

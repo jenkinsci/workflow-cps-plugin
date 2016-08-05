@@ -27,15 +27,14 @@ package org.jenkinsci.plugins.workflow.cps;
 import hudson.Extension;
 import hudson.Functions;
 import hudson.model.Action;
+import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.model.DescriptorByNameOwner;
 import hudson.model.Item;
 import hudson.model.Job;
 import hudson.model.RootAction;
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -48,8 +47,10 @@ import javax.lang.model.SourceVersion;
 import jenkins.model.Jenkins;
 import jenkins.model.TransientActionFactory;
 import net.sf.json.JSONObject;
+import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
+import org.jenkinsci.plugins.structs.describable.HeterogeneousObjectType;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -69,8 +70,8 @@ import org.kohsuke.stapler.StaplerRequest;
     /**
      * Short-hand for the top-level invocation.
      */
-    static String object2Groovy(Object o) throws UnsupportedOperationException {
-        return object2Groovy(new StringBuilder(),o, false).toString();
+    static String step2Groovy(Step s) throws UnsupportedOperationException {
+        return object2Groovy(new StringBuilder(), s, false).toString();
     }
 
     /**
@@ -349,15 +350,59 @@ import org.kohsuke.stapler.StaplerRequest;
         return Jenkins.getActiveInstance().getDescriptorByName(id);
     }
 
-    @Restricted(DoNotUse.class)
-    public Collection<? extends StepDescriptor> getStepDescriptors(boolean advanced) {
-        TreeSet<StepDescriptor> t = new TreeSet<StepDescriptor>(new StepDescriptorComparator());
+    @Restricted(NoExternalUse.class)
+    public Collection<QuasiDescriptor> getQuasiDescriptors(boolean advanced) {
+        TreeSet<QuasiDescriptor> t = new TreeSet<>();
         for (StepDescriptor d : StepDescriptor.all()) {
             if (d.isAdvanced() == advanced) {
-                t.add(d);
+                t.add(new QuasiDescriptor(d));
+                if (d.isMetaStep()) {
+                    DescribableModel<?> m = new DescribableModel<>(d.clazz);
+                    Collection<DescribableParameter> parameters = m.getParameters();
+                    if (parameters.size() == 1) {
+                        DescribableParameter delegate = parameters.iterator().next();
+                        if (delegate.isRequired()) {
+                            if (delegate.getType() instanceof HeterogeneousObjectType) {
+                                // TODO HeterogeneousObjectType does not yet expose symbol information, and DescribableModel.symbolOf is private
+                                for (DescribableModel<?> delegateOptionSchema : ((HeterogeneousObjectType) delegate.getType()).getTypes().values()) {
+                                    Class<?> delegateOptionType = delegateOptionSchema.getType();
+                                    Descriptor<?> delegateDescriptor = Jenkins.getActiveInstance().getDescriptorOrDie(delegateOptionType.asSubclass(Describable.class));
+                                    Symbol symbol = delegateDescriptor.getClass().getAnnotation(Symbol.class);
+                                    if (symbol != null && symbol.value().length > 0) {
+                                        t.add(new QuasiDescriptor(delegateDescriptor));
+                                    }
+                                }
+                            }
+                        }
+                    } // TODO currently not handling metasteps with other parameters, either required or (like GenericSCMStep) not
+                }
             }
         }
         return t;
+    }
+
+    /** Similar to {@link StepDescriptor} but could also represent a metastep’s delegate. */
+    @Restricted(NoExternalUse.class)
+    public static final class QuasiDescriptor implements Comparable<QuasiDescriptor> {
+
+        public final Descriptor<?> real;
+
+        QuasiDescriptor(Descriptor<?> real) {
+            this.real = real;
+        }
+
+        public String getSymbol() {
+            return real instanceof StepDescriptor ? ((StepDescriptor) real).getFunctionName() : real.getClass().getAnnotation(Symbol.class).value()[0];
+        }
+
+        @Override public int compareTo(QuasiDescriptor o) {
+            return getSymbol().compareTo(o.getSymbol());
+        }
+
+        @Override public String toString() {
+            return getSymbol() + "=" + real.clazz.getSimpleName();
+        }
+
     }
 
     @Restricted(DoNotUse.class) // for stapler
@@ -375,7 +420,7 @@ import org.kohsuke.stapler.StaplerRequest;
         JSONObject jsonO = JSONObject.fromObject(json);
         Jenkins j = Jenkins.getActiveInstance();
         Class<?> c = j.getPluginManager().uberClassLoader.loadClass(jsonO.getString("stapler-class"));
-        StepDescriptor descriptor = (StepDescriptor) j.getDescriptor(c.asSubclass(Step.class));
+        Descriptor descriptor = j.getDescriptor(c.asSubclass(Describable.class));
         Object o;
         try {
             o = descriptor.newInstance(req, jsonO);
@@ -383,8 +428,27 @@ import org.kohsuke.stapler.StaplerRequest;
             return HttpResponses.plainText(Functions.printThrowable(x));
         }
         try {
-            String groovy = object2Groovy(o);
-            if (descriptor.isAdvanced()) {
+            Step step = null;
+            if (o instanceof Step) {
+                step = (Step) o;
+            } else {
+                // Look for a metastep which could take this as its delegate.
+                for (StepDescriptor d : StepDescriptor.allMeta()) {
+                    if (d.getMetaStepArgumentType().isInstance(o)) {
+                        DescribableModel<?> m = new DescribableModel<>(d.clazz);
+                        DescribableParameter soleRequiredParameter = m.getSoleRequiredParameter();
+                        if (soleRequiredParameter != null) {
+                            step = d.newInstance(Collections.singletonMap(soleRequiredParameter.getName(), o));
+                            break;
+                        }
+                    }
+                }
+            }
+            if (step == null) {
+                return HttpResponses.plainText("Cannot find a step corresponding to " + o.getClass().getName());
+            }
+            String groovy = step2Groovy(step);
+            if (descriptor instanceof StepDescriptor && ((StepDescriptor) descriptor).isAdvanced()) {
                 String warning = Messages.Snippetizer_this_step_should_not_normally_be_used_in();
                 groovy = "// " + warning + "\n" + groovy;
             }
@@ -398,14 +462,6 @@ import org.kohsuke.stapler.StaplerRequest;
     @Restricted(DoNotUse.class) // for stapler
     public @CheckForNull Item getItem(StaplerRequest req) {
          return req.findAncestorObject(Item.class);
-    }
-
-    private static class StepDescriptorComparator implements Comparator<StepDescriptor>, Serializable {
-        @Override
-        public int compare(StepDescriptor o1, StepDescriptor o2) {
-            return o1.getFunctionName().compareTo(o2.getFunctionName());
-        }
-        private static final long serialVersionUID = 1L;
     }
 
     @Restricted(DoNotUse.class)
