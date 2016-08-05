@@ -62,10 +62,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import jenkins.model.Jenkins;
+import org.jenkinsci.Symbol;
 
 import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import org.jvnet.hudson.annotation_indexer.Index;
 
 import org.kohsuke.stapler.ClassDescriptor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
@@ -120,8 +127,22 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             return invokeDescribable(name,args);
         }
 
+        Set<String> symbols = new TreeSet<>();
+        // TODO SymbolLookup only lets us find a particular symbol, not enumerate them
+        try {
+            for (Class<?> e : Index.list(Symbol.class, Jenkins.getActiveInstance().pluginManager.uberClassLoader, Class.class)) {
+                if (Descriptor.class.isAssignableFrom(e)) {
+                    Symbol s = e.getAnnotation(Symbol.class);
+                    if (s != null) {
+                        symbols.addAll(Arrays.asList(s.value()));
+                    }
+                }
+            }
+        } catch (IOException x) {
+            Logger.getLogger(DSL.class.getName()).log(Level.WARNING, null, x);
+        }
         // TODO probably this should be throwing a subtype of groovy.lang.MissingMethodException
-        throw new NoSuchMethodError("No such DSL method '" + name + "' found among " + functions.keySet());
+        throw new NoSuchMethodError("No such DSL method '" + name + "' found among steps " + functions.keySet() + " or symbols " + symbols);
     }
 
     /**
@@ -277,19 +298,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 throw new IllegalArgumentException("Failed to prepare "+symbol+" step",e);
             }
         }
-    }
-
-    /**
-     * Finds a meta step that can handle a Describable of the given type 'd'
-     */
-    private static StepDescriptor findMetaStep(Descriptor d) {
-        OUTER:
-        for (StepDescriptor sd : StepDescriptor.allMeta()) {
-            if (sd.getMetaStepArgumentType().isAssignableFrom(d.clazz)) {
-                return sd;
-            }
-        }
-        return null;
     }
 
     /**

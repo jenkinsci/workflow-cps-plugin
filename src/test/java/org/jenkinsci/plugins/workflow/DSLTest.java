@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.workflow;
 
+import hudson.model.Result;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -112,6 +113,17 @@ public class DSLTest {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die4");
         p.setDefinition(new CpsFlowDefinition("newYork 'Empire'"));
         r.assertLogContains("The Empire State", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
+
+    @Issue("JENKINS-29922")
+    @Test
+    public void nonexistentFunctions() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("nonexistent()"));
+        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        r.assertLogContains("nonexistent", b);
+        r.assertLogContains("wrapInCurve", b);
+        r.assertLogContains("polygon", b);
     }
 
     @Issue("JENKINS-29922")
