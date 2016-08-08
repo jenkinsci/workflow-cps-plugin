@@ -82,9 +82,11 @@ abstract class ContinuationGroup implements Serializable {
 */
     }
 
+    /* TODO JENKINS-34064 does not yet work in Groovy 2:
     static {
         DGMPatcher.init();
     }
+    */
 
     /**
      * Fix up the stack trace of an exception thrown from synchronous code.

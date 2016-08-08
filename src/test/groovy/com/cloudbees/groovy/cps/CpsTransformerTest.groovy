@@ -437,6 +437,7 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     /**
      * Testing {@link CpsDefaultGroovyMethods}.
      */
+    @Ignore("TODO JENKINS-34064")
     @Test
     void each() {
         assert evalCPS("""
@@ -615,7 +616,7 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     public static int add(int a, int b) { return a+b; }
 
-
+    @Ignore("TODO JENKINS-34064")
     @Test
     void eachArray() {
         assert evalCPS("""
