@@ -33,6 +33,7 @@ import hudson.model.DescriptorByNameOwner;
 import hudson.model.Item;
 import hudson.model.Job;
 import hudson.model.RootAction;
+import hudson.tasks.BuildStepDescriptor;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -46,6 +47,7 @@ import javax.annotation.CheckForNull;
 import javax.lang.model.SourceVersion;
 import jenkins.model.Jenkins;
 import jenkins.model.TransientActionFactory;
+import jenkins.tasks.SimpleBuildStep;
 import net.sf.json.JSONObject;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
@@ -381,7 +383,15 @@ import org.kohsuke.stapler.StaplerRequest;
         return t;
     }
 
-    /** Similar to {@link StepDescriptor} but could also represent a metastep’s delegate. */
+    /**
+     * Represents a step or other step-like objects that should appear in {@link Snippetizer}’s main dropdown list
+     * and can generate some fragment of Pipeline script.
+     * {@link #real} can be a {@link StepDescriptor}, in which case we generate an invocation of that step.
+     * Or it can be any {@link Descriptor} that can be run by a {@linkplain StepDescriptor#isMetaStep meta step},
+     * such as a {@link BuildStepDescriptor} of a {@link SimpleBuildStep} (from {@code CoreStep}) with a {@link Symbol},
+     * because from the user point of view a regular {@link Describable} run via a metastep
+     * is syntactically indistinguishable from a true {@link Step}.
+     */
     @Restricted(NoExternalUse.class)
     public static final class QuasiDescriptor implements Comparable<QuasiDescriptor> {
 
