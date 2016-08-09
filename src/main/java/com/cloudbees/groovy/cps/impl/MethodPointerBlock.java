@@ -8,7 +8,7 @@ import org.codehaus.groovy.runtime.InvokerHelper;
 import org.codehaus.groovy.runtime.MethodClosure;
 
 /**
- * Method pointer expression: LHS&.methodName
+ * Method pointer expression: {@code LHS&.methodName}
  *
  * @author Kohsuke Kawaguchi
  */
