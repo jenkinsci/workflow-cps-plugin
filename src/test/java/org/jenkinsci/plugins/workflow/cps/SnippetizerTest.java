@@ -58,6 +58,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockFolder;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.logging.Level;
 
 import static org.hamcrest.CoreMatchers.*;
@@ -163,8 +164,20 @@ public class SnippetizerTest {
         st.assertRoundTrip(new InputStep("Ready?"), "input 'Ready?'");
     }
 
+    @Issue("JENKINS-29922")
+    @Test public void getQuasiDescriptors() throws Exception {
+        String quasiDescriptors = new Snippetizer().getQuasiDescriptors(false).toString();
+        assertThat(quasiDescriptors, containsString("circle=Circle"));
+        assertThat(quasiDescriptors, containsString("polygon=Polygon"));
+        assertThat(quasiDescriptors, containsString("CO=CarbonMonoxide"));
+        assertThat("State.moderate currently disqualifies this metastep", quasiDescriptors, not(containsString("california=California")));
+    }
+
     @Test public void generateSnippet() throws Exception {
         st.assertGenerateSnippet("{'stapler-class':'" + EchoStep.class.getName() + "', 'message':'hello world'}", "echo 'hello world'", null);
+        st.assertGenerateSnippet("{'stapler-class':'" + Circle.class.getName() + "'}", "circle {\n    // some block\n}", null);
+        st.assertGenerateSnippet("{'stapler-class':'" + Polygon.class.getName() + "', 'n':5}", "polygon(5) {\n    // some block\n}", null);
+        st.assertGenerateSnippet("{'stapler-class':'" + CarbonMonoxide.class.getName() + "'}", "detect CO()", null);
     }
 
     @Issue("JENKINS-26093")

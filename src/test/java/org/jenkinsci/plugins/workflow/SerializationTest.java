@@ -290,6 +290,7 @@ public class SerializationTest extends SingleJobTestBase {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.Collection java.lang.Object");
+                ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.List java.lang.Object"); // Groovy 2
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(
                     "@NonCPS def fine() {\n" +
