@@ -171,7 +171,7 @@
         <dependency>
             <groupId>com.cloudbees</groupId>
             <artifactId>groovy-cps</artifactId>
-            <version>1.9-SNAPSHOT</version>
+            <version>1.9</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.ui</groupId>
