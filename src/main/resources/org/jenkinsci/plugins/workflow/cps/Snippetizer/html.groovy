@@ -36,7 +36,7 @@ div(class:'dsl-reference'){
   div(class:'steps-box basic'){
     h2(_("Steps"))
     dl(class:'steps basic root'){
-      for (StepDescriptor d : snippetizer.getStepDescriptors(false)) {
+      for (Snippetizer.QuasiDescriptor d : snippetizer.getQuasiDescriptors(false)) {
         generateStepHelp(d);
       }
     }
@@ -45,7 +45,7 @@ div(class:'dsl-reference'){
   div(class:'steps-box advanced'){
     h2(_("Advanced/Deprecated Steps"))
     dl(class:'steps advanced root'){
-      for (StepDescriptor d : snippetizer.getStepDescriptors(true)) {
+      for (Snippetizer.QuasiDescriptor d : snippetizer.getQuasiDescriptors(true)) {
         generateStepHelp(d);
       }
     }
@@ -55,15 +55,15 @@ div(class:'dsl-reference'){
     }
 }
 
-def generateStepHelp(StepDescriptor d) throws Exception {
+def generateStepHelp(Snippetizer.QuasiDescriptor d) throws Exception {
   return {
     dt(class:'step-title'){
-      code(d.getFunctionName())
-      raw(": ${d.getDisplayName()}")
+      code(d.getSymbol())
+      raw(": ${d.real.getDisplayName()}")
     }
     dd(class:'step-body'){
       try {
-        generateHelp(new DescribableModel(d.clazz), 3);
+        generateHelp(new DescribableModel(d.real.clazz), 3);
       } catch (Exception x) {
         pre { code(x) }
       }
