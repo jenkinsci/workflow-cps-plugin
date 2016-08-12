@@ -90,7 +90,7 @@ public class CpsFlowExecutionTest {
     @Test public void loaderReleased() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
-                Assume.assumeThat("TODO fails in Jenkins 2 for reasons TBD (no root references detected)", Jenkins.VERSION, Matchers.startsWith("1."));
+                Assume.assumeThat("TODO fails in Jenkins 2 due to leak from ClassInfo.globalClassValue", Jenkins.VERSION, Matchers.startsWith("1."));
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionTest.class.getName() + ".register(this)"));
                 story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
