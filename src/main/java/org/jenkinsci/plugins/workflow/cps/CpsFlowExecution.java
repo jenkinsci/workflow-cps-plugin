@@ -901,9 +901,11 @@ public class CpsFlowExecution extends FlowExecution {
     synchronized void cleanUpHeap() {
         shell = null;
         trusted = null;
-        SerializableClassRegistry.getInstance().release(scriptClass.getClassLoader());
-        Introspector.flushFromCaches(scriptClass); // does not handle other derived script classes, but this is only SoftReference anyway
-        scriptClass = null;
+        if (scriptClass != null) {
+            SerializableClassRegistry.getInstance().release(scriptClass.getClassLoader());
+            Introspector.flushFromCaches(scriptClass); // does not handle other derived script classes, but this is only SoftReference anyway
+            scriptClass = null;
+        }
     }
 
     synchronized FlowHead getFirstHead() {
