@@ -587,6 +587,7 @@ public class CpsFlowExecution extends FlowExecution {
             @Override public void onFailure(Throwable t) {
                 LOGGER.log(Level.WARNING, "Failed to set program failure on " + owner, t);
                 onProgramEnd(new Outcome(null, t));
+                cleanUpHeap();
             }
         });
     }
@@ -895,8 +896,9 @@ public class CpsFlowExecution extends FlowExecution {
         first.setNewHead(head);
         heads.clear();
         heads.put(first.getId(),first);
+    }
 
-        // clean up heap
+    synchronized void cleanUpHeap() {
         shell = null;
         trusted = null;
         SerializableClassRegistry.getInstance().release(scriptClass.getClassLoader());

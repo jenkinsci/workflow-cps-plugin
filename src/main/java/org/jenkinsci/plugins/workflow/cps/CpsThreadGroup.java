@@ -391,6 +391,10 @@ public final class CpsThreadGroup implements Serializable {
         if (doneSomeWork) {
             saveProgram();
         }
+        if (threads.isEmpty()) {
+            execution.cleanUpHeap();
+            scripts.clear();
+        }
     }
 
     private transient List<FlowNode> nodesToNotify;
