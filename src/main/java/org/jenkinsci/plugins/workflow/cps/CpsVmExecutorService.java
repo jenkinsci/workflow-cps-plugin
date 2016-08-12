@@ -75,7 +75,6 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         Thread t = Thread.currentThread();
         ThreadContext context = new ThreadContext(t);
         t.setName("Running " + execution);
-        assert cpsThreadGroup != null;
         assert cpsThreadGroup.getExecution() != null;
         if (cpsThreadGroup.getExecution().getShell() != null) {
             assert cpsThreadGroup.getExecution().getShell().getClassLoader() != null;
