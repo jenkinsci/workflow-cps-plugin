@@ -77,20 +77,23 @@ import org.jvnet.hudson.test.TestExtension;
 import javax.annotation.CheckForNull;
 import org.hamcrest.Matchers;
 import org.junit.Assume;
+import org.jvnet.hudson.test.LoggerRule;
 
 public class CpsFlowExecutionTest {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
+    @Rule public LoggerRule logger = new LoggerRule();
     
     private static WeakReference<ClassLoader> LOADER;
     public static void register(Object o) {
         LOADER = new WeakReference<>(o.getClass().getClassLoader());
     }
     @Test public void loaderReleased() {
+        logger.record(CpsFlowExecution.class, Level.FINE);
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
-                Assume.assumeThat("TODO fails in Jenkins 2 due to leak from ClassInfo.globalClassValue", Jenkins.VERSION, Matchers.startsWith("1."));
+                Assume.assumeThat("TODO fails in Jenkins 2 due to undiagnosed leak", Jenkins.VERSION, Matchers.startsWith("1."));
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionTest.class.getName() + ".register(this)"));
                 story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
