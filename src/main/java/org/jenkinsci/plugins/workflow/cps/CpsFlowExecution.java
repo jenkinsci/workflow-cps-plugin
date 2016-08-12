@@ -898,7 +898,7 @@ public class CpsFlowExecution extends FlowExecution {
         heads.put(first.getId(),first);
     }
 
-    synchronized void cleanUpHeap() {
+    void cleanUpHeap() {
         shell = null;
         trusted = null;
         if (scriptClass != null) {
