@@ -46,7 +46,7 @@ public class StateMetaStep extends AbstractStepImpl {
 
         @Override protected Void run() throws Exception {
             if (step.moderate) {
-                listener.getLogger().println("Introducing "+ SymbolLookup.getSymbolValue(step.state.getDescriptor()));
+                listener.getLogger().println("Introducing "+ SymbolLookup.getSymbolValue(step.state).iterator().next());
             }
             step.state.sayHello(listener);
             return null;

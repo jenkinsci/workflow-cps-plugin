@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
@@ -370,8 +371,8 @@ import org.kohsuke.stapler.StaplerRequest;
                                 for (DescribableModel<?> delegateOptionSchema : ((HeterogeneousObjectType) delegate.getType()).getTypes().values()) {
                                     Class<?> delegateOptionType = delegateOptionSchema.getType();
                                     Descriptor<?> delegateDescriptor = Jenkins.getActiveInstance().getDescriptorOrDie(delegateOptionType.asSubclass(Describable.class));
-                                    String symbol = SymbolLookup.getSymbolValue(delegateDescriptor);
-                                    if (symbol != null) {
+                                    Set<String> symbols = SymbolLookup.getSymbolValue(delegateDescriptor);
+                                    if (!symbols.isEmpty()) {
                                         t.add(new QuasiDescriptor(delegateDescriptor));
                                     }
                                 }
@@ -403,7 +404,16 @@ import org.kohsuke.stapler.StaplerRequest;
         }
 
         public String getSymbol() {
-            return real instanceof StepDescriptor ? ((StepDescriptor) real).getFunctionName() : SymbolLookup.getSymbolValue(real);
+            if (real instanceof StepDescriptor) {
+                return ((StepDescriptor) real).getFunctionName();
+            } else {
+                Set<String> symbolValues = SymbolLookup.getSymbolValue(real);
+                if (!symbolValues.isEmpty()) {
+                    return symbolValues.iterator().next();
+                } else {
+                    return "";
+                }
+            }
         }
 
         @Override public int compareTo(QuasiDescriptor o) {
