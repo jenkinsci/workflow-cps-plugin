@@ -50,10 +50,6 @@ import jenkins.model.Jenkins;
 import org.codehaus.groovy.transform.ASTTransformationVisitor;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
-import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
-import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
-import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
-import org.jenkinsci.plugins.workflow.cps.GroovyShellDecorator;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -65,11 +61,8 @@ import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
 import org.jenkinsci.plugins.workflow.support.pickles.TryRepeatedly;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 
-import static java.security.KeyRep.Type.SECRET;
-import static org.eclipse.jgit.lib.ObjectChecker.object;
 import static org.junit.Assert.*;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runners.model.Statement;
@@ -82,28 +75,32 @@ import org.jvnet.hudson.test.RestartableJenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
 
 import javax.annotation.CheckForNull;
+import org.hamcrest.Matchers;
+import org.junit.Assume;
+import org.jvnet.hudson.test.LoggerRule;
 
 public class CpsFlowExecutionTest {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
+    @Rule public LoggerRule logger = new LoggerRule();
     
     private static WeakReference<ClassLoader> LOADER;
     public static void register(Object o) {
         LOADER = new WeakReference<>(o.getClass().getClassLoader());
     }
-    @Ignore("TODO fails in Jenkins 2 for reasons TBD (no root references detected)")
     @Test public void loaderReleased() {
+        logger.record(CpsFlowExecution.class, Level.FINE);
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
+                Assume.assumeThat("TODO fails in Jenkins 2 due to undiagnosed leak", Jenkins.VERSION, Matchers.startsWith("1."));
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionTest.class.getName() + ".register(this)"));
                 story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
                 assertNotNull(LOADER);
-                System.err.println(LOADER.get());
                 try {
-                    // TODO in Groovy 1.8.9 this keeps static state, but only for the last script (as also noted in JENKINS-23762).
-                    // The fix of GROOVY-5025 (62bfb68) in 1.9 addresses this, which we would get if JENKINS-21249 is implemented.
+                    // In Groovy 1.8.9 this keeps static state, but only for the last script (as also noted in JENKINS-23762).
+                    // The fix of GROOVY-5025 (62bfb68) in 1.9 addresses this, which we get in Jenkins 2.
                     Field f = ASTTransformationVisitor.class.getDeclaredField("compUnit");
                     f.setAccessible(true);
                     f.set(null, null);
@@ -114,42 +111,6 @@ public class CpsFlowExecutionTest {
             }
         });
     }
-
-    /* Failed attempt to make the test print soft references it has trouble clearing. The test ultimately passes, but cannot find the soft references via any root path.
-    private static void assertGC(WeakReference<?> reference) throws Exception {
-        assertTrue(true); reference.get(); // preload any needed classes!
-        Set<Object[]> objects = new HashSet<Object[]>();
-        int size = 1024;
-        while (reference.get() != null) {
-            LiveEngine e = new LiveEngine();
-            // The default filter, ScannerUtils.skipNonStrongReferencesFilter(), omits SoftReference.referent that we care about.
-            // The constructor accepting a filter ANDs it with the default filter, making it useless for this purpose.
-            Field f = LiveEngine.class.getDeclaredField("filter");
-            f.setAccessible(true);
-            f.set(e, new Filter() {
-                final Field referent = Reference.class.getDeclaredField("referent");
-                @Override public boolean accept(Object obj, Object referredFrom, Field reference) {
-                    return !(referent.equals(reference) && referredFrom instanceof WeakReference);
-                }
-            });
-            System.err.println(e.trace(Collections.singleton(reference.get()), null));
-            System.err.println("allocating " + size);
-            try {
-                objects.add(new Object[size]);
-            } catch (OutOfMemoryError ignore) {
-                break;
-            }
-            size *= 1.1;
-            System.gc();
-        }
-        objects = null;
-        System.gc();
-        Object obj = reference.get();
-        if (obj != null) {
-            fail(LiveReferences.fromRoots(Collections.singleton(obj)).toString());
-        }
-    }
-    */
 
     @Test public void getCurrentExecutions() {
         story.addStep(new Statement() {
