@@ -107,6 +107,7 @@ import java.beans.Introspector;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.CheckForNull;
@@ -512,15 +513,16 @@ public class CpsFlowExecution extends FlowExecution {
                             try {
                                 CpsThreadGroup g = (CpsThreadGroup) u.readObject();
                                 result.set(g);
-                                if (g.isPaused()) {
-                                    try {
+                                try {
+                                    if (g.isPaused()) {
                                         owner.getListener().getLogger().println("Still paused");
-                                    } catch (IOException x) {
-                                        LOGGER.log(Level.WARNING, null, x);
+                                    } else {
+                                        owner.getListener().getLogger().println("Ready to run at " + new Date());
+                                        // In case we last paused execution due to Jenkins.isQuietingDown, make sure we do something after we restart.
+                                        g.scheduleRun();
                                     }
-                                } else {
-                                    // In case we last paused execution due to Jenkins.isQuietingDown, make sure we do something after we restart.
-                                    g.scheduleRun();
+                                } catch (IOException x) {
+                                    LOGGER.log(Level.WARNING, null, x);
                                 }
                             } catch (Throwable t) {
                                 onFailure(t);
