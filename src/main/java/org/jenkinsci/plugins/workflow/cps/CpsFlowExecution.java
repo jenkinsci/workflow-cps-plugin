@@ -104,10 +104,13 @@ import hudson.model.User;
 import hudson.security.ACL;
 import hudson.security.AccessControlled;
 import java.beans.Introspector;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 import jenkins.security.NotReallyRoleSensitiveCallable;
 
@@ -587,6 +590,7 @@ public class CpsFlowExecution extends FlowExecution {
             @Override public void onFailure(Throwable t) {
                 LOGGER.log(Level.WARNING, "Failed to set program failure on " + owner, t);
                 onProgramEnd(new Outcome(null, t));
+                cleanUpHeap();
             }
         });
     }
@@ -895,13 +899,63 @@ public class CpsFlowExecution extends FlowExecution {
         first.setNewHead(head);
         heads.clear();
         heads.put(first.getId(),first);
+    }
 
-        // clean up heap
+    void cleanUpHeap() {
         shell = null;
         trusted = null;
-        SerializableClassRegistry.getInstance().release(scriptClass.getClassLoader());
-        Introspector.flushFromCaches(scriptClass); // does not handle other derived script classes, but this is only SoftReference anyway
-        scriptClass = null;
+        if (scriptClass != null) {
+            ClassLoader loader = scriptClass.getClassLoader();
+            SerializableClassRegistry.getInstance().release(loader);
+            Introspector.flushFromCaches(scriptClass); // does not handle other derived script classes, but this is only SoftReference anyway
+            try {
+                cleanUpGlobalClassValue(loader);
+            } catch (Exception x) {
+                LOGGER.log(Level.WARNING, "failed to clean up memory from " + owner, x);
+            }
+            scriptClass = null;
+        }
+    }
+
+    private void cleanUpGlobalClassValue(@Nonnull ClassLoader loader) throws Exception {
+        Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
+        Field globalClassValueF;
+        try {
+            globalClassValueF = classInfoC.getDeclaredField("globalClassValue");
+        } catch (NoSuchFieldException x) {
+            return; // Groovy 1, fine
+        }
+        globalClassValueF.setAccessible(true);
+        Object globalClassValue = globalClassValueF.get(null);
+        Class<?> groovyClassValuePreJava7C = Class.forName("org.codehaus.groovy.reflection.GroovyClassValuePreJava7");
+        if (!groovyClassValuePreJava7C.isInstance(globalClassValue)) {
+            return; // using GroovyClassValueJava7 due to -Dgroovy.use.classvalue or on IBM J9, fine
+        }
+        Field mapF = groovyClassValuePreJava7C.getDeclaredField("map");
+        mapF.setAccessible(true);
+        Object map = mapF.get(globalClassValue);
+        Class<?> groovyClassValuePreJava7Map = Class.forName("org.codehaus.groovy.reflection.GroovyClassValuePreJava7$GroovyClassValuePreJava7Map");
+        Collection entries = (Collection) groovyClassValuePreJava7Map.getMethod("values").invoke(map);
+        Field klazzF = classInfoC.getDeclaredField("klazz");
+        klazzF.setAccessible(true);
+        Method removeM = groovyClassValuePreJava7Map.getMethod("remove", Object.class);
+        Class<?> entryC = Class.forName("org.codehaus.groovy.util.AbstractConcurrentMapBase$Entry");
+        Method getValueM = entryC.getMethod("getValue");
+        List<Class<?>> toRemove = new ArrayList<>(); // not sure if it is safe against ConcurrentModificationException or not
+        for (Object entry : entries) {
+            Object value = getValueM.invoke(entry);
+            Class<?> klazz = (Class) klazzF.get(value);
+            ClassLoader encounteredLoader = klazz.getClassLoader();
+            if (encounteredLoader == loader) {
+                toRemove.add(klazz);
+            } else {
+                LOGGER.log(Level.FINEST, "ignoring {0} with loader {1}", new Object[] {klazz, /* do not hold from LogRecord */String.valueOf(encounteredLoader)});
+            }
+        }
+        LOGGER.log(Level.FINE, "cleaning up {0} associated with {1}", new Object[] {toRemove.toString(), loader.toString()});
+        for (Class<?> klazz : toRemove) {
+            removeM.invoke(map, klazz);
+        }
     }
 
     synchronized FlowHead getFirstHead() {

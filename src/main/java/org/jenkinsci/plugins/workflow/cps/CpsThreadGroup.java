@@ -353,6 +353,7 @@ public final class CpsThreadGroup implements Serializable {
     private void run() throws IOException {
         boolean doneSomeWork = false;
         boolean changed;    // used to see if we need to loop over
+        boolean ending = false;
         do {
             changed = false;
             for (CpsThread t : threads.values().toArray(new CpsThread[threads.size()])) {
@@ -378,6 +379,7 @@ public final class CpsThreadGroup implements Serializable {
                         threads.remove(t.id);
                         if (threads.isEmpty()) {
                             execution.onProgramEnd(o);
+                            ending = true;
                         }
                     }
 
@@ -390,6 +392,10 @@ public final class CpsThreadGroup implements Serializable {
 
         if (doneSomeWork) {
             saveProgram();
+        }
+        if (ending) {
+            execution.cleanUpHeap();
+            scripts.clear();
         }
     }
 
