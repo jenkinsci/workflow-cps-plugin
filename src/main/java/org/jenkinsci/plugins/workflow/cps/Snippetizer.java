@@ -411,7 +411,7 @@ import org.kohsuke.stapler.StaplerRequest;
                 if (!symbolValues.isEmpty()) {
                     return symbolValues.iterator().next();
                 } else {
-                    return "";
+                    throw new AssertionError("Symbol present but no values defined.");
                 }
             }
         }
