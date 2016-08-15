@@ -4,6 +4,7 @@ import com.google.inject.Inject;
 import hudson.Extension;
 import hudson.model.TaskListener;
 import org.jenkinsci.Symbol;
+import org.jenkinsci.plugins.structs.SymbolLookup;
 import org.jenkinsci.plugins.workflow.DSLTest;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
@@ -45,7 +46,7 @@ public class StateMetaStep extends AbstractStepImpl {
 
         @Override protected Void run() throws Exception {
             if (step.moderate) {
-                listener.getLogger().println("Introducing "+step.state.getDescriptor().getClass().getAnnotation(Symbol.class).value()[0]);
+                listener.getLogger().println("Introducing "+ SymbolLookup.getSymbolValue(step.state.getDescriptor()));
             }
             step.state.sayHello(listener);
             return null;

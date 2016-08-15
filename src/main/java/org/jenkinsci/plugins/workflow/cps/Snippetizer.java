@@ -50,6 +50,7 @@ import jenkins.model.TransientActionFactory;
 import jenkins.tasks.SimpleBuildStep;
 import net.sf.json.JSONObject;
 import org.jenkinsci.Symbol;
+import org.jenkinsci.plugins.structs.SymbolLookup;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.HeterogeneousObjectType;
@@ -369,8 +370,8 @@ import org.kohsuke.stapler.StaplerRequest;
                                 for (DescribableModel<?> delegateOptionSchema : ((HeterogeneousObjectType) delegate.getType()).getTypes().values()) {
                                     Class<?> delegateOptionType = delegateOptionSchema.getType();
                                     Descriptor<?> delegateDescriptor = Jenkins.getActiveInstance().getDescriptorOrDie(delegateOptionType.asSubclass(Describable.class));
-                                    Symbol symbol = delegateDescriptor.getClass().getAnnotation(Symbol.class);
-                                    if (symbol != null && symbol.value().length > 0) {
+                                    String symbol = SymbolLookup.getSymbolValue(delegateDescriptor);
+                                    if (symbol != null) {
                                         t.add(new QuasiDescriptor(delegateDescriptor));
                                     }
                                 }
@@ -402,7 +403,7 @@ import org.kohsuke.stapler.StaplerRequest;
         }
 
         public String getSymbol() {
-            return real instanceof StepDescriptor ? ((StepDescriptor) real).getFunctionName() : real.getClass().getAnnotation(Symbol.class).value()[0];
+            return real instanceof StepDescriptor ? ((StepDescriptor) real).getFunctionName() : SymbolLookup.getSymbolValue(real);
         }
 
         @Override public int compareTo(QuasiDescriptor o) {
