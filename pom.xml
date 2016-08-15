@@ -63,7 +63,7 @@
     </pluginRepositories>
     <properties>
         <jenkins.version>1.642.3</jenkins.version>
-        <jenkins-test-harness.version>2.15-SNAPSHOT</jenkins-test-harness.version>
+        <jenkins-test-harness.version>2.15</jenkins-test-harness.version>
         <npm.loglevel>--silent</npm.loglevel>
     </properties>
     <dependencies>
