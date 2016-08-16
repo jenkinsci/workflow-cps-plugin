@@ -35,6 +35,7 @@ import hudson.model.Descriptor;
 import hudson.model.TaskListener;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedConstant;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
@@ -94,6 +95,22 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
     protected Object readResolve() throws IOException {
         return this;
+    }
+
+    /**
+     * Resolve a constant name in the current context.
+     *
+     * The context will be determined later,
+     * And only returns an object to perform delayed evaluation.
+     *
+     * @param property property name
+     * @return  an object to perform delayed evaluation
+     * @since TODO
+     */
+    @Override
+    @CpsVmThreadOnly
+    public Object getProperty(String property) {
+        return new UninstantiatedConstant(property);
     }
 
     /**

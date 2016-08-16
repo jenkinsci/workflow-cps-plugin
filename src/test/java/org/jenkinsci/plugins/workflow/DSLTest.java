@@ -139,4 +139,11 @@ public class DSLTest {
         r.assertLogContains("constructible with compass and straightedge", b);
     }
 
+    @Test
+    public void const_parameters() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("with_const enumValue: GOOD, enumLikeValue: SUCCESS", true));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("(GOOD, SUCCESS)", b);
+    }
 }

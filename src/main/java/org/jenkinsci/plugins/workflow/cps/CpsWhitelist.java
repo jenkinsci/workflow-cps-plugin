@@ -38,14 +38,13 @@ class CpsWhitelist extends AbstractWhitelist {
                 return true;
             }
             if (name.equals("getProperty") && args.length == 1 && args[0] instanceof String) {
-                for (GlobalVariable v : GlobalVariable.ALL) {
-                    if (v.getName().equals(args[0])) {
-                        return true;
-                    }
-                }
+                return true;
             }
         }
         if (receiver instanceof DSL && method.getName().equals("invokeMethod")) {
+            return true;
+        }
+        if (receiver instanceof DSL && method.getName().equals("getProperty") && args.length == 1 && args[0] instanceof String) {
             return true;
         }
         // TODO JENKINS-24982: it would be nice if AnnotatedWhitelist accepted @Whitelisted on an override

@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.SerializableScript;
 import groovy.lang.GroovyShell;
+import groovy.lang.MissingPropertyException;
 import groovy.lang.Script;
 import hudson.EnvVars;
 import hudson.model.ParameterValue;
@@ -128,7 +129,16 @@ public abstract class CpsScript extends SerializableScript {
                 }
             }
         }
-        return super.getProperty(property);
+
+        try {
+            return super.getProperty(property);
+        } catch (MissingPropertyException e) {
+            // pass
+        }
+
+        // this might be a const value (e.g. enum value)
+        DSL dsl = (DSL) getBinding().getVariable(STEPS_VAR);
+        return dsl.getProperty(property);
     }
 
     public @CheckForNull Run<?,?> $build() throws IOException {
