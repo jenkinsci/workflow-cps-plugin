@@ -34,6 +34,8 @@ import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import groovy.lang.MissingPropertyException;
+
 /**
  * Verifies general DSL functionality.
  */
@@ -145,5 +147,12 @@ public class DSLTest {
         p.setDefinition(new CpsFlowDefinition("with_const enumValue: GOOD, enumLikeValue: SUCCESS", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("(GOOD, SUCCESS)", b);
+    }
+
+    @Test
+    public void const_parameters_unknown() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("with_const enumValue: NOT_GOOD, enumLikeValue: SUCCESS", true));
+        r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
     }
 }

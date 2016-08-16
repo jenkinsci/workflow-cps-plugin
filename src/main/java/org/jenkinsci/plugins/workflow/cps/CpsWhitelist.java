@@ -5,6 +5,7 @@ import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.Whitelist;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.AbstractWhitelist;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.ProxyWhitelist;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedConstant;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -38,7 +39,20 @@ class CpsWhitelist extends AbstractWhitelist {
                 return true;
             }
             if (name.equals("getProperty") && args.length == 1 && args[0] instanceof String) {
-                return true;
+                for (GlobalVariable v : GlobalVariable.ALL) {
+                    if (v.getName().equals(args[0])) {
+                        return true;
+                    }
+                }
+                // Safe if it's considered a constant variable name.
+                String property = (String)args[0];
+                try {
+                    if (((CpsScript)receiver).getProperty(property) instanceof UninstantiatedConstant) {
+                        return true;
+                    }
+                } catch (Exception e) {
+                    // ignore any exceptions
+                }
             }
         }
         if (receiver instanceof DSL && method.getName().equals("invokeMethod")) {
