@@ -62,6 +62,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
 
 /**
@@ -426,7 +427,9 @@ import org.kohsuke.stapler.StaplerRequest;
     @Restricted(DoNotUse.class) // for stapler
     public Iterable<GlobalVariable> getGlobalVariables() {
         // TODO order TBD. Alphabetical? Extension.ordinal?
-        return GlobalVariable.forRun(/* TODO use lastBuild if context is known */null);
+        StaplerRequest req = Stapler.getCurrentRequest();
+        Job<?,?> job = req != null ? req.findAncestorObject(Job.class) : null;
+        return GlobalVariable.forRun(job != null ? job.getLastSuccessfulBuild() : null);
     }
 
     @Restricted(NoExternalUse.class)
