@@ -30,7 +30,7 @@ public abstract class GlobalVariableSet implements ExtensionPoint, Iterable<Glob
         return Lists.newArrayList(iterator());
     }
 
-    /** @deprecated implement {@link #forJob} instead */
+    /** @deprecated implement {@link #forRun} instead */
     @Deprecated
     @Override public Iterator<GlobalVariable> iterator() {
         if (Util.isOverridden(GlobalVariableSet.class, getClass(), "forRun", Run.class)) {
