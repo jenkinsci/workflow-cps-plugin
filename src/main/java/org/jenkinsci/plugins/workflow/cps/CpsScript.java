@@ -34,6 +34,8 @@ import hudson.model.Queue;
 import hudson.model.Run;
 import java.io.File;
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import org.codehaus.groovy.control.CompilationFailedException;
 import org.codehaus.groovy.runtime.DefaultGroovyMethods;
@@ -54,6 +56,8 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
  */
 @PersistIn(PROGRAM)
 public abstract class CpsScript extends SerializableScript {
+
+    private static final Logger LOGGER = Logger.getLogger(CpsScript.class.getName());
 
     private static final String STEPS_VAR = "steps";
 
@@ -101,14 +105,13 @@ public abstract class CpsScript extends SerializableScript {
     public final Object invokeMethod(String name, Object args) {
         // if global variables are defined by that name, try to call it.
         // the 'call' convention comes from Closure
-        for (GlobalVariable v : GlobalVariable.ALL) {
-            if (v.getName().equals(name)) {
-                try {
-                    Object o = v.getValue(this);
-                    return InvokerHelper.getMetaClass(o).invokeMethod(o,"call",args);
-                } catch (Exception x) {
-                    throw new InvokerInvocationException(x);
-                }
+        GlobalVariable v = GlobalVariable.byName(name, $buildNoException());
+        if (v != null) {
+            try {
+                Object o = v.getValue(this);
+                return InvokerHelper.getMetaClass(o).invokeMethod(o, "call", args);
+            } catch (Exception x) {
+                throw new InvokerInvocationException(x);
             }
         }
 
@@ -119,13 +122,12 @@ public abstract class CpsScript extends SerializableScript {
 
     @Override
     public Object getProperty(String property) {
-        for (GlobalVariable v : GlobalVariable.ALL) {
-            if (v.getName().equals(property)) {
-                try {
-                    return v.getValue(this);
-                } catch (Exception x) {
-                    throw new InvokerInvocationException(x);
-                }
+        GlobalVariable v = GlobalVariable.byName(property, $buildNoException());
+        if (v != null) {
+            try {
+                return v.getValue(this);
+            } catch (Exception x) {
+                throw new InvokerInvocationException(x);
             }
         }
         return super.getProperty(property);
@@ -137,6 +139,15 @@ public abstract class CpsScript extends SerializableScript {
         if (qe instanceof Run) {
             return (Run) qe;
         } else {
+            return null;
+        }
+    }
+
+    public @CheckForNull Run<?,?> $buildNoException() {
+        try {
+            return $build();
+        } catch (IOException x) {
+            LOGGER.log(Level.WARNING, null, x);
             return null;
         }
     }

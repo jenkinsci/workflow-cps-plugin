@@ -133,10 +133,10 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
         @Override public String getName() {
             return "env";
         }
-        @Override public Object getValue(CpsScript script) throws Exception {
+        @Override public EnvActionImpl getValue(CpsScript script) throws Exception {
             Run<?,?> run = script.$build();
             if (run != null) {
-                return forRun(run);
+                return EnvActionImpl.forRun(run);
             } else {
                 throw new IllegalStateException("no associated build");
             }

@@ -27,11 +27,13 @@ package org.jenkinsci.plugins.workflow.cps;
 import groovy.lang.GroovyObject;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
+import hudson.model.Run;
 import hudson.util.Iterators.FlattenIterator;
 import jenkins.model.RunAction2;
 
 import javax.annotation.Nonnull;
 import java.util.Iterator;
+import javax.annotation.CheckForNull;
 
 /**
  * Defines a provider of a global variable offered to flows.
@@ -63,17 +65,41 @@ public abstract class GlobalVariable implements ExtensionPoint {
     public abstract @Nonnull Object getValue(@Nonnull CpsScript script) throws Exception;
 
     /**
-     * Returns all the registered {@link GlobalVariable}s.
+     * @deprecated use {@link #forRun} instead
      */
-    public static final Iterable<GlobalVariable> ALL = new Iterable<GlobalVariable>() {
-        @Override
-        public Iterator<GlobalVariable> iterator() {
-            return new FlattenIterator<GlobalVariable,GlobalVariableSet>(ExtensionList.lookup(GlobalVariableSet.class).iterator()) {
-                @Override
-                protected Iterator<GlobalVariable> expand(GlobalVariableSet vs) {
-                    return vs.iterator();
-                }
-            };
+    @Deprecated
+    public static final Iterable<GlobalVariable> ALL = forRun(null);
+
+    /**
+     * Returns all the registered {@link GlobalVariable}s for some context.
+     * @param run see {@link GlobalVariableSet#forRun}
+     * @return a possibly empty list
+     */
+    public static @Nonnull Iterable<GlobalVariable> forRun(@CheckForNull final Run<?,?> run) {
+        return new Iterable<GlobalVariable>() {
+            @Override public Iterator<GlobalVariable> iterator() {
+                return new FlattenIterator<GlobalVariable,GlobalVariableSet>(ExtensionList.lookup(GlobalVariableSet.class).iterator()) {
+                    @Override protected Iterator<GlobalVariable> expand(GlobalVariableSet vs) {
+                        return vs.forRun(run).iterator();
+                    }
+                };
+            }
+        };
+    }
+
+    /**
+     * Finds a particular variable by name.
+     * @param name see {@link #getName}
+     * @param run see {@link GlobalVariableSet#forRun}
+     * @return the first matching variable, or null if there is none
+     */
+    public static @CheckForNull GlobalVariable byName(@Nonnull String name, @CheckForNull Run<?,?> run) {
+        for (GlobalVariable var : forRun(run)) {
+            if (var.getName().equals(name)) {
+                return var;
+            }
         }
-    };
+        return null;
+    }
+
 }

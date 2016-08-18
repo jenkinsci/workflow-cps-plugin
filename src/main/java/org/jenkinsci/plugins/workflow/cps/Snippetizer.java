@@ -426,7 +426,7 @@ import org.kohsuke.stapler.StaplerRequest;
     @Restricted(DoNotUse.class) // for stapler
     public Iterable<GlobalVariable> getGlobalVariables() {
         // TODO order TBD. Alphabetical? Extension.ordinal?
-        return GlobalVariable.ALL;
+        return GlobalVariable.forRun(/* TODO use lastBuild if context is known */null);
     }
 
     @Restricted(NoExternalUse.class)

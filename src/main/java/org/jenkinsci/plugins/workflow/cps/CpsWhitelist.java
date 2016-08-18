@@ -38,10 +38,8 @@ class CpsWhitelist extends AbstractWhitelist {
                 return true;
             }
             if (name.equals("getProperty") && args.length == 1 && args[0] instanceof String) {
-                for (GlobalVariable v : GlobalVariable.ALL) {
-                    if (v.getName().equals(args[0])) {
-                        return true;
-                    }
+                if (GlobalVariable.byName((String) args[0], ((CpsScript) receiver).$buildNoException()) != null) {
+                    return true;
                 }
             }
         }
@@ -80,7 +78,7 @@ class CpsWhitelist extends AbstractWhitelist {
      */
     private static final Map<Jenkins,Whitelist> wrappedByJenkins = new WeakHashMap<Jenkins,Whitelist>();
 
-    public static synchronized Whitelist get() {
+    static synchronized Whitelist get() {
         Jenkins j = Jenkins.getInstance();
         if (j == null) {
             return new ProxyWhitelist();
