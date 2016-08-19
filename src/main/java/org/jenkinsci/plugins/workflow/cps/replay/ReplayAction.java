@@ -28,6 +28,7 @@ import com.cloudbees.diff.Diff;
 import com.google.common.collect.ImmutableList;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
+import hudson.ExtensionList;
 import hudson.Functions;
 import hudson.init.InitMilestone;
 import hudson.init.Initializer;
@@ -35,7 +36,6 @@ import hudson.model.Action;
 import hudson.model.Cause;
 import hudson.model.CauseAction;
 import hudson.model.Item;
-import hudson.model.Job;
 import hudson.model.ParametersAction;
 import hudson.model.Queue;
 import hudson.model.Run;
@@ -51,6 +51,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
@@ -77,6 +81,8 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
  */
 @SuppressWarnings("rawtypes") // on Run
 public class ReplayAction implements Action {
+
+    private static final Logger LOGGER = Logger.getLogger(ReplayAction.class.getName());
 
     private final Run run;
 
@@ -130,7 +136,14 @@ public class ReplayAction implements Action {
     /** @see CpsFlowExecution#getLoadedScripts */
     /* accessible to Jelly */ public Map<String,String> getOriginalLoadedScripts() {
         CpsFlowExecution execution = getExecution();
-        return execution != null ? execution.getLoadedScripts() : /* ? */Collections.<String,String>emptyMap();
+        if (execution == null) { // ?
+            return Collections.<String,String>emptyMap();
+        }
+        Map<String,String> scripts = new TreeMap<>();
+        for (OriginalLoadedScripts replayer : ExtensionList.lookup(OriginalLoadedScripts.class)) {
+            scripts.putAll(replayer.loadScripts(execution));
+        }
+        return scripts;
     }
 
     /* accessible to Jelly */ public Run getOwner() {
@@ -189,6 +202,48 @@ public class ReplayAction implements Action {
             actions.addAll(run.getActions(c));
         }
         return ParameterizedJobMixIn.scheduleBuild2(run.getParent(), 0, actions.toArray(new Action[actions.size()]));
+    }
+
+    /**
+     * Finds a set of Groovy class names which are eligible for replacement.
+     * @param execution the associated execution
+     * @return Groovy class names expected to be produced, like {@code Script1}
+     */
+    public static @Nonnull Set<String> replacementsIn(@Nonnull CpsFlowExecution execution) throws IOException {
+        Queue.Executable executable = execution.getOwner().getExecutable();
+        if (executable instanceof Run) {
+            ReplayFlowFactoryAction action = ((Run) executable).getAction(ReplayFlowFactoryAction.class);
+            if (action != null) {
+                return action.replaceableScripts();
+            } else {
+                LOGGER.log(Level.FINE, "{0} was not a replay", executable);
+            }
+        } else {
+            LOGGER.log(Level.FINE, "{0} was not a run at all", executable);
+        }
+        return Collections.emptySet();
+    }
+
+    /**
+     * Replaces some loaded script text with something else.
+     * May be done only once per class.
+     * @param execution the associated execution
+     * @param clazz an entry possibly in {@link #replacementsIn}
+     * @return the replacement text, or null if no replacement was available for some reason
+     */
+    public static @CheckForNull String replace(@Nonnull CpsFlowExecution execution, @Nonnull String clazz) throws IOException {
+        Queue.Executable executable = execution.getOwner().getExecutable();
+        if (executable instanceof Run) {
+            ReplayFlowFactoryAction action = ((Run) executable).getAction(ReplayFlowFactoryAction.class);
+            if (action != null) {
+                return action.replace(clazz);
+            } else {
+                LOGGER.log(Level.FINE, "{0} was not a replay", executable);
+            }
+        } else {
+            LOGGER.log(Level.FINE, "{0} was not a run at all", executable);
+        }
+        return null;
     }
 
     public String getDiff() {
