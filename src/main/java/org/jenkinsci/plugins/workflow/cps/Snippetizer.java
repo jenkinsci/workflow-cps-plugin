@@ -428,8 +428,7 @@ import org.kohsuke.stapler.StaplerRequest;
     public Iterable<GlobalVariable> getGlobalVariables() {
         // TODO order TBD. Alphabetical? Extension.ordinal?
         StaplerRequest req = Stapler.getCurrentRequest();
-        Job<?,?> job = req != null ? req.findAncestorObject(Job.class) : null;
-        return GlobalVariable.forRun(job != null ? job.getLastSuccessfulBuild() : null);
+        return GlobalVariable.forJob(req != null ? req.findAncestorObject(Job.class) : null);
     }
 
     @Restricted(NoExternalUse.class)

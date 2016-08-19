@@ -5,6 +5,7 @@ import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
 import hudson.Util;
+import hudson.model.Job;
 import hudson.model.Run;
 import java.util.Collection;
 import java.util.Iterator;
@@ -28,6 +29,15 @@ public abstract class GlobalVariableSet implements ExtensionPoint, Iterable<Glob
      */
     public /* abstract */ @Nonnull Collection<GlobalVariable> forRun(@CheckForNull Run<?,?> run) {
         return Lists.newArrayList(iterator());
+    }
+
+    /**
+     * Enumerate all global variables from this provider which should be associated with a given job.
+     * @param job a job; or may be left null to look for variables that exist without any context
+     * @return a possibly empty set; by default delegates to {@link #forRun} on {@link Job#getLastSuccessfulBuild}
+     */
+    public @Nonnull Collection<GlobalVariable> forJob(@CheckForNull Job<?,?> job) {
+        return forRun(job != null ? job.getLastSuccessfulBuild() : null);
     }
 
     /** @deprecated implement {@link #forRun} instead */

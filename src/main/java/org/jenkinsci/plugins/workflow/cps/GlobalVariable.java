@@ -27,6 +27,7 @@ package org.jenkinsci.plugins.workflow.cps;
 import groovy.lang.GroovyObject;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
+import hudson.model.Job;
 import hudson.model.Run;
 import hudson.util.Iterators.FlattenIterator;
 import jenkins.model.RunAction2;
@@ -81,6 +82,23 @@ public abstract class GlobalVariable implements ExtensionPoint {
                 return new FlattenIterator<GlobalVariable,GlobalVariableSet>(ExtensionList.lookup(GlobalVariableSet.class).iterator()) {
                     @Override protected Iterator<GlobalVariable> expand(GlobalVariableSet vs) {
                         return vs.forRun(run).iterator();
+                    }
+                };
+            }
+        };
+    }
+
+    /**
+     * Returns all the registered {@link GlobalVariable}s for some context.
+     * @param run see {@link GlobalVariableSet#forJob}
+     * @return a possibly empty list
+     */
+    public static @Nonnull Iterable<GlobalVariable> forJob(@CheckForNull final Job<?,?> job) {
+        return new Iterable<GlobalVariable>() {
+            @Override public Iterator<GlobalVariable> iterator() {
+                return new FlattenIterator<GlobalVariable,GlobalVariableSet>(ExtensionList.lookup(GlobalVariableSet.class).iterator()) {
+                    @Override protected Iterator<GlobalVariable> expand(GlobalVariableSet vs) {
+                        return vs.forJob(job).iterator();
                     }
                 };
             }
