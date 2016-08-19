@@ -29,9 +29,12 @@ import hudson.model.Slave;
 import hudson.model.queue.QueueTaskFuture;
 import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import hudson.security.WhoAmI;
+import hudson.util.OneShotEvent;
 import org.apache.commons.io.FileUtils;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.actions.LogAction;
 import org.jenkinsci.plugins.workflow.cps.AbstractCpsFlowTest;
@@ -48,7 +51,6 @@ import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
-import javax.mail.Folder;
 import org.junit.ClassRule;
 import org.jvnet.hudson.test.BuildWatcher;
 
@@ -236,4 +238,25 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
         p.addAction(a);
         assertNotNull(p.getAction(WhoAmI.class));
     }
+
+    @Test
+    public void killInfiniteLoop() throws Exception {
+        p.setDefinition(new CpsFlowDefinition(WorkflowJobNonRestartingTest.class.getName()+".going(); while (true) {}", true));
+
+        QueueTaskFuture<WorkflowRun> f = p.scheduleBuild2(0);
+        WorkflowRun b = f.getStartCondition().get(3, TimeUnit.SECONDS);
+
+        going.block(3000);    // get the buld going, which will loop infinitely
+        b.doStop(); // abort, abort!
+
+        f.get(3, TimeUnit.SECONDS); // wait for the result to come in
+        assertEquals(Result.ABORTED, b.getResult());
+    }
+
+    @Whitelisted
+    public static void going() {
+        going.signal();
+    }
+
+    private static final OneShotEvent going = new OneShotEvent();
 }

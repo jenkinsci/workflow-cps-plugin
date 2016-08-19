@@ -77,7 +77,9 @@ class CpsGroovyShellFactory {
 
     private CpsTransformer makeCpsTransformer() {
         CpsTransformer t = sandbox ? new SandboxCpsTransformer() : new CpsTransformer();
-        t.setConfiguration(new TransformerConfiguration().withClosureType(CpsClosure2.class));
+        t.setConfiguration(new TransformerConfiguration()
+                .withClosureType(CpsClosure2.class)
+                .withSafepoint(Safepoint.class,"safepoint"));
         return t;
     }
 
