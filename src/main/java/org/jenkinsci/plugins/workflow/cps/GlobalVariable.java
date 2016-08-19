@@ -90,7 +90,7 @@ public abstract class GlobalVariable implements ExtensionPoint {
 
     /**
      * Returns all the registered {@link GlobalVariable}s for some context.
-     * @param run see {@link GlobalVariableSet#forJob}
+     * @param job see {@link GlobalVariableSet#forJob}
      * @return a possibly empty list
      */
     public static @Nonnull Iterable<GlobalVariable> forJob(@CheckForNull final Job<?,?> job) {
