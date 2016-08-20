@@ -191,18 +191,7 @@ class CpsBodyExecution extends BodyExecution {
             t.getExecution().runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
                 @Override
                 public void onSuccess(CpsThreadGroup g) {
-                    StepExecution s = t.getStep();  // this is the part that should run in CpsVmThread
-                    if (s == null) {
-                        // TODO: if it's not running inside a StepExecution, we need to set an interrupt flag
-                        // and interrupt at an earliest convenience
-                        return;
-                    }
-
-                    try {
-                        s.stop(stopped);
-                    } catch (Exception e) {
-                        LOGGER.log(WARNING, "Failed to stop " + s, e);
-                    }
+                    t.stop(stopped);
                 }
 
                 @Override
