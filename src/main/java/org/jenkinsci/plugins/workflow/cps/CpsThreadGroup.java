@@ -29,7 +29,6 @@ import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
@@ -230,6 +229,7 @@ public final class CpsThreadGroup implements Serializable {
         final SettableFuture<Void> f = SettableFuture.create();
         try {
             runner.submit(new Callable<Void>() {
+                @edu.umd.cs.findbugs.annotations.SuppressWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE") // runner.submit() result
                 public Void call() throws Exception {
                     Jenkins j = Jenkins.getInstance();
                     if (paused.get() || j == null || j.isQuietingDown()) {
