@@ -29,6 +29,7 @@ import hudson.EnvVars;
 import hudson.Extension;
 import hudson.model.EnvironmentContributor;
 import hudson.model.Run;
+import hudson.model.TaskListener;
 import hudson.util.LogTaskListener;
 import java.io.IOException;
 import java.io.Serializable;
@@ -40,6 +41,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import jenkins.model.RunAction2;
+import org.jenkinsci.plugins.workflow.flow.FlowCopier;
 import org.jenkinsci.plugins.workflow.steps.EnvironmentExpander;
 import org.jenkinsci.plugins.workflow.support.actions.EnvironmentAction;
 import org.kohsuke.accmod.Restricted;
@@ -145,6 +147,21 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
         public Collection<EnvironmentContributor> getEnvironmentContributors() {
             return EnvironmentContributor.all();
         }
+    }
+
+    @Restricted(DoNotUse.class)
+    @Extension public static class Copier extends FlowCopier.ByRun {
+
+        @Override public void copy(Run<?,?> original, Run<?,?> copy, TaskListener listener) throws IOException, InterruptedException {
+            EnvActionImpl orig = original.getAction(EnvActionImpl.class);
+            if (orig != null) {
+                EnvActionImpl nue = EnvActionImpl.forRun(copy);
+                for (Map.Entry<String,String> entry : orig.getOverriddenEnvironment().entrySet()) {
+                    nue.setProperty(entry.getKey(), entry.getValue());
+                }
+            }
+        }
+
     }
 
 }
