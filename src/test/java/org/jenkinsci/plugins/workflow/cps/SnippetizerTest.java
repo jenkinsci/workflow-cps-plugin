@@ -262,4 +262,29 @@ public class SnippetizerTest {
         GroovyShell shell = new GroovyShell(r.jenkins.getPluginManager().uberClassLoader);
         shell.parse(dsld);
     }
+
+    @Test
+    public void noArgStepDocs() throws Exception {
+        SnippetizerTester.assertDocGeneration(PwdStep.class);
+    }
+
+    @Test
+    public void singleArgStepDocs() throws Exception {
+        SnippetizerTester.assertDocGeneration(EchoStep.class);
+    }
+
+    @Test
+    public void oneOrMoreArgsStepDocs() throws Exception {
+        SnippetizerTester.assertDocGeneration(InputStep.class);
+    }
+
+    @Test
+    public void buildStepDocs() throws Exception {
+        SnippetizerTester.assertDocGeneration(BuildTriggerStep.class);
+    }
+
+    @Test
+    public void coreStepDocs() throws Exception {
+        SnippetizerTester.assertDocGeneration(CoreStep.class);
+    }
 }

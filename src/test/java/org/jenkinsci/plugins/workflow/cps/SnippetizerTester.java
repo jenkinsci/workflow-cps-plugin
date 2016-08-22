@@ -6,8 +6,16 @@ import com.gargoylesoftware.htmlunit.WebResponse;
 import com.gargoylesoftware.htmlunit.util.NameValuePair;
 import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
+import hudson.model.Describable;
 import hudson.model.Queue;
 import org.codehaus.groovy.control.CompilerConfiguration;
+import org.jenkinsci.plugins.structs.describable.ArrayType;
+import org.jenkinsci.plugins.structs.describable.DescribableModel;
+import org.jenkinsci.plugins.structs.describable.DescribableParameter;
+import org.jenkinsci.plugins.structs.describable.ErrorType;
+import org.jenkinsci.plugins.structs.describable.HeterogeneousObjectType;
+import org.jenkinsci.plugins.structs.describable.HomogeneousObjectType;
+import org.jenkinsci.plugins.structs.describable.ParameterType;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.steps.Step;
@@ -24,7 +32,10 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
 import org.jenkinsci.plugins.workflow.util.StaplerReferer;
+import org.kohsuke.stapler.NoStaplerConstructorException;
 
 import static org.junit.Assert.*;
 
@@ -102,6 +113,48 @@ public class SnippetizerTester {
         Step actual = (Step) s.run();
         r.assertEqualDataBoundBeans(step, actual);
     }
+
+    /**
+     * Recurses through the model of a {@link Describable} class's {@link DescribableModel} and its parameters to verify that doc generation will work.
+     *
+     * @param describableClass
+     *     A {@link Class} implementing {@link Describable}
+     * @throws Exception
+     *     If any errors are encountered other than {@link NoStaplerConstructorException}, which is ignored for now.
+     */
+    @SuppressWarnings("unchecked")
+    public static void assertDocGeneration(Class<? extends Describable> describableClass) throws Exception {
+        DescribableModel<?> model = new DescribableModel(describableClass);
+
+        assertNotNull(model);
+
+        recurseOnModel(model);
+
+    }
+
+    private static void recurseOnTypes(ParameterType type) throws Exception {
+        // For the moment, only care about types with @DataBoundConstructors.
+        if (type instanceof ErrorType && !(((ErrorType)type).getError() instanceof NoStaplerConstructorException)) {
+            throw ((ErrorType)type).getError();
+        }
+
+        if (type instanceof ArrayType) {
+            recurseOnTypes(((ArrayType)type).getElementType());
+        } else if (type instanceof HomogeneousObjectType) {
+            recurseOnModel(((HomogeneousObjectType) type).getSchemaType());
+        } else if (type instanceof HeterogeneousObjectType) {
+            for (Map.Entry<String, DescribableModel<?>> entry : ((HeterogeneousObjectType) type).getTypes().entrySet()) {
+                recurseOnModel(entry.getValue());
+            }
+        }
+    }
+
+    private static void recurseOnModel(DescribableModel<?> model) throws Exception {
+        for (DescribableParameter param : model.getParameters()) {
+            recurseOnTypes(param.getType());
+        }
+    }
+
 
     private static class DummyOwner extends FlowExecutionOwner {
         DummyOwner() {}
