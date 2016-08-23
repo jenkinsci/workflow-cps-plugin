@@ -161,7 +161,7 @@ public class ReplayAction implements Action {
         Map<String,String> replacementLoadedScripts = new HashMap<String,String>();
         for (Map.Entry<String,String> entry : getOriginalLoadedScripts().entrySet()) {
             // optString since you might be replaying a running build, which might have loaded a script after the page load but before submission.
-            replacementLoadedScripts.put(entry.getKey(), form.optString(entry.getKey(), entry.getValue()));
+            replacementLoadedScripts.put(entry.getKey(), form.optString(entry.getKey().replace('.', '_'), entry.getValue()));
         }
         run(form.getString("mainScript"), replacementLoadedScripts);
         rsp.sendRedirect("../.."); // back to WorkflowJob; new build might not start instantly so cannot redirect to it

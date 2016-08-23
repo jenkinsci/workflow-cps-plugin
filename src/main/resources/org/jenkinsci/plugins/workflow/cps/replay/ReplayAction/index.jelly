@@ -14,7 +14,7 @@
                       <wfe:workflow-editor script="${it.originalScript}" checkUrl="${rootURL}/${it.owner.url}${it.urlName}/checkScript" checkDependsOn=""/>
                     </f:entry>
                     <j:forEach var="loadedScript" items="${it.originalLoadedScripts.entrySet()}">
-                        <f:entry field="${loadedScript.key}" title="${loadedScript.key}">
+                        <f:entry field="${loadedScript.key.replace('.', '_')}" title="${loadedScript.key}">
                             <wfe:workflow-editor script="${loadedScript.value}" checkUrl="${rootURL}/${it.owner.url}${it.urlName}/checkScript" checkDependsOn=""/>
                         </f:entry>
                     </j:forEach>
