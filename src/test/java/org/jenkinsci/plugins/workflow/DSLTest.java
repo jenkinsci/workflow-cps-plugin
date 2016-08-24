@@ -139,4 +139,15 @@ public class DSLTest {
         r.assertLogContains("constructible with compass and straightedge", b);
     }
 
+    /**
+     * Tests the ability to execute a step with an unnamed monomorphic describable argument.
+     */
+    @Issue("JENKINS-29711")
+    @Test
+    public void monomorphic() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "mon");
+        p.setDefinition(new CpsFlowDefinition("monomorphStep firstArg:'one', secondArg:'two'"));
+        r.assertLogContains("First arg: one, second arg: two", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
+
 }

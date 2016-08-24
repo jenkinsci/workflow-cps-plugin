@@ -46,6 +46,8 @@ import org.jenkinsci.plugins.workflow.support.steps.input.InputStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Colorado;
 import org.jenkinsci.plugins.workflow.testMetaStep.Hawaii;
 import org.jenkinsci.plugins.workflow.testMetaStep.Island;
+import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicData;
+import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.CarbonMonoxide;
@@ -58,7 +60,6 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockFolder;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.logging.Level;
 
 import static org.hamcrest.CoreMatchers.*;
@@ -262,4 +263,12 @@ public class SnippetizerTest {
         GroovyShell shell = new GroovyShell(r.jenkins.getPluginManager().uberClassLoader);
         shell.parse(dsld);
     }
+
+    @Issue("JENKINS-29711")
+    @Test
+    public void monomorphic() throws Exception {
+        MonomorphicStep monomorphicStep = new MonomorphicStep(new MonomorphicData("one", "two"));
+        st.assertRoundTrip(monomorphicStep, "monomorphStep([firstArg: 'one', secondArg: 'two'])");
+    }
+
 }
