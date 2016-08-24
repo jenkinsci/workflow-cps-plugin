@@ -47,6 +47,7 @@ import org.jenkinsci.plugins.workflow.testMetaStep.Colorado;
 import org.jenkinsci.plugins.workflow.testMetaStep.Hawaii;
 import org.jenkinsci.plugins.workflow.testMetaStep.Island;
 import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicData;
+import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicListStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
@@ -59,7 +60,9 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockFolder;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.logging.Level;
 
 import static org.hamcrest.CoreMatchers.*;
@@ -269,6 +272,16 @@ public class SnippetizerTest {
     public void monomorphic() throws Exception {
         MonomorphicStep monomorphicStep = new MonomorphicStep(new MonomorphicData("one", "two"));
         st.assertRoundTrip(monomorphicStep, "monomorphStep([firstArg: 'one', secondArg: 'two'])");
+    }
+
+    @Issue("JENKINS-29711")
+    @Test
+    public void monomorphicList() throws Exception {
+        List<MonomorphicData> dataList = new ArrayList<>();
+        dataList.add(new MonomorphicData("one", "two"));
+        dataList.add(new MonomorphicData("three", "four"));
+        MonomorphicListStep monomorphicStep = new MonomorphicListStep(dataList);
+        st.assertRoundTrip(monomorphicStep, "monomorphListStep([[firstArg: 'one', secondArg: 'two'], [firstArg: 'three', secondArg: 'four']])");
     }
 
 }

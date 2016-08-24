@@ -150,4 +150,16 @@ public class DSLTest {
         r.assertLogContains("First arg: one, second arg: two", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
 
+    /**
+     * Tests the ability to execute a step with an unnamed monomorphic list argument.
+     */
+    @Issue("JENKINS-29711")
+    @Test
+    public void monomorphicList() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "mon");
+        p.setDefinition(new CpsFlowDefinition("monomorphListStep([[firstArg:'one', secondArg:'two'], [firstArg:'three', secondArg:'four']])"));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("First arg: one, second arg: two", b);
+        r.assertLogContains("First arg: three, second arg: four", b);
+    }
 }
