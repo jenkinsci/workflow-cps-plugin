@@ -177,8 +177,10 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         final CpsStepContext context = new CpsStepContext(d,thread,handle,an,ps.body);
         Step s;
         boolean sync;
+        ClassLoader originalLoader = Thread.currentThread().getContextClassLoader();
         try {
             d.checkContextAvailability(context);
+            Thread.currentThread().setContextClassLoader(CpsVmExecutorService.ORIGINAL_CONTEXT_CLASS_LOADER.get());
             s = d.newInstance(ps.namedArgs);
             StepExecution e = s.start(context);
             thread.setStep(e);
@@ -189,6 +191,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             context.onFailure(e);
             s = null;
             sync = true;
+        } finally {
+            Thread.currentThread().setContextClassLoader(originalLoader);
         }
 
         if (sync) {
