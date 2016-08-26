@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
@@ -50,6 +51,7 @@ import jenkins.model.TransientActionFactory;
 import jenkins.tasks.SimpleBuildStep;
 import net.sf.json.JSONObject;
 import org.jenkinsci.Symbol;
+import org.jenkinsci.plugins.structs.SymbolLookup;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.HeterogeneousObjectType;
@@ -369,8 +371,8 @@ import org.kohsuke.stapler.StaplerRequest;
                                 for (DescribableModel<?> delegateOptionSchema : ((HeterogeneousObjectType) delegate.getType()).getTypes().values()) {
                                     Class<?> delegateOptionType = delegateOptionSchema.getType();
                                     Descriptor<?> delegateDescriptor = Jenkins.getActiveInstance().getDescriptorOrDie(delegateOptionType.asSubclass(Describable.class));
-                                    Symbol symbol = delegateDescriptor.getClass().getAnnotation(Symbol.class);
-                                    if (symbol != null && symbol.value().length > 0) {
+                                    Set<String> symbols = SymbolLookup.getSymbolValue(delegateDescriptor);
+                                    if (!symbols.isEmpty()) {
                                         t.add(new QuasiDescriptor(delegateDescriptor));
                                     }
                                 }
@@ -402,7 +404,16 @@ import org.kohsuke.stapler.StaplerRequest;
         }
 
         public String getSymbol() {
-            return real instanceof StepDescriptor ? ((StepDescriptor) real).getFunctionName() : real.getClass().getAnnotation(Symbol.class).value()[0];
+            if (real instanceof StepDescriptor) {
+                return ((StepDescriptor) real).getFunctionName();
+            } else {
+                Set<String> symbolValues = SymbolLookup.getSymbolValue(real);
+                if (!symbolValues.isEmpty()) {
+                    return symbolValues.iterator().next();
+                } else {
+                    throw new AssertionError("Symbol present but no values defined.");
+                }
+            }
         }
 
         @Override public int compareTo(QuasiDescriptor o) {
