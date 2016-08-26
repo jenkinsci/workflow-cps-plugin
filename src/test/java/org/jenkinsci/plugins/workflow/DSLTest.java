@@ -155,7 +155,7 @@ public class DSLTest {
     @Test
     public void monomorphic() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "mon");
-        p.setDefinition(new CpsFlowDefinition("monomorphStep firstArg:'one', secondArg:'two'"));
+        p.setDefinition(new CpsFlowDefinition("monomorphStep([firstArg:'one', secondArg:'two'])", true));
         r.assertLogContains("First arg: one, second arg: two", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
 
@@ -166,7 +166,7 @@ public class DSLTest {
     @Test
     public void monomorphicList() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "mon");
-        p.setDefinition(new CpsFlowDefinition("monomorphListStep([[firstArg:'one', secondArg:'two'], [firstArg:'three', secondArg:'four']])"));
+        p.setDefinition(new CpsFlowDefinition("monomorphListStep([[firstArg:'one', secondArg:'two'], [firstArg:'three', secondArg:'four']])", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("First arg: one, second arg: two", b);
         r.assertLogContains("First arg: three, second arg: four", b);
