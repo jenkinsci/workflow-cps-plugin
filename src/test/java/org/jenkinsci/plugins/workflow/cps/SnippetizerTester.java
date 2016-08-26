@@ -120,7 +120,7 @@ public class SnippetizerTester {
      * @param describableClass
      *     A {@link Class} implementing {@link Describable}
      * @throws Exception
-     *     If any errors are encountered other than {@link NoStaplerConstructorException}, which is ignored for now.
+     *     If any errors are encountered.
      */
     @SuppressWarnings("unchecked")
     public static void assertDocGeneration(Class<? extends Describable> describableClass) throws Exception {
@@ -133,8 +133,7 @@ public class SnippetizerTester {
     }
 
     private static void recurseOnTypes(ParameterType type) throws Exception {
-        // For the moment, only care about types with @DataBoundConstructors.
-        if (type instanceof ErrorType && !(((ErrorType)type).getError() instanceof NoStaplerConstructorException)) {
+        if (type instanceof ErrorType) {
             throw ((ErrorType)type).getError();
         }
 
