@@ -25,20 +25,29 @@
 package org.jenkinsci.plugins.workflow;
 
 import hudson.model.Result;
+import javax.inject.Inject;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
+import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
+import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousStepExecution;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.TestExtension;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
  * Verifies general DSL functionality.
  */
 public class DSLTest {
     
+    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public JenkinsRule r = new JenkinsRule();
 
     @Test public void overrideFunction() throws Exception {
@@ -138,5 +147,28 @@ public class DSLTest {
         r.assertLogContains("wrapping in a 17-gon", b);
         r.assertLogContains("constructible with compass and straightedge", b);
     }
+
+    @Test public void contextClassLoader() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("try {def c = classLoad(getClass().name); error(/did not expect to be able to load ${c} from ${c.classLoader}/)} catch (ClassNotFoundException x) {echo(/good, got ${x}/)}", false));
+        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+    }
+    public static class CLStep extends AbstractStepImpl {
+        public final String name;
+        @DataBoundConstructor public CLStep(String name) {this.name = name;}
+        public static class Execution extends AbstractSynchronousStepExecution<Class<?>> {
+            @Inject CLStep step;
+            protected Class<?> run() throws Exception {
+                return Thread.currentThread().getContextClassLoader().loadClass(step.name);
+            }
+        }
+        @TestExtension("contextClassLoader") public static class DescriptorImpl extends AbstractStepDescriptorImpl {
+            public DescriptorImpl() {super(Execution.class);}
+            @Override public String getFunctionName() {
+                return "classLoad";
+            }
+        }
+    }
+
 
 }
