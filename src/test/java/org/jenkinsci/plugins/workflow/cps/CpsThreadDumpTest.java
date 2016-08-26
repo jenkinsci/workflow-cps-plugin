@@ -5,6 +5,7 @@ import static java.util.Arrays.asList;
 import java.util.List;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.cps.CpsThreadDump.ThreadInfo;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
@@ -38,7 +39,15 @@ public class CpsThreadDumpTest {
         ), "\n")));
         WorkflowRun b = p.scheduleBuild2(0).waitForStart();
         SemaphoreStep.waitForStart("x/1", b);
-        CpsThreadDump td = b.getAction(CpsThreadDumpAction.class).threadDumpSynchronous();
+        CpsThreadDumpAction action = b.getAction(CpsThreadDumpAction.class);
+        if (action == null) {
+            FlowExecutionOwner owner = b.asFlowExecutionOwner();
+            assertNotNull(owner);
+            CpsFlowExecution exec = (CpsFlowExecution) owner.getOrNull();
+            assertFalse(exec.isComplete());
+            fail("not sure why CpsThreadDumpAction was missing here");
+        }
+        CpsThreadDump td = action.threadDumpSynchronous();
         td.print(System.out);
 
         {// verify that we got the right thread dump
