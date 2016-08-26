@@ -163,7 +163,7 @@ public class DSLTest {
     @Test
     public void monomorphicSymbol() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "monSymbol");
-        p.setDefinition(new CpsFlowDefinition("monomorphWithSymbolStep([firstArg:'one', secondArg:'two'])", true));
+        p.setDefinition(new CpsFlowDefinition("monomorphWithSymbolStep monomorphSymbol(firstArg: 'one', secondArg: 'two')", true));
         r.assertLogContains("First arg: one, second arg: two", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
 
@@ -185,7 +185,7 @@ public class DSLTest {
     @Test
     public void monomorphicListWithSymbol() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "monListSymbol");
-        p.setDefinition(new CpsFlowDefinition("monomorphListSymbolStep([[firstArg:'one', secondArg:'two'], [firstArg:'three', secondArg:'four']])", true));
+        p.setDefinition(new CpsFlowDefinition("monomorphListSymbolStep([monomorphSymbol(firstArg: 'one', secondArg: 'two'), monomorphSymbol(firstArg: 'three', secondArg: 'four')])", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("First arg: one, second arg: two", b);
         r.assertLogContains("First arg: three, second arg: four", b);
