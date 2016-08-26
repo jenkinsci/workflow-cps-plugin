@@ -49,6 +49,7 @@ import org.jenkinsci.plugins.workflow.testMetaStep.Island;
 import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicData;
 import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicDataWithSymbol;
 import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicListStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicListWithSymbolStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicWithSymbolStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
@@ -293,4 +294,13 @@ public class SnippetizerTest {
         st.assertRoundTrip(monomorphicStep, "monomorphWithSymbolStep monomorphSymbol(firstArg: 'one', secondArg: 'two')");
     }
 
+    @Issue("JENKINS-29711")
+    @Test
+    public void monomorphicListSymbol() throws Exception {
+        List<MonomorphicDataWithSymbol> dataList = new ArrayList<>();
+        dataList.add(new MonomorphicDataWithSymbol("one", "two"));
+        dataList.add(new MonomorphicDataWithSymbol("three", "four"));
+        MonomorphicListWithSymbolStep monomorphicStep = new MonomorphicListWithSymbolStep(dataList);
+        st.assertRoundTrip(monomorphicStep, "monomorphListSymbolStep([monomorphSymbol(firstArg: 'one', secondArg: 'two'), monomorphSymbol(firstArg: 'three', secondArg: 'four')])");
+    }
 }
