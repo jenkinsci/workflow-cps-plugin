@@ -47,8 +47,10 @@ import org.jenkinsci.plugins.workflow.testMetaStep.Colorado;
 import org.jenkinsci.plugins.workflow.testMetaStep.Hawaii;
 import org.jenkinsci.plugins.workflow.testMetaStep.Island;
 import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicData;
+import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicDataWithSymbol;
 import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicListStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicWithSymbolStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.CarbonMonoxide;
@@ -282,6 +284,13 @@ public class SnippetizerTest {
         dataList.add(new MonomorphicData("three", "four"));
         MonomorphicListStep monomorphicStep = new MonomorphicListStep(dataList);
         st.assertRoundTrip(monomorphicStep, "monomorphListStep([[firstArg: 'one', secondArg: 'two'], [firstArg: 'three', secondArg: 'four']])");
+    }
+
+    @Issue("JENKINS-29711")
+    @Test
+    public void monomorphicSymbol() throws Exception {
+        MonomorphicWithSymbolStep monomorphicStep = new MonomorphicWithSymbolStep(new MonomorphicDataWithSymbol("one", "two"));
+        st.assertRoundTrip(monomorphicStep, "monomorphWithSymbolStep monomorphSymbol(firstArg: 'one', secondArg: 'two')");
     }
 
 }
