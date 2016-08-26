@@ -132,10 +132,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         try {
             for (Class<?> e : Index.list(Symbol.class, Jenkins.getActiveInstance().pluginManager.uberClassLoader, Class.class)) {
                 if (Descriptor.class.isAssignableFrom(e)) {
-                    Symbol s = e.getAnnotation(Symbol.class);
-                    if (s != null) {
-                        symbols.addAll(Arrays.asList(s.value()));
-                    }
+                    symbols.addAll(SymbolLookup.getSymbolValue(e));
                 }
             }
         } catch (IOException x) {
