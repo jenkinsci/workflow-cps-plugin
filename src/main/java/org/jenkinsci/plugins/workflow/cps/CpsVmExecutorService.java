@@ -60,10 +60,12 @@ class CpsVmExecutorService extends InterceptingExecutorService {
             this.thread = thread;
             this.name = thread.getName();
             this.classLoader = thread.getContextClassLoader();
+            ORIGINAL_CONTEXT_CLASS_LOADER.set(classLoader);
         }
         void restore() {
             thread.setName(name);
             thread.setContextClassLoader(classLoader);
+            ORIGINAL_CONTEXT_CLASS_LOADER.set(null);
         }
     }
 
@@ -90,4 +92,7 @@ class CpsVmExecutorService extends InterceptingExecutorService {
     }
 
     static ThreadLocal<CpsThreadGroup> CURRENT = new ThreadLocal<CpsThreadGroup>();
+    /** {@link Thread#getContextClassLoader} to be used for plugin code, as opposed to Groovy. */
+    static ThreadLocal<ClassLoader> ORIGINAL_CONTEXT_CLASS_LOADER = new ThreadLocal<>();
+
 }
