@@ -47,6 +47,12 @@ import org.jenkinsci.plugins.workflow.support.steps.input.InputStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Colorado;
 import org.jenkinsci.plugins.workflow.testMetaStep.Hawaii;
 import org.jenkinsci.plugins.workflow.testMetaStep.Island;
+import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicData;
+import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicDataWithSymbol;
+import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicListStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicListWithSymbolStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicWithSymbolStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.CarbonMonoxide;
@@ -58,8 +64,9 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockFolder;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.List;
 import java.util.logging.Level;
 
 import static org.hamcrest.CoreMatchers.*;
@@ -263,6 +270,40 @@ public class SnippetizerTest {
         // Verify valid groovy sntax.
         GroovyShell shell = new GroovyShell(r.jenkins.getPluginManager().uberClassLoader);
         shell.parse(dsld);
+    }
+
+    @Issue("JENKINS-29711")
+    @Test
+    public void monomorphic() throws Exception {
+        MonomorphicStep monomorphicStep = new MonomorphicStep(new MonomorphicData("one", "two"));
+        st.assertRoundTrip(monomorphicStep, "monomorphStep([firstArg: 'one', secondArg: 'two'])");
+    }
+
+    @Issue("JENKINS-29711")
+    @Test
+    public void monomorphicList() throws Exception {
+        List<MonomorphicData> dataList = new ArrayList<>();
+        dataList.add(new MonomorphicData("one", "two"));
+        dataList.add(new MonomorphicData("three", "four"));
+        MonomorphicListStep monomorphicStep = new MonomorphicListStep(dataList);
+        st.assertRoundTrip(monomorphicStep, "monomorphListStep([[firstArg: 'one', secondArg: 'two'], [firstArg: 'three', secondArg: 'four']])");
+    }
+
+    @Issue("JENKINS-29711")
+    @Test
+    public void monomorphicSymbol() throws Exception {
+        MonomorphicWithSymbolStep monomorphicStep = new MonomorphicWithSymbolStep(new MonomorphicDataWithSymbol("one", "two"));
+        st.assertRoundTrip(monomorphicStep, "monomorphWithSymbolStep monomorphSymbol(firstArg: 'one', secondArg: 'two')");
+    }
+
+    @Issue("JENKINS-29711")
+    @Test
+    public void monomorphicListSymbol() throws Exception {
+        List<MonomorphicDataWithSymbol> dataList = new ArrayList<>();
+        dataList.add(new MonomorphicDataWithSymbol("one", "two"));
+        dataList.add(new MonomorphicDataWithSymbol("three", "four"));
+        MonomorphicListWithSymbolStep monomorphicStep = new MonomorphicListWithSymbolStep(dataList);
+        st.assertRoundTrip(monomorphicStep, "monomorphListSymbolStep([monomorphSymbol(firstArg: 'one', secondArg: 'two'), monomorphSymbol(firstArg: 'three', secondArg: 'four')])");
     }
 
     @Test

@@ -264,7 +264,7 @@ import org.kohsuke.stapler.StaplerRequest;
         // the call needs explicit parenthesis sometimes
         //   a block argument normally requires a () around arguments, and if arguments are empty you need explicit (),
         //   but not if both is the case!
-        final boolean needParenthesis = (blockArgument ^ args.isEmpty()) || isSingleMap(args) || nested;
+        final boolean needParenthesis = (blockArgument ^ args.isEmpty()) || isSingleMap(args) || isSingleList(args) || nested;
 
         b.append(ud.getSymbol());
         b.append(needParenthesis ? '(': ' ');
@@ -333,6 +333,20 @@ import org.kohsuke.stapler.StaplerRequest;
             return !canUseSymbol((UninstantiatedDescribable)v);
         }
         return false;
+    }
+
+    /**
+     * If the single argument is a list, it must be wrapped in parentheses.
+     *
+     * @param args
+     *     Argument map
+     * @return
+     *     True if there's only one argument and it's a list, false otherwise.
+     */
+    private static boolean isSingleList(Map<String, ?> args) {
+        if (args.size()!=1) return false;
+        Object v = args.values().iterator().next();
+        return v instanceof List;
     }
 
     public static final String ACTION_URL = "pipeline-syntax";
