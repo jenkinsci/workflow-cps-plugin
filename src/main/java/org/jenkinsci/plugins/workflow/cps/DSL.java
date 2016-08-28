@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
+import com.google.common.base.Function;
 import groovy.lang.Closure;
 import groovy.lang.GString;
 import groovy.lang.GroovyObject;
@@ -42,6 +43,7 @@ import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
+import org.jenkinsci.plugins.workflow.cps.steps.ingroovy.StepInGroovy.StepDescriptorInGroovy;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
@@ -76,6 +78,8 @@ import org.jvnet.hudson.annotation_indexer.Index;
 
 import org.kohsuke.stapler.ClassDescriptor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
+
+import javax.annotation.Nullable;
 
 /**
  * Scaffolding to experiment with the call into {@link Step}.
@@ -153,7 +157,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         FlowNode an;
 
         // TODO: generalize the notion of Step taking over the FlowNode creation.
-        boolean hack = d instanceof ParallelStep.DescriptorImpl || d instanceof LoadStep.DescriptorImpl;
+        boolean hack = d instanceof ParallelStep.DescriptorImpl || d instanceof LoadStep.DescriptorImpl
+                    || d instanceof StepDescriptorInGroovy;
 
         if (ps.body == null && !hack) {
             an = new StepAtomNode(exec, d, thread.head.get());
@@ -233,7 +238,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         StepDescriptor metaStep = metaSteps.size()==1 ? metaSteps.get(0) : null;
 
         // The only time a closure is valid is when the resulting Describable is immediately executed via a meta-step
-        NamedArgsAndClosure args = parseArgs(_args, metaStep!=null && metaStep.takesImplicitBlockArgument(), UninstantiatedDescribable.ANONYMOUS_KEY);
+        NamedArgsAndClosure args = parseArgs(_args, metaStep != null && metaStep.takesImplicitBlockArgument(),
+                ANONYMOUS_KEY);
         UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
 
         if (metaStep==null) {
@@ -353,8 +359,14 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    static NamedArgsAndClosure parseArgs(Object arg, StepDescriptor d) {
-        return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d));
+    static NamedArgsAndClosure parseArgs(Object arg, final StepDescriptor d) {
+        return parseArgs(arg, d.takesImplicitBlockArgument(),
+                new Function<Object, Map<String,Object>>() {
+                    @Override
+                    public Map<String, Object> apply(Object arg) {
+                        return d.singleArgument(arg);
+                    }
+                });
     }
 
     /**
@@ -376,11 +388,11 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      *      Argument object of {@link GroovyObject#invokeMethod(String, Object)}
      * @param expectsBlock
      *      If a closure is a valid possible argument. If false and we see a block, this method throws an exception.
-     * @param soleArgumentKey
-     *      If the context in which this method call happens allow implicit sole default argument, specify its name.
-     *      If null, the call must be with names arguments.
+     * @param soleArgumentHandler
+     *      If the context in which this method call happens allow implicit sole default argument, specify the logic
+     *      that translates that into named argument map. If null, the call must be with names arguments.
      */
-    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey) {
+    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, Function<Object,Map<String,Object>> soleArgumentHandler) {
         if (arg instanceof NamedArgsAndClosure)
             return (NamedArgsAndClosure) arg;
         if (arg instanceof Map) // TODO is this clause actually used?
@@ -410,21 +422,29 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             case 0:
                 return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),c);
             case 1:
-                return new NamedArgsAndClosure(singleParam(soleArgumentKey, a.get(0)), c);
+                return new NamedArgsAndClosure(singleParam(soleArgumentHandler, a.get(0)), c);
             default:
                 throw new IllegalArgumentException("Expected named arguments but got "+a);
             }
         }
 
-        return new NamedArgsAndClosure(singleParam(soleArgumentKey, arg), null);
+        return new NamedArgsAndClosure(singleParam(soleArgumentHandler, arg), null);
     }
-    private static Map<String,Object> singleParam(String soleArgumentKey, Object arg) {
-        if (soleArgumentKey != null) {
-            return Collections.singletonMap(soleArgumentKey, arg);
+
+    private static Map<String,Object> singleParam(Function<Object,Map<String,Object>> soleArgumentHandler, Object arg) {
+        if (soleArgumentHandler != null) {
+            return soleArgumentHandler.apply(arg);
         } else {
             throw new IllegalArgumentException("Expected named arguments but got " + arg);
         }
     }
+
+    private static final Function<Object, Map<String, Object>> ANONYMOUS_KEY = new Function<Object, Map<String,Object>>() {
+        @Override
+        public Map<String, Object> apply(Object input) {
+            return Collections.singletonMap(UninstantiatedDescribable.ANONYMOUS_KEY, input);
+        }
+    };
 
     /**
      * If the step starts executing asynchronously, this task
