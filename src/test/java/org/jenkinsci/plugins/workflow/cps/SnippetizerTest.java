@@ -34,6 +34,7 @@ import hudson.model.StringParameterValue;
 import hudson.tasks.ArtifactArchiver;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
+import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
 import org.jenkinsci.plugins.workflow.steps.CatchErrorStep;
 import org.jenkinsci.plugins.workflow.steps.CoreStep;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
@@ -67,6 +68,7 @@ import org.jenkinsci.plugins.workflow.testMetaStep.CurveMetaStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Polygon;
 import static org.junit.Assert.*;
 import org.jvnet.hudson.test.LoggerRule;
+import org.kohsuke.stapler.NoStaplerConstructorException;
 
 // TODO these tests would better be moved to the respective plugins
 
@@ -261,5 +263,38 @@ public class SnippetizerTest {
         // Verify valid groovy sntax.
         GroovyShell shell = new GroovyShell(r.jenkins.getPluginManager().uberClassLoader);
         shell.parse(dsld);
+    }
+
+    @Test
+    public void noArgStepDocs() throws Exception {
+        SnippetizerTester.assertDocGeneration(PwdStep.class);
+    }
+
+    @Test
+    public void singleArgStepDocs() throws Exception {
+        SnippetizerTester.assertDocGeneration(EchoStep.class);
+    }
+
+    @Test
+    public void oneOrMoreArgsStepDocs() throws Exception {
+        SnippetizerTester.assertDocGeneration(InputStep.class);
+    }
+
+    @Test
+    public void buildStepDocs() throws Exception {
+        SnippetizerTester.assertDocGeneration(BuildTriggerStep.class);
+    }
+
+    @Test
+    public void coreStepDocs() throws Exception {
+        SnippetizerTester.assertDocGeneration(CoreStep.class);
+    }
+
+    /**
+     * An example of a step that will fail to generate docs correctly due to a lack of a {@link org.kohsuke.stapler.DataBoundConstructor}.
+     */
+    @Test(expected = NoStaplerConstructorException.class)
+    public void parallelStepDocs() throws Exception {
+        SnippetizerTester.assertDocGeneration(ParallelStep.class);
     }
 }
