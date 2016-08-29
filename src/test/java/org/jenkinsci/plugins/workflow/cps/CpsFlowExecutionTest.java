@@ -22,14 +22,22 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.workflow;
+package org.jenkinsci.plugins.workflow.cps;
 
+import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
+import com.gargoylesoftware.htmlunit.HttpMethod;
+import com.gargoylesoftware.htmlunit.WebRequest;
 import com.google.common.util.concurrent.ListenableFuture;
+import groovy.lang.GroovyShell;
 import hudson.AbortException;
+import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.TaskListener;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -38,11 +46,10 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import jenkins.model.Jenkins;
 import org.codehaus.groovy.transform.ASTTransformationVisitor;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
-import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
-import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
-import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -53,39 +60,47 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
 import org.jenkinsci.plugins.workflow.support.pickles.TryRepeatedly;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
+
 import static org.junit.Assert.*;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
+import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MemoryAssert;
+import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
+
+import javax.annotation.CheckForNull;
+import org.hamcrest.Matchers;
+import org.junit.Assume;
+import org.jvnet.hudson.test.LoggerRule;
 
 public class CpsFlowExecutionTest {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
+    @Rule public LoggerRule logger = new LoggerRule();
     
     private static WeakReference<ClassLoader> LOADER;
     public static void register(Object o) {
         LOADER = new WeakReference<>(o.getClass().getClassLoader());
     }
-    @Ignore("TODO fails in Jenkins 2 for reasons TBD (no root references detected)")
     @Test public void loaderReleased() {
+        logger.record(CpsFlowExecution.class, Level.FINE);
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
+                Assume.assumeThat("TODO fails in Jenkins 2 due to undiagnosed leak", Jenkins.VERSION, Matchers.startsWith("1."));
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionTest.class.getName() + ".register(this)"));
                 story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
                 assertNotNull(LOADER);
-                System.err.println(LOADER.get());
                 try {
-                    // TODO in Groovy 1.8.9 this keeps static state, but only for the last script (as also noted in JENKINS-23762).
-                    // The fix of GROOVY-5025 (62bfb68) in 1.9 addresses this, which we would get if JENKINS-21249 is implemented.
+                    // In Groovy 1.8.9 this keeps static state, but only for the last script (as also noted in JENKINS-23762).
+                    // The fix of GROOVY-5025 (62bfb68) in 1.9 addresses this, which we get in Jenkins 2.
                     Field f = ASTTransformationVisitor.class.getDeclaredField("compUnit");
                     f.setAccessible(true);
                     f.set(null, null);
@@ -96,42 +111,6 @@ public class CpsFlowExecutionTest {
             }
         });
     }
-
-    /* Failed attempt to make the test print soft references it has trouble clearing. The test ultimately passes, but cannot find the soft references via any root path.
-    private static void assertGC(WeakReference<?> reference) throws Exception {
-        assertTrue(true); reference.get(); // preload any needed classes!
-        Set<Object[]> objects = new HashSet<Object[]>();
-        int size = 1024;
-        while (reference.get() != null) {
-            LiveEngine e = new LiveEngine();
-            // The default filter, ScannerUtils.skipNonStrongReferencesFilter(), omits SoftReference.referent that we care about.
-            // The constructor accepting a filter ANDs it with the default filter, making it useless for this purpose.
-            Field f = LiveEngine.class.getDeclaredField("filter");
-            f.setAccessible(true);
-            f.set(e, new Filter() {
-                final Field referent = Reference.class.getDeclaredField("referent");
-                @Override public boolean accept(Object obj, Object referredFrom, Field reference) {
-                    return !(referent.equals(reference) && referredFrom instanceof WeakReference);
-                }
-            });
-            System.err.println(e.trace(Collections.singleton(reference.get()), null));
-            System.err.println("allocating " + size);
-            try {
-                objects.add(new Object[size]);
-            } catch (OutOfMemoryError ignore) {
-                break;
-            }
-            size *= 1.1;
-            System.gc();
-        }
-        objects = null;
-        System.gc();
-        Object obj = reference.get();
-        if (obj != null) {
-            fail(LiveReferences.fromRoots(Collections.singleton(obj)).toString());
-        }
-    }
-    */
 
     @Test public void getCurrentExecutions() {
         story.addStep(new Statement() {
@@ -210,6 +189,81 @@ public class CpsFlowExecutionTest {
         return r;
     }
 
+    @Issue("JENKINS-25736")
+    @Test public void pause() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                story.j.jenkins.setSecurityRealm(story.j.createDummySecurityRealm());
+                story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
+                    grant(Jenkins.READ, Item.READ).everywhere().toEveryone().
+                    grant(Jenkins.ADMINISTER).everywhere().to("admin").
+                    grant(Item.BUILD).onItems(p).to("dev"));
+                story.j.jenkins.save();
+                p.setDefinition(new CpsFlowDefinition("echo 'before'; semaphore 'one'; echo 'after'", true));
+                WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+                SemaphoreStep.waitForStart("one/1", b);
+                final CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
+                assertFalse(e.isPaused());
+                JenkinsRule.WebClient wc = story.j.createWebClient();
+                WebRequest wrs = new WebRequest(wc.createCrumbedUrl(b.getUrl() + PauseUnpauseAction.URL + "/toggle"), HttpMethod.POST);
+                try { // like JenkinsRule.assertFails but taking a WebRequest:
+                    fail("should have been rejected but produced: " + wc.getPage(wrs).getWebResponse().getContentAsString());
+                } catch (FailingHttpStatusCodeException x) {
+                    assertEquals(HttpURLConnection.HTTP_FORBIDDEN, x.getStatusCode());
+                }
+                wc.login("admin").getPage(wrs);
+                assertTrue(e.isPaused());
+                story.j.waitForMessage("before", b);
+                SemaphoreStep.success("one/1", null);
+
+                // not a very strong way of ensuring that the pause actually happens
+                Thread.sleep(1000);
+                assertTrue(b.isBuilding());
+                assertTrue(e.isPaused());
+            }
+        });
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+                WorkflowRun b = p.getLastBuild();
+                assertTrue(b.isBuilding());
+                CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
+                assertTrue(e.isPaused());
+                JenkinsRule.WebClient wc = story.j.createWebClient();
+                WebRequest wrs = new WebRequest(wc.createCrumbedUrl(b.getUrl() + PauseUnpauseAction.URL + "/toggle"), HttpMethod.POST);
+                wc.login("dev").getPage(wrs);
+                assertFalse(e.isPaused());
+                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
+                assertFalse(e.isPaused());
+            }
+        });
+    }
+
+    @Issue("JENKINS-32015")
+    @Test public void quietDown() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+                WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+                SemaphoreStep.waitForStart("wait/1", b);
+                story.j.jenkins.doQuietDown(true, 0);
+                SemaphoreStep.success("wait/1", null);
+                // as above, this is rather weak
+                Thread.sleep(1000);
+                assertTrue(b.isBuilding());
+            }
+        });
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+                WorkflowRun b = p.getLastBuild();
+                story.j.assertLogContains("I am done", story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b)));
+            }
+        });
+    }
+
     @Issue("JENKINS-26130")
     @Test public void interruptProgramLoad() {
         story.addStep(new Statement() {
@@ -260,4 +314,62 @@ public class CpsFlowExecutionTest {
         }
     }
 
+    @Test public void trustedShell() {
+        trustedShell(true);
+    }
+
+    @Test public void trustedShell_control() {
+        trustedShell(false);
+    }
+
+    /**
+     * Insert trusted/ dir into the trusted shell to enable trusted code execution
+     */
+    @TestExtension("trustedShell")
+    public static class TrustedShell extends GroovyShellDecorator {
+        @Override
+        public GroovyShellDecorator forTrusted() {
+            return new UntrustedShellDecorator();
+        }
+    }
+
+    @TestExtension("trustedShell_control")
+    public static class UntrustedShellDecorator extends GroovyShellDecorator {
+        @Override
+        public void configureShell(@CheckForNull CpsFlowExecution context, GroovyShell shell) {
+            try {
+                URL u = TrustedShell.class.getClassLoader().getResource("trusted/foo.groovy");
+                shell.getClassLoader().addURL(new URL(u,"."));
+            } catch (MalformedURLException e) {
+                throw new AssertionError(e);
+            }
+        }
+    }
+
+    private void trustedShell(final boolean pos) {
+        SECRET = false;
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition("new foo().attempt()", true));
+                WorkflowRun b = p.scheduleBuild2(0).get();
+                if (pos) {
+                    story.j.assertBuildStatusSuccess(b);
+                    assertTrue(SECRET);
+                } else {
+                    // should have failed with RejectedAccessException trying to touch 'SECRET'
+                    story.j.assertBuildStatus(Result.FAILURE, b);
+                    story.j.assertLogContains(
+                            new RejectedAccessException("staticField",CpsFlowExecutionTest.class.getName()+" SECRET").getMessage(),
+                            b);
+                    assertFalse(SECRET);
+                }
+            }
+        });
+    }
+
+    /**
+     * This field shouldn't be visible to regular script.
+     */
+    public static boolean SECRET;
 }

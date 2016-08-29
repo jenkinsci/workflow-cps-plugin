@@ -45,7 +45,8 @@ function getSample(sampleName) {
 samples.push({
     name: 'hello',
     title: 'Hello World',
-    script: "node {\n" +
+    script:
+        "node {\n" +
         "   echo 'Hello World'\n" +
         "}"
 }); 
@@ -53,19 +54,28 @@ samples.push({
 samples.push({
     name: 'github-maven',
     title: 'GitHub + Maven',
-    script: "node {\n" +
+    script:
+        "node {\n" +
+        "   def mvnHome\n" +
         "   stage('Preparation') { // for display purposes\n" +
         "      // Get some code from a GitHub repository\n" +
-        "      git url: 'https://github.com/jglick/simple-maven-project-with-tests.git'\n" +
-        "      // Get the maven tool.\n" +
-        "      // ** NOTE: This 'M3' maven tool must be configured\n" +
+        "      git 'https://github.com/jglick/simple-maven-project-with-tests.git'\n" +
+        "      // Get the Maven tool.\n" +
+        "      // ** NOTE: This 'M3' Maven tool must be configured\n" +
         "      // **       in the global configuration.           \n" +
-        "      def mvnHome = tool 'M3'\n" +
+        "      mvnHome = tool 'M3'\n" +
         "   }\n" +
         "   stage('Build') {\n" +
         "      // Run the maven build\n" +
-        "      sh \"${mvnHome}/bin/mvn -Dmaven.test.failure.ignore clean package\"\n" +
-        "      step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/TEST-*.xml'])\n" +
+        "      if (isUnix()) {\n" +
+        "         sh \"'${mvnHome}/bin/mvn' -Dmaven.test.failure.ignore clean package\"\n" +
+        "      } else {\n" +
+        "         bat(/\"${mvnHome}\\bin\\mvn\" -Dmaven.test.failure.ignore clean package/)\n" +
+        "      }\n" +
+        "   }\n" +
+        "   stage('Results') {\n" +
+        "      junit '**/target/surefire-reports/TEST-*.xml'\n" + // assumes junit & workflow-basic-steps up to date
+        "      archive 'target/*.jar'\n" + // TODO Jenkins 2 use archiveArtifacts instead
         "   }\n" +
         "}"
 });

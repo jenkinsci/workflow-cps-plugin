@@ -28,6 +28,7 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.Futures;
 import groovy.lang.Closure;
+import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 import hudson.Util;
 import hudson.model.Result;
@@ -56,11 +57,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
 import javax.annotation.Nonnull;
+import jenkins.model.Jenkins;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
@@ -103,9 +106,25 @@ public final class CpsThreadGroup implements Serializable {
     transient boolean busy;
 
     /**
+     * True if the execution suspension is requested.
+     *
+     * <p>
+     * This doesn't necessarily mean the CPS VM has responded and suspended the execution.
+     * For that you need to do {@code scheduleRun().get()}.
+     *
+     * <p>
+     * This state is intended for a use by humans to put the state of workflow execution
+     * on hold (for example while inspecting a suspicious state or to perform a maintenance
+     * when a failure is predictable.)
+     */
+    private /*almost final*/ AtomicBoolean paused = new AtomicBoolean();
+
+    /**
      * "Exported" closures that are referenced by live {@link CpsStepContext}s.
      */
     public final Map<Integer,Closure> closures = new HashMap<Integer,Closure>();
+
+    private final List<Script> scripts = new ArrayList<>();
 
     CpsThreadGroup(CpsFlowExecution execution) {
         this.execution = execution;
@@ -116,15 +135,36 @@ public final class CpsThreadGroup implements Serializable {
         return execution;
     }
 
+    /** Track a script so that we can fix up its {@link Script#getBinding}s after deserialization. */
+    void register(Script script) {
+        scripts.add(script);
+    }
+
+    @SuppressWarnings("unchecked")
     private Object readResolve() {
         execution = CpsFlowExecution.PROGRAM_STATE_SERIALIZATION.get();
         setupTransients();
         assert execution!=null;
+        if (scripts != null) { // compatibility: the field will be null in old programs
+            GroovyShell shell = execution.getShell();
+            assert shell.getContext().getVariables().isEmpty();
+            assert !scripts.isEmpty();
+            // Take the canonical bindings from the main script and relink that object with that of the shell and all other loaded scripts which kept the same bindings.
+            shell.getContext().getVariables().putAll(scripts.get(0).getBinding().getVariables());
+            for (Script script : scripts) {
+                if (script.getBinding().getVariables().equals(shell.getContext().getVariables())) {
+                    script.setBinding(shell.getContext());
+                }
+            }
+        }
         return this;
     }
 
     private void setupTransients() {
         runner = new CpsVmExecutorService(this);
+        if (paused == null) { // earlier versions did not have this field.
+            paused = new AtomicBoolean();
+        }
     }
 
     @CpsVmThreadOnly
@@ -158,6 +198,7 @@ public final class CpsThreadGroup implements Serializable {
 
     @CpsVmThreadOnly("root")
     public @Nonnull BodyReference export(@Nonnull final Script body) {
+        register(body);
         return export(new Closure(null) {
             @Override
             public Object call() {
@@ -175,12 +216,23 @@ public final class CpsThreadGroup implements Serializable {
 
     /**
      * Schedules the execution of all the runnable threads.
+     *
+     * @return
+     *      {@link Future} object that represents when the CPS VM is executed.
      */
     public Future<?> scheduleRun() {
         final Future<Future<?>> f;
         try {
         f = runner.submit(new Callable<Future<?>>() {
             public Future<?> call() throws Exception {
+                Jenkins j = Jenkins.getInstance();
+                if (paused.get() || j == null || j.isQuietingDown()) {
+                    // by doing the pause check inside, we make sure that scheduleRun() returns a
+                    // future that waits for any previously scheduled tasks to be completed.
+                    saveProgram();
+                    return Futures.immediateFuture(null);
+                }
+
                 run();
                 // we ensure any tasks submitted during run() will complete before we declare us complete
                 // those include things like notifying listeners or updating various other states
@@ -262,12 +314,46 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     /**
+     * Pauses the execution.
+     *
+     * @return
+     *      {@link Future} object that represents the actual suspension of the CPS VM.
+     *      When the {@link #pause()} method is called, CPS VM might be still executing.
+     */
+    public Future<?> pause() {
+        paused.set(true);
+        // CPS VM might have a long queue in its task list, so to properly ensure
+        // that the execution has actually suspended, call scheduleRun() excessively
+        return scheduleRun();
+    }
+
+    /**
+     * If the execution is {@link isPaused}, cancel the pause state.
+     */
+    public void unpause() {
+        if (paused.getAndSet(false)) {
+            // some threads might have became executable while we were pausing.
+            scheduleRun();
+        } else {
+            LOGGER.warning("were not paused to begin with");
+        }
+    }
+
+    /**
+     * Returns true if pausing has been requested.
+     */
+    public boolean isPaused() {
+        return paused.get();
+    }
+
+    /**
      * Run all runnable threads as much as possible.
      */
     @CpsVmThreadOnly("root")
     private void run() throws IOException {
         boolean doneSomeWork = false;
         boolean changed;    // used to see if we need to loop over
+        boolean ending = false;
         do {
             changed = false;
             for (CpsThread t : threads.values().toArray(new CpsThread[threads.size()])) {
@@ -293,6 +379,7 @@ public final class CpsThreadGroup implements Serializable {
                         threads.remove(t.id);
                         if (threads.isEmpty()) {
                             execution.onProgramEnd(o);
+                            ending = true;
                         }
                     }
 
@@ -305,6 +392,10 @@ public final class CpsThreadGroup implements Serializable {
 
         if (doneSomeWork) {
             saveProgram();
+        }
+        if (ending) {
+            execution.cleanUpHeap();
+            scripts.clear();
         }
     }
 
@@ -362,6 +453,11 @@ public final class CpsThreadGroup implements Serializable {
 
         CpsFlowExecution old = PROGRAM_STATE_SERIALIZATION.get();
         PROGRAM_STATE_SERIALIZATION.set(execution);
+
+        if (Jenkins.getInstance() == null) {
+            LOGGER.log(WARNING, "Skipping save to {0} since Jenkins seems to be shutting down", f);
+            return;
+        }
 
         try {
             RiverWriter w = new RiverWriter(tmpFile, execution.getOwner());

@@ -97,15 +97,21 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.GroovyCodeSource;
 import hudson.BulkChange;
 import hudson.init.Terminator;
+import hudson.model.Item;
 import hudson.model.Queue;
 import hudson.model.Saveable;
 import hudson.model.User;
 import hudson.security.ACL;
+import hudson.security.AccessControlled;
 import java.beans.Introspector;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 import jenkins.security.NotReallyRoleSensitiveCallable;
 
@@ -115,6 +121,7 @@ import org.jboss.marshalling.reflect.SerializableClassRegistry;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
+import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 
 /**
@@ -268,6 +275,16 @@ public class CpsFlowExecution extends FlowExecution {
      * It is reset to null after completion.
      */
     private transient CpsGroovyShell shell;
+
+    /**
+     * Groovy compiler wih CPS transformation but not sandbox.
+     * Used by plugins to insert code that runs outside sandbox.
+     *
+     * By the time the script starts running, this field is set to non-null.
+     * It is reset to null after completion.
+     */
+    private transient CpsGroovyShell trusted;
+
     /** Class of the {@link CpsScript}; its loader is a {@link groovy.lang.GroovyClassLoader.InnerLoader}, not the same as {@code shell.getClassLoader()}. */
     private transient Class<?> scriptClass;
 
@@ -300,10 +317,20 @@ public class CpsFlowExecution extends FlowExecution {
     /**
      * Returns a groovy compiler used to load the script.
      *
+     * @see "doc/classloader.md"
      * @see GroovyShell#getClassLoader()
      */
     public GroovyShell getShell() {
         return shell;
+    }
+
+    /**
+     * Returns a groovy compiler used to load the trusted script.
+     *
+     * @see "doc/classloader.md"
+     */
+    public GroovyShell getTrustedShell() {
+        return trusted;
     }
 
     public FlowNodeStorage getStorage() {
@@ -354,6 +381,7 @@ public class CpsFlowExecution extends FlowExecution {
         h.newStartNode(new FlowStartNode(this, iotaStr()));
 
         final CpsThreadGroup g = new CpsThreadGroup(this);
+        g.register(s);
         final SettableFuture<CpsThreadGroup> f = SettableFuture.create();
         programPromise = f;
         g.runner.submit(new Runnable() {
@@ -375,7 +403,10 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     private CpsScript parseScript() throws IOException {
-        shell = new CpsGroovyShell(this);
+        // classloader hierarchy. See doc/classloader.md
+        trusted = new CpsGroovyShellFactory(this).forTrusted().build();
+        shell = new CpsGroovyShellFactory(this).withParent(trusted).build();
+
         CpsScript s = (CpsScript) shell.reparse("WorkflowScript",script);
 
         for (Entry<String, String> e : loadedScripts.entrySet()) {
@@ -403,6 +434,16 @@ public class CpsFlowExecution extends FlowExecution {
     @Restricted(NoExternalUse.class)
     public int iota() {
         return iota.incrementAndGet();
+    }
+
+    /**
+     * Returns an approximate size of the flow graph, based on the heuristic that the iota is incremented once per new node.
+     * The exact count may be a little different due to special cases.
+     * ({@link FlowNodeStorage} does not currently offer a size, or a set of all nodes.
+     * An exact count could be obtained with {@link FlowGraphWalker}, but this could be more overhead.)
+     */
+    int approximateNodeCount() {
+        return iota.get();
     }
 
     protected void initializeStorage() throws IOException {
@@ -472,6 +513,17 @@ public class CpsFlowExecution extends FlowExecution {
                             try {
                                 CpsThreadGroup g = (CpsThreadGroup) u.readObject();
                                 result.set(g);
+                                try {
+                                    if (g.isPaused()) {
+                                        owner.getListener().getLogger().println("Still paused");
+                                    } else {
+                                        owner.getListener().getLogger().println("Ready to run at " + new Date());
+                                        // In case we last paused execution due to Jenkins.isQuietingDown, make sure we do something after we restart.
+                                        g.scheduleRun();
+                                    }
+                                } catch (IOException x) {
+                                    LOGGER.log(Level.WARNING, null, x);
+                                }
                             } catch (Throwable t) {
                                 onFailure(t);
                             } finally {
@@ -540,6 +592,7 @@ public class CpsFlowExecution extends FlowExecution {
             @Override public void onFailure(Throwable t) {
                 LOGGER.log(Level.WARNING, "Failed to set program failure on " + owner, t);
                 onProgramEnd(new Outcome(null, t));
+                cleanUpHeap();
             }
         });
     }
@@ -848,12 +901,63 @@ public class CpsFlowExecution extends FlowExecution {
         first.setNewHead(head);
         heads.clear();
         heads.put(first.getId(),first);
+    }
 
-        // clean up heap
+    void cleanUpHeap() {
         shell = null;
-        SerializableClassRegistry.getInstance().release(scriptClass.getClassLoader());
-        Introspector.flushFromCaches(scriptClass); // does not handle other derived script classes, but this is only SoftReference anyway
-        scriptClass = null;
+        trusted = null;
+        if (scriptClass != null) {
+            ClassLoader loader = scriptClass.getClassLoader();
+            SerializableClassRegistry.getInstance().release(loader);
+            Introspector.flushFromCaches(scriptClass); // does not handle other derived script classes, but this is only SoftReference anyway
+            try {
+                cleanUpGlobalClassValue(loader);
+            } catch (Exception x) {
+                LOGGER.log(Level.WARNING, "failed to clean up memory from " + owner, x);
+            }
+            scriptClass = null;
+        }
+    }
+
+    private void cleanUpGlobalClassValue(@Nonnull ClassLoader loader) throws Exception {
+        Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
+        Field globalClassValueF;
+        try {
+            globalClassValueF = classInfoC.getDeclaredField("globalClassValue");
+        } catch (NoSuchFieldException x) {
+            return; // Groovy 1, fine
+        }
+        globalClassValueF.setAccessible(true);
+        Object globalClassValue = globalClassValueF.get(null);
+        Class<?> groovyClassValuePreJava7C = Class.forName("org.codehaus.groovy.reflection.GroovyClassValuePreJava7");
+        if (!groovyClassValuePreJava7C.isInstance(globalClassValue)) {
+            return; // using GroovyClassValueJava7 due to -Dgroovy.use.classvalue or on IBM J9, fine
+        }
+        Field mapF = groovyClassValuePreJava7C.getDeclaredField("map");
+        mapF.setAccessible(true);
+        Object map = mapF.get(globalClassValue);
+        Class<?> groovyClassValuePreJava7Map = Class.forName("org.codehaus.groovy.reflection.GroovyClassValuePreJava7$GroovyClassValuePreJava7Map");
+        Collection entries = (Collection) groovyClassValuePreJava7Map.getMethod("values").invoke(map);
+        Field klazzF = classInfoC.getDeclaredField("klazz");
+        klazzF.setAccessible(true);
+        Method removeM = groovyClassValuePreJava7Map.getMethod("remove", Object.class);
+        Class<?> entryC = Class.forName("org.codehaus.groovy.util.AbstractConcurrentMapBase$Entry");
+        Method getValueM = entryC.getMethod("getValue");
+        List<Class<?>> toRemove = new ArrayList<>(); // not sure if it is safe against ConcurrentModificationException or not
+        for (Object entry : entries) {
+            Object value = getValueM.invoke(entry);
+            Class<?> klazz = (Class) klazzF.get(value);
+            ClassLoader encounteredLoader = klazz.getClassLoader();
+            if (encounteredLoader == loader) {
+                toRemove.add(klazz);
+            } else {
+                LOGGER.log(Level.FINEST, "ignoring {0} with loader {1}", new Object[] {klazz, /* do not hold from LogRecord */String.valueOf(encounteredLoader)});
+            }
+        }
+        LOGGER.log(Level.FINE, "cleaning up {0} associated with {1}", new Object[] {toRemove.toString(), loader.toString()});
+        for (Class<?> klazz : toRemove) {
+            removeM.invoke(map, klazz);
+        }
     }
 
     synchronized FlowHead getFirstHead() {
@@ -915,6 +1019,48 @@ public class CpsFlowExecution extends FlowExecution {
     @Restricted(NoExternalUse.class)
     public String getNextScriptName(String path) {
         return shell.generateScriptName().replaceFirst("[.]groovy$", "");
+    }
+
+    public boolean isPaused() {
+        if (programPromise.isDone()) {
+            try {
+                return programPromise.get().isPaused();
+            } catch (ExecutionException | InterruptedException x) { // not supposed to happen
+                LOGGER.log(Level.WARNING, null, x);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Pause or unpause the execution.
+     *
+     * @param v
+     *      true to pause, false to unpause.
+     */
+    public void pause(final boolean v) throws IOException {
+        // TODO make FlowExecutionOwner implement AccessControlled (cf. PlaceholderTask.getACL):
+        Queue.Executable executable = owner.getExecutable();
+        if (executable instanceof AccessControlled) {
+            ((AccessControlled) executable).checkPermission(Item.CANCEL);
+        }
+        Futures.addCallback(programPromise, new FutureCallback<CpsThreadGroup>() {
+            @Override public void onSuccess(CpsThreadGroup g) {
+                if (v) {
+                    g.pause();
+                } else {
+                    g.unpause();
+                }
+                try {
+                    owner.getListener().getLogger().println(v ? "Pausing" : "Resuming");
+                } catch (IOException x) {
+                    LOGGER.log(Level.WARNING, null, x);
+                }
+            }
+            @Override public void onFailure(Throwable x) {
+                LOGGER.log(Level.WARNING, "cannot pause/unpause " + this, x);
+            }
+        });
     }
 
     @Override public String toString() {

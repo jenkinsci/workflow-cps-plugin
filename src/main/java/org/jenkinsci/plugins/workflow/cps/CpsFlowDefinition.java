@@ -48,6 +48,7 @@ import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
@@ -127,7 +128,8 @@ public class CpsFlowDefinition extends FlowDefinition {
                 return CpsFlowDefinitionValidator.CheckStatus.SUCCESS.asJSON();
             }
             try {
-                new CpsGroovyShell(null).getClassLoader().parseClass(value);
+                CpsGroovyShell trusted = new CpsGroovyShellFactory(null).forTrusted().build();
+                new CpsGroovyShellFactory(null).withParent(trusted).build().getClassLoader().parseClass(value);
             } catch (CompilationFailedException x) {
                 return JSONArray.fromObject(CpsFlowDefinitionValidator.toCheckStatus(x).toArray());
             }

@@ -55,6 +55,9 @@ Pipeline scripts may mark designated methods with the annotation `@NonCPS`.
 These are then compiled normally (except for sandbox security checks), and so behave much like “binary” methods from the Java Platform, Groovy runtime, or Jenkins core or plugin code.
 `@NonCPS` methods may safely use non-`Serializable` objects as local variables, though they should not accept nonserializable parameters or return or store nonserializable values.
 You may not call regular (CPS-transformed) methods, or Pipeline steps, from a `@NonCPS` method, so they are best used for performing some calculations before passing a summary back to the main script.
+Note in particular that `@Override`s of methods defined in binary classes,
+such as `Object.toString()`,
+should in general be marked `@NonCPS` since it will commonly be binary code calling them.
 
 Some kinds of objects are intrinsically not safe to serialize as such, yet we want to retain a reference to them in the program graph.
 An example is the `Executor` (~ executor slot on a master or agent node) which is part of the context passed by a `node` step to any step in its block, especially `sh`/`bat`.
