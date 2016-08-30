@@ -148,6 +148,50 @@ public class DSLTest {
         r.assertLogContains("constructible with compass and straightedge", b);
     }
 
+    /**
+     * Tests the ability to execute a step with an unnamed monomorphic describable argument.
+     */
+    @Issue("JENKINS-29711")
+    @Test
+    public void monomorphic() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "mon");
+        p.setDefinition(new CpsFlowDefinition("monomorphStep([firstArg:'one', secondArg:'two'])", true));
+        r.assertLogContains("First arg: one, second arg: two", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
+
+    @Issue("JENKINS-29711")
+    @Test
+    public void monomorphicSymbol() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "monSymbol");
+        p.setDefinition(new CpsFlowDefinition("monomorphWithSymbolStep monomorphSymbol(firstArg: 'one', secondArg: 'two')", true));
+        r.assertLogContains("First arg: one, second arg: two", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
+
+
+    /**
+     * Tests the ability to execute a step with an unnamed monomorphic list argument.
+     */
+    @Issue("JENKINS-29711")
+    @Test
+    public void monomorphicList() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "monList");
+        p.setDefinition(new CpsFlowDefinition("monomorphListStep([[firstArg:'one', secondArg:'two'], [firstArg:'three', secondArg:'four']])", true));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("First arg: one, second arg: two", b);
+        r.assertLogContains("First arg: three, second arg: four", b);
+    }
+
+    @Issue("JENKINS-29711")
+    @Test
+    public void monomorphicListWithSymbol() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "monListSymbol");
+        p.setDefinition(new CpsFlowDefinition("monomorphListSymbolStep([monomorphSymbol(firstArg: 'one', secondArg: 'two'), monomorphSymbol(firstArg: 'three', secondArg: 'four')])", true));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("First arg: one, second arg: two", b);
+        r.assertLogContains("First arg: three, second arg: four", b);
+    }
+
+
     @Test public void contextClassLoader() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("try {def c = classLoad(getClass().name); error(/did not expect to be able to load ${c} from ${c.classLoader}/)} catch (ClassNotFoundException x) {echo(/good, got ${x}/)}", false));
@@ -169,6 +213,5 @@ public class DSLTest {
             }
         }
     }
-
 
 }

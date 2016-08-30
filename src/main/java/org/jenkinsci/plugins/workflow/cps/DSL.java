@@ -239,8 +239,15 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         List<StepDescriptor> metaSteps = StepDescriptor.metaStepsOf(symbol);
         StepDescriptor metaStep = metaSteps.size()==1 ? metaSteps.get(0) : null;
 
+        boolean singleArgumentOnly = false;
+        if (metaStep != null) {
+            DescribableModel<?> metaModel = new DescribableModel(metaStep.clazz);
+            singleArgumentOnly = metaModel.hasSingleRequiredParameter() && metaModel.getParameters().size() == 1;
+        }
+
         // The only time a closure is valid is when the resulting Describable is immediately executed via a meta-step
-        NamedArgsAndClosure args = parseArgs(_args, metaStep!=null && metaStep.takesImplicitBlockArgument(), UninstantiatedDescribable.ANONYMOUS_KEY);
+        NamedArgsAndClosure args = parseArgs(_args, metaStep!=null && metaStep.takesImplicitBlockArgument(),
+                UninstantiatedDescribable.ANONYMOUS_KEY, singleArgumentOnly);
         UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
 
         if (metaStep==null) {
@@ -361,7 +368,14 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     }
 
     static NamedArgsAndClosure parseArgs(Object arg, StepDescriptor d) {
-        return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d));
+        boolean singleArgumentOnly = false;
+        try {
+            DescribableModel<?> stepModel = new DescribableModel<>(d.clazz);
+            singleArgumentOnly = stepModel.hasSingleRequiredParameter() && stepModel.getParameters().size() == 1;
+        } catch (NoStaplerConstructorException e) {
+            // Ignore steps without databound constructors and treat them as normal.
+        }
+        return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d), singleArgumentOnly);
     }
 
     /**
@@ -387,7 +401,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      *      If the context in which this method call happens allow implicit sole default argument, specify its name.
      *      If null, the call must be with names arguments.
      */
-    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey) {
+    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg) {
         if (arg instanceof NamedArgsAndClosure)
             return (NamedArgsAndClosure) arg;
         if (arg instanceof Map) // TODO is this clause actually used?
@@ -408,9 +422,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 a = a.subList(0,a.size()-1);
             }
 
-            if (a.size()==1 && a.get(0) instanceof Map && !((Map) a.get(0)).containsKey("$class")) {
+            if (a.size()==1 && a.get(0) instanceof Map && !((Map) a.get(0)).containsKey("$class") && !singleRequiredArg) {
                 // this is how Groovy passes in Map
-                return new NamedArgsAndClosure((Map)a.get(0),c);
+                return new NamedArgsAndClosure((Map) a.get(0), c);
             }
 
             switch (a.size()) {
