@@ -39,8 +39,8 @@ import org.jenkinsci.plugins.workflow.steps.CatchErrorStep;
 import org.jenkinsci.plugins.workflow.steps.CoreStep;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
 import org.jenkinsci.plugins.workflow.steps.PwdStep;
+import org.jenkinsci.plugins.workflow.steps.ReadFileStep;
 import org.jenkinsci.plugins.workflow.support.steps.ExecutorStep;
-import org.jenkinsci.plugins.workflow.support.steps.StageStep;
 import org.jenkinsci.plugins.workflow.support.steps.WorkspaceStep;
 import org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStep;
@@ -91,10 +91,10 @@ public class SnippetizerTest {
 
     @Test public void basics() throws Exception {
         st.assertRoundTrip(new EchoStep("hello world"), "echo 'hello world'");
-        StageStep s = new StageStep("Build");
-        st.assertRoundTrip(s, "stage 'Build'");
-        s.concurrency = 1;
-        st.assertRoundTrip(s, "stage concurrency: 1, name: 'Build'");
+        ReadFileStep s = new ReadFileStep("build.properties");
+        st.assertRoundTrip(s, "readFile 'build.properties'");
+        s.setEncoding("ISO-8859-1");
+        st.assertRoundTrip(s, "readFile encoding: 'ISO-8859-1', file: 'build.properties'");
     }
 
     @Email("https://groups.google.com/forum/#!topicsearchin/jenkinsci-users/workflow/jenkinsci-users/DJ15tkEQPw0")
