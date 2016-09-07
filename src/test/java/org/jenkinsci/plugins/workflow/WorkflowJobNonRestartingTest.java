@@ -239,7 +239,7 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
         assertNotNull(p.getAction(WhoAmI.class));
     }
 
-    @Test
+    @Test @Issue("JENKINS-25623")
     public void killInfiniteLoop() throws Exception {
         p.setDefinition(new CpsFlowDefinition(WorkflowJobNonRestartingTest.class.getName()+".going(); while (true) {}", true));
 
