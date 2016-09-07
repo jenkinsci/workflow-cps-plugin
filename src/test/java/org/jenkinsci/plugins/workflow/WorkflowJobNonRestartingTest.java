@@ -252,6 +252,12 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
         jenkins.assertBuildStatus(Result.ABORTED, jenkins.waitForCompletion(b));
     }
 
+    @Test @Issue("JENKINS-25623")
+    public void timeoutKillsLoop() throws Exception {
+        p.setDefinition(new CpsFlowDefinition("timeout(time:3, unit:'SECONDS') { while (true) {} }", true));
+        jenkins.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0));
+    }
+
     @Whitelisted
     public static void going() {
         going.signal();
