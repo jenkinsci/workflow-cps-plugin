@@ -249,8 +249,7 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
         going.block(3000);    // get the buld going, which will loop infinitely
         b.doStop(); // abort, abort!
 
-        f.get(3, TimeUnit.SECONDS); // wait for the result to come in
-        assertEquals(Result.ABORTED, b.getResult());
+        jenkins.assertBuildStatus(Result.ABORTED, jenkins.waitForCompletion(b));
     }
 
     @Whitelisted
