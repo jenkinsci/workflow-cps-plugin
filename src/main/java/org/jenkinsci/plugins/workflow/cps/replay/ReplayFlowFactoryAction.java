@@ -24,22 +24,20 @@
 
 package org.jenkinsci.plugins.workflow.cps.replay;
 
+import com.google.common.collect.ImmutableSet;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.InvisibleAction;
 import hudson.model.Queue;
-import hudson.model.Run;
-import hudson.model.TaskListener;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Set;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowFactoryAction2;
-import org.jenkinsci.plugins.workflow.cps.steps.LoadStepExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 
@@ -47,8 +45,6 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
  * Attached to a run that is a replay of an earlier one.
  */
 class ReplayFlowFactoryAction extends InvisibleAction implements CpsFlowFactoryAction2, Queue.QueueAction {
-
-    private static final Logger LOGGER = Logger.getLogger(ReplayFlowFactoryAction.class.getName());
 
     private String replacementMainScript;
     private final Map<String,String> replacementLoadedScripts;
@@ -70,33 +66,19 @@ class ReplayFlowFactoryAction extends InvisibleAction implements CpsFlowFactoryA
         return true; // do not coalesce
     }
 
-    @Extension public static class ReplacerImpl implements LoadStepExecution.Replacer {
+    Set<String> replaceableScripts() {
+        return ImmutableSet.copyOf(replacementLoadedScripts.keySet());
+    }
 
-        @Override public String replace(String text, CpsFlowExecution execution, String clazz, TaskListener listener) {
-            try {
-                Queue.Executable executable = execution.getOwner().getExecutable();
-                if (executable instanceof Run) {
-                    ReplayFlowFactoryAction action = ((Run) executable).getAction(ReplayFlowFactoryAction.class);
-                    if (action != null) {
-                        String newText = action.replacementLoadedScripts.remove(clazz);
-                        if (newText != null) {
-                            listener.getLogger().println("Replacing Groovy text with edited version");
-                            return newText;
-                        } else {
-                            listener.getLogger().println("Warning: no replacement Groovy text found for " + clazz);
-                        }
-                    } else {
-                        LOGGER.log(Level.FINE, "{0} was not a replay", executable);
-                    }
-                } else {
-                    LOGGER.log(Level.FINE, "{0} was not a run at all", executable);
-                }
-            } catch (IOException x) {
-                LOGGER.log(Level.WARNING, null, x);
-            }
-            return text;
+    @CheckForNull String replace(String clazz) {
+        return replacementLoadedScripts.remove(clazz);
+    }
+
+    @Extension public static class StoredLoadedScripts extends OriginalLoadedScripts {
+
+        @Override public Map<String, String> loadScripts(CpsFlowExecution execution) {
+            return execution.getLoadedScripts();
         }
-
 
     }
 

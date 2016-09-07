@@ -32,6 +32,8 @@ import groovy.lang.GroovyObject;
 import groovy.lang.GroovyObjectSupport;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
+import hudson.model.Queue;
+import hudson.model.Run;
 import hudson.model.TaskListener;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
@@ -128,6 +130,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
 
         Set<String> symbols = new TreeSet<>();
+        Set<String> globals = new TreeSet<>();
         // TODO SymbolLookup only lets us find a particular symbol, not enumerate them
         try {
             for (Class<?> e : Index.list(Symbol.class, Jenkins.getActiveInstance().pluginManager.uberClassLoader, Class.class)) {
@@ -135,11 +138,15 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                     symbols.addAll(SymbolLookup.getSymbolValue(e));
                 }
             }
+            Queue.Executable executable = exec.getOwner().getExecutable();
+            for (GlobalVariable var : GlobalVariable.forRun(executable instanceof Run ? (Run) executable : null)) {
+                globals.add(var.getName());
+            }
         } catch (IOException x) {
             Logger.getLogger(DSL.class.getName()).log(Level.WARNING, null, x);
         }
         // TODO probably this should be throwing a subtype of groovy.lang.MissingMethodException
-        throw new NoSuchMethodError("No such DSL method '" + name + "' found among steps " + functions.keySet() + " or symbols " + symbols);
+        throw new NoSuchMethodError("No such DSL method '" + name + "' found among steps " + functions.keySet() + " or symbols " + symbols + " or globals " + globals);
     }
 
     /**
