@@ -36,6 +36,7 @@ import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import com.cloudbees.groovy.cps.impl.TryCatchBlock;
 import com.cloudbees.groovy.cps.impl.VariableDeclBlock;
 import com.cloudbees.groovy.cps.impl.WhileBlock;
+import com.cloudbees.groovy.cps.impl.YieldBlock;
 import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 import groovy.lang.Closure;
@@ -685,6 +686,10 @@ public class Builder {
 
     public CaseExpression case_(int line, Block matcher, Block body) {
         return new CaseExpression(loc(line), matcher, body);
+    }
+
+    public Block yield(Object o) {
+        return new YieldBlock(o);
     }
 
     private SourceLocation loc(int line) {

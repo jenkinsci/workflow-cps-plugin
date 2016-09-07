@@ -79,7 +79,7 @@ import static org.codehaus.groovy.syntax.Types.*
 class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor {
     private int iota=0;
     private SourceUnit sourceUnit;
-    private TransformerConfiguration config = new TransformerConfiguration();
+    protected TransformerConfiguration config = new TransformerConfiguration();
 
     CpsTransformer() {
         super(CompilePhase.CANONICALIZATION)
@@ -169,7 +169,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
         // transform the body
         parent = { e -> body=e }
-        m.code.visit(this)
+        visitWithSafepoint(m.code)
 
         def params = new ListExpression();
         m.parameters.each { params.addExpression(new ConstantExpression(it.name))}
@@ -279,6 +279,27 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     }
 
     /**
+     * Like {@link #visit(ASTNode)} but also inserts the safepoint at the top.
+     */
+    protected void visitWithSafepoint(Statement st) {
+        if (config.safepoints.isEmpty()) {
+            visit(st);  // common case optimization
+        } else {
+            makeNode("block") {
+                // insert function call for each safepoint
+                config.safepoints.each { s ->
+                    makeNode("staticCall") {
+                        loc(st)
+                        literal(s.node)
+                        literal(s.methodName)
+                    }
+                }
+                visit(st)
+            }
+        }
+    }
+
+    /**
      * Makes an AST fragment that calls {@link Builder} with specific method.
      *
      * @param methodName
@@ -367,7 +388,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
                 makeNode("javaThis_")
             else
                 visit(call.objectExpression);
-            // TODO: spread
+            // TODO: spread (which will require safepoints)
             visit(call.method);
             literal(call.safe);
             visit(((TupleExpression)call.arguments).expressions)
@@ -389,7 +410,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             makeNode("forLoop") {
                 literal(forLoop.statementLabel)
                 visit(loop.expressions)
-                visit(forLoop.loopBlock)
+                visitWithSafepoint(forLoop.loopBlock)
             }
         } else {
             // for (x in col) { ... }
@@ -399,7 +420,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
                 literal(forLoop.variableType)
                 literal(forLoop.variable.name)
                 visit(forLoop.collectionExpression)
-                visit(forLoop.loopBlock)
+                visitWithSafepoint(forLoop.loopBlock)
             }
         }
     }
@@ -408,7 +429,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         makeNode("while_") {
             literal(loop.statementLabel)
             visit(loop.booleanExpression)
-            visit(loop.loopBlock)
+            visitWithSafepoint(loop.loopBlock)
         }
     }
 
@@ -416,7 +437,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         makeNode("doWhile") {
             literal(loop.statementLabel)
             visit(loop.booleanExpression)
-            visit(loop.loopBlock)
+            visitWithSafepoint(loop.loopBlock)
         }
     }
 
@@ -650,7 +671,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             }
             parent(types);
             parent(params)
-            visit(exp.code)
+            visitWithSafepoint(exp.code)
         }
     }
 
