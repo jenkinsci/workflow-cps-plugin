@@ -200,9 +200,10 @@ public class DSLTest {
         r.assertLogContains("First arg: three, second arg: four", b);
     }
 
+    @Issue("JENKINS-38037")
     @Test
-    public void metaStepSyntax() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "metaStepSyntax");
+    public void metaStepSyntaxForDataBoundSetters() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "metaStepSyntaxForDataBoundSetters");
         p.setDefinition(new CpsFlowDefinition("multiShape(count: 2, name: 'pentagon') { echo 'Multiple shapes' }", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("wrapping in a group of 2 instances of pentagon", b);
