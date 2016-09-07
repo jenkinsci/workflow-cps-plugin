@@ -27,10 +27,6 @@ package org.jenkinsci.plugins.workflow;
 import hudson.model.Result;
 import javax.inject.Inject;
 
-import hudson.tasks.ArtifactArchiver;
-import jenkins.util.VirtualFile;
-import org.apache.commons.io.IOUtils;
-import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -38,7 +34,6 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousStepExecution;
-import org.jenkinsci.plugins.workflow.steps.CoreStep;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,9 +42,6 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Verifies general DSL functionality.
