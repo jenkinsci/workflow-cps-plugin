@@ -241,7 +241,7 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
 
     @Test @Issue("JENKINS-25623")
     public void killInfiniteLoop() throws Exception {
-        p.setDefinition(new CpsFlowDefinition(WorkflowJobNonRestartingTest.class.getName()+".going(); while (true) {}", true));
+        p.setDefinition(new CpsFlowDefinition("while(true) { " + WorkflowJobNonRestartingTest.class.getName()+".going(); }", true));
 
         QueueTaskFuture<WorkflowRun> f = p.scheduleBuild2(0);
         WorkflowRun b = f.getStartCondition().get(3, TimeUnit.SECONDS);
