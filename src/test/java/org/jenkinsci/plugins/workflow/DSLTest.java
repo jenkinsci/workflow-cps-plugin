@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.workflow;
 
 import hudson.model.Result;
 import javax.inject.Inject;
+
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -191,6 +192,15 @@ public class DSLTest {
         r.assertLogContains("First arg: three, second arg: four", b);
     }
 
+    @Issue("JENKINS-38037")
+    @Test
+    public void metaStepSyntaxForDataBoundSetters() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "metaStepSyntaxForDataBoundSetters");
+        p.setDefinition(new CpsFlowDefinition("multiShape(count: 2, name: 'pentagon') { echo 'Multiple shapes' }", true));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("wrapping in a group of 2 instances of pentagon", b);
+        r.assertLogContains("Multiple shapes", b);
+    }
 
     @Test public void contextClassLoader() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
