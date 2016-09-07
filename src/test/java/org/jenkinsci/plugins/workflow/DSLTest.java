@@ -203,25 +203,10 @@ public class DSLTest {
     @Test
     public void metaStepSyntax() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "metaStepSyntax");
-        String metaStep;
-        if (ArtifactArchiver.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
-            metaStep = "archiveArtifacts(allowEmptyArchive: true, artifacts: 'msg.out')";
-        } else {
-            metaStep = "step([$class: 'ArtifactArchiver', allowEmptyArchive: true, artifacts: 'msg.out'])";
-        }
-
-        p.setDefinition(new CpsFlowDefinition("node {\n" +
-                "writeFile text: 'hello world', file: 'msg.out'\n" +
-                metaStep + "\n" +
-                "}\n",
-                false));
-
+        p.setDefinition(new CpsFlowDefinition("multiShape(count: 2, name: 'pentagon') { echo 'Multiple shapes' }", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-
-        VirtualFile archivedFile = b.getArtifactManager().root().child("msg.out");
-        assertTrue(archivedFile.exists());
-        assertEquals("hello world", IOUtils.toString(archivedFile.open()));
-
+        r.assertLogContains("wrapping in a group of 2 instances of pentagon", b);
+        r.assertLogContains("Multiple shapes", b);
     }
 
     @Test public void contextClassLoader() throws Exception {
