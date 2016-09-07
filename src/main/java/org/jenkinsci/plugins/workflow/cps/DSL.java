@@ -241,8 +241,10 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         boolean singleArgumentOnly = false;
         if (metaStep != null) {
-            DescribableModel<?> metaModel = new DescribableModel(metaStep.clazz);
-            singleArgumentOnly = metaModel.hasSingleRequiredParameter() && metaModel.getParameters().size() == 1;
+            Descriptor symbolDescriptor = SymbolLookup.get().findDescriptor(metaStep.getMetaStepArgumentType(), symbol);
+            DescribableModel<?> symbolModel = new DescribableModel(symbolDescriptor.clazz);
+
+            singleArgumentOnly = symbolModel.hasSingleRequiredParameter() && symbolModel.getParameters().size() == 1;
         }
 
         // The only time a closure is valid is when the resulting Describable is immediately executed via a meta-step
