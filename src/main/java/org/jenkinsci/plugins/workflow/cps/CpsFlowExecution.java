@@ -826,13 +826,18 @@ public class CpsFlowExecution extends FlowExecution {
         final FlowInterruptedException ex = new FlowInterruptedException(result,causes);
 
         // stop all ongoing activities
-        Futures.addCallback(getCurrentExecutions(/* cf. JENKINS-26148 */true), new FutureCallback<List<StepExecution>>() {
+        runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
             @Override
-            public void onSuccess(List<StepExecution> l) {
-                LOGGER.log(Level.FINE, "Interrupt of {0} processed on {1}", new Object[] {owner, l});
-                for (StepExecution e : Iterators.reverse(l)) {
+            public void onSuccess(CpsThreadGroup g) {
+                // don't touch outer ones. See JENKINS-26148
+                Map<FlowHead, CpsThread> m = new LinkedHashMap<>();
+                for (CpsThread t : g.threads.values()) {
+                    m.put(t.head, t);
+                }
+                // for each inner most CpsThread, from young to old...
+                for (CpsThread t : Iterators.reverse(ImmutableList.copyOf(m.values()))) {
                     try {
-                        e.stop(ex);
+                        t.stop(ex);
                     } catch (Exception x) {
                         LOGGER.log(Level.WARNING, "Failed to abort " + owner, x);
                     }

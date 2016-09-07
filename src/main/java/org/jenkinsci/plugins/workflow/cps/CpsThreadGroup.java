@@ -27,17 +27,20 @@ package org.jenkinsci.plugins.workflow.cps;
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.SettableFuture;
 import groovy.lang.Closure;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 import hudson.Util;
 import hudson.model.Result;
+import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverWriter;
 
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -51,19 +54,14 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
-import javax.annotation.Nonnull;
-import jenkins.model.Jenkins;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
@@ -221,96 +219,52 @@ public final class CpsThreadGroup implements Serializable {
      *      {@link Future} object that represents when the CPS VM is executed.
      */
     public Future<?> scheduleRun() {
-        final Future<Future<?>> f;
+        final SettableFuture<Void> f = SettableFuture.create();
         try {
-        f = runner.submit(new Callable<Future<?>>() {
-            public Future<?> call() throws Exception {
-                Jenkins j = Jenkins.getInstance();
-                if (paused.get() || j == null || j.isQuietingDown()) {
-                    // by doing the pause check inside, we make sure that scheduleRun() returns a
-                    // future that waits for any previously scheduled tasks to be completed.
-                    saveProgram();
-                    return Futures.immediateFuture(null);
-                }
+            runner.submit(new Callable<Void>() {
+                @edu.umd.cs.findbugs.annotations.SuppressWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE") // runner.submit() result
+                public Void call() throws Exception {
+                    Jenkins j = Jenkins.getInstance();
+                    if (paused.get() || j == null || j.isQuietingDown()) {
+                        // by doing the pause check inside, we make sure that scheduleRun() returns a
+                        // future that waits for any previously scheduled tasks to be completed.
+                        saveProgram();
+                        f.set(null);
+                        return null;
+                    }
 
-                run();
-                // we ensure any tasks submitted during run() will complete before we declare us complete
-                // those include things like notifying listeners or updating various other states
-                // runner is a single-threaded queue, so running a no-op and waiting for its completion
-                // ensures that everything submitted in front of us has finished.
-                try {
-                    return runner.submit(new Runnable() {
-                        @Override public void run() {
-                            if (threads.isEmpty()) {
-                                runner.shutdown();
-                            }
+                    boolean stillRunnable = run();
+                    try {
+                        if (stillRunnable) {
+                            // we can run more.
+                            runner.submit(this);
+                        } else {
+                            // we ensure any tasks submitted during run() will complete before we declare us complete
+                            // those include things like notifying listeners or updating various other states
+                            // runner is a single-threaded queue, so running a no-op and waiting for its completion
+                            // ensures that everything submitted in front of us has finished.
+                            runner.submit(new Runnable() {
+                                public void run() {
+                                    if (threads.isEmpty()) {
+                                        runner.shutdown();
+                                    }
+                                    // the original promise of scheduleRun() is now complete
+                                    f.set(null);
+                                }
+                            });
                         }
-                    });
-                } catch (RejectedExecutionException x) {
-                    // Was shut down by a prior task?
-                    return Futures.immediateFuture(null);
+                    } catch (RejectedExecutionException x) {
+                        // Was shut down by a prior task?
+                        f.setException(x);
+                    }
+                    return null;
                 }
-            }
-        });
+            });
         } catch (RejectedExecutionException x) {
             return Futures.immediateFuture(null);
         }
 
-        // unfortunately that means we have to wait for Future of Future,
-        // so we need a rather unusual implementation of Future to hide that behind the scene.
-        return new Future<Object>() {
-            @Override
-            public boolean cancel(boolean mayInterruptIfRunning) {
-                if (!f.isDone())
-                    return f.cancel(mayInterruptIfRunning);
-
-                try {
-                    return f.get().cancel(mayInterruptIfRunning);
-                } catch (InterruptedException e) {
-                    throw new AssertionError(e);
-                } catch (ExecutionException e) {
-                    return false;
-                }
-            }
-
-            @Override
-            public boolean isCancelled() {
-                if (f.isCancelled())    return true;
-                if (!f.isDone())        return false;
-
-                try {
-                    return f.get().isCancelled();
-                } catch (InterruptedException e) {
-                    throw new AssertionError(e);
-                } catch (ExecutionException e) {
-                    return false;
-                }
-            }
-
-            @Override
-            public boolean isDone() {
-                if (!f.isDone())    return false;
-
-                try {
-                    return f.get().isDone();
-                } catch (InterruptedException e) {
-                    throw new AssertionError(e);
-                } catch (ExecutionException e) {
-                    return false;
-                }
-            }
-
-            @Override
-            public Object get() throws InterruptedException, ExecutionException {
-                return f.get().get();
-            }
-
-            @Override
-            public Object get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-                // FIXME: this ends up waiting up to 2x
-                return f.get(timeout,unit).get(timeout,unit);
-            }
-        };
+        return f;
     }
 
     /**
@@ -328,7 +282,7 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     /**
-     * If the execution is {@link isPaused}, cancel the pause state.
+     * If the execution is {@link #isPaused()}, cancel the pause state.
      */
     public void unpause() {
         if (paused.getAndSet(false)) {
@@ -347,56 +301,66 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     /**
-     * Run all runnable threads as much as possible.
+     * Run the CPS program a little bit.
+     *
+     * <p>
+     * The amount of execution needs to be small enough so as not to hog CPS VM thread
+     * In particular, time sensitive activities like the interruption wants to run on CPS VM thread.
+     *
+     * @return
+     *      true if this program can still execute further. false if the program is suspended
+     *      and requires some external event to become resumable again. The false return value
+     *      is akin to a Unix thread waiting for I/O completion.
      */
     @CpsVmThreadOnly("root")
-    private void run() throws IOException {
-        boolean doneSomeWork = false;
-        boolean changed;    // used to see if we need to loop over
+    private boolean run() throws IOException {
+        boolean changed = false;
         boolean ending = false;
-        do {
-            changed = false;
-            for (CpsThread t : threads.values().toArray(new CpsThread[threads.size()])) {
-                if (t.isRunnable()) {
-                    Outcome o = t.runNextChunk();
-                    if (o.isFailure()) {
-                        assert !t.isAlive();    // failed thread is non-resumable
+        boolean stillRunnable = false;
 
-                        // workflow produced an exception
-                        Result result = Result.FAILURE;
-                        Throwable error = o.getAbnormal();
-                        if (error instanceof FlowInterruptedException) {
-                            result = ((FlowInterruptedException) error).getResult();
-                        }
-                        execution.setResult(result);
-                        t.head.get().addAction(new ErrorAction(error));
+        // TODO: maybe instead of running all the thread, run just one thread in round robin
+        for (CpsThread t : threads.values().toArray(new CpsThread[threads.size()])) {
+            if (t.isRunnable()) {
+                Outcome o = t.runNextChunk();
+                if (o.isFailure()) {
+                    assert !t.isAlive();    // failed thread is non-resumable
+
+                    // workflow produced an exception
+                    Result result = Result.FAILURE;
+                    Throwable error = o.getAbnormal();
+                    if (error instanceof FlowInterruptedException) {
+                        result = ((FlowInterruptedException) error).getResult();
                     }
-
-                    if (!t.isAlive()) {
-                        LOGGER.fine("completed " + t);
-                        t.fireCompletionHandlers(o); // do this after ErrorAction is set above
-
-                        threads.remove(t.id);
-                        if (threads.isEmpty()) {
-                            execution.onProgramEnd(o);
-                            ending = true;
-                        }
-                    }
-
-                    changed = true;
+                    execution.setResult(result);
+                    t.head.get().addAction(new ErrorAction(error));
                 }
+
+                if (!t.isAlive()) {
+                    LOGGER.fine("completed " + t);
+                    t.fireCompletionHandlers(o); // do this after ErrorAction is set above
+
+                    threads.remove(t.id);
+                    if (threads.isEmpty()) {
+                        execution.onProgramEnd(o);
+                        ending = true;
+                    }
+                } else {
+                    stillRunnable |= t.isRunnable();
+                }
+
+                changed = true;
             }
+        }
 
-            doneSomeWork |= changed;
-        } while (changed);
-
-        if (doneSomeWork) {
+        if (changed) {
             saveProgram();
         }
         if (ending) {
             execution.cleanUpHeap();
             scripts.clear();
         }
+
+        return stillRunnable;
     }
 
     private transient List<FlowNode> nodesToNotify;

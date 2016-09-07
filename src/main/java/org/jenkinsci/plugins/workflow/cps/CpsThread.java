@@ -29,6 +29,7 @@ import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.SettableFuture;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 import javax.annotation.CheckForNull;
@@ -151,62 +152,59 @@ public final class CpsThread implements Serializable {
     @Nonnull Outcome runNextChunk() throws IOException {
         assert program!=null;
 
-        while (true) {
-            Outcome outcome;
+        Outcome outcome;
 
-            final CpsThread old = CURRENT.get();
-            CURRENT.set(this);
+        final CpsThread old = CURRENT.get();
+        CURRENT.set(this);
 
-            try {
-                LOGGER.log(FINE, "runNextChunk on {0}", resumeValue);
-                Outcome o = resumeValue;
-                resumeValue = null;
-                outcome = program.run0(o);
-                if (outcome.getAbnormal() != null) {
-                    LOGGER.log(FINE, "ran and produced error", outcome.getAbnormal());
-                } else {
-                    LOGGER.log(FINE, "ran and produced {0}", outcome);
-                }
-            } finally {
-                CURRENT.set(old);
+        try {
+            LOGGER.log(FINE, "runNextChunk on {0}", resumeValue);
+            Outcome o = resumeValue;
+            resumeValue = null;
+            outcome = program.run0(o);
+            if (outcome.getAbnormal() != null) {
+                LOGGER.log(FINE, "ran and produced error", outcome.getAbnormal());
+            } else {
+                LOGGER.log(FINE, "ran and produced {0}", outcome);
             }
+        } finally {
+            CURRENT.set(old);
+        }
 
-            if (outcome.getNormal() instanceof ThreadTask) {
-                // if an execution in the thread safepoint is requested, deliver that
-                ThreadTask sc = (ThreadTask) outcome.getNormal();
-                ThreadTaskResult r = sc.eval(this);
-                if (r.resume!=null) {
-                    // keep evaluating the CPS code
-                    resumeValue = r.resume;
-                    continue;
-                } else {
-                    // break but with a different value
-                    outcome = r.suspend;
-                }
+        if (outcome.getNormal() instanceof ThreadTask) {
+            // if an execution in the thread safepoint is requested, deliver that
+            ThreadTask sc = (ThreadTask) outcome.getNormal();
+            ThreadTaskResult r = sc.eval(this);
+            if (r.resume!=null) {
+                // yield, then keep evaluating the CPS code
+                resumeValue = r.resume;
+            } else {
+                // break but with a different value
+                outcome = r.suspend;
             }
+        }
 
 
-            if (promise!=null) {
-                if (outcome.isSuccess())        promise.set(outcome.getNormal());
-                else {
-                    try {
-                        promise.setException(outcome.getAbnormal());
-                    } catch (Error e) {
-                        if (e==outcome.getAbnormal()) {
-                            // SettableFuture tries to rethrow an Error, which we don't want.
-                            // so prevent that from happening. I need to see if this behaviour
-                            // affects other places that use SettableFuture
-                            ;
-                        } else {
-                            throw e;
-                        }
+        if (promise!=null) {
+            if (outcome.isSuccess())        promise.set(outcome.getNormal());
+            else {
+                try {
+                    promise.setException(outcome.getAbnormal());
+                } catch (Error e) {
+                    if (e==outcome.getAbnormal()) {
+                        // SettableFuture tries to rethrow an Error, which we don't want.
+                        // so prevent that from happening. I need to see if this behaviour
+                        // affects other places that use SettableFuture
+                        ;
+                    } else {
+                        throw e;
                     }
                 }
-                promise = null;
             }
-
-            return outcome;
+            promise = null;
         }
+
+        return outcome;
     }
 
     /**
@@ -257,6 +255,37 @@ public final class CpsThread implements Serializable {
         promise = SettableFuture.create();
         group.scheduleRun();
         return promise;
+    }
+
+    /**
+     * Stops the execution of this thread. If it's paused to wait for the completion of {@link StepExecution},
+     * call {@link StepExecution#stop(Throwable)} to give it a chance to clean up.
+     *
+     * <p>
+     * If the execution is not inside a step (meaning it's paused in a safe point), then have the CPS thread
+     * throw a given {@link Throwable} to break asap.
+     */
+    @CpsVmThreadOnly
+    public void stop(Throwable t) {
+        StepExecution s = getStep();  // this is the part that should run in CpsVmThread
+        if (s == null) {
+            // if it's not running inside a StepExecution, we need to set an interrupt flag
+            // and interrupt at an earliest convenience
+            Outcome o = new Outcome(null, t);
+            if (resumeValue==null) {
+                resume(o);
+            } else {
+                // this thread was already resumed, so just overwrite the value with a Throwable
+                resumeValue = o;
+            }
+            return;
+        }
+
+        try {
+            s.stop(t);
+        } catch (Exception e) {
+            LOGGER.log(WARNING, "Failed to stop " + s, e);
+        }
     }
 
     public List<StackTraceElement> getStackTrace() {
