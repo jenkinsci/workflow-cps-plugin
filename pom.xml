@@ -8,7 +8,7 @@
   </parent>
 
   <artifactId>groovy-cps</artifactId>
-  <version>1.10-SNAPSHOT</version>
+  <version>1.10</version>
 
   <name>Groovy CPS Execution</name>
 
@@ -110,7 +110,7 @@
   <scm>
     <connection>scm:git:git@github.com/cloudbees/${project.artifactId}.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/cloudbees/${project.artifactId}.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>groovy-cps-1.10</tag>
   </scm>
 
   <reporting>
