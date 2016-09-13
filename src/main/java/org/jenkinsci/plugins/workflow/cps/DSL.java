@@ -424,9 +424,13 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 a = a.subList(0,a.size()-1);
             }
 
-            if (a.size()==1 && a.get(0) instanceof Map && !((Map) a.get(0)).containsKey("$class") && !singleRequiredArg) {
-                // this is how Groovy passes in Map
-                return new NamedArgsAndClosure((Map) a.get(0), c);
+            if (a.size()==1 && a.get(0) instanceof Map && !((Map) a.get(0)).containsKey("$class")) {
+                Map mapArg = (Map) a.get(0);
+                if (!singleRequiredArg ||
+                        (soleArgumentKey != null && mapArg.size() == 1 && mapArg.containsKey(soleArgumentKey))) {
+                    // this is how Groovy passes in Map
+                    return new NamedArgsAndClosure(mapArg, c);
+                }
             }
 
             switch (a.size()) {
