@@ -11,6 +11,7 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import static org.junit.Assert.*;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 
 public class CpsScriptTest extends AbstractCpsFlowTest {
     /**
@@ -100,4 +101,16 @@ public class CpsScriptTest extends AbstractCpsFlowTest {
         }
         return msg.toString();
     }
+
+    @Issue("JENKINS-38167")
+    @Test public void bindingDuringConstructor() throws Exception {
+        CpsFlowDefinition flow = new CpsFlowDefinition("@groovy.transform.Field def opt = (binding.hasVariable('opt')) ? opt : 'default'");
+        createExecution(flow);
+        exec.start();
+        while (!exec.isComplete()) {
+            exec.waitForSuspension();
+        }
+        assertEquals(dumpError(), Result.SUCCESS, exec.getResult());
+    }
+
 }

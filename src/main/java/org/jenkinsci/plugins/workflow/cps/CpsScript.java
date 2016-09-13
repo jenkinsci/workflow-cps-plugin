@@ -144,6 +144,11 @@ public abstract class CpsScript extends SerializableScript {
     }
 
     public @CheckForNull Run<?,?> $buildNoException() {
+        if (execution == null) {
+            // Still inside the WorkflowScript constructor, e.g. because getProperty is being called from a @Field.
+            // In such cases we do not expect to be able to use library variables, so just skip it.
+            return null;
+        }
         try {
             return $build();
         } catch (IOException x) {
