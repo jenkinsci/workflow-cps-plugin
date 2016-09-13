@@ -202,6 +202,15 @@ public class DSLTest {
         r.assertLogContains("Multiple shapes", b);
     }
 
+    @Issue("JENKINS-38169")
+    @Test
+    public void namedSoleParamForStep() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "namedSoleParamForStep");
+        p.setDefinition(new CpsFlowDefinition("echo message:'Hello world'", true));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("Hello world", b);
+    }
+
     @Test public void contextClassLoader() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("try {def c = classLoad(getClass().name); error(/did not expect to be able to load ${c} from ${c.classLoader}/)} catch (ClassNotFoundException x) {echo(/good, got ${x}/)}", false));
