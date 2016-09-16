@@ -22,41 +22,28 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.workflow;
+package org.jenkinsci.plugins.workflow.cps;
 
-import hudson.FilePath;
-import hudson.Launcher;
-import hudson.model.Run;
-import hudson.model.TaskListener;
 import hudson.scm.ChangeLogSet;
-import hudson.scm.NullSCM;
-import hudson.scm.SCMRevisionState;
 import hudson.triggers.SCMTrigger;
-import org.apache.commons.io.IOUtils;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import org.jenkinsci.plugins.workflow.actions.WorkspaceAction;
-import org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition;
 import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.scm.GitSampleRepoRule;
 import org.jenkinsci.plugins.workflow.steps.scm.GitStep;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import org.jvnet.hudson.test.SingleFileSCM;
 
 public class CpsScmFlowDefinitionTest {
 
@@ -126,25 +113,6 @@ public class CpsScmFlowDefinitionTest {
         assertEquals(2, b.number);
         List<ChangeLogSet<? extends ChangeLogSet.Entry>> changeSets = b.getChangeSets();
         assertEquals(Collections.emptyList(), changeSets);
-    }
-
-    // TODO 1.599+ use standard version
-    private static class SingleFileSCM extends NullSCM {
-        private final String path;
-        private final byte[] contents;
-        SingleFileSCM(String path, String contents) throws UnsupportedEncodingException {
-            this.path = path;
-            this.contents = contents.getBytes("UTF-8");
-        }
-        @Override public void checkout(Run<?, ?> build, Launcher launcher, FilePath workspace, TaskListener listener, File changelogFile, SCMRevisionState baseline) throws IOException, InterruptedException {
-            listener.getLogger().println("Staging " + path);
-            OutputStream os = workspace.child(path).write();
-            IOUtils.write(contents, os);
-            os.close();
-        }
-        private Object writeReplace() {
-            return new Object();
-        }
     }
 
 }
