@@ -157,8 +157,6 @@ public class SerializationTest extends SingleJobTestBase {
                     "for (int i = 0; i < arr.size(); i++) {def elt = arr[i]; echo \"running C-style loop on ${elt}\"; semaphore \"C-${elt}\"}\n" +
                     "for (def elt : arr) {echo \"running new-style loop on ${elt}\"; semaphore \"new-${elt}\"}"
                     , true));
-                ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.Collection java.lang.Object"); // TODO ought to be in generic-whitelist
-                ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.List java.lang.Object"); // TODO ought to be in generic-whitelist-groovy2
                 startBuilding();
                 SemaphoreStep.waitForStart("C-one/1", b);
                 story.j.waitForMessage("running C-style loop on one", b);
