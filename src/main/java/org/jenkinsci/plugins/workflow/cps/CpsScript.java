@@ -77,19 +77,8 @@ public abstract class CpsScript extends SerializableScript {
 
     @SuppressWarnings("unchecked") // Binding
     final void $initialize() throws IOException {
+        // TODO JENKINS-33353 could make this a GlobalVariable instead
         getBinding().setVariable(STEPS_VAR, new DSL(execution.getOwner()));
-        Run<?,?> run = $build();
-        if (run != null) {
-            EnvVars paramEnv = new EnvVars();
-            ParametersAction a = run.getAction(ParametersAction.class);
-            if (a != null) {
-                for (ParameterValue v : a) {
-                    v.buildEnvironment(run, paramEnv);
-                }
-            }
-            EnvVars.resolve(paramEnv);
-            getBinding().getVariables().putAll(paramEnv);
-        }
     }
 
 
@@ -122,12 +111,24 @@ public abstract class CpsScript extends SerializableScript {
 
     @Override
     public Object getProperty(String property) {
-        GlobalVariable v = GlobalVariable.byName(property, $buildNoException());
+        // cf. CpsWhitelist.permitsMethod
+        Run<?,?> b = $buildNoException();
+        GlobalVariable v = GlobalVariable.byName(property, b);
         if (v != null) {
             try {
                 return v.getValue(this);
             } catch (Exception x) {
                 throw new InvokerInvocationException(x);
+            }
+        }
+        if (b != null) {
+            try {
+                String value = EnvActionImpl.forRun(b).getProperty(property);
+                if (value != null) {
+                    return value;
+                }
+            } catch (IOException x) {
+                LOGGER.log(Level.WARNING, null, x);
             }
         }
         return super.getProperty(property);

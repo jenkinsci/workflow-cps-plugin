@@ -77,7 +77,7 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
         return Collections.unmodifiableMap(env);
     }
 
-    @Override public Object getProperty(String propertyName) {
+    @Override public String getProperty(String propertyName) {
         try {
             CpsThread t = CpsThread.current();
             return EnvironmentExpander.getEffectiveEnvironment(getEnvironment(), t.getContextVariable(EnvVars.class), t.getContextVariable(EnvironmentExpander.class)).get(propertyName);

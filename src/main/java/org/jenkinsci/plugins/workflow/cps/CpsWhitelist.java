@@ -1,5 +1,7 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import hudson.model.Run;
+import java.io.IOException;
 import org.codehaus.groovy.runtime.GStringImpl;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.Whitelist;
@@ -10,6 +12,8 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 
 /**
@@ -18,6 +22,9 @@ import jenkins.model.Jenkins;
  * @author Kohsuke Kawaguchi
  */
 class CpsWhitelist extends AbstractWhitelist {
+
+    private static final Logger LOGGER = Logger.getLogger(CpsWhitelist.class.getName());
+
     private CpsWhitelist() {}
 
     @Override
@@ -38,8 +45,21 @@ class CpsWhitelist extends AbstractWhitelist {
                 return true;
             }
             if (name.equals("getProperty") && args.length == 1 && args[0] instanceof String) {
-                if (GlobalVariable.byName((String) args[0], ((CpsScript) receiver).$buildNoException()) != null) {
+                String property = (String) args[0];
+                CpsScript script = (CpsScript) receiver;
+                Run<?,?> b = script.$buildNoException();
+                if (GlobalVariable.byName(property, b) != null) {
                     return true;
+                }
+                if (b != null) {
+                    try {
+                        String value = EnvActionImpl.forRun(b).getProperty(property);
+                        if (value != null) {
+                            return true;
+                        }
+                    } catch (IOException x) {
+                        LOGGER.log(Level.WARNING, null, x);
+                    }
                 }
             }
         }
