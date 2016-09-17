@@ -7,6 +7,8 @@ import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 /**
+ * {@link Step} whose main logic is written in Groovy code that gets CPS-transformed.
+ *
  * @author Kohsuke Kawaguchi
  * @see "doc/step-in-groovy.md"
  */
