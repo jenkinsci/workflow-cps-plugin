@@ -24,6 +24,15 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import hudson.model.ParametersAction;
+import hudson.model.ParametersDefinitionProperty;
+import hudson.model.StringParameterDefinition;
+import hudson.model.StringParameterValue;
+import hudson.plugins.git.BranchSpec;
+import hudson.plugins.git.GitSCM;
+import hudson.plugins.git.SubmoduleConfig;
+import hudson.plugins.git.UserRemoteConfig;
+import hudson.plugins.git.extensions.GitSCMExtension;
 import hudson.scm.ChangeLogSet;
 import hudson.triggers.SCMTrigger;
 import java.util.Collections;
@@ -36,17 +45,18 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.scm.GitSampleRepoRule;
 import org.jenkinsci.plugins.workflow.steps.scm.GitStep;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.SingleFileSCM;
 
 public class CpsScmFlowDefinitionTest {
 
+    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public JenkinsRule r = new JenkinsRule();
     @Rule public GitSampleRepoRule sampleRepo = new GitSampleRepoRule();
 
@@ -113,6 +123,24 @@ public class CpsScmFlowDefinitionTest {
         assertEquals(2, b.number);
         List<ChangeLogSet<? extends ChangeLogSet.Entry>> changeSets = b.getChangeSets();
         assertEquals(Collections.emptyList(), changeSets);
+    }
+
+    @Issue("JENKINS-28447")
+    @Test public void usingParameter() throws Exception {
+        sampleRepo.init();
+        sampleRepo.write("flow.groovy", "echo 'version one'");
+        sampleRepo.git("add", "flow.groovy");
+        sampleRepo.git("commit", "--message=one");
+        sampleRepo.git("tag", "one");
+        sampleRepo.write("flow.groovy", "echo 'version two'");
+        sampleRepo.git("commit", "--all", "--message=two");
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsScmFlowDefinition(new GitSCM(Collections.singletonList(new UserRemoteConfig(sampleRepo.fileUrl(), null, null, null)),
+            Collections.singletonList(new BranchSpec("${VERSION}")),
+            false, Collections.<SubmoduleConfig>emptyList(), null, null, Collections.<GitSCMExtension>emptyList()), "flow.groovy"));
+        p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("VERSION", "master")));
+        r.assertLogContains("version two", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+        r.assertLogContains("version one", r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("VERSION", "one")))));
     }
 
 }
