@@ -14,7 +14,8 @@ import java.net.URL;
  * @see GroovyShellDecoratorImpl
  * @see "doc/step-in-groovy.md"
  */
-final class GroovyStepExecutionLoader implements GroovyResourceLoader {
+final class
+GroovyStepExecutionLoader implements GroovyResourceLoader {
     private final GroovyResourceLoader base;
     private final ClassLoader uberClassLoader;
 
@@ -25,13 +26,17 @@ final class GroovyStepExecutionLoader implements GroovyResourceLoader {
 
     @Override
     public URL loadGroovySource(String className) throws MalformedURLException {
-        for (StepDescriptor d : StepDescriptor.all()) {
-            if (className.equals(d.clazz.getName()+"Execution")) {
-                String resName = className.replace('.', '/') + ".groovy";
-                URL res = uberClassLoader.getResource(resName);
-                if (res==null)
-                    throw new IllegalStateException(d.clazz.getName()+" is missing its companion "+className);
-                return res;
+        for (StepDescriptor sd : StepDescriptor.all()) {
+            if (sd instanceof GroovyStepDescriptor) {
+                GroovyStepDescriptor d = (GroovyStepDescriptor) sd;
+
+                if (className.equals(d.getExecutionClassName())) {
+                    String resName = className.replace('.', '/') + ".groovy";
+                    URL res = uberClassLoader.getResource(resName);
+                    if (res==null)
+                        throw new IllegalStateException(d.clazz.getName()+" is missing its companion "+className);
+                    return res;
+                }
             }
         }
         return base.loadGroovySource(className);
