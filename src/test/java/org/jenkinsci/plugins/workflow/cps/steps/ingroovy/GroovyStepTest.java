@@ -3,6 +3,8 @@ package org.jenkinsci.plugins.workflow.cps.steps.ingroovy;
 import hudson.model.queue.QueueTaskFuture;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.StaticWhitelist;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
@@ -12,6 +14,8 @@ import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static hudson.model.Result.*;
 import static org.junit.Assert.*;
@@ -235,6 +239,30 @@ public class GroovyStepTest {
                 ));
                 b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
                 story.j.assertLogContains("Reported=Room is too cold",b);
+            }
+        });
+    }
+
+    @Test
+    public void flowGraph() throws Exception {
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.createProject(WorkflowJob.class, "demo");
+                p.setDefinition(new CpsFlowDefinition(
+                        "helloWorldGroovy('Duke') {\n" +
+                            "echo 'Hello body'\n"+
+                        "}"));
+                WorkflowRun b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
+
+                FlowGraphWalker w = new FlowGraphWalker(b.getExecution());
+                List<FlowNode> nodes = new ArrayList<>();
+                for (FlowNode n : w) {
+                    nodes.add(n);
+                    n.getDisplayName()
+                    System.out.println(n);
+                }
+                System.out.println(nodes);
             }
         });
     }
