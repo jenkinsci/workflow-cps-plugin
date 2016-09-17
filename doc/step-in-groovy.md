@@ -95,3 +95,19 @@ define a subtype of `GroovyStepExecution` in Java and put those fields there,
 then further subtype that in Groovy and access those fields.
 `GroovyStepExecution` subtypes are trusted, so they can access the fields
 defined in Java code, but untrusted `Jenkinsfile` will not be able to.
+
+## Groovy steps and flow graph
+The way `FlowNode`s are created to record the history of an execution is
+a little different from its Java counterpart.
+
+Invocation of a Groovy step is marked by a block-scoped
+`StepStartNode` and `StepEndNode`, regardless of whether the step
+takes a body closure. All the steps invoked from the Groovy code
+are recorded as flow nodes inside this block.
+
+In contrast, a step written in Java only gets a block-scoped flow
+nodes when it has a body.
+
+When a Groovy step takes a body closure and invokes it, it will not
+automatically create a block-scoped step node. We intend to provide
+a step definition you can use if such block-scoped flow node is desirable.
