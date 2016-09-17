@@ -45,12 +45,11 @@ public class GroovyStepTest {
                             "echo 'Hello body'\n"+
                             "semaphore 'restart'\n"+
                             "echo 'Good bye body'\n"+
-                        "}"));
+                        "}",true));
                 WorkflowRun b = p.scheduleBuild2(0).getStartCondition().get();
                 SemaphoreStep.waitForStart("restart/1", b);
                 story.j.waitForMessage("Hello body",b);
                 story.j.assertLogContains("Hello Duke",b);
-                story.j.assertLogContains("Hello body",b);
             }
         });
         story.addStep(new Statement() {
@@ -61,8 +60,6 @@ public class GroovyStepTest {
                 SemaphoreStep.success("restart/1", null);
                 story.j.waitForCompletion(b);
 
-                story.j.assertLogContains("Hello Duke",b);
-                story.j.assertLogContains("Hello body",b);
                 story.j.assertLogContains("Good bye body",b);
                 story.j.assertLogContains("Good bye Duke",b);
             }
