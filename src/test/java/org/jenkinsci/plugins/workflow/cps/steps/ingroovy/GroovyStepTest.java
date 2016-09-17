@@ -20,7 +20,7 @@ import static org.junit.Assert.*;
  * @author Kohsuke Kawaguchi
  * @see "doc/step-in-groovy.md"
  */
-public class StepInGroovyTest {
+public class GroovyStepTest {
     @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
 
     /**

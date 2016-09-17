@@ -5,7 +5,7 @@ package org.jenkinsci.plugins.workflow.cps.steps.ingroovy;
  * no strange wrapping happens.
  *
  * @author Kohsuke Kawaguchi
- * @see StepInGroovyTest#exception()
+ * @see GroovyStepTest#exception()
  */
 public class LifeIsToughException extends Exception {
     public LifeIsToughException(String message) {

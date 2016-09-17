@@ -1,7 +1,7 @@
 package org.jenkinsci.plugins.workflow.cps.steps.ingroovy
 
 /**
- * @see StepInGroovyTest#exception()
+ * @see GroovyStepTest#exception()
  */
 class ExceptionStepExecution extends GroovyStepExecution {
     def call(Closure body) {

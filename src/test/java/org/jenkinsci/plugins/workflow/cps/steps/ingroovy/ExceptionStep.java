@@ -5,7 +5,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
  * @author Kohsuke Kawaguchi
- * @see StepInGroovyTest#exception()
+ * @see GroovyStepTest#exception()
  */
 public class ExceptionStep extends GroovyStep {
     private String mode;
