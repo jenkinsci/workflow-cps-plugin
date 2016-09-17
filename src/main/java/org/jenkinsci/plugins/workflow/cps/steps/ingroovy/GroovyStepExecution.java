@@ -14,8 +14,6 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 /**
@@ -63,6 +61,8 @@ public abstract class GroovyStepExecution extends StepExecution {
         CpsThread t = CpsThread.current();
 
         // TODO: make sure this class is actually CPS transformed
+        // it's possible that the plugin dev has messed up and put the subtype in src/main/groovy,
+        // ... in which case the class will resolve but will not work as expected.
 
         Closure body = InvokerHelper.getMethodPointer(this, "call");
         if (getStep().getDescriptor().takesImplicitBlockArgument()) {
