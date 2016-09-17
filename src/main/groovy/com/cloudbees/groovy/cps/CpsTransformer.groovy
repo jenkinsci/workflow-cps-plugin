@@ -16,6 +16,7 @@ import org.codehaus.groovy.control.Janitor
 import org.codehaus.groovy.control.SourceUnit
 import org.codehaus.groovy.control.customizers.CompilationCustomizer
 import org.codehaus.groovy.runtime.powerassert.SourceText
+import org.codehaus.groovy.syntax.SyntaxException
 import org.codehaus.groovy.syntax.Token
 
 import javax.annotation.Nonnull
@@ -788,7 +789,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
              */
             makeNode("this_")
         } else
-            throw new UnsupportedOperationException("Unexpected variable type: ${ref}");
+            sourceUnit.addError(new SyntaxException("Unsupported expression for CPS transformation", exp.lineNumber, exp.columnNumber))
     }
 
     void visitDeclarationExpression(DeclarationExpression exp) {
