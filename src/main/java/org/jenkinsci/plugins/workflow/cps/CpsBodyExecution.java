@@ -286,7 +286,8 @@ class CpsBodyExecution extends BodyExecution {
             StepEndNode en = addBodyEndFlowNode();
 
             Throwable t = (Throwable)o;
-            en.addAction(new ErrorAction(t));
+            if (en!=null)
+                en.addAction(new ErrorAction(t));
 
             setOutcome(new Outcome(null,t));
             StepContext sc = new CpsBodySubContext(context, en);
