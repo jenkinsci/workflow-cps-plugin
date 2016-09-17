@@ -5,6 +5,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
  * @author Kohsuke Kawaguchi
+ * @see GroovyStepTest#security()
  */
 public class BankTellerStep extends GroovyStep {
     @DataBoundConstructor

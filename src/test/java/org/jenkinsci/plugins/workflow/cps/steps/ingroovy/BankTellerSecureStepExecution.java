@@ -5,6 +5,7 @@ package org.jenkinsci.plugins.workflow.cps.steps.ingroovy;
  * but not to untrusted Jenkinsfile.
  *
  * @author Kohsuke Kawaguchi
+ * @see GroovyStepTest#security()
  */
 public abstract class BankTellerSecureStepExecution extends GroovyStepExecution {
     public int moneyInVault = 2000;

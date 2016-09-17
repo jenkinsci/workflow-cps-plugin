@@ -2,6 +2,10 @@ package org.jenkinsci.plugins.workflow.cps.steps.ingroovy
 
 import org.apache.commons.lang.StringUtils
 
+/**
+ *
+ * @see GroovyStepTest#complex()
+ */
 class ComplexStepExecution extends GroovyStepExecution {
     /**
      * Store some value in instance field

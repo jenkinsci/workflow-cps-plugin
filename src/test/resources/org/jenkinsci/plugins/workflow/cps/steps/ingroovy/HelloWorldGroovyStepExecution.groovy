@@ -1,7 +1,7 @@
 package org.jenkinsci.plugins.workflow.cps.steps.ingroovy
 
 /**
- * @see HelloWorldGroovyStep
+ * @see GroovyStepTest#helloWorld()
  */
 class HelloWorldGroovyStepExecution extends GroovyStepExecution {
     def call(Closure body) {

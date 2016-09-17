@@ -8,6 +8,7 @@ import org.kohsuke.stapler.DataBoundSetter;
  * Step written in Groovy that invokes the body arbitrary amount of times.
  *
  * @author Kohsuke Kawaguchi
+ * @see GroovyStepTest#repeatedInvocations_and_returnValue()
  */
 public class LoopStep extends GroovyStep {
     private int count;

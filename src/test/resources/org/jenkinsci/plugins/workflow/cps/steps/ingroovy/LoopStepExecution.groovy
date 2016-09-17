@@ -3,7 +3,7 @@ package org.jenkinsci.plugins.workflow.cps.steps.ingroovy
 /**
  * Invokes body multiple times
  *
- * @see HelloWorldGroovyStep
+ * @see GroovyStepTest#repeatedInvocations_and_returnValue()
  */
 class LoopStepExecution extends GroovyStepExecution {
     public int call(Closure body) {
