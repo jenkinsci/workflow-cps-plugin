@@ -20,6 +20,10 @@ public class SandboxInvoker implements Invoker {
         return Checker.checkedConstructor(lhs,args);
     }
 
+    public Object superCall(Object receiver, Class senderType, String method, Object[] args) throws Throwable {
+        throw new UnsupportedOperationException();
+    }
+
     public Object getProperty(Object lhs, String name) throws Throwable {
         return Checker.checkedGetProperty(lhs,false,false,name);
     }

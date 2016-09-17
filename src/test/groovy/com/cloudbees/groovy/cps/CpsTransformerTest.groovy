@@ -647,20 +647,21 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         ''') == true;
     }
 
+    public static class Base {
+        @Override
+        String toString() {
+            return "base";
+        }
+    }
     @Test
     void superClass() {
-        try {
-            parseCps('''
-                class Foo {
-                    public String toString() {
-                        return "x"+super.toString();
-                    }
+        assert evalCPS('''
+            class Foo extends CpsTransformerTest.Base {
+                public String toString() {
+                    return "x"+super.toString();
                 }
-                new Foo().toString();
-            ''')
-            fail();
-        } catch (MultipleCompilationErrorsException e) {
-            assert e.message.contains("Unsupported expression for CPS transformation @ line 4")
-        }
+            }
+            new Foo().toString();
+        ''')=="xbase"
     }
 }

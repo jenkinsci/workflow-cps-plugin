@@ -1,6 +1,9 @@
 package com.cloudbees.groovy.cps.sandbox;
 
 import com.cloudbees.groovy.cps.impl.CallSiteBlock;
+import com.sun.script.util.ScriptEngineFactoryBase;
+import groovy.lang.MetaClass;
+import org.codehaus.groovy.runtime.InvokerHelper;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
@@ -20,6 +23,11 @@ public class DefaultInvoker implements Invoker {
     public Object constructorCall(Class lhs, Object[] args) throws Throwable {
         Object v = fakeCallSite("<init>").callConstructor(lhs,args);
         return v;
+    }
+
+    public Object superCall(Object receiver, Class methodType, String method, Object[] args) throws Throwable {
+        MetaClass mc = InvokerHelper.getMetaClass(receiver.getClass());
+        return mc.invokeMethod(methodType, receiver, method, args, true, true);
     }
 
     public Object getProperty(Object lhs, String name) throws Throwable {

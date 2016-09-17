@@ -80,6 +80,7 @@ import static org.codehaus.groovy.syntax.Types.*
 class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor {
     private int iota=0;
     private SourceUnit sourceUnit;
+    private ClassNode classNode;
     protected TransformerConfiguration config = new TransformerConfiguration();
 
     CpsTransformer() {
@@ -93,6 +94,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     @Override
     void call(SourceUnit source, GeneratorContext context, ClassNode classNode) {
         this.sourceUnit = source;
+        this.classNode = classNode;
 
         if (classNode.isInterface())
             return; // not touching interfaces
@@ -788,6 +790,11 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
                 }
              */
             makeNode("this_")
+        } else
+        if (exp.name=="super") {
+            makeNode("super_") {
+                literal(classNode)
+            }
         } else
             sourceUnit.addError(new SyntaxException("Unsupported expression for CPS transformation", exp.lineNumber, exp.columnNumber))
     }

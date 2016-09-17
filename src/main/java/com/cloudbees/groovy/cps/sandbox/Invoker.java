@@ -31,6 +31,17 @@ public interface Invoker extends Serializable {
 
     Object constructorCall(Class lhs, Object[] args) throws Throwable;
 
+    /**
+     * Invokespecial equivalent used for "super.foo(...)" kind of method call.
+     *
+     * @param receiver
+     *      Instance that gets the method call
+     * @param senderType
+     *      The type of the current method. Resolution of 'super' depends on this.
+     *      'receiver' is an instance of this type.
+     */
+    Object superCall(Object receiver, Class senderType, String method, Object[] args) throws Throwable;
+
     Object getProperty(Object lhs, String name) throws Throwable;
 
     void setProperty(Object lhs, String name, Object value) throws Throwable;

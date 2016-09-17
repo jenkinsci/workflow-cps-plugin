@@ -31,6 +31,7 @@ import com.cloudbees.groovy.cps.impl.ReturnBlock;
 import com.cloudbees.groovy.cps.impl.SequenceBlock;
 import com.cloudbees.groovy.cps.impl.SourceLocation;
 import com.cloudbees.groovy.cps.impl.StaticFieldBlock;
+import com.cloudbees.groovy.cps.impl.SuperBlock;
 import com.cloudbees.groovy.cps.impl.SwitchBlock;
 import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import com.cloudbees.groovy.cps.impl.TryCatchBlock;
@@ -212,6 +213,13 @@ public class Builder {
 
     public Block this_() {
         return THIS; // this is 'groovyThis'
+    }
+
+    /**
+     * Block that's only valid as a LHS of a method call like {@code super.foo(...)}
+     */
+    public Block super_(Class senderType) {
+        return new SuperBlock(senderType);
     }
 
     /**
