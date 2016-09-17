@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps.steps.ingroovy;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
 import groovy.lang.GroovyObject;
 import org.codehaus.groovy.runtime.InvokerHelper;
@@ -130,6 +131,7 @@ public abstract class GroovyStepExecution extends StepExecution {
      * Passed to the user-written 'call' method in Groovy as 'body'.
      * When invoked, executes the body block passed to the step.
      */
+    @SuppressFBWarnings("SE_INNER_CLASS")
     private final class Body extends Closure implements Serializable {
         public Body() {
             super(null);

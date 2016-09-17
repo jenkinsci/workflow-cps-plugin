@@ -20,7 +20,7 @@ final class GroovyStepExecutionLoader implements GroovyResourceLoader {
 
     GroovyStepExecutionLoader(GroovyResourceLoader base) {
         this.base = base;
-        this.uberClassLoader = Jenkins.getInstance().getPluginManager().uberClassLoader;
+        this.uberClassLoader = Jenkins.getActiveInstance().getPluginManager().uberClassLoader;
     }
 
     @Override
