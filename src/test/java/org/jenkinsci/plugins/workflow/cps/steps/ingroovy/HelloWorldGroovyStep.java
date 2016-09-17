@@ -4,6 +4,8 @@ import hudson.Extension;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
+ * Test step implemented in Groovy, which supports nested body block.
+ *
  * @author Kohsuke Kawaguchi
  */
 public class HelloWorldGroovyStep extends GroovyStep {
@@ -23,6 +25,11 @@ public class HelloWorldGroovyStep extends GroovyStep {
         @Override
         public String getFunctionName() {
             return "helloWorldGroovy";
+        }
+
+        @Override
+        public boolean takesImplicitBlockArgument() {
+            return true;
         }
     }
 }

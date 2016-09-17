@@ -15,6 +15,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
 
 /**
  * {@link StepExecution} to be implemented in Groovy
@@ -60,8 +61,9 @@ public abstract class GroovyStepExecution extends StepExecution {
 
         // TODO: make sure this class is actually CPS transformed
 
-        // TODO: dealing with body
         Closure body = InvokerHelper.getMethodPointer(this, "call");
+        if (getStep().getDescriptor().takesImplicitBlockArgument())
+            body = body.curry(new Body());
 
         execution = cps.newBodyInvoker(t.getGroup().export(body))
 //                .withStartAction(/*... maybe a marker for the future?*/)
@@ -122,6 +124,24 @@ public abstract class GroovyStepExecution extends StepExecution {
                 throw new AssertionError();
             }
         };
+    }
+
+    /**
+     * Passed to the user-written 'call' method in Groovy as 'body'.
+     * When invoked, executes the body block passed to the step.
+     */
+    private final class Body extends Closure implements Serializable {
+        public Body() {
+            super(null);
+        }
+
+        @Override
+        public Object call() {
+            // expected to throw CpsCallableInvocation
+            return getContext().newBodyInvoker().getBody().call();
+        }
+
+        private static final long serialVersionUID = 1L;
     }
 
     private static final long serialVersionUID = 1L;

@@ -25,6 +25,7 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import com.google.common.util.concurrent.FutureCallback;
+import groovy.lang.Closure;
 import hudson.model.Action;
 import org.jenkinsci.plugins.workflow.actions.LabelAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
@@ -102,6 +103,14 @@ public final class CpsBodyInvoker extends BodyInvoker {
     public CpsBodyInvoker withDisplayName(@Nonnull String name) {
         this.displayName = name;
         return this;
+    }
+
+    /**
+     * Unwraps the closure that this invoker is representing.
+     */
+    @CpsVmThreadOnly
+    public Closure getBody() {
+        return body.getBody(CpsThread.current());
     }
 
     /**
