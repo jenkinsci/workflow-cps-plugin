@@ -102,10 +102,11 @@ public class StepInGroovyTest {
     }
 
     /**
-     * Let's invoke the body multiple times, serial and parallel.
+     * Invokes the body multiple times, serial and parallel.
+     * Step has a return value.
      */
     @Test
-    public void repeatedInvocations() throws Exception {
+    public void repeatedInvocations_and_returnValue() throws Exception {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
@@ -113,14 +114,14 @@ public class StepInGroovyTest {
                 WorkflowRun b;
 
                 p.setDefinition(new CpsFlowDefinition(
-                        "loop(3) {\n" +
+                        "assert 3==loop(3) {\n" +
                             "echo 'Hello'\n"+
                         "}"));
                 b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
                 shouldHaveHello(3,b);
 
                 p.setDefinition(new CpsFlowDefinition(
-                        "loop(0) {\n" +
+                        "assert 0==loop(0) {\n" +
                             "echo 'Hello'\n"+
                         "}"));
                 b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
@@ -129,7 +130,7 @@ public class StepInGroovyTest {
                 // parallel execution of the body
 
                 p.setDefinition(new CpsFlowDefinition(
-                        "loop(count:3,parallel:true) {\n" +
+                        "assert 3==loop(count:3,parallel:true) {\n" +
                             "semaphore 'branch'\n"+
                         "}"));
                 QueueTaskFuture<WorkflowRun> f = p.scheduleBuild2(0);

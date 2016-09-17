@@ -6,7 +6,7 @@ package org.jenkinsci.plugins.workflow.cps.steps.ingroovy
  * @see HelloWorldGroovyStep
  */
 class LoopStepExecution extends GroovyStepExecution {
-    def call(Closure body) {
+    public int call(Closure body) {
         if (step.parallel) {
             def branches = [:]
             for (int i=0; i<step.count; i++) {
@@ -18,5 +18,6 @@ class LoopStepExecution extends GroovyStepExecution {
                 body();
             }
         }
+        return step.count;
     }
 }
