@@ -65,8 +65,11 @@ public abstract class GroovyStepExecution extends StepExecution {
         // TODO: make sure this class is actually CPS transformed
 
         Closure body = InvokerHelper.getMethodPointer(this, "call");
-        if (getStep().getDescriptor().takesImplicitBlockArgument())
+        if (getStep().getDescriptor().takesImplicitBlockArgument()) {
+            if (body.getMaximumNumberOfParameters()==0)
+                throw new IllegalArgumentException(getClass().getName()+" claims to take the body block, but its call method takes no argument.");
             body = body.curry(new Body());
+        }
 
         execution = cps.newBodyInvoker(t.getGroup().export(body))
 //                .withStartAction(/*... maybe a marker for the future?*/)
