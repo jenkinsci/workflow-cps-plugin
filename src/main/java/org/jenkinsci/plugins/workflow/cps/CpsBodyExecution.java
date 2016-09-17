@@ -12,6 +12,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import hudson.model.Action;
 import hudson.model.Result;
 import jenkins.model.CauseOfInterruption;
+import org.codehaus.groovy.runtime.InvokerInvocationException;
 import org.jenkinsci.plugins.workflow.actions.BodyInvocationAction;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
@@ -116,7 +117,16 @@ class CpsBodyExecution extends BodyExecution {
 
         try {
             // TODO: handle arguments to closure
-            Object x = params.body.getBody(currentThread).call();
+            Object x;
+            try {
+                x = params.body.getBody(currentThread).call();
+            } catch (InvokerInvocationException e) {
+                // depending on how the 'call' method is routed Groovy can wrap this exception.
+                // this happens in CachedMethod.invoke() because it doesn't pass through Error
+                if (e.getCause() instanceof CpsCallableInvocation)
+                    throw e.getCause();
+                throw e;
+            }
 
             // body has completed synchronously. mark this done after the fact
             // pointless synchronization to make findbugs happy. This is already done, so there's no cancelling this anyway.
