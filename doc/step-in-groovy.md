@@ -89,7 +89,7 @@ IOW, it can invoke any Java code.
 User-written untrusted `Jenkinsfile` can in turn access `GroovyStepExecution`,
 and this can even ignore Java access control rules like private fields.
 
-If you have sensitive fields that you need to protect from malicious `Jenkinsfile`,
+If you have sensitive fields that you need to protect from malicious `Jenkinsfile`s,
 define a subtype of `GroovyStepExecution` in Java and put those fields there,
 then further subtype that in Groovy and access those fields.
 `GroovyStepExecution` subtypes are trusted, so they can access the fields
