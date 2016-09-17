@@ -3,6 +3,7 @@ package org.jenkinsci.plugins.workflow.cps.steps.ingroovy;
 import hudson.model.queue.QueueTaskFuture;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.StaticWhitelist;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepNode;
 import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -15,6 +16,7 @@ import org.jvnet.hudson.test.RestartableJenkinsRule;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static hudson.model.Result.*;
@@ -243,6 +245,12 @@ public class GroovyStepTest {
         });
     }
 
+    /**
+     * Tests the shape of the flow graph.
+     *
+     * <p>
+     * See "docs/step-in-groovy.md" for the expected flow graph and its rationale.
+     */
     @Test
     public void flowGraph() throws Exception {
         story.addStep(new Statement() {
@@ -251,18 +259,30 @@ public class GroovyStepTest {
                 WorkflowJob p = story.j.createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(
                         "helloWorldGroovy('Duke') {\n" +
-                            "echo 'Hello body'\n"+
+                            "echo 'mid point'\n"+
                         "}"));
                 WorkflowRun b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
 
                 FlowGraphWalker w = new FlowGraphWalker(b.getExecution());
-                List<FlowNode> nodes = new ArrayList<>();
+                List<String> nodes = new ArrayList<>();
                 for (FlowNode n : w) {
-                    nodes.add(n);
-                    n.getDisplayName()
-                    System.out.println(n);
+                    String s = n.getClass().getSimpleName();
+                    if (n instanceof StepNode) {
+                        StepNode sn = (StepNode) n;
+                        s+=":"+sn.getDescriptor().getFunctionName();
+                    }
+                    nodes.add(s);
                 }
-                System.out.println(nodes);
+
+                assertEquals(Arrays.asList(
+                    "FlowEndNode",
+                    "StepEndNode:helloWorldGroovy",     // end of helloWorldGroovy
+                        "StepAtomNode:echo",            // Good byt from helloWorldGroovy
+                        "StepAtomNode:echo",            // mid point
+                        "StepAtomNode:echo",            // Hello from inside helloWorldGroovy
+                    "StepStartNode:helloWorldGroovy",   // invocation into helloWorldGroovy
+                    "FlowStartNode"
+                ),nodes);
             }
         });
     }

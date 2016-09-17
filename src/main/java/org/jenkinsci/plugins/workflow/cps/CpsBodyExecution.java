@@ -24,6 +24,7 @@ import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.Collection;
@@ -35,7 +36,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
-import javax.annotation.Nonnull;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
 /**
@@ -68,6 +68,11 @@ class CpsBodyExecution extends BodyExecution {
     private final List<BodyExecutionCallback> callbacks;
 
     /**
+     * Suppress the creation of the block node that wraps body invocation.
+     */
+    private final boolean noBlockNode;
+
+    /**
      * Context for the step who invoked its body.
      */
     private final CpsStepContext context;
@@ -85,9 +90,10 @@ class CpsBodyExecution extends BodyExecution {
     @GuardedBy("this")
     private Outcome outcome;
 
-    CpsBodyExecution(CpsStepContext context, List<BodyExecutionCallback> callbacks) {
+    CpsBodyExecution(CpsStepContext context, List<BodyExecutionCallback> callbacks, boolean noBlockNode) {
         this.context = context;
         this.callbacks = callbacks;
+        this.noBlockNode = noBlockNode;
     }
 
     /**
@@ -106,8 +112,11 @@ class CpsBodyExecution extends BodyExecution {
 
         StepStartNode sn = addBodyStartFlowNode(head);
         for (Action a : params.startNodeActions) {
-            if (a!=null)
+            if (a!=null) {
+                if (sn==null)
+                    throw new IllegalStateException("Attempt to add "+a+" but block node creation is suppressed");
                 sn.addAction(a);
+            }
         }
 
         StepContext sc = new CpsBodySubContext(context, sn);
@@ -313,7 +322,9 @@ class CpsBodyExecution extends BodyExecution {
      *
      * @see #addBodyEndFlowNode()
      */
-    private @Nonnull StepStartNode addBodyStartFlowNode(FlowHead head) {
+    private @CheckForNull StepStartNode addBodyStartFlowNode(FlowHead head) {
+        if (noBlockNode)    return null;
+
         StepStartNode start = new StepStartNode(head.getExecution(),
                 context.getStepDescriptor(), head.get());
         this.startNodeId = start.getId();
@@ -327,8 +338,10 @@ class CpsBodyExecution extends BodyExecution {
      *
      * @see #addBodyStartFlowNode(FlowHead)
      */
-    private @Nonnull StepEndNode addBodyEndFlowNode() {
+    private @CheckForNull StepEndNode addBodyEndFlowNode() {
         try {
+            if (noBlockNode)    return null;
+
             FlowHead head = CpsThread.current().head;
 
             StepEndNode end = new StepEndNode(head.getExecution(),

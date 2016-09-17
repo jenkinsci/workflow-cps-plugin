@@ -74,6 +74,7 @@ public abstract class GroovyStepExecution extends StepExecution {
         execution = cps.newBodyInvoker(t.getGroup().export(body))
 //                .withStartAction(/*... maybe a marker for the future?*/)
                 .withCallback(BodyExecutionCallback.wrap(cps))
+                .withoutBlockNode()
                 .start();
 
         return false;

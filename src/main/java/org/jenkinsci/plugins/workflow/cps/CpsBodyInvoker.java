@@ -71,6 +71,11 @@ public final class CpsBodyInvoker extends BodyInvoker {
      */
     private CpsBodyExecution execution;
 
+    /**
+     * @see CpsBodyExecution#noBlockNode
+     */
+    private boolean noBlockNode;
+
     CpsBodyInvoker(CpsStepContext owner, BodyReference body) {
         this.owner = owner;
         this.body = body;
@@ -90,6 +95,11 @@ public final class CpsBodyInvoker extends BodyInvoker {
 
     public CpsBodyInvoker withStartAction(Action a) {
         startNodeActions.add(a);
+        return this;
+    }
+
+    public CpsBodyInvoker withoutBlockNode() {
+        noBlockNode = true;
         return this;
     }
 
@@ -121,7 +131,7 @@ public final class CpsBodyInvoker extends BodyInvoker {
     @Override
     public CpsBodyExecution start() {
         if (execution!=null)    throw new IllegalStateException("Already started");
-        execution = new CpsBodyExecution(owner, callbacks);
+        execution = new CpsBodyExecution(owner, callbacks, noBlockNode);
 
         if (displayName!=null)
             startNodeActions.add(new LabelAction(displayName));
