@@ -77,9 +77,10 @@ If the logic is complex, other methods can be defined on this class and all thos
 can invoke other steps just like the `call` method can.
 
 `GroovyStepExecution` can access parameters given to `GroovyStep` via the `getStep()` method.
-Note that the actual `GroovyStep` instance is not serialized, but rather its invocation form.
+Note that the actual `GroovyStep` instance is not stored, but rather its invocation form.
 IOW, any additional fields you define in `GroovyStep` will not be persisted. Only the parameters
-users have given in Pipeline Script will.
+users have given in Pipeline Script will. To make plugin developers aware of this behavior,
+the `getStep()` method intentionally returns a fresh instance for each invocation.
 
 ## Groovy steps and sandbox
 `GroovyStepExecution` subtypes are trusted,

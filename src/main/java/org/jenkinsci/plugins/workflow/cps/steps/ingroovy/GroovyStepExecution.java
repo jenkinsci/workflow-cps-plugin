@@ -28,7 +28,7 @@ public abstract class GroovyStepExecution extends StepExecution {
     /**
      * Captures parameters that invoke {@link GroovyStep}
      */
-    private transient GroovyStep step;
+    private UninstantiatedDescribable step;
 
     /**
      * Represents the currently executing groovy code that defines the step.
@@ -38,7 +38,7 @@ public abstract class GroovyStepExecution extends StepExecution {
     /*package*/ CpsStepContext context;
 
     /*package*/ void init(GroovyStep step, CpsStepContext context) {
-        this.step = step;
+        this.step = UninstantiatedDescribable.from(step);
         this.context = context;
     }
 
@@ -51,8 +51,10 @@ public abstract class GroovyStepExecution extends StepExecution {
     /**
      * Obtains the {@link GroovyStep} that captures parameters given to this step.
      */
-    public GroovyStep getStep() {
-        return step;
+    public GroovyStep getStep() throws Exception {
+        // intentionally returning a fresh instance to prevent subtypes
+        // from incorrectly attempting to store values in fields.
+        return (GroovyStep)step.instantiate();
     }
 
     @Override
@@ -77,27 +79,6 @@ public abstract class GroovyStepExecution extends StepExecution {
     @Override
     public void stop(@Nonnull Throwable cause) throws Exception {
         execution.cancel(cause);
-    }
-
-    /**
-     * Persist {@link #step} in a form that's serializable.
-     */
-    private void writeObject(ObjectOutputStream oos) throws IOException {
-        oos.defaultWriteObject();
-        oos.writeObject(UninstantiatedDescribable.from(step));
-    }
-
-    /**
-     * Pair up with {@link #writeObject(ObjectOutputStream)} to restore {@link #step}
-     */
-    private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-        ois.defaultReadObject();
-        UninstantiatedDescribable ud = (UninstantiatedDescribable)ois.readObject();
-        try {
-            step = (GroovyStep)ud.instantiate();
-        } catch (Exception e) {
-            throw new IOException("Failed to instantiate "+ud,e);
-        }
     }
 
     /**
