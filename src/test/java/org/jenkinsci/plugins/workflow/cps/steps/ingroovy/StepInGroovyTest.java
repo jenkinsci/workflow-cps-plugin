@@ -1,6 +1,5 @@
 package org.jenkinsci.plugins.workflow.cps.steps.ingroovy;
 
-import hudson.model.Result;
 import hudson.model.queue.QueueTaskFuture;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.StaticWhitelist;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -14,6 +13,7 @@ import org.jvnet.hudson.test.RestartableJenkinsRule;
 
 import java.io.IOException;
 
+import static hudson.model.Result.*;
 import static org.junit.Assert.*;
 
 /**
@@ -91,7 +91,7 @@ public class StepInGroovyTest {
                         true
                 ));
                 WorkflowRun b = p.scheduleBuild2(0).get();
-                story.j.assertBuildStatus(Result.FAILURE, b);
+                story.j.assertBuildStatus(FAILURE, b);
                 story.j.assertLogContains("$$$instantiated",b);
                 story.j.assertLogNotContains("$$$stole money",b);
                 story.j.assertLogContains(
@@ -165,15 +165,76 @@ public class StepInGroovyTest {
 
                 p.setDefinition(new CpsFlowDefinition(
                         "def p = [$class:'BooleanParameterDefinition',name:'production',description:'check']\n"+
-                        "assert 'foo'==complex(numbers:[1,2,3,4], param:p) {" +
+                        "assert 'foo'==complex(numbers:[1,2,3,4], param:p) {\n" +
                         "  echo '42'\n" +
-                        "  return 'foo'" +
+                        "  return 'foo'\n" +
                         "}"
                 ));
                 b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
                 story.j.assertLogContains("sum=10",b);
                 story.j.assertLogContains("parameterName=production",b);
                 story.j.assertLogContains("42",b);
+            }
+        });
+    }
+
+    /**
+     * Tests the behaviour of exception coming in and out of a groovy step
+     */
+    @Test
+    public void exception() throws Exception {
+        story.addStep(new Statement() {
+            WorkflowJob p;
+            WorkflowRun b;
+
+            @Override
+            public void evaluate() throws Throwable {
+                p = story.j.createProject(WorkflowJob.class, "demo");
+
+                fromGroovyStepToCaller();
+                passThrough();
+                fromBodyToGroovyStep();
+            }
+
+            private void fromGroovyStepToCaller() throws Exception {
+                p.setDefinition(new CpsFlowDefinition(
+                    "import "+LifeIsToughException.class.getName()+"\n" +
+                    "try {\n" +
+                    "  exception('fromGroovyStepToCaller'){}\n" +
+                    "  fail\n"+
+                    "} catch (LifeIsToughException e) {\n" +
+                    "  echo 'Caught='+e.message\n"+
+                    "}"
+                ));
+                b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
+                story.j.assertLogContains("Caught=Jesse wants so many test cases",b);
+            }
+
+            private void passThrough() throws Exception {
+                p.setDefinition(new CpsFlowDefinition(
+                    "import "+LifeIsToughException.class.getName()+"\n" +
+                    "try {\n" +
+                    "  exception('passThrough'){\n" +
+                    "    throw new LifeIsToughException('There is not enough bacon')\n" +
+                    "  }\n" +
+                    "  fail\n"+
+                    "} catch (LifeIsToughException e) {\n" +
+                    "  echo 'Caught='+e.message\n"+
+                    "}"
+                ));
+                b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
+                story.j.assertLogContains("Caught=There is not enough bacon",b);
+            }
+
+            private void fromBodyToGroovyStep() throws Exception {
+                p.setDefinition(new CpsFlowDefinition(
+                    "import "+LifeIsToughException.class.getName()+"\n" +
+                    "echo 'Reported='+exception('fromBodyToGroovyStep'){\n" +
+                    "  throw new LifeIsToughException('Room is too cold')\n" +
+                    "}"
+                ));
+                b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
+                story.j.assertLogContains("Reported=Room is too cold",b);
             }
         });
     }
