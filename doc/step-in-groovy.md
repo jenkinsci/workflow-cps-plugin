@@ -31,6 +31,11 @@ class RetryStep extends GroovyStep {
         @Override public String getDisplayName() {
 	        return "Retry step";
         }
+
+        @Override
+        public boolean takesImplicitBlockArgument() {
+            return true;
+        }
     }
 }
 ```
@@ -38,6 +43,8 @@ class RetryStep extends GroovyStep {
 ```groovy
 // src/main/resources/acme/RetryStepExecution.groovy
 package acme;
+
+import org.jenkinsci.plugins.workflow.cps.steps.ingroovy.GroovyStepExecution
 
 public class RetryStepExecution extends GroovyStepExecution {
     public void call(Closure body) {
