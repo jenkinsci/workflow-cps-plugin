@@ -82,7 +82,8 @@ public abstract class GroovyStepExecution extends StepExecution {
 
     @Override
     public void stop(@Nonnull Throwable cause) throws Exception {
-        execution.cancel(cause);
+        if (execution!=null)
+            execution.cancel(cause);
     }
 
     /**
