@@ -148,4 +148,31 @@ public class StepInGroovyTest {
             }
         });
     }
+
+    /**
+     * Use of fields/methods in {@link GroovyStepExecution}
+     * Call other steps that take closure.
+     *
+     * @see ComplexStepExecution
+     */
+    @Test
+    public void complex() throws Exception {
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.createProject(WorkflowJob.class, "demo");
+                WorkflowRun b;
+
+                p.setDefinition(new CpsFlowDefinition(
+                        "assert 'foo'==complex([1,2,3,4]) {" +
+                        "  echo '42'\n" +
+                        "  return 'foo'" +
+                        "}"
+                ));
+                b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
+                story.j.assertLogContains("sum=10",b);
+                story.j.assertLogContains("42",b);
+            }
+        });
+    }
 }
