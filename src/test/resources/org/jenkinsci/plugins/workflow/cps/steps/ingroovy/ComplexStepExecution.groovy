@@ -16,6 +16,7 @@ class ComplexStepExecution extends GroovyStepExecution {
     }
 
     def call(body) {
+        echo "parameterName=${step.param.name}"
         node {
             sum()
             field = body()

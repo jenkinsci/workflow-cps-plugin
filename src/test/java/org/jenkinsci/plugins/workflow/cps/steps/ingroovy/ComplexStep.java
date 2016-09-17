@@ -1,7 +1,10 @@
 package org.jenkinsci.plugins.workflow.cps.steps.ingroovy;
 
+import com.cloudbees.plugins.credentials.Credentials;
 import hudson.Extension;
+import hudson.model.ParameterDefinition;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 
 import java.util.List;
 
@@ -10,6 +13,7 @@ import java.util.List;
  */
 public class ComplexStep extends GroovyStep {
     private final List<Integer> numbers;
+    private ParameterDefinition param;
 
     @DataBoundConstructor
     public ComplexStep(List<Integer> numbers) {
@@ -19,6 +23,16 @@ public class ComplexStep extends GroovyStep {
     public List<Integer> getNumbers() {
         return numbers;
     }
+
+    public ParameterDefinition getParam() {
+        return param;
+    }
+
+    @DataBoundSetter
+    public void setParam(ParameterDefinition param) {
+        this.param = param;
+    }
+
 
     @Extension
     public static class DescriptorImpl extends GroovyStepDescriptor {

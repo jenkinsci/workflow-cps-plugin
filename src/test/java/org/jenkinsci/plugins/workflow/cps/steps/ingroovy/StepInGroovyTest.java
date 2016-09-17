@@ -164,13 +164,15 @@ public class StepInGroovyTest {
                 WorkflowRun b;
 
                 p.setDefinition(new CpsFlowDefinition(
-                        "assert 'foo'==complex([1,2,3,4]) {" +
+                        "def p = [$class:'BooleanParameterDefinition',name:'production',description:'check']\n"+
+                        "assert 'foo'==complex(numbers:[1,2,3,4], param:p) {" +
                         "  echo '42'\n" +
                         "  return 'foo'" +
                         "}"
                 ));
                 b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
                 story.j.assertLogContains("sum=10",b);
+                story.j.assertLogContains("parameterName=production",b);
                 story.j.assertLogContains("42",b);
             }
         });
