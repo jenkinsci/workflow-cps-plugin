@@ -8,13 +8,15 @@ import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.cps.CpsScript;
 import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
 import org.jenkinsci.plugins.workflow.cps.CpsThread;
+import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.io.Serializable;
+
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
 /**
  * {@link StepExecution} to be implemented in Groovy
@@ -22,6 +24,7 @@ import java.io.Serializable;
  * @author Kohsuke Kawaguchi
  * @see "doc/step-in-groovy.md"
  */
+@PersistIn(PROGRAM)
 public abstract class GroovyStepExecution extends StepExecution {
     /**
      * Captures parameters that invoke {@link GroovyStep}
@@ -88,6 +91,8 @@ public abstract class GroovyStepExecution extends StepExecution {
 
     /**
      * Attempt to resolve a method call as a step invocation like Pipeline Script.
+     *
+     * See http://groovy-lang.org/metaprogramming.html#_methodmissing
      */
     public Object methodMissing(String name, Object args) throws IOException {
         return getDelegate().invokeMethod(name,args);
@@ -95,6 +100,8 @@ public abstract class GroovyStepExecution extends StepExecution {
 
     /**
      * Attempt to resolve a property access as a step invocation like Pipeline Script.
+     *
+     * See http://groovy-lang.org/metaprogramming.html#_propertymissing
      */
     public Object propertyMissing(String name) throws IOException {
         return getDelegate().getProperty(name);
@@ -118,7 +125,8 @@ public abstract class GroovyStepExecution extends StepExecution {
      * When invoked, executes the body block passed to the step.
      */
     @SuppressFBWarnings("SE_INNER_CLASS")
-    private final class Body extends Closure implements Serializable {
+    @PersistIn(PROGRAM)
+    private final class Body extends Closure {
         public Body() {
             super(null);
         }
