@@ -36,8 +36,6 @@ node {
         The following variables are currently unavailable inside a Pipeline script:
     </p>
     <ul>
-        <li><code>NODE_LABELS</code></li>
-        <li><code>WORKSPACE</code></li>
         <!-- TODO when JENKINS-24141 fixed: SCM.all().each { e -> st.include(class:e.clazz, page:"buildEnv", optional:true) } -->
         <li>SCM-specific variables such as <code>SVN_REVISION</code></li>
     </ul>
