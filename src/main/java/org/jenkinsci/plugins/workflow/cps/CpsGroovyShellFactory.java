@@ -9,10 +9,13 @@ import jenkins.model.Jenkins;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.customizers.ImportCustomizer;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.GroovySandbox;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -20,10 +23,11 @@ import java.util.List;
  *
  * @author Kohsuke Kawaguchi
  */
-class CpsGroovyShellFactory {
+@Restricted(NoExternalUse.class) // unknown compatibility implication and no known use case
+public class CpsGroovyShellFactory {
     private final @CheckForNull CpsFlowExecution execution;
     private boolean sandbox;
-    private List<GroovyShellDecorator> decorators;
+    private List<GroovyShellDecorator> decorators = Collections.emptyList();
     private ClassLoader parent;
 
     /**
@@ -33,7 +37,6 @@ class CpsGroovyShellFactory {
     public CpsGroovyShellFactory(@Nullable CpsFlowExecution execution) {
         this.execution = execution;
         this.sandbox = execution!=null && execution.isSandbox();
-        this.decorators = GroovyShellDecorator.all();
     }
 
     private CpsGroovyShellFactory(CpsFlowExecution execution, boolean sandbox, ClassLoader parent, List<GroovyShellDecorator> decorators) {
@@ -65,6 +68,11 @@ class CpsGroovyShellFactory {
 
     public CpsGroovyShellFactory withParent(GroovyShell parent) {
         return withParent(parent.getClassLoader());
+    }
+
+    public CpsGroovyShellFactory withDecorators() {
+        this.decorators = GroovyShellDecorator.all();
+        return this;
     }
 
     /**
@@ -118,6 +126,10 @@ class CpsGroovyShellFactory {
         ClassLoader parent = this.parent;
         if (parent==null)
             parent = makeClassLoader();
+
+        for (GroovyShellDecorator d : decorators) {
+            parent = d.decorateParent(parent);
+        }
 
         CpsGroovyShell shell = new CpsGroovyShell(parent, execution, makeConfig());
 

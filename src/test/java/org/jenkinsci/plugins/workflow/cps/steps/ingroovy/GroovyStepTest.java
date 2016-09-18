@@ -1,7 +1,7 @@
 package org.jenkinsci.plugins.workflow.cps.steps.ingroovy;
 
 import hudson.model.queue.QueueTaskFuture;
-import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.StaticWhitelist;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepNode;
 import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
@@ -74,9 +74,11 @@ public class GroovyStepTest {
     @Test
     public void security() throws Exception {
         story.addStep(new Statement() {
+            private WorkflowJob p;
+
             @Override
             public void evaluate() throws Throwable {
-                WorkflowJob p = story.j.createProject(WorkflowJob.class, "demo");
+                p = story.j.createProject(WorkflowJob.class, "demo");
 
                 // Groovy step should have access to the money in the vault
                 p.setDefinition(new CpsFlowDefinition(
@@ -85,21 +87,23 @@ public class GroovyStepTest {
                 story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
 
                 // but no direct access allowed
-                String className = BankTellerSecureStepExecution.class.getName().replace("Secure","");
-                p.setDefinition(new CpsFlowDefinition(
-                        "def o = new "+ className +"()\n"+
-                        "echo '$$$instantiated'\n"+
-                        "echo o.moneyInVault as String\n"+
-                        "echo '$$$stole money'\n",
-                        true
-                ));
+                String className = BankTellerStep.class.getName()+"Execution";
+
+                assertRejection(new RejectedAccessException("new", className),
+                        "new " + className + "()");
+
+                assertRejection(new RejectedAccessException("staticField", className+" moneyInVault"),
+                        className + ".moneyInVault");
+            }
+
+            /**
+             * Runs the script and make sure it gets rejected as specified.
+             */
+            private void assertRejection(RejectedAccessException expected, String script) throws Exception {
+                p.setDefinition(new CpsFlowDefinition(script,true));
                 WorkflowRun b = p.scheduleBuild2(0).get();
                 story.j.assertBuildStatus(FAILURE, b);
-                story.j.assertLogContains("$$$instantiated",b);
-                story.j.assertLogNotContains("$$$stole money",b);
-                story.j.assertLogContains(
-                        StaticWhitelist.rejectField(BankTellerSecureStepExecution.class.getDeclaredField("moneyInVault")).getMessage(),
-                        b);
+                story.j.assertLogContains(expected.getMessage(), b);
             }
         });
     }

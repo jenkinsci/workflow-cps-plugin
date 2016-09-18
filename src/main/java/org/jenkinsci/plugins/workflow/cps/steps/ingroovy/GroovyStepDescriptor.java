@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps.steps.ingroovy;
 
+import com.google.inject.Inject;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
 import java.util.Collections;
@@ -10,6 +11,9 @@ import java.util.Set;
  * @see "doc/step-in-groovy.md"
  */
 public abstract class GroovyStepDescriptor extends StepDescriptor {
+    @Inject
+    private GroovyStepExecutionCompiler compiler;
+
     @Override
     public Set<Class<?>> getRequiredContext() {
         return Collections.emptySet();

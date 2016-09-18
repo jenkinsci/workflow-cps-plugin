@@ -128,8 +128,14 @@ public class CpsFlowDefinition extends FlowDefinition {
                 return CpsFlowDefinitionValidator.CheckStatus.SUCCESS.asJSON();
             }
             try {
-                CpsGroovyShell trusted = new CpsGroovyShellFactory(null).forTrusted().build();
-                new CpsGroovyShellFactory(null).withParent(trusted).build().getClassLoader().parseClass(value);
+                CpsGroovyShell trusted = new CpsGroovyShellFactory(null)
+                        .withDecorators()
+                        .forTrusted()
+                        .build();
+                new CpsGroovyShellFactory(null)
+                        .withParent(trusted)
+                        .withDecorators()
+                        .build().getClassLoader().parseClass(value);
             } catch (CompilationFailedException x) {
                 return JSONArray.fromObject(CpsFlowDefinitionValidator.toCheckStatus(x).toArray());
             }

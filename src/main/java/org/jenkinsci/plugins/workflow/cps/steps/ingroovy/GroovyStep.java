@@ -21,8 +21,9 @@ public abstract class GroovyStep extends Step {
     @Override
     public StepExecution start(StepContext context) throws Exception {
         CpsThread t = CpsThread.current();
+        if (t==null)    throw new IllegalStateException("Cannot be used outside CPS pipeline engine");
 
-        GroovyStepExecution impl = (GroovyStepExecution)t.getExecution().getTrustedShell().getClassLoader()
+        GroovyStepExecution impl = (GroovyStepExecution)t.getExecution().getShell().getClassLoader()
                 .loadClass(getDescriptor().getExecutionClassName()).newInstance();
         impl.init(this,(CpsStepContext)context);
 

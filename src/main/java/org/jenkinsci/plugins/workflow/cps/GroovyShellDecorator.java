@@ -3,9 +3,10 @@ package org.jenkinsci.plugins.workflow.cps;
 import groovy.lang.GroovyShell;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
-import javax.annotation.CheckForNull;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.customizers.ImportCustomizer;
+
+import javax.annotation.CheckForNull;
 
 
 /**
@@ -15,6 +16,13 @@ import org.codehaus.groovy.control.customizers.ImportCustomizer;
  * @author Kohsuke Kawaguchi
  */
 public abstract class GroovyShellDecorator implements ExtensionPoint {
+
+    /**
+     * Allow additional classloader to be inserted as a parent of {@link GroovyShell}.
+     */
+    public ClassLoader decorateParent(ClassLoader parent) {
+        return parent;
+    }
 
     /**
      * Called with {@link ImportCustomizer} to auto-import more packages, etc.

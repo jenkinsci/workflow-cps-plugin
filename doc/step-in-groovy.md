@@ -94,14 +94,10 @@ the `getStep()` method intentionally returns a fresh instance for each invocatio
 so it is not subject to the sandbox execution environment nor the script approval process.
 IOW, it can invoke any Java code.
 
-User-written untrusted `Jenkinsfile` can in turn access `GroovyStepExecution`,
-and this can even ignore Java access control rules like private fields.
-
-If you have sensitive fields that you need to protect from malicious `Jenkinsfile`s,
-define a subtype of `GroovyStepExecution` in Java and put those fields there,
-then further subtype that in Groovy and access those fields.
-`GroovyStepExecution` subtypes are trusted, so they can access the fields
-defined in Java code, but untrusted `Jenkinsfile` will not be able to.
+Like your plugin code, `GroovyStepExecution` subtype that
+you define in `src/main/resources` and any other types defined in this file
+will not be accessible to untrusted `Jekinsfile`, unless explicitly
+whitelisted with the `@Whitelisted` annotation.
 
 ## Groovy steps and flow graph
 The way `FlowNode`s are created to record the history of an execution is

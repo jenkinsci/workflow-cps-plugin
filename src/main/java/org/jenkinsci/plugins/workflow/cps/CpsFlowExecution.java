@@ -404,8 +404,8 @@ public class CpsFlowExecution extends FlowExecution {
 
     private CpsScript parseScript() throws IOException {
         // classloader hierarchy. See doc/classloader.md
-        trusted = new CpsGroovyShellFactory(this).forTrusted().build();
-        shell = new CpsGroovyShellFactory(this).withParent(trusted).build();
+        trusted = new CpsGroovyShellFactory(this).withDecorators().forTrusted().build();
+        shell = new CpsGroovyShellFactory(this).withDecorators().withParent(trusted).build();
 
         CpsScript s = (CpsScript) shell.reparse("WorkflowScript",script);
 
