@@ -5,6 +5,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import hudson.Functions;
 import hudson.model.Result;
 import java.util.concurrent.Future;
+
+import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -12,6 +14,7 @@ import static org.junit.Assert.*;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
+import org.jvnet.hudson.test.recipes.WithTimeout;
 
 public class CpsScriptTest extends AbstractCpsFlowTest {
     /**
@@ -113,4 +116,33 @@ public class CpsScriptTest extends AbstractCpsFlowTest {
         assertEquals(dumpError(), Result.SUCCESS, exec.getResult());
     }
 
+    private ErrorAction extractFirstErrorAction() {
+        StringBuilder msg = new StringBuilder();
+
+        FlowGraphWalker walker = new FlowGraphWalker(exec);
+        for (FlowNode n : walker) {
+            ErrorAction e = n.getAction(ErrorAction.class);
+            if (e != null) {
+                return e;
+            }
+        }
+        return null;
+    }
+
+    @Issue("JENKINS-34488")
+    @WithTimeout(30)
+    @Test public void unserializableException() throws Exception {
+        CpsFlowDefinition flow = new CpsFlowDefinition("assert false");
+        createExecution(flow);
+        exec.start();
+        while (!exec.isComplete()) {
+            exec.waitForSuspension();
+        }
+        assertEquals(Result.FAILURE, exec.getResult());
+
+        // extract ErrorAction.
+        ErrorAction e = extractFirstErrorAction();
+        assertNotNull(e);
+        assertThat(e.getError(), Matchers.instanceOf(ErrorActionException.class));
+    }
 }
