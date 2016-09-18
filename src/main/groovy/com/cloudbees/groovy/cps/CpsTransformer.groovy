@@ -80,7 +80,7 @@ import static org.codehaus.groovy.syntax.Types.*
 class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor {
     private int iota=0;
     private SourceUnit sourceUnit;
-    private ClassNode classNode;
+    protected ClassNode classNode;
     protected TransformerConfiguration config = new TransformerConfiguration();
 
     CpsTransformer() {

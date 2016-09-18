@@ -51,7 +51,7 @@ abstract class ContinuationGroup implements Serializable {
 
             if (receiver instanceof Super) {
                 Super s = (Super) receiver;
-                v = inv.superCall(s.receiver, s.senderType, methodName, args);
+                v = inv.superCall(s.senderType, s.receiver, methodName, args);
             } else {
                 // TODO: spread
                 v = inv.methodCall(receiver, methodName, args);
