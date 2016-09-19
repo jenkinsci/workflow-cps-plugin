@@ -4,6 +4,7 @@ import com.cloudbees.groovy.cps.impl.ContinuationGroup
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import com.cloudbees.groovy.cps.impl.DGMPatcher
 import groovy.transform.NotYetImplemented
+import org.codehaus.groovy.control.MultipleCompilationErrorsException
 import org.junit.Ignore
 import org.junit.Test
 import org.jvnet.hudson.test.Issue
@@ -644,5 +645,23 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             interface Empty {}
             return true
         ''') == true;
+    }
+
+    public static class Base {
+        @Override
+        String toString() {
+            return "base";
+        }
+    }
+    @Test
+    void superClass() {
+        assert evalCPS('''
+            class Foo extends CpsTransformerTest.Base {
+                public String toString() {
+                    return "x"+super.toString();
+                }
+            }
+            new Foo().toString();
+        ''')=="xbase"
     }
 }

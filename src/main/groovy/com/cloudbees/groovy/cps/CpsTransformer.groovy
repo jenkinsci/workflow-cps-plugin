@@ -16,6 +16,7 @@ import org.codehaus.groovy.control.Janitor
 import org.codehaus.groovy.control.SourceUnit
 import org.codehaus.groovy.control.customizers.CompilationCustomizer
 import org.codehaus.groovy.runtime.powerassert.SourceText
+import org.codehaus.groovy.syntax.SyntaxException
 import org.codehaus.groovy.syntax.Token
 
 import javax.annotation.Nonnull
@@ -79,6 +80,7 @@ import static org.codehaus.groovy.syntax.Types.*
 class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor {
     private int iota=0;
     private SourceUnit sourceUnit;
+    protected ClassNode classNode;
     protected TransformerConfiguration config = new TransformerConfiguration();
 
     CpsTransformer() {
@@ -92,6 +94,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
     @Override
     void call(SourceUnit source, GeneratorContext context, ClassNode classNode) {
         this.sourceUnit = source;
+        this.classNode = classNode;
 
         if (classNode.isInterface())
             return; // not touching interfaces
@@ -788,7 +791,12 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
              */
             makeNode("this_")
         } else
-            throw new UnsupportedOperationException("Unexpected variable type: ${ref}");
+        if (exp.name=="super") {
+            makeNode("super_") {
+                literal(classNode)
+            }
+        } else
+            sourceUnit.addError(new SyntaxException("Unsupported expression for CPS transformation", exp.lineNumber, exp.columnNumber))
     }
 
     void visitDeclarationExpression(DeclarationExpression exp) {

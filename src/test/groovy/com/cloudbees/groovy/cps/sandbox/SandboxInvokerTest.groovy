@@ -111,4 +111,31 @@ Script1.foo(Integer)
 new File(String)
 """)
     }
+
+
+    public static class Base {
+        @Override
+        String toString() {
+            return "base";
+        }
+    }
+    @Test
+    void superClass() {
+        assert evalCpsSandbox('''
+            class Foo extends SandboxInvokerTest.Base {
+                public String toString() {
+                    return "x"+super.toString();
+                }
+            }
+            class Bar extends Foo {}
+            new Bar().toString();
+        ''')=="xbase"
+
+        assertIntercept("""
+new Bar()
+Bar.toString()
+Bar.super(Foo).toString()
+String.plus(String)
+""")
+    }
 }

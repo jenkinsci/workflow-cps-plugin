@@ -5,6 +5,7 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
+import com.cloudbees.groovy.cps.sandbox.Invoker;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 
 import javax.annotation.CheckReturnValue;
@@ -44,8 +45,17 @@ abstract class ContinuationGroup implements Serializable {
     protected Next methodCall(final Env e, final SourceLocation loc, final Continuation k, final CallSiteBlock callSite, final Object receiver, final String methodName, final Object... args) {
         try {
             Caller.record(receiver,methodName,args);
-            // TODO: spread
-            Object v = e.getInvoker().contextualize(callSite).methodCall(receiver, methodName, args);
+
+            Invoker inv = e.getInvoker().contextualize(callSite);
+            Object v;
+
+            if (receiver instanceof Super) {
+                Super s = (Super) receiver;
+                v = inv.superCall(s.senderType, s.receiver, methodName, args);
+            } else {
+                // TODO: spread
+                v = inv.methodCall(receiver, methodName, args);
+            }
             // if this was a normal function, the method had just executed synchronously
             return k.receive(v);
         } catch (CpsCallableInvocation inv) {
