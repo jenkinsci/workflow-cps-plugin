@@ -95,6 +95,7 @@ import java.util.logging.Logger;
 import static com.thoughtworks.xstream.io.ExtendedHierarchicalStreamWriterHelper.*;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.GroovyCodeSource;
+import hudson.AbortException;
 import hudson.BulkChange;
 import hudson.init.Terminator;
 import hudson.model.Item;
@@ -584,7 +585,7 @@ public class CpsFlowExecution extends FlowExecution {
             @Override public void onSuccess(CpsThreadGroup g) {
                 CpsThread t = g.addThread(
                         new Continuable(new ThrowBlock(new ConstantBlock(
-                            new IOException("Failed to load persisted workflow state", problem)))),
+                            problem instanceof AbortException ? problem : new IOException("Failed to load build state", problem)))),
                         head_, null
                 );
                 t.resume(new Outcome(null,null));
