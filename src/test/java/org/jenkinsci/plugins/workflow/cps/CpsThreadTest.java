@@ -25,7 +25,6 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import hudson.AbortException;
-import hudson.Extension;
 import hudson.model.Result;
 import hudson.security.ACL;
 import java.util.List;
@@ -43,6 +42,7 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 public class CpsThreadTest {
@@ -81,7 +81,7 @@ public class CpsThreadTest {
                 throw new AbortException("never going to stop");
             }
         }
-        @Extension public static class DescriptorImpl extends AbstractStepDescriptorImpl {
+        @TestExtension public static class DescriptorImpl extends AbstractStepDescriptorImpl {
             public DescriptorImpl() {
                 super(Execution.class);
             }
