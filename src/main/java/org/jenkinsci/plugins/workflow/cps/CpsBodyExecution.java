@@ -139,6 +139,9 @@ class CpsBodyExecution extends BodyExecution {
             }
         } catch (Throwable t) {
             // body has completed synchronously and abnormally
+            synchronized (this) {
+                this.thread = currentThread;
+            }
             onFailure.receive(t);
         }
     }

@@ -167,23 +167,22 @@ public final class CpsThread implements Serializable {
             } else {
                 LOGGER.log(FINE, "ran and produced {0}", outcome);
             }
+
+            if (outcome.getNormal() instanceof ThreadTask) {
+                // if an execution in the thread safepoint is requested, deliver that
+                ThreadTask sc = (ThreadTask) outcome.getNormal();
+                ThreadTaskResult r = sc.eval(this);
+                if (r.resume!=null) {
+                    // yield, then keep evaluating the CPS code
+                    resumeValue = r.resume;
+                } else {
+                    // break but with a different value
+                    outcome = r.suspend;
+                }
+            }
         } finally {
             CURRENT.set(old);
         }
-
-        if (outcome.getNormal() instanceof ThreadTask) {
-            // if an execution in the thread safepoint is requested, deliver that
-            ThreadTask sc = (ThreadTask) outcome.getNormal();
-            ThreadTaskResult r = sc.eval(this);
-            if (r.resume!=null) {
-                // yield, then keep evaluating the CPS code
-                resumeValue = r.resume;
-            } else {
-                // break but with a different value
-                outcome = r.suspend;
-            }
-        }
-
 
         if (promise!=null) {
             if (outcome.isSuccess())        promise.set(outcome.getNormal());
