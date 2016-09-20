@@ -114,6 +114,8 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         if (classNode.getField(Verifier.__TIMESTAMP)==null)
             classNode.addField(Verifier.__TIMESTAMP,Modifier.STATIC|Modifier.PRIVATE, ClassHelper.long_TYPE,
             new ConstantExpression(0L));
+
+        classNode.addAnnotation(new AnnotationNode(WORKFLOW_TRANSFORMED_TYPE));
     }
 
     private <T> List<T> copy(List<T> t) {
