@@ -16,17 +16,6 @@ import org.jenkinsci.plugins.workflow.cps.CpsGroovyShellFactory;
  */
 @Extension
 public class GroovyStepExecutionCompiler {
-//    private GroovyShell sh;
-//
-//    /*package*/ synchronized GroovyShell sh() {
-//        if (sh==null) {
-//            sh = new CpsGroovyShellFactory(null).build();
-//            GroovyClassLoader cl = sh.getClassLoader();
-//            cl.setResourceLoader(new GroovyStepExecutionLoader(cl.getResourceLoader()));
-//        }
-//        return sh;
-//    }
-
     /**
      * We want CPS transformed code, but without sandbox transformation, so that
      * calls from this classloader to any class in Jenkins will be fine, but untrusted code
@@ -38,10 +27,6 @@ public class GroovyStepExecutionCompiler {
         cl.setResourceLoader(new GroovyStepExecutionLoader(cl.getResourceLoader()));
         return sh;
     }
-
-//    /*package*/ GroovyClassLoader getClassLoader() {
-//        return sh().getClassLoader();
-//    }
 
     public static GroovyStepExecutionCompiler get() {
         return Jenkins.getActiveInstance().getInjector().getInstance(GroovyStepExecutionCompiler.class);
