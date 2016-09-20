@@ -3,6 +3,8 @@ package org.jenkinsci.plugins.workflow.cps.steps.ingroovy;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
 import groovy.lang.GroovyObject;
+import groovy.lang.MissingMethodException;
+import groovy.lang.MissingPropertyException;
 import org.codehaus.groovy.runtime.InvokerHelper;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.cps.CpsScript;
@@ -13,6 +15,7 @@ import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 
@@ -95,7 +98,20 @@ public abstract class GroovyStepExecution extends StepExecution {
      * See http://groovy-lang.org/metaprogramming.html#_methodmissing
      */
     public Object methodMissing(String name, Object args) throws IOException {
-        return getDelegate().invokeMethod(name,args);
+        GroovyObject d = getDelegate();
+        if (d!=null)
+            return d.invokeMethod(name,args);
+        else
+            throw new MissingMethodException(name,getClass(),unpack(args));
+    }
+
+    private Object[] unpack(Object args) {
+        if (args instanceof Object[])
+            return (Object[]) args;
+        if (args==null)
+            return new Object[0];
+        else
+            return new Object[]{args};
     }
 
     /**
@@ -104,14 +120,25 @@ public abstract class GroovyStepExecution extends StepExecution {
      * See http://groovy-lang.org/metaprogramming.html#_propertymissing
      */
     public Object propertyMissing(String name) throws IOException {
-        return getDelegate().getProperty(name);
+        GroovyObject d = getDelegate();
+        if (d!=null)
+            return d.getProperty(name);
+        else
+            throw new MissingPropertyException(name,getClass());
     }
 
     /**
      * Delegate that implements the method/property resolution of Pipeline Script.
+     *
+     * <p>
+     * This needs to happen inside CPS VM to work correctly, hence no caching.
+     *
+     * @return null
+     *      if this method is invoked (incorrectly) outside the CPS VM thread.
      */
-    private GroovyObject getDelegate() throws IOException {
-        // this needs to happen inside CPS VM to work correctly, hence no caching
+    private @CheckForNull  GroovyObject getDelegate() throws IOException {
+        if (CpsThread.current()==null)
+            return null;    // invocation outside CPS VM thread
         return new CpsScript() {
             @Override
             public Object run() {
