@@ -91,7 +91,7 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         context.restore();
     }
 
-    static ThreadLocal<CpsThreadGroup> CURRENT = new ThreadLocal<CpsThreadGroup>();
+    static ThreadLocal<CpsThreadGroup> CURRENT = new ThreadLocal<>();
     /** {@link Thread#getContextClassLoader} to be used for plugin code, as opposed to Groovy. */
     static ThreadLocal<ClassLoader> ORIGINAL_CONTEXT_CLASS_LOADER = new ThreadLocal<>();
 
