@@ -7,6 +7,9 @@ import jenkins.util.InterceptingExecutorService;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
+import java.util.logging.Logger;
+
+import static java.util.logging.Level.WARNING;
 
 /**
  * {@link ExecutorService} for running CPS VM.
@@ -30,11 +33,24 @@ class CpsVmExecutorService extends InterceptingExecutorService {
                 ThreadContext context = setUp();
                 try {
                     r.run();
+                } catch (final Throwable t) {
+                    reportProblem(t);
+                    throw t;
                 } finally {
                     tearDown(context);
                 }
             }
         };
+    }
+
+    /**
+     * {@link CpsVmExecutorService} is used to run CPS VM asynchronously by one thread.
+     * None of the submissions of these tasks are monitoring their outcome, and an exception
+     * here usually means something catastrophic to the state of CPS VM.
+     * That makes it worth reporting.
+     */
+    private void reportProblem(Throwable t) {
+        LOGGER.log(WARNING, "Unexpected exception in CPS VM thread: "+cpsThreadGroup.getExecution().toString(), t);
     }
 
     @Override
@@ -45,6 +61,9 @@ class CpsVmExecutorService extends InterceptingExecutorService {
                 ThreadContext context = setUp();
                 try {
                     return r.call();
+                } catch (final Throwable t) {
+                    reportProblem(t);
+                    throw t;
                 } finally {
                     tearDown(context);
                 }
@@ -95,4 +114,5 @@ class CpsVmExecutorService extends InterceptingExecutorService {
     /** {@link Thread#getContextClassLoader} to be used for plugin code, as opposed to Groovy. */
     static ThreadLocal<ClassLoader> ORIGINAL_CONTEXT_CLASS_LOADER = new ThreadLocal<>();
 
+    private static final Logger LOGGER = Logger.getLogger(CpsVmExecutorService.class.getName());
 }
