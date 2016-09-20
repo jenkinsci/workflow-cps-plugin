@@ -29,7 +29,6 @@ import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.SettableFuture;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 import javax.annotation.CheckForNull;
@@ -284,7 +283,8 @@ public final class CpsThread implements Serializable {
         try {
             s.stop(t);
         } catch (Exception e) {
-            LOGGER.log(WARNING, "Failed to stop " + s, e);
+            t.addSuppressed(e);
+            s.getContext().onFailure(t);
         }
     }
 

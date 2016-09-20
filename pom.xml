@@ -68,9 +68,9 @@
     </properties>
     <dependencies>
         <dependency>
-            <groupId>${project.groupId}</groupId>
+            <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
-            <version>2.3</version>
+            <version>2.4-SNAPSHOT</version> <!-- TODO https://github.com/jenkinsci/workflow-step-api-plugin/pull/8 -->
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
