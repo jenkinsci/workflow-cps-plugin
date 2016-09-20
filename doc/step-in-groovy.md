@@ -47,13 +47,13 @@ package acme;
 import org.jenkinsci.plugins.workflow.cps.steps.ingroovy.GroovyStepExecution
 
 public class RetryStepExecution extends GroovyStepExecution {
-    public void call(Closure body) {
+    public int call(Closure body) {
         int attempt = 0;
         while (true) {
             try {
                 echo "trying ${attempt}"
                 body();
-                return;
+                return attempt;
             } catch (Exception e) {
                 if (attempt++ < step.times) {
                     continue; // retry
@@ -81,7 +81,8 @@ in the source form, so that it can run in the CPS groovy interpreter at the runt
 
 The `call` method on `GroovyStepExecution` subtype defines the actual logic of step.
 If the logic is complex, other methods can be defined on this class and all those methods
-can invoke other steps just like the `call` method can.
+can invoke other steps just like the `call` method can. The return value from the `call`
+method, if any, will be the return value from the step invocation.
 
 `GroovyStepExecution` can access parameters given to `GroovyStep` via the `getStep()` method.
 Note that the actual `GroovyStep` instance is not stored, but rather its invocation form.
