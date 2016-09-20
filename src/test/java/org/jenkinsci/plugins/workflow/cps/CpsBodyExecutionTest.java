@@ -3,7 +3,11 @@ package org.jenkinsci.plugins.workflow.cps;
 import groovy.lang.Closure;
 import hudson.model.Result;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
-import org.jenkinsci.plugins.workflow.cps.CpsBodyExecutionTest.SynchronousExceptionInBodyStep.EmperorHasNoClothes;
+import org.jenkinsci.plugins.workflow.actions.ErrorAction;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepNode;
+import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
@@ -15,6 +19,11 @@ import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -38,6 +47,35 @@ public class CpsBodyExecutionTest extends AbstractCpsFlowTest {
 
         WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         jenkins.assertLogContains(EmperorHasNoClothes.class.getName(),b);
+
+        {// assert the shape of FlowNodes
+            FlowGraphWalker w = new FlowGraphWalker(b.getExecution());
+            List<String> nodes = new ArrayList<>();
+            for (FlowNode n : w) {
+                String s = n.getClass().getSimpleName();
+                if (n instanceof StepNode) {
+                    StepNode sn = (StepNode) n;
+                    s+=":"+sn.getDescriptor().getFunctionName();
+                }
+                if (n instanceof StepEndNode) {
+                    // this should have recorded a failure
+                    ErrorAction e = n.getAction(ErrorAction.class);
+                    assertEquals(EmperorHasNoClothes.class,e.getError().getClass());
+                }
+                nodes.add(s);
+            }
+
+            assertEquals(Arrays.asList(
+                "FlowEndNode",
+                "StepEndNode:synchronousExceptionInBody",   // this for the end of invoking a body
+                "StepStartNode:synchronousExceptionInBody", // this for invoking a body
+                // this for the 'synchronousExceptionInBody' invocation because Pipeline Engine
+                // thinks this step has no children. There's a TODO in DSL.invokeStep about
+                // letting steps take over the FlowNode creation that should solve this.
+                "StepAtomNode:synchronousExceptionInBody",
+                "FlowStartNode"
+            ),nodes);
+        }
     }
 
     public static class SynchronousExceptionInBodyStep extends AbstractStepImpl {
@@ -81,6 +119,6 @@ public class CpsBodyExecutionTest extends AbstractCpsFlowTest {
             }
         }
 
-        public static class EmperorHasNoClothes extends RuntimeException {}
     }
+
 }
