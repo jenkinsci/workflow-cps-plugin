@@ -1,6 +1,5 @@
 package org.jenkinsci.plugins.workflow.cps.steps.ingroovy;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
 import groovy.lang.GroovyObject;
 import groovy.lang.MissingMethodException;
@@ -74,7 +73,7 @@ public abstract class GroovyStepExecution extends StepExecution {
         if (getStep().getDescriptor().takesImplicitBlockArgument()) {
             if (body.getMaximumNumberOfParameters()==0)
                 throw new IllegalArgumentException(getClass().getName()+" claims to take the body block, but its call method takes no argument.");
-            body = body.curry(new Body());
+            body = body.curry(cps.newBodyInvoker().getBody());
         }
 
         execution = cps.newBodyInvoker(t.getGroup().export(body))
@@ -145,26 +144,6 @@ public abstract class GroovyStepExecution extends StepExecution {
                 throw new AssertionError();
             }
         };
-    }
-
-    /**
-     * Passed to the user-written 'call' method in Groovy as 'body'.
-     * When invoked, executes the body block passed to the step.
-     */
-    @SuppressFBWarnings("SE_INNER_CLASS")
-    @PersistIn(PROGRAM)
-    private final class Body extends Closure {
-        public Body() {
-            super(null);
-        }
-
-        @Override
-        public Object call() {
-            // expected to throw CpsCallableInvocation
-            return getContext().newBodyInvoker().getBody().call();
-        }
-
-        private static final long serialVersionUID = 1L;
     }
 
     private static final long serialVersionUID = 1L;
