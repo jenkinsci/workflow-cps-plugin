@@ -261,6 +261,7 @@ public class WorkflowTest extends SingleJobTestBase {
         }
     }
 
+    @Issue("JENKINS-29952")
     @Test public void env() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
@@ -279,7 +280,8 @@ public class WorkflowTest extends SingleJobTestBase {
                         + "  sh 'echo tag3=$BUILD_TAG stuff=$STUFF'\n"
                         + "  env.PATH=\"/opt/stuff/bin:${env.PATH}\"\n"
                         + "  sh 'echo shell PATH=$PATH'\n"
-                        + "  echo \"groovy PATH=${env.PATH}\""
+                        + "  echo \"groovy PATH=${env.PATH}\"\n"
+                        + "  echo \"simplified groovy PATH=${PATH}\"\n"
                         + "}", true));
                 startBuilding();
                 SemaphoreStep.waitForStart("env/1", b);
@@ -297,11 +299,15 @@ public class WorkflowTest extends SingleJobTestBase {
                 story.j.assertLogContains("tag3=custom2 stuff=more", b);
                 story.j.assertLogContains("shell PATH=/opt/stuff/bin:", b);
                 story.j.assertLogContains("groovy PATH=/opt/stuff/bin:", b);
+                story.j.assertLogContains("simplified groovy PATH=/opt/stuff/bin:", b);
                 EnvironmentAction a = b.getAction(EnvironmentAction.class);
                 assertNotNull(a);
                 assertEquals("custom2", a.getEnvironment().get("BUILD_TAG"));
                 assertEquals("more", a.getEnvironment().get("STUFF"));
                 assertNotNull(a.getEnvironment().get("PATH"));
+                // Show that EnvActionImpl binding is a fallback only for things which would otherwise have been undefined:
+                p.setDefinition(new CpsFlowDefinition("env.env = 'env.env'; env.echo = 'env.echo'; env.circle = 'env.circle'; env.var = 'env.var'; circle {def var = 'value'; echo \"${var} vs. ${echo} vs. ${circle}\"}", true));
+                story.j.assertLogContains("value vs. env.echo vs. env.circle", story.j.buildAndAssertSuccess(p));
             }
         });
     }

@@ -22,44 +22,41 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.workflow;
+package org.jenkinsci.plugins.workflow.cps;
 
-import hudson.FilePath;
-import hudson.Launcher;
-import hudson.model.Run;
-import hudson.model.TaskListener;
+import hudson.model.ParametersAction;
+import hudson.model.ParametersDefinitionProperty;
+import hudson.model.StringParameterDefinition;
+import hudson.model.StringParameterValue;
+import hudson.plugins.git.BranchSpec;
+import hudson.plugins.git.GitSCM;
+import hudson.plugins.git.SubmoduleConfig;
+import hudson.plugins.git.UserRemoteConfig;
+import hudson.plugins.git.extensions.GitSCMExtension;
 import hudson.scm.ChangeLogSet;
-import hudson.scm.NullSCM;
-import hudson.scm.SCMRevisionState;
 import hudson.triggers.SCMTrigger;
-import org.apache.commons.io.IOUtils;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import org.jenkinsci.plugins.workflow.actions.WorkspaceAction;
-import org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition;
 import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.scm.GitSampleRepoRule;
 import org.jenkinsci.plugins.workflow.steps.scm.GitStep;
+import static org.junit.Assert.*;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import org.jvnet.hudson.test.SingleFileSCM;
 
 public class CpsScmFlowDefinitionTest {
 
+    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public JenkinsRule r = new JenkinsRule();
     @Rule public GitSampleRepoRule sampleRepo = new GitSampleRepoRule();
 
@@ -128,23 +125,22 @@ public class CpsScmFlowDefinitionTest {
         assertEquals(Collections.emptyList(), changeSets);
     }
 
-    // TODO 1.599+ use standard version
-    private static class SingleFileSCM extends NullSCM {
-        private final String path;
-        private final byte[] contents;
-        SingleFileSCM(String path, String contents) throws UnsupportedEncodingException {
-            this.path = path;
-            this.contents = contents.getBytes("UTF-8");
-        }
-        @Override public void checkout(Run<?, ?> build, Launcher launcher, FilePath workspace, TaskListener listener, File changelogFile, SCMRevisionState baseline) throws IOException, InterruptedException {
-            listener.getLogger().println("Staging " + path);
-            OutputStream os = workspace.child(path).write();
-            IOUtils.write(contents, os);
-            os.close();
-        }
-        private Object writeReplace() {
-            return new Object();
-        }
+    @Issue("JENKINS-28447")
+    @Test public void usingParameter() throws Exception {
+        sampleRepo.init();
+        sampleRepo.write("flow.groovy", "echo 'version one'");
+        sampleRepo.git("add", "flow.groovy");
+        sampleRepo.git("commit", "--message=one");
+        sampleRepo.git("tag", "one");
+        sampleRepo.write("flow.groovy", "echo 'version two'");
+        sampleRepo.git("commit", "--all", "--message=two");
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsScmFlowDefinition(new GitSCM(Collections.singletonList(new UserRemoteConfig(sampleRepo.fileUrl(), null, null, null)),
+            Collections.singletonList(new BranchSpec("${VERSION}")),
+            false, Collections.<SubmoduleConfig>emptyList(), null, null, Collections.<GitSCMExtension>emptyList()), "flow.groovy"));
+        p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("VERSION", "master")));
+        r.assertLogContains("version two", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+        r.assertLogContains("version one", r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("VERSION", "one")))));
     }
 
 }
