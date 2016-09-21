@@ -15,8 +15,8 @@ import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.IOException;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
@@ -136,7 +136,7 @@ public abstract class GroovyStepExecution extends StepExecution {
      * @return null
      *      if this method is invoked (incorrectly) outside the CPS VM thread.
      */
-    private @CheckForNull  GroovyObject getDelegate() throws IOException {
+    protected @Nullable GroovyObject getDelegate() throws IOException {
         if (CpsThread.current()==null)
             return null;    // invocation outside CPS VM thread
         return new CpsScript() {
