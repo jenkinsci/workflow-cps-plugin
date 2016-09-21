@@ -44,6 +44,7 @@ public class CpsThreadDumpTest {
             FlowExecutionOwner owner = b.asFlowExecutionOwner();
             assertNotNull(owner);
             CpsFlowExecution exec = (CpsFlowExecution) owner.getOrNull();
+            assertNotNull(exec);
             assertFalse(exec.isComplete());
             fail("not sure why CpsThreadDumpAction was missing here");
         }

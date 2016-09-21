@@ -250,8 +250,7 @@ public class CpsFlowExecutionTest {
                 SemaphoreStep.waitForStart("wait/1", b);
                 story.j.jenkins.doQuietDown(true, 0);
                 SemaphoreStep.success("wait/1", null);
-                // as above, this is rather weak
-                Thread.sleep(1000);
+                ((CpsFlowExecution) b.getExecution()).waitForSuspension();
                 assertTrue(b.isBuilding());
             }
         });

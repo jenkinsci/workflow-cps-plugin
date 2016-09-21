@@ -49,8 +49,10 @@ public class SerializationTest extends SingleJobTestBase {
                         waitForWorkflowToSuspend();
                     } catch (Exception x) {
                         // ignore persistence failure
-                        if (!x.getMessage().contains("Failed to persist"))
+                        String message = x.getMessage();
+                        if (message == null || !message.contains("Failed to persist")) {
                             throw x;
+                        }
                     }
 
                 story.j.assertBuildStatus(Result.FAILURE, b);
