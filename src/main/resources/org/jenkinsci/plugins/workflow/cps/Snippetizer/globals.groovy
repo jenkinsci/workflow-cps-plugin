@@ -26,8 +26,10 @@ l.layout(title:_("Pipeline Syntax: Global Variable Reference"), norefresh: true)
           h2(_("Variables"))
           dl(class:'steps variables root'){
             for (GlobalVariable v : snippetizer.getGlobalVariables()) {
-              dt {
-                code(v.getName())
+              dt(id: v.getName()) {
+                a(href: '#' + v.getName()) {
+                  code(v.getName())
+                }
               }
               dd{
                 RequestDispatcher rd = request.getView(v, "help");
