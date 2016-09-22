@@ -240,11 +240,12 @@ public class SnippetizerTest {
         assertThat("content is written to the end", html, containsString("</body></html>"));
     }
 
-    @Issue("JENKINS-35395")
+    @Issue({"JENKINS-35395", "JENKINS-38114"})
     @Test public void doGlobalsRef() throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
         String html = wc.goTo(Snippetizer.ACTION_URL + "/globals").getWebResponse().getContentAsString();
         assertThat("text from RunWrapperBinder/help.jelly is included", html, containsString("may be used to refer to the currently running build"));
+        assertThat("text from RunWrapperBinder/help.jelly includes text from RunWrapper/help.html", html, containsString("<dt><code>buildVariables</code></dt>"));
         assertThat("content is written to the end", html, containsString("</body></html>"));
     }
 
