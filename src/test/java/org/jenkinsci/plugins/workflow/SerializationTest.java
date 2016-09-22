@@ -194,13 +194,13 @@ public class SerializationTest extends SingleJobTestBase {
                 ScriptApproval.get().approveSignature("method java.util.Map entrySet");
                 p.setDefinition(new CpsFlowDefinition(
                     "def map = [one: 1, two: 2]\n" +
-                    "@NonCPS def entries(m) {m.collect {k, v -> [k, v]}}; mapE = entries(map); for (int i = 0; i < mapE.size(); i++) {def e = mapE[i]; echo \"running C-style loop on ${e[0]} → ${e[1]}\"; semaphore \"C-${e[0]}\"}\n" +
+                    "@NonCPS def entries(m) {m.collect {k, v -> [k, v]}}; for (def e in entries(map)) {echo \"running flattened loop on ${e[0]} → ${e[1]}\"; semaphore \"C-${e[0]}\"}\n" +
                     "for (def e : map.entrySet()) {echo \"running new-style loop on ${e.key} → ${e.value}\"; semaphore \"new-${e.key}\"}"
                     // TODO check also keySet(), values()
                     , true));
                 startBuilding();
                 SemaphoreStep.waitForStart("C-one/1", b);
-                story.j.waitForMessage("running C-style loop on one → 1", b);
+                story.j.waitForMessage("running flattened loop on one → 1", b);
             }
         });
         story.addStep(new Statement() {
@@ -208,7 +208,7 @@ public class SerializationTest extends SingleJobTestBase {
                 rebuildContext(story.j);
                 SemaphoreStep.success("C-one/1", null);
                 SemaphoreStep.success("C-two/1", null);
-                story.j.waitForMessage("running C-style loop on two → 2", b);
+                story.j.waitForMessage("running flattened loop on two → 2", b);
                 SemaphoreStep.waitForStart("new-one/1", b);
                 story.j.waitForMessage("running new-style loop on one → 1", b);
             }
