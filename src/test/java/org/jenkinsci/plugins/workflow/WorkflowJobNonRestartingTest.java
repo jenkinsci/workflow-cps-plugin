@@ -33,7 +33,9 @@ import java.util.concurrent.TimeUnit;
 
 import hudson.security.WhoAmI;
 import hudson.util.OneShotEvent;
-import org.apache.commons.io.FileUtils;
+import java.io.IOException;
+import java.io.StringWriter;
+import static org.hamcrest.Matchers.containsString;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.actions.LogAction;
@@ -41,10 +43,10 @@ import org.jenkinsci.plugins.workflow.cps.AbstractCpsFlowTest;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.graph.AtomNode;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.RetryStep;
-import org.jenkinsci.plugins.workflow.support.actions.LogActionImpl;
 import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
@@ -91,9 +93,15 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
         // currentHeads[0] is FlowEndNode, whose parent is BlockEndNode for "node",
         // whose parent is BlockEndNode for body invocation, whose parent is AtomNode
         AtomNode atom = (AtomNode) e.getCurrentHeads().get(0).getParents().get(0).getParents().get(0).getParents().get(0);
-        LogActionImpl la = (LogActionImpl) atom.getAction(LogAction.class);
-        String text = FileUtils.readFileToString(la.getLogFile());
-        assertTrue(text, text.contains("hello world"));
+        assertThat(logOf(atom), containsString("hello world"));
+    }
+
+    private String logOf(FlowNode node) throws IOException {
+        LogAction la = node.getAction(LogAction.class);
+        assertNotNull(la);
+        StringWriter w = new StringWriter();
+        la.getLogText().writeLogTo(0, w);
+        return w.toString();
     }
 
     /**
@@ -187,9 +195,7 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
         // currentHeads[0] is FlowEndNode, whose parent is BlockEndNode for "node",
         // whose parent is BlockEndNode for body invocation, whose parent is AtomNode
         AtomNode atom = (AtomNode) b.getExecution().getCurrentHeads().get(0).getParents().get(0).getParents().get(0).getParents().get(0);
-        LogActionImpl la = (LogActionImpl) atom.getAction(LogAction.class);
-        String text = FileUtils.readFileToString(la.getLogFile());
-        assertTrue(text, text.contains("hello world"));
+        assertThat(logOf(atom), containsString("hello world"));
     }
 
     /**
