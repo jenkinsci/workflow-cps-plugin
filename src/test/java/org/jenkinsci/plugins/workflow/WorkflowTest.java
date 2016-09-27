@@ -306,8 +306,18 @@ public class WorkflowTest extends SingleJobTestBase {
                 assertEquals("more", a.getEnvironment().get("STUFF"));
                 assertNotNull(a.getEnvironment().get("PATH"));
                 // Show that EnvActionImpl binding is a fallback only for things which would otherwise have been undefined:
-                p.setDefinition(new CpsFlowDefinition("env.env = 'env.env'; env.echo = 'env.echo'; env.circle = 'env.circle'; env.var = 'env.var'; circle {def var = 'value'; echo \"${var} vs. ${echo} vs. ${circle}\"}", true));
-                story.j.assertLogContains("value vs. env.echo vs. env.circle", story.j.buildAndAssertSuccess(p));
+                p.setDefinition(new CpsFlowDefinition(
+                    "env.env = 'env.env'\n" +
+                    "env.echo = 'env.echo'\n" +
+                    "env.circle = 'env.circle'\n" +
+                    "env.var = 'env.var'\n" +
+                    "env.global = 'env.global'\n" +
+                    "global = 'global'\n" +
+                    "circle {\n" +
+                    "  def var = 'value'\n" +
+                    "  echo \"${var} vs. ${echo} vs. ${circle} vs. ${global}\"\n" +
+                    "}", true));
+                story.j.assertLogContains("value vs. env.echo vs. env.circle vs. global", story.j.buildAndAssertSuccess(p));
             }
         });
     }
