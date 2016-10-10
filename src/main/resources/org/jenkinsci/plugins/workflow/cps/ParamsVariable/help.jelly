@@ -26,7 +26,7 @@ THE SOFTWARE.
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core">
     <p>
-        Exposes all parameters defined in the build as a map with variously typed values. Example:
+        Exposes all parameters defined in the build as a read-only map with variously typed values. Example:
     </p>
     <pre><code>if (params.BOOLEAN_PARAM_NAME) {doSomething()}</code></pre>
 </j:jelly>

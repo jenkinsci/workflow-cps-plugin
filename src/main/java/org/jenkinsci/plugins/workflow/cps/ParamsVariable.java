@@ -80,7 +80,7 @@ import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
             }
             values.put(parameterValue.getName(), value);
         }
-        return values;
+        return Collections.unmodifiableMap(values);
     }
 
 }
