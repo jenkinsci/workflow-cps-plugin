@@ -25,8 +25,10 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import hudson.Extension;
+import hudson.model.ParameterDefinition;
 import hudson.model.ParameterValue;
 import hudson.model.ParametersAction;
+import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Run;
 import java.io.Serializable;
 import java.util.Collections;
@@ -50,37 +52,51 @@ import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
         if (b == null) {
             throw new IllegalStateException("cannot find owning build");
         }
-        ParametersAction action = b.getAction(ParametersAction.class);
-        if (action == null) {
-            return Collections.emptyMap();
-        }
-        List<ParameterValue> parameterValues;
-        try { // TODO 1.651.2+ remove reflection
-            parameterValues = (List<ParameterValue>) ParametersAction.class.getMethod("getAllParameters").invoke(action);
-        } catch (NoSuchMethodException x) {
-            parameterValues = action.getParameters();
-        }
         // Could extend AbstractMap and make a Serializable lazy wrapper, but getValue impls seem cheap anyway.
         Map<String,Object> values = new HashMap<>();
-        for (ParameterValue parameterValue : parameterValues) {
-            Object value = parameterValue.getValue();
-            if (!(value instanceof Serializable)) {
-                boolean canPickle = false;
-                for (PickleFactory pf : PickleFactory.all()) {
-                    if (pf.writeReplace(value) != null) {
-                        // For example SecretPickle can handle Secret from PasswordParameterValue.
-                        canPickle = true;
-                        break;
+        ParametersAction action = b.getAction(ParametersAction.class);
+        if (action != null) {
+            List<ParameterValue> parameterValues;
+            try { // TODO 1.651.2+ remove reflection
+                parameterValues = (List<ParameterValue>) ParametersAction.class.getMethod("getAllParameters").invoke(action);
+            } catch (NoSuchMethodException x) {
+                parameterValues = action.getParameters();
+            }
+            for (ParameterValue parameterValue : parameterValues) {
+                addValue(values, parameterValue);
+            }
+        }
+        ParametersDefinitionProperty prop = b.getParent().getProperty(ParametersDefinitionProperty.class);
+        if (prop != null) { // JENKINS-35698: look for default values as well
+            for (ParameterDefinition param : prop.getParameterDefinitions()) {
+                if (!values.containsKey(param.getName())) {
+                    ParameterValue defaultParameterValue = param.getDefaultParameterValue();
+                    if (defaultParameterValue != null) {
+                        addValue(values, defaultParameterValue);
                     }
                 }
-                if (!canPickle) {
-                    // Just skip anything not serializable, such as a Run from a RunParameterValue.
-                    continue;
-                }
             }
-            values.put(parameterValue.getName(), value);
         }
         return Collections.unmodifiableMap(values);
+    }
+
+    private static void addValue(Map<String, Object> values, ParameterValue parameterValue) {
+        Object value = parameterValue.getValue();
+        if (!(value instanceof Serializable)) {
+            boolean canPickle = false;
+            for (PickleFactory pf : PickleFactory.all()) {
+                if (pf.writeReplace(value) != null) {
+                    // For example SecretPickle can handle Secret from PasswordParameterValue.
+                    canPickle = true;
+                    break;
+                }
+            }
+            if (!canPickle) {
+                // Just skip anything not serializable, such as a Run from a RunParameterValue.
+                return;
+            }
+        }
+        values.put(parameterValue.getName(), value);
     }
 
 }
