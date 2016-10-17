@@ -65,6 +65,7 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
 
     @Override public EnvVars getEnvironment() throws IOException, InterruptedException {
         if (ownerEnvironment == null) {
+            // TODO call FlowExecutionOwner.getListener
             ownerEnvironment = owner.getEnvironment(new LogTaskListener(LOGGER, Level.INFO));
         }
         EnvVars e = new EnvVars(ownerEnvironment);
@@ -77,7 +78,7 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
         return Collections.unmodifiableMap(env);
     }
 
-    @Override public Object getProperty(String propertyName) {
+    @Override public String getProperty(String propertyName) {
         try {
             CpsThread t = CpsThread.current();
             return EnvironmentExpander.getEffectiveEnvironment(getEnvironment(), t.getContextVariable(EnvVars.class), t.getContextVariable(EnvironmentExpander.class)).get(propertyName);

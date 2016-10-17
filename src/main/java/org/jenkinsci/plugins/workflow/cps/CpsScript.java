@@ -26,10 +26,8 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.SerializableScript;
 import groovy.lang.GroovyShell;
+import groovy.lang.MissingPropertyException;
 import groovy.lang.Script;
-import hudson.EnvVars;
-import hudson.model.ParameterValue;
-import hudson.model.ParametersAction;
 import hudson.model.Queue;
 import hudson.model.Run;
 import java.io.File;
@@ -77,19 +75,8 @@ public abstract class CpsScript extends SerializableScript {
 
     @SuppressWarnings("unchecked") // Binding
     final void $initialize() throws IOException {
+        // TODO JENKINS-33353 could make this a GlobalVariable instead
         getBinding().setVariable(STEPS_VAR, new DSL(execution.getOwner()));
-        Run<?,?> run = $build();
-        if (run != null) {
-            EnvVars paramEnv = new EnvVars();
-            ParametersAction a = run.getAction(ParametersAction.class);
-            if (a != null) {
-                for (ParameterValue v : a) {
-                    v.buildEnvironment(run, paramEnv);
-                }
-            }
-            EnvVars.resolve(paramEnv);
-            getBinding().getVariables().putAll(paramEnv);
-        }
     }
 
 
@@ -103,6 +90,7 @@ public abstract class CpsScript extends SerializableScript {
      */
     @Override
     public final Object invokeMethod(String name, Object args) {
+        // TODO probably better to call super method and only proceed here incase of MissingMethodException:
         // if global variables are defined by that name, try to call it.
         // the 'call' convention comes from Closure
         GlobalVariable v = GlobalVariable.byName(name, $buildNoException());
@@ -122,15 +110,31 @@ public abstract class CpsScript extends SerializableScript {
 
     @Override
     public Object getProperty(String property) {
-        GlobalVariable v = GlobalVariable.byName(property, $buildNoException());
-        if (v != null) {
-            try {
-                return v.getValue(this);
-            } catch (Exception x) {
-                throw new InvokerInvocationException(x);
+        try {
+            return super.getProperty(property);
+        } catch (MissingPropertyException mpe) {
+            // cf. CpsWhitelist.permitsMethod
+            Run<?,?> b = $buildNoException();
+            GlobalVariable v = GlobalVariable.byName(property, b);
+            if (v != null) {
+                try {
+                    return v.getValue(this);
+                } catch (Exception x) {
+                    throw new InvokerInvocationException(x);
+                }
             }
+            if (b != null) {
+                try {
+                    String value = EnvActionImpl.forRun(b).getProperty(property);
+                    if (value != null) {
+                        return value;
+                    }
+                } catch (IOException x) {
+                    LOGGER.log(Level.WARNING, null, x);
+                }
+            }
+            throw mpe;
         }
-        return super.getProperty(property);
     }
 
     public @CheckForNull Run<?,?> $build() throws IOException {

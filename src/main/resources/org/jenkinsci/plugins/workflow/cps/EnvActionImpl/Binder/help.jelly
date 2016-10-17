@@ -2,8 +2,8 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler">
     <p>
-        Environment variables are accessible from Groovy code as <code>env.VARNAME</code>.
-        You can write to such properties as well:
+        Environment variables are accessible from Groovy code as <code>env.VARNAME</code> or simply as <code>VARNAME</code>.
+        You can write to such properties as well (only using the <code>env.</code> prefix):
     </p>
     <p>
         <pre>env.MYTOOL_VERSION = '1.33'
@@ -44,7 +44,7 @@ node {
     </p>
     <p>
         <pre>mail to: 'devops@acme.com',
-    subject: "Job '$${env.JOB_NAME}' ($${env.BUILD_NUMBER}) is waiting for input",
-    body: "Please go to $${env.BUILD_URL} and verify the build"</pre>
+    subject: "Job '$${JOB_NAME}' ($${BUILD_NUMBER}) is waiting for input",
+    body: "Please go to $${BUILD_URL} and verify the build"</pre>
     </p>
 </j:jelly>
