@@ -62,8 +62,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
+import javax.annotation.Nullable;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 /**
  * List of {@link CpsThread}s that form a single {@link CpsFlowExecution}.
@@ -136,6 +139,14 @@ public final class CpsThreadGroup implements Serializable {
     /** Track a script so that we can fix up its {@link Script#getBinding}s after deserialization. */
     void register(Script script) {
         scripts.add(script);
+    }
+
+    /**
+     * The main Pipeline script that this build loaded.
+     */
+    @Restricted(NoExternalUse.class)
+    public @Nullable Script getMainScript() {
+        return scripts.isEmpty() ? null : scripts.get(0);
     }
 
     @SuppressWarnings("unchecked")
@@ -472,7 +483,8 @@ public final class CpsThreadGroup implements Serializable {
      * If we are in that thread executing {@link CpsThreadGroup}, this method returns non-null.
      */
     @CpsVmThreadOnly
-    /*package*/ static CpsThreadGroup current() {
+    @Restricted(NoExternalUse.class)
+    public static @Nullable CpsThreadGroup current() {
         return CpsVmExecutorService.CURRENT.get();
     }
 }

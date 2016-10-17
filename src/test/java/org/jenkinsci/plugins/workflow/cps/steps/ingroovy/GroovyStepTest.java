@@ -21,12 +21,16 @@ import java.util.List;
 
 import static hudson.model.Result.*;
 import static org.junit.Assert.*;
+import org.junit.ClassRule;
+import org.jvnet.hudson.test.BuildWatcher;
 
 /**
  * @author Kohsuke Kawaguchi
  * @see "doc/step-in-groovy.md"
  */
 public class GroovyStepTest {
+
+    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
 
     /**
@@ -159,8 +163,7 @@ public class GroovyStepTest {
     /**
      * Use of fields/methods in {@link GroovyStepExecution}
      * Call other steps that take closure.
-     *
-     * @see ComplexStepExecution
+     * See {@code ComplexStepExecution}.
      */
     @Test
     public void complex() throws Exception {
@@ -287,4 +290,15 @@ public class GroovyStepTest {
             }
         });
     }
+
+    @Test public void accessToGroovyDefinedGlobalVariable() throws Exception {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition("globalVar.field = 'set'; usesGlobalVar()", true));
+                story.j.assertLogContains("field is currently set and environment variable is defined", story.j.buildAndAssertSuccess(p));
+            }
+        });
+    }
+
 }

@@ -6,7 +6,6 @@ import groovy.lang.MissingMethodException;
 import groovy.lang.MissingPropertyException;
 import org.codehaus.groovy.runtime.InvokerHelper;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
-import org.jenkinsci.plugins.workflow.cps.CpsScript;
 import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
 import org.jenkinsci.plugins.workflow.cps.CpsThread;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
@@ -17,6 +16,7 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
+import org.jenkinsci.plugins.workflow.cps.CpsThreadGroup;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
@@ -136,14 +136,11 @@ public abstract class GroovyStepExecution extends StepExecution {
      *      if this method is invoked (incorrectly) outside the CPS VM thread.
      */
     protected @Nullable GroovyObject getDelegate() throws IOException {
-        if (CpsThread.current()==null)
+        CpsThreadGroup g = CpsThreadGroup.current();
+        if (g == null) {
             return null;    // invocation outside CPS VM thread
-        return new CpsScript() {
-            @Override
-            public Object run() {
-                throw new AssertionError();
-            }
-        };
+        }
+        return g.getMainScript();
     }
 
     private static final long serialVersionUID = 1L;

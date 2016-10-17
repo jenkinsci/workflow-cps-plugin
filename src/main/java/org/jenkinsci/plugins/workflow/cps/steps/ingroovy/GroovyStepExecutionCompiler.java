@@ -1,6 +1,5 @@
 package org.jenkinsci.plugins.workflow.cps.steps.ingroovy;
 
-import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyShell;
 import hudson.Extension;
 import jenkins.model.Jenkins;
@@ -23,8 +22,7 @@ public class GroovyStepExecutionCompiler {
      */
     /*package*/ GroovyShell createShell(ClassLoader parent) {
         GroovyShell sh = new CpsGroovyShellFactory(null).withParent(parent).build();
-        GroovyClassLoader cl = sh.getClassLoader();
-        cl.setResourceLoader(new GroovyStepExecutionLoader(cl.getResourceLoader()));
+        sh.getClassLoader().setResourceLoader(new GroovyStepExecutionLoader());
         return sh;
     }
 

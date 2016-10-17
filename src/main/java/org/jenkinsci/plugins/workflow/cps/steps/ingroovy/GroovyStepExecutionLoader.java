@@ -14,13 +14,11 @@ import java.net.URL;
  * @see GroovyShellDecoratorImpl
  * @see "doc/step-in-groovy.md"
  */
-final class
-GroovyStepExecutionLoader implements GroovyResourceLoader {
-    private final GroovyResourceLoader base;
+final class GroovyStepExecutionLoader implements GroovyResourceLoader {
+
     private final ClassLoader uberClassLoader;
 
-    GroovyStepExecutionLoader(GroovyResourceLoader base) {
-        this.base = base;
+    GroovyStepExecutionLoader() {
         this.uberClassLoader = Jenkins.getActiveInstance().getPluginManager().uberClassLoader;
     }
 
@@ -39,6 +37,6 @@ GroovyStepExecutionLoader implements GroovyResourceLoader {
                 }
             }
         }
-        return base.loadGroovySource(className);
+        return null;
     }
 }
