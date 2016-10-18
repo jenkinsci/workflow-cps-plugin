@@ -231,7 +231,7 @@ public final class CpsThread implements Serializable {
     /**
      * Finds the next younger {@link CpsThread} that shares the same {@link FlowHead}.
      *
-     * Can be {@code this.}
+     * Cannot be {@code this}.
      */
     @CheckForNull CpsThread getNextInner() {
         for (CpsThread t : group.threads.values()) {
