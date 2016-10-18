@@ -408,6 +408,8 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                                     FlowInterruptedException cause = new FlowInterruptedException(Result.FAILURE, new BodyFailed());
                                     cause.initCause(getOutcome().getAbnormal());
                                     try {
+                                        // TODO JENKINS-26148/JENKINS-34637 this is probably wrong: should interrupt the innermost execution
+                                        // (the “next” one could be block-scoped, and we would want to interrupt all parallel heads)
                                         s.stop(cause);
                                     } catch (Exception e) {
                                         LOGGER.log(Level.WARNING, "Failed to stop the body execution in response to the failure of the parent");
