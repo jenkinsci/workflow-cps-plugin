@@ -61,6 +61,10 @@ public class CpsFlowDefinition extends FlowDefinition {
     private final String script;
     private final boolean sandbox;
 
+    /**
+     * @deprecated use {@link #CpsFlowDefinition(String, boolean)} instead
+     */
+    @Deprecated
     public CpsFlowDefinition(String script) {
         this(script, false);
     }
