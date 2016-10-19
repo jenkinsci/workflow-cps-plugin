@@ -10,6 +10,7 @@ import com.cloudbees.groovy.cps.impl.TryBlockEnv;
 import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.SettableFuture;
 import hudson.model.Action;
 import hudson.model.Result;
 import hudson.util.Iterators;
@@ -180,30 +181,53 @@ class CpsBodyExecution extends BodyExecution {
 
     @Override
     public Collection<StepExecution> getCurrentExecutions() {
-        if (thread==null)   return Collections.emptyList();
-        List<StepExecution> executions = new ArrayList<>();
-        // cf. trick in CpsFlowExecution.getCurrentExecutions(true)
-        Map<FlowHead, CpsThread> m = new LinkedHashMap<>();
-        // TODO access to CpsThreadGroup.threads should be restricted to the CPS VM thread, but the API signature does not allow us to return a promise or throw InterruptedException
-        for (CpsThread t : thread.group.threads.values()) {
-            m.put(t.head, t);
-        }
-        for (CpsThread t : m.values()) {
-            // TODO seems cumbersome to have to go through the flow graph to find out whether a head is a descendant of ours, yet FlowHead does not seem to retain a parent field
-            LinearBlockHoppingScanner scanner = new LinearBlockHoppingScanner();
-            scanner.setup(t.head.get());
-            for (FlowNode node : scanner) {
-                if (node.getId().equals(startNodeId)) {
-                    // this head is inside this body execution
-                    StepExecution execution = t.getStep();
-                    if (execution != null) {
-                        executions.add(execution);
-                    }
-                    break;
-                }
+        CpsThread t;
+        synchronized (this) {
+            t = thread;
+            if (t == null) {
+                return Collections.emptySet();
             }
         }
-        return executions;
+        final SettableFuture<Collection<StepExecution>> result = SettableFuture.create();
+        t.getExecution().runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+            @Override public void onSuccess(CpsThreadGroup g) {
+                try {
+                    List<StepExecution> executions = new ArrayList<>();
+                    // cf. trick in CpsFlowExecution.getCurrentExecutions(true)
+                    Map<FlowHead, CpsThread> m = new LinkedHashMap<>();
+                    for (CpsThread t : g.threads.values()) {
+                        m.put(t.head, t);
+                    }
+                    for (CpsThread t : m.values()) {
+                        // TODO seems cumbersome to have to go through the flow graph to find out whether a head is a descendant of ours, yet FlowHead does not seem to retain a parent field
+                        LinearBlockHoppingScanner scanner = new LinearBlockHoppingScanner();
+                        scanner.setup(t.head.get());
+                        for (FlowNode node : scanner) {
+                            if (node.getId().equals(startNodeId)) {
+                                // this head is inside this body execution
+                                StepExecution execution = t.getStep();
+                                if (execution != null) {
+                                    executions.add(execution);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    result.set(executions);
+                } catch (Exception x) {
+                    result.setException(x);
+                }
+            }
+            @Override public void onFailure(Throwable t) {
+                result.setException(t);
+            }
+        });
+        try {
+            return result.get(1, TimeUnit.MINUTES);
+        } catch (ExecutionException | InterruptedException | TimeoutException x) {
+            // TODO access to CpsThreadGroup.threads must be restricted to the CPS VM thread, but the API signature does not allow us to return a ListenableFuture or throw checked exceptions
+            throw new RuntimeException(x);
+        }
     }
 
     @Override
