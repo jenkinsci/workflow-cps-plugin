@@ -57,7 +57,7 @@ public class CpsThreadDumpTest {
             ThreadInfo t = threads.get(0);
             assertEquals("Thread #0", t.getHeadline());
             assertStackTrace(t,
-                    "DSL.semaphore(Native Method)",
+                    "DSL.semaphore(waiting on x/1)",
                     "WorkflowScript.bar(WorkflowScript:3)",
                     "WorkflowScript.foo(WorkflowScript:1)",
                     "WorkflowScript.run(WorkflowScript:5)");
@@ -89,7 +89,7 @@ public class CpsThreadDumpTest {
         td.print(System.out);
 
         assertStackTrace( td.getThreads().get(0),
-            "DSL.semaphore(Native Method)",
+            "DSL.semaphore(waiting on x/1)",
             "WorkflowScript.bar(WorkflowScript:3)",
             "WorkflowScript.foo(WorkflowScript:1)",
             "WorkflowScript.zot(WorkflowScript:7)",
@@ -98,7 +98,7 @@ public class CpsThreadDumpTest {
             "WorkflowScript.run(WorkflowScript:10)");
 
         assertStackTrace( td.getThreads().get(1),
-            "DSL.semaphore(Native Method)",
+            "DSL.semaphore(waiting on y/1)",
             "WorkflowScript.bar(WorkflowScript:3)",
             "WorkflowScript.zot(WorkflowScript:8)");
     }
@@ -111,7 +111,7 @@ public class CpsThreadDumpTest {
         CpsThreadDump td = b.getAction(CpsThreadDumpAction.class).threadDumpSynchronous();
         td.print(System.out);
         assertStackTrace(td.getThreads().get(0),
-            "DSL.semaphore(Native Method)",
+            "DSL.semaphore(waiting on here/1)",
             "Script1.m(Script1.groovy:1)",
             "WorkflowScript.run(WorkflowScript:1)");
     }
