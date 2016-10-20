@@ -65,8 +65,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import jenkins.model.CauseOfInterruption;
 import jenkins.util.ContextResettingExecutorService;
 import org.codehaus.groovy.runtime.InvokerInvocationException;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepNode;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
@@ -98,6 +100,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     @GuardedBy("this")
     private transient Outcome outcome;
+    private transient Throwable whenOutcomeDelivered;
 
     // see class javadoc.
     // transient because if it's serialized and deserialized, it should come back in the async mode.
@@ -321,23 +324,46 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         if (t == null) {
             throw new IllegalArgumentException();
         }
-        if (isCompleted()) {
-            LOGGER.log(Level.WARNING, "already completed " + this, new IllegalStateException(t));
-            return;
-        }
-        this.outcome = new Outcome(null,t);
-
-        scheduleNextRun();
+        completed(new Outcome(null, t));
     }
 
     @Override public synchronized void onSuccess(Object returnValue) {
-        if (isCompleted()) {
-            LOGGER.log(Level.WARNING, "already completed " + this, new IllegalStateException());
-            return;
-        }
-        this.outcome = new Outcome(returnValue,null);
+        completed(new Outcome(returnValue, null));
 
-        scheduleNextRun();
+    }
+
+    private void completed(@Nonnull Outcome newOutcome) {
+        if (outcome == null) {
+            outcome = newOutcome;
+            scheduleNextRun();
+            whenOutcomeDelivered = new Throwable();
+        } else {
+            Throwable failure = newOutcome.getAbnormal();
+            if (failure instanceof FlowInterruptedException) {
+                for (CauseOfInterruption cause : ((FlowInterruptedException) failure).getCauses()) {
+                    if (cause instanceof BodyFailed) {
+                        LOGGER.log(Level.FINE, "already completed " + this + " and now received body failure", failure);
+                        // Predictable that the error would be thrown up here; quietly ignore it.
+                        return;
+                    }
+                }
+            }
+            LOGGER.log(Level.WARNING, "already completed " + this, new IllegalStateException("delivered here"));
+            if (failure != null) {
+                LOGGER.log(Level.INFO, "new failure", failure);
+            } else {
+                LOGGER.log(Level.INFO, "new success: {0}", outcome.getNormal());
+            }
+            if (whenOutcomeDelivered != null) {
+                LOGGER.log(Level.INFO, "previously delivered here", whenOutcomeDelivered);
+            }
+            failure = outcome.getAbnormal();
+            if (failure != null) {
+                LOGGER.log(Level.INFO, "earlier failure", failure);
+            } else {
+                LOGGER.log(Level.INFO, "earlier success: {0}", outcome.getNormal());
+            }
+        }
     }
 
     /**
@@ -379,9 +405,11 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                                 if (s != null) {
                                     // TODO: ideally this needs to work like interrupt, in that
                                     // if s==null the next StepExecution gets interrupted when it happen
-                                    FlowInterruptedException cause = new FlowInterruptedException(Result.FAILURE);
+                                    FlowInterruptedException cause = new FlowInterruptedException(Result.FAILURE, new BodyFailed());
                                     cause.initCause(getOutcome().getAbnormal());
                                     try {
+                                        // TODO JENKINS-26148/JENKINS-34637 this is probably wrong: should interrupt the innermost execution
+                                        // (the “next” one could be block-scoped, and we would want to interrupt all parallel heads)
                                         s.stop(cause);
                                     } catch (Exception e) {
                                         LOGGER.log(Level.WARNING, "Failed to stop the body execution in response to the failure of the parent");
@@ -416,6 +444,12 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
             });
         } catch (IOException x) {
             LOGGER.log(Level.FINE, null, x);
+        }
+    }
+
+    private static class BodyFailed extends CauseOfInterruption {
+        @Override public String getShortDescription() {
+            return "Body of block-scoped step failed";
         }
     }
 
@@ -519,7 +553,14 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     }
 
     @Override public String toString() {
-        return "CpsStepContext[" + id + "]:" + executionRef;
+        String function = null;
+        if (node instanceof StepNode) {
+            StepDescriptor d = ((StepNode) node).getDescriptor();
+            if (d != null) {
+                function = d.getFunctionName();
+            }
+        }
+        return "CpsStepContext[" + id + ":" + function + "]:" + executionRef;
     }
 
     private static final long serialVersionUID = 1L;

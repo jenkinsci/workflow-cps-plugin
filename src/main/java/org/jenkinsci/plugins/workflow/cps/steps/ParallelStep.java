@@ -126,7 +126,10 @@ public class ParallelStep extends Step {
                 if (handler.originalFailure == null) {
                     handler.originalFailure = new SimpleEntry<String, Throwable>(name, t);
                 } else {
-                    handler.originalFailure.getValue().addSuppressed(t);
+                    Throwable originalT = handler.originalFailure.getValue();
+                    if (t != originalT) { // could be the same abort being delivered across branches
+                        originalT.addSuppressed(t);
+                    }
                 }
                 checkAllDone(true);
             }

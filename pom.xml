@@ -28,8 +28,8 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>2.15</version>
-        <relativePath />
+        <version>2.17</version>
+        <relativePath/>
     </parent>
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
     <artifactId>workflow-cps</artifactId>
@@ -63,7 +63,6 @@
     </pluginRepositories>
     <properties>
         <jenkins.version>1.642.3</jenkins.version>
-        <jenkins-test-harness.version>2.15</jenkins-test-harness.version>
         <npm.loglevel>--silent</npm.loglevel>
     </properties>
     <dependencies>
@@ -73,14 +72,14 @@
             <version>2.4</version>
         </dependency>
         <dependency>
-            <groupId>${project.groupId}</groupId>
+            <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <version>2.3</version>
+            <version>2.4</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-support</artifactId>
-            <version>2.6</version>
+            <version>2.9</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
@@ -109,9 +108,9 @@
             <optional>true</optional>
         </dependency>
         <dependency>
-            <groupId>${project.groupId}</groupId>
+            <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-support</artifactId>
-            <version>1.15</version>
+            <version>2.9</version>
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
