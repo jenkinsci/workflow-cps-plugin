@@ -3,7 +3,6 @@ package org.jenkinsci.plugins.workflow;
 import groovy.lang.Closure;
 import hudson.model.Result;
 import hudson.slaves.DumbSlave;
-import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
@@ -186,17 +185,14 @@ public class SerializationTest extends SingleJobTestBase {
         });
     }
 
-    @Ignore("TODO java.io.NotSerializableException: java.util.LinkedHashMap$Entry")
     @Issue("JENKINS-27421")
     @Test public void mapIterator() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods collect java.util.Map groovy.lang.Closure");
-                ScriptApproval.get().approveSignature("method java.util.Map entrySet");
                 p.setDefinition(new CpsFlowDefinition(
                     "def map = [one: 1, two: 2]\n" +
-                    "@NonCPS def entries(m) {m.collect {k, v -> [k, v]}}; for (def e in entries(map)) {echo \"running flattened loop on ${e[0]} → ${e[1]}\"; semaphore \"C-${e[0]}\"}\n" +
+                    "@NonCPS def entrySet(m) {m.collect {k, v -> [key: k, value: v]}}; for (def e in entrySet(map)) {echo \"running flattened loop on ${e.key} → ${e.value}\"; semaphore \"C-${e.key}\"}\n" +
                     "for (def e : map.entrySet()) {echo \"running new-style loop on ${e.key} → ${e.value}\"; semaphore \"new-${e.key}\"}"
                     // TODO check also keySet(), values()
                     , true));
@@ -221,8 +217,12 @@ public class SerializationTest extends SingleJobTestBase {
                 SemaphoreStep.success("new-one/1", null);
                 SemaphoreStep.success("new-two/1", null);
                 story.j.waitForCompletion(b);
+                /* TODO desired behavior:
                 story.j.assertBuildStatusSuccess(b);
                 story.j.assertLogContains("running new-style loop on two → 2", b);
+                */
+                story.j.assertBuildStatus(Result.FAILURE, b);
+                story.j.assertLogContains("java.io.NotSerializableException: java.util.LinkedHashMap$Entry", b);
             }
         });
     }
@@ -289,8 +289,6 @@ public class SerializationTest extends SingleJobTestBase {
     @Test public void eachClosureNonCps() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
-                ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.Collection java.lang.Object");
-                ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.List java.lang.Object"); // Groovy 2
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(
                     "@NonCPS def fine() {\n" +

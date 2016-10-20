@@ -34,7 +34,6 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +42,7 @@ import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
 
 /**
  * Represents a {@link Continuable} that is either runnable or suspended (that waits for an
@@ -148,7 +148,7 @@ public final class CpsThread implements Serializable {
      * Executes CPS code synchronously a little bit more, until it hits
      * the point the workflow needs to be dehydrated.
      */
-    @Nonnull Outcome runNextChunk() throws IOException {
+    @Nonnull Outcome runNextChunk() {
         assert program!=null;
 
         Outcome outcome;
@@ -248,7 +248,9 @@ public final class CpsThread implements Serializable {
      *      Future that promises the completion of the next {@link #runNextChunk()}.
      */
     public Future<Object> resume(Outcome v) {
-        assert resumeValue==null;
+        if (resumeValue != null) {
+            return Futures.immediateFailedFuture(new IllegalStateException("Already resumed with " + resumeValue));
+        }
         resumeValue = v;
         promise = SettableFuture.create();
         group.scheduleRun();
