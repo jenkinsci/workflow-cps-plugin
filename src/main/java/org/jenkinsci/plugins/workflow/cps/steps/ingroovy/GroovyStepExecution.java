@@ -4,21 +4,21 @@ import groovy.lang.Closure;
 import groovy.lang.GroovyObject;
 import groovy.lang.MissingMethodException;
 import groovy.lang.MissingPropertyException;
+import java.io.IOException;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.codehaus.groovy.runtime.InvokerHelper;
+import org.codehaus.groovy.runtime.MethodClosure;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
 import org.jenkinsci.plugins.workflow.cps.CpsThread;
+import org.jenkinsci.plugins.workflow.cps.CpsThreadGroup;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import org.jenkinsci.plugins.workflow.pickles.Pickle;
 import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.io.IOException;
-import org.jenkinsci.plugins.workflow.cps.CpsThreadGroup;
-
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
 /**
  * {@link StepExecution} to be implemented in Groovy
@@ -69,7 +69,7 @@ public abstract class GroovyStepExecution extends StepExecution {
         // it's possible that the plugin dev has messed up and put the subtype in src/main/groovy,
         // ... in which case the class will resolve but will not work as expected.
 
-        Closure body = InvokerHelper.getMethodPointer(this, "call");
+        Closure<?> body = new DeserializableMethodClosure(this, "call");
         if (getStep().getDescriptor().takesImplicitBlockArgument()) {
             if (body.getMaximumNumberOfParameters()==0)
                 throw new IllegalArgumentException(getClass().getName()+" claims to take the body block, but its call method takes no argument.");
@@ -83,6 +83,20 @@ public abstract class GroovyStepExecution extends StepExecution {
                 .start();
 
         return false;
+    }
+
+    /**
+     * Unlike {@link InvokerHelper#getMethodPointer} the result is safely serializable even in Groovy 2.
+     * If anything else needs this, it could perhaps be done as a {@link Pickle} instead.
+     */
+    private static class DeserializableMethodClosure extends MethodClosure {
+        private static final long serialVersionUID = 1;
+        DeserializableMethodClosure(Object owner, String method) {
+            super(owner, method);
+        }
+        private Object readResolve() {
+            return this;
+        }
     }
 
     @Override
