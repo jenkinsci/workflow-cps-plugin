@@ -8,9 +8,12 @@ import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import com.cloudbees.groovy.cps.impl.TryBlockEnv;
 import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.SettableFuture;
 import hudson.model.Action;
 import hudson.model.Result;
+import hudson.util.Iterators;
 import jenkins.model.CauseOfInterruption;
 import org.codehaus.groovy.runtime.InvokerInvocationException;
 import org.jenkinsci.plugins.workflow.actions.BodyInvocationAction;
@@ -27,9 +30,12 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import javax.annotation.CheckForNull;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -37,6 +43,8 @@ import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graphanalysis.LinearBlockHoppingScanner;
 
 /**
  * {@link BodyExecution} impl for CPS.
@@ -191,21 +199,64 @@ class CpsBodyExecution extends BodyExecution {
     }
 
     @Override
-    public synchronized Collection<StepExecution> getCurrentExecutions() {
-        if (thread==null)   return Collections.emptyList();
-
-        StepExecution s = thread.getStep();
-        if (s!=null)        return Collections.singleton(s);
-        else                return Collections.emptyList();
+    public Collection<StepExecution> getCurrentExecutions() {
+        CpsThread t;
+        synchronized (this) {
+            t = thread;
+            if (t == null) {
+                return Collections.emptySet();
+            }
+        }
+        final SettableFuture<Collection<StepExecution>> result = SettableFuture.create();
+        t.getExecution().runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+            @Override public void onSuccess(CpsThreadGroup g) {
+                try {
+                    List<StepExecution> executions = new ArrayList<>();
+                    // cf. trick in CpsFlowExecution.getCurrentExecutions(true)
+                    Map<FlowHead, CpsThread> m = new LinkedHashMap<>();
+                    for (CpsThread t : g.threads.values()) {
+                        m.put(t.head, t);
+                    }
+                    for (CpsThread t : m.values()) {
+                        // TODO seems cumbersome to have to go through the flow graph to find out whether a head is a descendant of ours, yet FlowHead does not seem to retain a parent field
+                        LinearBlockHoppingScanner scanner = new LinearBlockHoppingScanner();
+                        scanner.setup(t.head.get());
+                        for (FlowNode node : scanner) {
+                            if (node.getId().equals(startNodeId)) {
+                                // this head is inside this body execution
+                                StepExecution execution = t.getStep();
+                                if (execution != null) {
+                                    executions.add(execution);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    result.set(executions);
+                } catch (Exception x) {
+                    result.setException(x);
+                }
+            }
+            @Override public void onFailure(Throwable t) {
+                result.setException(t);
+            }
+        });
+        try {
+            return result.get(1, TimeUnit.MINUTES);
+        } catch (ExecutionException | InterruptedException | TimeoutException x) {
+            // TODO access to CpsThreadGroup.threads must be restricted to the CPS VM thread, but the API signature does not allow us to return a ListenableFuture or throw checked exceptions
+            throw new RuntimeException(x);
+        }
     }
 
     @Override
     public boolean cancel(final CauseOfInterruption... causes) {
         // 'stopped' and 'thread' are updated atomically
-        final CpsThread t;
+        CpsThread t;
         synchronized (this) {
             if (isDone())  return false;   // already complete
-            stopped = new FlowInterruptedException(Result.ABORTED, causes); // TODO: the fact that I'm hard-coding exception seems to indicate an abstraction leak. Come back and think about this.
+            // TODO should perhaps rather override cancel(Throwable) and make this overload just delegate to that one
+            stopped = new FlowInterruptedException(Result.ABORTED, causes);
             t = this.thread;
         }
 
@@ -213,7 +264,21 @@ class CpsBodyExecution extends BodyExecution {
             t.getExecution().runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
                 @Override
                 public void onSuccess(CpsThreadGroup g) {
-                    t.stop(stopped);
+                    // Similar to getCurrentExecutions but we want the raw CpsThread, not a StepExecution; cf. CpsFlowExecution.interrupt
+                    Map<FlowHead, CpsThread> m = new LinkedHashMap<>();
+                    for (CpsThread t : thread.group.threads.values()) {
+                        m.put(t.head, t);
+                    }
+                    for (CpsThread t : Iterators.reverse(ImmutableList.copyOf(m.values()))) {
+                        LinearBlockHoppingScanner scanner = new LinearBlockHoppingScanner();
+                        scanner.setup(t.head.get());
+                        for (FlowNode node : scanner) {
+                            if (node.getId().equals(startNodeId)) {
+                                t.stop(stopped);
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 @Override
