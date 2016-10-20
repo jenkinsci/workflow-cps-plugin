@@ -313,7 +313,7 @@ public final class CpsThreadGroup implements Serializable {
      *      is akin to a Unix thread waiting for I/O completion.
      */
     @CpsVmThreadOnly("root")
-    private boolean run() throws IOException {
+    private boolean run() {
         boolean changed = false;
         boolean ending = false;
         boolean stillRunnable = false;
@@ -353,7 +353,11 @@ public final class CpsThreadGroup implements Serializable {
         }
 
         if (changed) {
-            saveProgram();
+            try {
+                saveProgram();
+            } catch (IOException x) {
+                LOGGER.log(WARNING, "program state save failed", x);
+            }
         }
         if (ending) {
             execution.cleanUpHeap();
@@ -433,11 +437,9 @@ public final class CpsThreadGroup implements Serializable {
             Files.move(tmpFile.toPath(), f.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             LOGGER.log(FINE, "program state saved");
         } catch (RuntimeException e) {
-            LOGGER.log(WARNING, "program state save failed",e);
             propagateErrorToWorkflow(e);
             throw new IOException("Failed to persist "+f,e);
         } catch (IOException e) {
-            LOGGER.log(WARNING, "program state save failed",e);
             propagateErrorToWorkflow(e);
             throw new IOException("Failed to persist "+f,e);
         } finally {

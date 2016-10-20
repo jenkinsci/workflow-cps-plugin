@@ -90,7 +90,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1.23</version>
+            <version>1.24-SNAPSHOT</version> <!-- TODO https://github.com/jenkinsci/script-security-plugin/pull/92 -->
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
