@@ -156,14 +156,17 @@ def describeType(ParameterType type, int headerLevel) throws Exception {
       dl(class:'nested-choice-box nested') {
         dt(_("Nested choice of objects"))
         dd{
-
-          dl(class:'schema') {
-            for (Map.Entry<String, DescribableModel> entry : ((HeterogeneousObjectType) type).getTypes().entrySet()) {
-              dt {
-                code(DescribableModel.CLAZZ + ": '" + entry.key + "'")
-              }
-              dd{
-                generateHelp(entry.value, nextHeaderLevel);
+          if (type.actualType == Object) {
+            span(_("(not enumerable)"))
+          } else {
+            dl(class:'schema') {
+              for (Map.Entry<String, DescribableModel> entry : ((HeterogeneousObjectType) type).getTypes().entrySet()) {
+                dt {
+                  code(DescribableModel.CLAZZ + ": '" + entry.key + "'")
+                }
+                dd{
+                  generateHelp(entry.value, nextHeaderLevel);
+                }
               }
             }
           }
