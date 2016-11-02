@@ -360,11 +360,7 @@ public final class CpsThreadGroup implements Serializable {
             }
         }
         if (ending) {
-            List<Class<?>> scriptClasses = new ArrayList<>();
-            for (Script script : scripts) {
-                scriptClasses.add(script.getClass());
-            }
-            execution.cleanUpHeap(scriptClasses);
+            execution.cleanUpHeap();
             scripts.clear();
             closures.clear();
         }

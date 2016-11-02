@@ -81,14 +81,14 @@ public class CpsFlowExecutionTest {
     @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
     @Rule public LoggerRule logger = new LoggerRule();
     
-    private static List<WeakReference<ClassLoader>> LOADERS = new ArrayList<>();
+    private static final List<WeakReference<ClassLoader>> LOADERS = new ArrayList<>();
     public static void register(Object o) {
         ClassLoader loader = o.getClass().getClassLoader();
         System.err.println("registering " + o + " from " + loader);
         LOADERS.add(new WeakReference<>(loader));
     }
     @Test public void loaderReleased() {
-        logger.record(CpsFlowExecution.class, Level.FINE);
+        logger.record(CpsFlowExecution.class, Level.FINER);
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
