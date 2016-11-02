@@ -263,7 +263,7 @@ public class CpsFlowExecution extends FlowExecution {
 
     static {
         for(int i = 0; i< ID_LOOKUP_TABLE.length; i++) {
-            ID_LOOKUP_TABLE[i] = String.valueOf(i);
+            ID_LOOKUP_TABLE[i] = String.valueOf(i).intern();  // Interning here allows allows us to just intern on deserialize
         }
     }
 
