@@ -32,6 +32,7 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
+import java.io.ObjectStreamException;
 import java.util.Collections;
 
 /**
@@ -64,6 +65,11 @@ public class StepAtomNode extends AtomNode implements StepNode {
             }
         }
         return descriptor;
+    }
+
+    private Object readResolve() throws ObjectStreamException {
+        StepAtomNode returnVal = new StepAtomNode((CpsFlowExecution)getExecution(), this.descriptor, this.getParents().get(0));
+        return returnVal;
     }
 
     @Override

@@ -259,7 +259,7 @@ public class CpsFlowExecution extends FlowExecution {
     private static final int ID_LOOKUP_TABLE_SIZE = 500;
 
     /** Preallocated lookup table for small ID values, used instead of interning for speed & simplicity */
-    private static transient String[] ID_LOOKUP_TABLE = new String[ID_LOOKUP_TABLE_SIZE];
+    private static final String[] ID_LOOKUP_TABLE = new String[ID_LOOKUP_TABLE_SIZE];
 
     static {
         for(int i = 0; i< ID_LOOKUP_TABLE.length; i++) {
