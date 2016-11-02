@@ -593,7 +593,7 @@ public class CpsFlowExecution extends FlowExecution {
             @Override public void onFailure(Throwable t) {
                 LOGGER.log(Level.WARNING, "Failed to set program failure on " + owner, t);
                 onProgramEnd(new Outcome(null, t));
-                cleanUpHeap();
+                cleanUpHeap(Collections.singletonList(scriptClass));
             }
         });
     }
@@ -909,19 +909,20 @@ public class CpsFlowExecution extends FlowExecution {
         heads.put(first.getId(),first);
     }
 
-    void cleanUpHeap() {
+    void cleanUpHeap(List<? extends Class<?>> scriptClasses) {
         shell = null;
         trusted = null;
-        if (scriptClass != null) {
-            ClassLoader loader = scriptClass.getClassLoader();
+        scriptClass = null;
+        // perhaps also set programPromise to null or a precompleted failure?
+        for (Class<?> mainOrLoadedScriptClass : scriptClasses) {
+            ClassLoader loader = mainOrLoadedScriptClass.getClassLoader();
             SerializableClassRegistry.getInstance().release(loader);
-            Introspector.flushFromCaches(scriptClass); // does not handle other derived script classes, but this is only SoftReference anyway
+            Introspector.flushFromCaches(mainOrLoadedScriptClass); // does not handle other derived script classes, but this is only SoftReference anyway
             try {
                 cleanUpGlobalClassValue(loader);
             } catch (Exception x) {
                 LOGGER.log(Level.WARNING, "failed to clean up memory from " + owner, x);
             }
-            scriptClass = null;
         }
     }
 

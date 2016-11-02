@@ -81,18 +81,21 @@ public class CpsFlowExecutionTest {
     @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
     @Rule public LoggerRule logger = new LoggerRule();
     
-    private static WeakReference<ClassLoader> LOADER;
+    private static List<WeakReference<ClassLoader>> LOADERS = new ArrayList<>();
     public static void register(Object o) {
-        LOADER = new WeakReference<>(o.getClass().getClassLoader());
+        ClassLoader loader = o.getClass().getClassLoader();
+        System.err.println("registering " + o + " from " + loader);
+        LOADERS.add(new WeakReference<>(loader));
     }
     @Test public void loaderReleased() {
         logger.record(CpsFlowExecution.class, Level.FINE);
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
-                p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionTest.class.getName() + ".register(this)", false));
+                story.j.jenkins.getWorkspaceFor(p).child("lib.groovy").write(CpsFlowExecutionTest.class.getName() + ".register(this)", null);
+                p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionTest.class.getName() + ".register(this); node {load 'lib.groovy'}", false));
                 story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
-                assertNotNull(LOADER);
+                assertFalse(LOADERS.isEmpty());
                 try {
                     // In Groovy 1.8.9 this keeps static state, but only for the last script (as also noted in JENKINS-23762).
                     // The fix of GROOVY-5025 (62bfb68) in 1.9 addresses this, which we get in Jenkins 2.
@@ -102,7 +105,9 @@ public class CpsFlowExecutionTest {
                 } catch (NoSuchFieldException e) {
                     // assuming that Groovy version is newer
                 }
-                MemoryAssert.assertGC(LOADER);
+                for (WeakReference<ClassLoader> loaderRef : LOADERS) {
+                    MemoryAssert.assertGC(loaderRef);
+                }
             }
         });
     }
