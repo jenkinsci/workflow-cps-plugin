@@ -48,7 +48,7 @@ public class StepAtomNode extends AtomNode implements StepNode {
 
     public StepAtomNode(CpsFlowExecution exec, StepDescriptor d, FlowNode parent) {
         super(exec, exec.iotaStr(), parent);
-        this.descriptorId = d!=null ? d.getId() : null;
+        this.descriptorId = d!=null ? d.getId().intern() : null;
 
         // we use SimpleXStreamFlowNodeStorage, which uses XStream, so
         // constructor call is always for brand-new FlowNode that has not existed anywhere.

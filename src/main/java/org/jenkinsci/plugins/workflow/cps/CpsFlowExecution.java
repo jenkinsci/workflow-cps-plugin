@@ -255,6 +255,18 @@ public class CpsFlowExecution extends FlowExecution {
 
     private final AtomicInteger iota = new AtomicInteger();
 
+    /** Number of node IDs to use in lookup table, 500 covers most common flow graphs  */
+    private static final int ID_LOOKUP_TABLE_SIZE = 500;
+
+    /** Preallocated lookup table for small ID values, used instead of interning for speed & simplicity */
+    private static transient String[] ID_LOOKUP_TABLE = new String[ID_LOOKUP_TABLE_SIZE];
+
+    static {
+        for(int i = 0; i< ID_LOOKUP_TABLE.length; i++) {
+            ID_LOOKUP_TABLE[i] = String.valueOf(i);
+        }
+    }
+
     private transient List<GraphListener> listeners;
 
     /**
@@ -429,7 +441,13 @@ public class CpsFlowExecution extends FlowExecution {
      */
     @Restricted(NoExternalUse.class)
     public String iotaStr() {
-        return String.valueOf(iota());
+        int iotaVal = iota();
+        // We intern this because many, many FlowNodes will have the same ID values
+        if ( iotaVal > 0 && iotaVal < ID_LOOKUP_TABLE_SIZE) {
+            return ID_LOOKUP_TABLE[iotaVal];
+        } else {
+            return String.valueOf(iota()).intern();
+        }
     }
 
     @Restricted(NoExternalUse.class)
