@@ -57,6 +57,8 @@ import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.CarbonMonoxide;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.DetectionMetaStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.DisplaynameWithEscapeCharState;
+import org.jenkinsci.plugins.workflow.testMetaStep.DisplaynameEscapeCharData;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Email;
