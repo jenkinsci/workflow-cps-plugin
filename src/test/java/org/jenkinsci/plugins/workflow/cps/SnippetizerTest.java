@@ -44,17 +44,7 @@ import org.jenkinsci.plugins.workflow.support.steps.ExecutorStep;
 import org.jenkinsci.plugins.workflow.support.steps.WorkspaceStep;
 import org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStep;
-import org.jenkinsci.plugins.workflow.testMetaStep.Colorado;
-import org.jenkinsci.plugins.workflow.testMetaStep.Hawaii;
-import org.jenkinsci.plugins.workflow.testMetaStep.Island;
-import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicData;
-import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicDataWithSymbol;
-import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicListStep;
-import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicListWithSymbolStep;
-import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicStep;
-import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicWithSymbolStep;
-import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
-import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.*;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.CarbonMonoxide;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.DetectionMetaStep;
 import org.junit.ClassRule;
@@ -70,9 +60,6 @@ import java.util.List;
 import java.util.logging.Level;
 
 import static org.hamcrest.CoreMatchers.*;
-import org.jenkinsci.plugins.workflow.testMetaStep.Circle;
-import org.jenkinsci.plugins.workflow.testMetaStep.CurveMetaStep;
-import org.jenkinsci.plugins.workflow.testMetaStep.Polygon;
 import static org.junit.Assert.*;
 import org.jvnet.hudson.test.LoggerRule;
 import org.kohsuke.stapler.NoStaplerConstructorException;
@@ -259,6 +246,12 @@ public class SnippetizerTest {
         // Verify valid groovy syntax.
         GroovyShell shell = new GroovyShell(r.jenkins.getPluginManager().uberClassLoader);
         shell.parse(gdsl);
+    }
+
+    @Test
+    public void escapeCharacters() throws Exception {
+        DisplaynameWithEscapeCharState displaynameWithEscapeCharState = new DisplaynameWithEscapeCharState(new DisplaynameEscapeCharData("one"));
+        st.assertRoundTrip(displaynameWithEscapeCharState, "displaynameWithEscapeCharState([firstArg: 'one'])");
     }
 
     @Issue("JENKINS-26126")

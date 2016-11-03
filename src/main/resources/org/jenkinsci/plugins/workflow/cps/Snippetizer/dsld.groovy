@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps.Snippetizer
 
+import groovy.json.StringEscapeUtils
 import hudson.FilePath
 import hudson.Functions
 import org.jenkinsci.plugins.structs.describable.DescribableModel
@@ -51,7 +52,8 @@ steps.each { StepDescriptor step, DescribableModel model ->
 
     boolean requiresNode = step.requiredContext.contains(FilePath)
     boolean takesClosure = step.takesImplicitBlockArgument()
-    String description = step.displayName
+    String sanitizedDisplayName = StringEscapeUtils.escapeJavaScript(step.displayName)
+    String description = sanitizedDisplayName
     if (step.isAdvanced()) {
         description = "Advanced/Deprecated " + description
     }
@@ -81,7 +83,7 @@ steps.each { StepDescriptor step, DescribableModel model ->
         for (def p : opts) {
             paramsMap.put(p.key, p.value)
         }
-        String contr = "method(name: '${step.functionName}', type: 'Object', useNamedArgs: true, params: ${paramsMap}, doc: '${step.displayName}')"
+        String contr = "method(name: '${step.functionName}', type: 'Object', useNamedArgs: true, params: ${paramsMap}, doc: '${sanitizedDisplayName}')"
 
         if (requiresNode) {
             nodeContext.add(contr)
