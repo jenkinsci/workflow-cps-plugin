@@ -93,11 +93,12 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
     @Override
     void call(SourceUnit source, GeneratorContext context, ClassNode classNode) {
-        this.sourceUnit = source;
-        this.classNode = classNode;
-
         if (classNode.isInterface())
             return; // not touching interfaces
+
+        this.sourceUnit = source;
+        this.classNode = classNode;
+        try {
 
 //        copy(source.ast.methods)?.each { visitMethod(it) }
 //        classNode?.declaredConstructors?.each { visitMethod(it) } // can't transform constructor
@@ -116,6 +117,12 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             new ConstantExpression(0L));
 
         classNode.addAnnotation(new AnnotationNode(WORKFLOW_TRANSFORMED_TYPE));
+
+        } finally {
+            this.sourceUnit = null;
+            this.classNode = null;
+            this.parent = null;
+        }
     }
 
     private <T> List<T> copy(List<T> t) {
