@@ -20,9 +20,14 @@ import java.util.Arrays;
 import java.util.List;
 
 import static hudson.model.Result.*;
+import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
+import org.codehaus.groovy.transform.ASTTransformationVisitor;
 import static org.junit.Assert.*;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.MemoryAssert;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -297,6 +302,30 @@ public class GroovyStepTest {
                 WorkflowJob p = story.j.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("globalVar.field = 'set'; usesGlobalVar()", true));
                 story.j.assertLogContains("field is currently set and environment variable is defined", story.j.buildAndAssertSuccess(p));
+            }
+        });
+    }
+
+    private static final List<WeakReference<ClassLoader>> LOADERS = new ArrayList<>();
+    public static void register(Object o) {
+        LOADERS.add(new WeakReference<>(o.getClass().getClassLoader()));
+    }
+    @Ignore("TODO fails via SerializableClassRegistry")
+    @Test public void loaderReleased() throws Exception {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition(GroovyStepTest.class.getName() + ".register(this); leak()", false));
+                story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
+                assertFalse(LOADERS.isEmpty());
+                try { // For Jenkins/Groovy 1. Cf. CpsFlowExecutionTest.loaderReleased.
+                    Field f = ASTTransformationVisitor.class.getDeclaredField("compUnit");
+                    f.setAccessible(true);
+                    f.set(null, null);
+                } catch (NoSuchFieldException e) {}
+                for (WeakReference<ClassLoader> loaderRef : LOADERS) {
+                    MemoryAssert.assertGC(loaderRef);
+                }
             }
         });
     }
