@@ -373,6 +373,7 @@ public final class CpsThreadGroup implements Serializable {
         if (ending) {
             execution.cleanUpHeap();
             scripts.clear();
+            closures.clear();
         }
 
         return stillRunnable;

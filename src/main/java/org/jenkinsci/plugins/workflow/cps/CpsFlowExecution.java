@@ -94,6 +94,7 @@ import java.util.logging.Logger;
 
 import static com.thoughtworks.xstream.io.ExtendedHierarchicalStreamWriterHelper.*;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyCodeSource;
 import hudson.AbortException;
 import hudson.BulkChange;
@@ -109,7 +110,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -913,19 +916,38 @@ public class CpsFlowExecution extends FlowExecution {
         shell = null;
         trusted = null;
         if (scriptClass != null) {
-            ClassLoader loader = scriptClass.getClassLoader();
-            SerializableClassRegistry.getInstance().release(loader);
-            Introspector.flushFromCaches(scriptClass); // does not handle other derived script classes, but this is only SoftReference anyway
             try {
-                cleanUpGlobalClassValue(loader);
+                cleanUpLoader(scriptClass.getClassLoader(), new HashSet<ClassLoader>(), new HashSet<Class<?>>());
             } catch (Exception x) {
                 LOGGER.log(Level.WARNING, "failed to clean up memory from " + owner, x);
             }
             scriptClass = null;
         }
+        // perhaps also set programPromise to null or a precompleted failure?
     }
 
-    private void cleanUpGlobalClassValue(@Nonnull ClassLoader loader) throws Exception {
+    private static void cleanUpLoader(ClassLoader loader, Set<ClassLoader> encounteredLoaders, Set<Class<?>> encounteredClasses) throws Exception {
+        if (!(loader instanceof GroovyClassLoader)) {
+            return;
+        }
+        if (!encounteredLoaders.add(loader)) {
+            return;
+        }
+        cleanUpLoader(loader.getParent(), encounteredLoaders, encounteredClasses);
+        LOGGER.log(Level.FINER, "found {0}", String.valueOf(loader));
+        SerializableClassRegistry.getInstance().release(loader);
+        cleanUpGlobalClassValue(loader);
+        GroovyClassLoader gcl = (GroovyClassLoader) loader;
+        for (Class<?> clazz : gcl.getLoadedClasses()) {
+            if (encounteredClasses.add(clazz)) {
+                LOGGER.log(Level.FINER, "found {0}", clazz.getName());
+                Introspector.flushFromCaches(clazz);
+                cleanUpLoader(clazz.getClassLoader(), encounteredLoaders, encounteredClasses);
+            }
+        }
+    }
+
+    private static void cleanUpGlobalClassValue(@Nonnull ClassLoader loader) throws Exception {
         Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
         Field globalClassValueF;
         try {
