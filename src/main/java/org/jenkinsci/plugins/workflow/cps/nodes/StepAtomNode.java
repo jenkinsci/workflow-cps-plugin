@@ -42,7 +42,7 @@ import java.util.Collections;
  */
 public class StepAtomNode extends AtomNode implements StepNode {
 
-    private final String descriptorId;
+    private String descriptorId;
 
     // once we successfully convert descriptorId to a real instance, cache that
     private transient StepDescriptor descriptor;
@@ -67,9 +67,9 @@ public class StepAtomNode extends AtomNode implements StepNode {
         return descriptor;
     }
 
-    private Object readResolve() throws ObjectStreamException {
-        StepAtomNode returnVal = new StepAtomNode((CpsFlowExecution)getExecution(), this.descriptor, this.getParents().get(0));
-        return returnVal;
+    protected Object readResolve() throws ObjectStreamException {
+        this.descriptorId = this.descriptorId.intern();
+        return super.readResolve();
     }
 
     @Override

@@ -9,6 +9,7 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
+import java.io.ObjectStreamException;
 import java.util.Collections;
 
 /**
@@ -17,7 +18,7 @@ import java.util.Collections;
  * @author Kohsuke Kawaguchi
  */
 public class StepStartNode extends BlockStartNode implements StepNode {
-    private final String descriptorId;
+    private String descriptorId;
 
     private transient StepDescriptor descriptor;
 
@@ -40,6 +41,11 @@ public class StepStartNode extends BlockStartNode implements StepNode {
             }
         }
         return descriptor;
+    }
+
+    protected Object readResolve() throws ObjectStreamException {
+        this.descriptorId = this.descriptorId.intern();
+        return super.readResolve();
     }
 
     @Override
