@@ -5,9 +5,6 @@ import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import org.kohsuke.stapler.DataBoundConstructor;
 
-/**
- * Created by rishi.manidhar on 11/2/16.
- */
 public class DisplaynameEscapeCharData extends AbstractDescribableImpl<DisplaynameEscapeCharData> {
 
     public final String firstArg;

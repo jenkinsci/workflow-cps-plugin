@@ -10,7 +10,7 @@ import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
- * Created by rishi.manidhar on 11/2/16.
+ * Test class to make sure step descriptions with special characters are escaped properly.
  */
 public class DisplaynameWithEscapeCharState extends AbstractStepImpl {
     public final DisplaynameEscapeCharData data;

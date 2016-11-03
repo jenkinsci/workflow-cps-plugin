@@ -248,12 +248,6 @@ public class SnippetizerTest {
         shell.parse(gdsl);
     }
 
-    @Test
-    public void escapeCharacters() throws Exception {
-        DisplaynameWithEscapeCharState displaynameWithEscapeCharState = new DisplaynameWithEscapeCharState(new DisplaynameEscapeCharData("one"));
-        st.assertRoundTrip(displaynameWithEscapeCharState, "displaynameWithEscapeCharState([firstArg: 'one'])");
-    }
-
     @Issue("JENKINS-26126")
     @Test public void doDsld() throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
@@ -298,6 +292,12 @@ public class SnippetizerTest {
         dataList.add(new MonomorphicDataWithSymbol("three", "four"));
         MonomorphicListWithSymbolStep monomorphicStep = new MonomorphicListWithSymbolStep(dataList);
         st.assertRoundTrip(monomorphicStep, "monomorphListSymbolStep([monomorphSymbol(firstArg: 'one', secondArg: 'two'), monomorphSymbol(firstArg: 'three', secondArg: 'four')])");
+    }
+
+    @Test
+    public void escapeCharacters() throws Exception {
+        DisplaynameWithEscapeCharState displaynameWithEscapeCharState = new DisplaynameWithEscapeCharState(new DisplaynameEscapeCharData("one"));
+        st.assertRoundTrip(displaynameWithEscapeCharState, "displaynameWithEscapeCharState([firstArg: 'one'])");
     }
 
     @Test
