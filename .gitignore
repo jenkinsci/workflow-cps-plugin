@@ -2,3 +2,5 @@ target
 work
 node
 node_modules
+.idea/
+*.iml
