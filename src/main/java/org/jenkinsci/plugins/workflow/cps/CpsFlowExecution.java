@@ -111,6 +111,7 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -942,9 +943,11 @@ public class CpsFlowExecution extends FlowExecution {
             if (encounteredClasses.add(clazz)) {
                 LOGGER.log(Level.FINER, "found {0}", clazz.getName());
                 Introspector.flushFromCaches(clazz);
+                cleanUpGlobalClassSet(clazz);
                 cleanUpLoader(clazz.getClassLoader(), encounteredLoaders, encounteredClasses);
             }
         }
+        gcl.clearCache();
     }
 
     private static void cleanUpGlobalClassValue(@Nonnull ClassLoader loader) throws Exception {
@@ -985,6 +988,34 @@ public class CpsFlowExecution extends FlowExecution {
         LOGGER.log(Level.FINE, "cleaning up {0} associated with {1}", new Object[] {toRemove.toString(), loader.toString()});
         for (Class<?> klazz : toRemove) {
             removeM.invoke(map, klazz);
+        }
+    }
+
+    private static void cleanUpGlobalClassSet(@Nonnull Class<?> clazz) throws Exception {
+        Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
+        Field globalClassSetF = classInfoC.getDeclaredField("globalClassSet");
+        globalClassSetF.setAccessible(true);
+        Object globalClassSet = globalClassSetF.get(null);
+        try { // Groovy 1
+            globalClassSet.getClass().getMethod("remove", Object.class).invoke(globalClassSet, clazz); // like Map but not
+            LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
+        } catch (NoSuchMethodException x) { // Groovy 2
+            Field itemsF = globalClassSet.getClass().getDeclaredField("items");
+            itemsF.setAccessible(true);
+            Object items = itemsF.get(globalClassSet);
+            Method iteratorM = items.getClass().getMethod("iterator");
+            Field klazzF = classInfoC.getDeclaredField("klazz");
+            klazzF.setAccessible(true);
+            synchronized (items) {
+                Iterator<?> iterator = (Iterator) iteratorM.invoke(items);
+                while (iterator.hasNext()) {
+                    Object classInfo = iterator.next();
+                    if (klazzF.get(classInfo) == clazz) {
+                        iterator.remove();
+                        LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
+                    }
+                }
+            }
         }
     }
 
