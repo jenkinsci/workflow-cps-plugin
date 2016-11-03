@@ -99,6 +99,7 @@ public class CpsFlowExecutionTest {
                 try {
                     // In Groovy 1.8.9 this keeps static state, but only for the last script (as also noted in JENKINS-23762).
                     // The fix of GROOVY-5025 (62bfb68) in 1.9 addresses this, which we get in Jenkins 2.
+                    // Could do this in cleanUpHeap but it is probably not thread-safe.
                     Field f = ASTTransformationVisitor.class.getDeclaredField("compUnit");
                     f.setAccessible(true);
                     f.set(null, null);
