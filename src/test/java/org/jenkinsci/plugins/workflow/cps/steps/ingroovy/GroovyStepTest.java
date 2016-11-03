@@ -25,7 +25,6 @@ import java.lang.reflect.Field;
 import org.codehaus.groovy.transform.ASTTransformationVisitor;
 import static org.junit.Assert.*;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.MemoryAssert;
 
@@ -310,7 +309,6 @@ public class GroovyStepTest {
     public static void register(Object o) {
         LOADERS.add(new WeakReference<>(o.getClass().getClassLoader()));
     }
-    @Ignore("TODO fails via SerializableClassRegistry")
     @Test public void loaderReleased() throws Exception {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
