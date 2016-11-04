@@ -75,7 +75,7 @@
             <!-- Only until PR this depends on is released, then will set to that version -->
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <version>2.6-SNAPSHOT</version>
+            <version>2.6-dedup-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
