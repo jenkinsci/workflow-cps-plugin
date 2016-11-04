@@ -724,4 +724,20 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         ''') == 'from Script instance';
     }
 
+    @Issue("https://github.com/cloudbees/groovy-cps/issues/16")
+    @Test
+    @NotYetImplemented
+    void category() {
+        assert evalCPS('''
+            class BarCategory {
+                static String up(String text) {
+                    text.toUpperCase()
+                }
+            }
+            return use(BarCategory) {
+                'foo'.up()
+            };
+        ''') == 'FOO';
+    }
+
 }
