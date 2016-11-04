@@ -5,6 +5,7 @@ import com.cloudbees.groovy.cps.impl.VariableDeclBlock;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 import groovy.lang.Closure;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.Serializable;
 import java.util.List;
@@ -54,6 +55,9 @@ public interface Env extends Serializable {
      * @see LocalVariableBlock
      */
     void setLocalVariable(@Nonnull String name, Object value);
+
+    @CheckForNull
+    Class getLocalVariableType(@Nonnull String name);
 
     /**
      * Closure instance or 'this' object that surrounds the currently executing code.

@@ -108,7 +108,7 @@ public class Builder {
     }
 
     private static final Block NULL = new ConstantBlock(null);
-    private static final LValueBlock THIS = new LocalVariableBlock("this");
+    private static final LValueBlock THIS = new LocalVariableBlock(null, "this");
     private static final Block JAVA_THIS = new JavaThisBlock();
 
     public Block null_() {
@@ -194,11 +194,15 @@ public class Builder {
     }
 
     public LValueBlock localVariable(String name) {
-        return new LocalVariableBlock(name);
+        return new LocalVariableBlock(null, name);
+    }
+
+    public LValueBlock localVariable(int line, String name) {
+        return new LocalVariableBlock(loc(line), name);
     }
 
     public Block setLocalVariable(int line, final String name, final Block rhs) {
-        return assign(line,localVariable(name),rhs);
+        return assign(line,localVariable(line, name),rhs);
     }
 
     public Block declareVariable(final Class type, final String name) {
@@ -233,7 +237,7 @@ public class Builder {
      * Assignment operator to a local variable, such as {@code x += 3}
      */
     public Block localVariableAssignOp(int line, String name, String operator, Block rhs) {
-        return setLocalVariable(line, name, functionCall(line, localVariable(name), operator, rhs));
+        return setLocalVariable(line, name, functionCall(line, localVariable(line, name), operator, rhs));
     }
 
     /**

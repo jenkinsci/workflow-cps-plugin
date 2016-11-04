@@ -5,6 +5,7 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.LValue;
 import com.cloudbees.groovy.cps.LValueBlock;
 import com.cloudbees.groovy.cps.Next;
+import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
 /**
  * Access to local variables and method parameters.
@@ -13,16 +14,21 @@ import com.cloudbees.groovy.cps.Next;
  */
 public class LocalVariableBlock extends LValueBlock {
     private final String name;
+    private SourceLocation loc;
+
+    public LocalVariableBlock(SourceLocation loc, String name) {
+        this.name = name;
+    }
 
     public LocalVariableBlock(String name) {
-        this.name = name;
+        this(null, name);
     }
 
     public Next evalLValue(final Env e, Continuation k) {
         return k.receive(new LocalVariable(e));
     }
 
-    class LocalVariable implements LValue {
+    class LocalVariable extends ContinuationGroup implements LValue {
         private final Env e;
 
         LocalVariable(Env e) {
@@ -34,7 +40,13 @@ public class LocalVariableBlock extends LValueBlock {
         }
 
         public Next set(Object v, Continuation k) {
-            e.setLocalVariable(name,v);
+            Class type = e.getLocalVariableType(name);
+            try {
+                e.setLocalVariable(name, (type == null) ? v : ScriptBytecodeAdapter.castToType(v, type));
+            } catch (Throwable t) {
+                return throwException(e, t, loc, new ReferenceStackTrace());
+            }
+
             return k.receive(null);
         }
 

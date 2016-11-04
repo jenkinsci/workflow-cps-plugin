@@ -32,6 +32,10 @@ public class ProxyEnv implements Env {
         parent.setLocalVariable(name, value);
     }
 
+    public Class getLocalVariableType(String name) {
+        return parent.getLocalVariableType(name);
+    }
+
     public Object closureOwner() {
         return parent.closureOwner();
     }
