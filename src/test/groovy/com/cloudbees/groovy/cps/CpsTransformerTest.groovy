@@ -4,7 +4,6 @@ import com.cloudbees.groovy.cps.impl.ContinuationGroup
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import com.cloudbees.groovy.cps.impl.DGMPatcher
 import groovy.transform.NotYetImplemented
-import org.codehaus.groovy.control.MultipleCompilationErrorsException
 import org.junit.Test
 import org.jvnet.hudson.test.Issue
 
@@ -704,4 +703,25 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             foo.val()
         ''') == 123
     }
+
+    @Issue('https://github.com/cloudbees/groovy-cps/issues/28')
+    @Test
+    @NotYetImplemented
+    void rehydrateClosure() {
+        assert evalCPS('''
+            class MyStrategy {
+                Closure<String> process() {
+                    return {
+                        speak()
+                    }
+                }
+            }
+            String speak() {
+                'from Script instance'
+            }
+            Closure<String> closure = new MyStrategy().process()
+            closure.rehydrate(this, this, this).call()
+        ''') == 'from Script instance';
+    }
+
 }
