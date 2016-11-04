@@ -29,15 +29,17 @@ import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.WebRequest;
 import com.google.common.util.concurrent.ListenableFuture;
 import groovy.lang.GroovyShell;
+import groovy.lang.MetaClass;
 import hudson.AbortException;
 import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.TaskListener;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -46,7 +48,9 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
 import jenkins.model.Jenkins;
+import org.codehaus.groovy.reflection.ClassInfo;
 import org.codehaus.groovy.transform.ASTTransformationVisitor;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
@@ -60,7 +64,6 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
 import org.jenkinsci.plugins.workflow.support.pickles.TryRepeatedly;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
-
 import static org.junit.Assert.*;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -69,15 +72,11 @@ import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.MemoryAssert;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
-
-import javax.annotation.CheckForNull;
-import org.hamcrest.Matchers;
-import org.junit.Assume;
-import org.jvnet.hudson.test.LoggerRule;
 
 public class CpsFlowExecutionTest {
 
@@ -85,29 +84,42 @@ public class CpsFlowExecutionTest {
     @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
     @Rule public LoggerRule logger = new LoggerRule();
     
-    private static WeakReference<ClassLoader> LOADER;
+    private static final List<WeakReference<ClassLoader>> LOADERS = new ArrayList<>();
     public static void register(Object o) {
-        LOADER = new WeakReference<>(o.getClass().getClassLoader());
+        ClassLoader loader = o.getClass().getClassLoader();
+        System.err.println("registering " + o + " from " + loader);
+        LOADERS.add(new WeakReference<>(loader));
     }
     @Test public void loaderReleased() {
-        logger.record(CpsFlowExecution.class, Level.FINE);
+        logger.record(CpsFlowExecution.class, Level.FINER);
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
-                Assume.assumeThat("TODO fails in Jenkins 2 due to undiagnosed leak", Jenkins.VERSION, Matchers.startsWith("1."));
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
-                p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionTest.class.getName() + ".register(this)"));
+                story.j.jenkins.getWorkspaceFor(p).child("lib.groovy").write(CpsFlowExecutionTest.class.getName() + ".register(this)", null);
+                p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionTest.class.getName() + ".register(this); node {load 'lib.groovy'}", false));
                 story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
-                assertNotNull(LOADER);
+                assertFalse(LOADERS.isEmpty());
                 try {
                     // In Groovy 1.8.9 this keeps static state, but only for the last script (as also noted in JENKINS-23762).
                     // The fix of GROOVY-5025 (62bfb68) in 1.9 addresses this, which we get in Jenkins 2.
+                    // Could do this in cleanUpHeap but it is probably not thread-safe.
                     Field f = ASTTransformationVisitor.class.getDeclaredField("compUnit");
                     f.setAccessible(true);
                     f.set(null, null);
                 } catch (NoSuchFieldException e) {
                     // assuming that Groovy version is newer
                 }
-                MemoryAssert.assertGC(LOADER);
+                { // TODO it seems that the call to CpsFlowExecutionTest.register(Object) on a Script1 parameter creates a MetaMethodIndex.Entry.cachedStaticMethod.
+                  // In other words any call to a foundational API might leak classes. Why does Groovy need to do this?
+                  // Unclear whether this is a problem in a realistic environment; for the moment, suppressing it so the test can run with no SoftReference.
+                    MetaClass metaClass = ClassInfo.getClassInfo(CpsFlowExecutionTest.class).getMetaClass();
+                    Method clearInvocationCaches = metaClass.getClass().getDeclaredMethod("clearInvocationCaches");
+                    clearInvocationCaches.setAccessible(true);
+                    clearInvocationCaches.invoke(metaClass);
+                }
+                for (WeakReference<ClassLoader> loaderRef : LOADERS) {
+                    MemoryAssert.assertGC(loaderRef);
+                }
             }
         });
     }

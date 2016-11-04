@@ -94,6 +94,7 @@ import java.util.logging.Logger;
 
 import static com.thoughtworks.xstream.io.ExtendedHierarchicalStreamWriterHelper.*;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyCodeSource;
 import hudson.AbortException;
 import hudson.BulkChange;
@@ -105,11 +106,16 @@ import hudson.model.User;
 import hudson.security.ACL;
 import hudson.security.AccessControlled;
 import java.beans.Introspector;
+import java.lang.ref.Reference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -913,19 +919,41 @@ public class CpsFlowExecution extends FlowExecution {
         shell = null;
         trusted = null;
         if (scriptClass != null) {
-            ClassLoader loader = scriptClass.getClassLoader();
-            SerializableClassRegistry.getInstance().release(loader);
-            Introspector.flushFromCaches(scriptClass); // does not handle other derived script classes, but this is only SoftReference anyway
             try {
-                cleanUpGlobalClassValue(loader);
+                cleanUpLoader(scriptClass.getClassLoader(), new HashSet<ClassLoader>(), new HashSet<Class<?>>());
             } catch (Exception x) {
                 LOGGER.log(Level.WARNING, "failed to clean up memory from " + owner, x);
             }
             scriptClass = null;
         }
+        // perhaps also set programPromise to null or a precompleted failure?
     }
 
-    private void cleanUpGlobalClassValue(@Nonnull ClassLoader loader) throws Exception {
+    private static void cleanUpLoader(ClassLoader loader, Set<ClassLoader> encounteredLoaders, Set<Class<?>> encounteredClasses) throws Exception {
+        if (!(loader instanceof GroovyClassLoader)) {
+            return;
+        }
+        if (!encounteredLoaders.add(loader)) {
+            return;
+        }
+        cleanUpLoader(loader.getParent(), encounteredLoaders, encounteredClasses);
+        LOGGER.log(Level.FINER, "found {0}", String.valueOf(loader));
+        SerializableClassRegistry.getInstance().release(loader);
+        cleanUpGlobalClassValue(loader);
+        GroovyClassLoader gcl = (GroovyClassLoader) loader;
+        for (Class<?> clazz : gcl.getLoadedClasses()) {
+            if (encounteredClasses.add(clazz)) {
+                LOGGER.log(Level.FINER, "found {0}", clazz.getName());
+                Introspector.flushFromCaches(clazz);
+                cleanUpGlobalClassSet(clazz);
+                cleanUpObjectStreamClassCaches(clazz);
+                cleanUpLoader(clazz.getClassLoader(), encounteredLoaders, encounteredClasses);
+            }
+        }
+        gcl.clearCache();
+    }
+
+    private static void cleanUpGlobalClassValue(@Nonnull ClassLoader loader) throws Exception {
         Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
         Field globalClassValueF;
         try {
@@ -963,6 +991,51 @@ public class CpsFlowExecution extends FlowExecution {
         LOGGER.log(Level.FINE, "cleaning up {0} associated with {1}", new Object[] {toRemove.toString(), loader.toString()});
         for (Class<?> klazz : toRemove) {
             removeM.invoke(map, klazz);
+        }
+    }
+
+    private static void cleanUpGlobalClassSet(@Nonnull Class<?> clazz) throws Exception {
+        Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
+        Field globalClassSetF = classInfoC.getDeclaredField("globalClassSet");
+        globalClassSetF.setAccessible(true);
+        Object globalClassSet = globalClassSetF.get(null);
+        try { // Groovy 1
+            globalClassSet.getClass().getMethod("remove", Object.class).invoke(globalClassSet, clazz); // like Map but not
+            LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
+        } catch (NoSuchMethodException x) { // Groovy 2
+            Field itemsF = globalClassSet.getClass().getDeclaredField("items");
+            itemsF.setAccessible(true);
+            Object items = itemsF.get(globalClassSet);
+            Method iteratorM = items.getClass().getMethod("iterator");
+            Field klazzF = classInfoC.getDeclaredField("klazz");
+            klazzF.setAccessible(true);
+            synchronized (items) {
+                Iterator<?> iterator = (Iterator) iteratorM.invoke(items);
+                while (iterator.hasNext()) {
+                    Object classInfo = iterator.next();
+                    if (klazzF.get(classInfo) == clazz) {
+                        iterator.remove();
+                        LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
+                    }
+                }
+            }
+        }
+    }
+
+    private static void cleanUpObjectStreamClassCaches(@Nonnull Class<?> clazz) throws Exception {
+        Class<?> cachesC = Class.forName("java.io.ObjectStreamClass$Caches");
+        for (String cacheFName : new String[] {"localDescs", "reflectors"}) {
+            Field cacheF = cachesC.getDeclaredField(cacheFName);
+            cacheF.setAccessible(true);
+            ConcurrentMap<Reference<Class<?>>, ?> cache = (ConcurrentMap) cacheF.get(null);
+            Iterator<? extends Entry<Reference<Class<?>>, ?>> iterator = cache.entrySet().iterator();
+            while (iterator.hasNext()) {
+                if (iterator.next().getKey().get() == clazz) {
+                    iterator.remove();
+                    LOGGER.log(Level.FINER, "cleaning up {0} from ObjectStreamClass.Caches.{1}", new Object[] {clazz.getName(), cacheFName});
+                    break;
+                }
+            }
         }
     }
 
