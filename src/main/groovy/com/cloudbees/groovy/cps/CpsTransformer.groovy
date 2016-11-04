@@ -134,7 +134,10 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
      * Should this method be transformed?
      */
     protected boolean shouldBeTransformed(MethodNode node) {
-        return !node.isSynthetic() && !hasAnnotation(node, NonCPS.class) && !hasAnnotation(node, WorkflowTransformed.class);
+        return !node.isSynthetic() &&
+                !hasAnnotation(node, NonCPS.class) &&
+                !hasAnnotation(node, WorkflowTransformed.class) &&
+                !node.isAbstract();
     }
 
     private boolean hasAnnotation(MethodNode node, Class<? extends Annotation> a) {
