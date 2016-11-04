@@ -685,15 +685,12 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     @Issue("https://github.com/cloudbees/groovy-cps/issues/42")
     void abstractMethod() {
-        try {
-            evalCPS("""
-                abstract class Foo {
-                    abstract void run()
-                }
-                def ignoreResult = null
-            """)
-        } catch (NullPointerException e) {
-            fail("Compilation failed")
-        }
+        assert evalCPS('''
+            abstract class Foo {
+                abstract int val()
+            }
+            Foo foo = new Foo() {int val() {123}}
+            foo.val()
+        ''') == 123
     }
 }
