@@ -1,6 +1,6 @@
 package com.cloudbees.groovy.cps
 
-import org.junit.Ignore
+import groovy.transform.NotYetImplemented
 import org.junit.Test
 
 /**
@@ -23,7 +23,7 @@ class SafepointTest extends AbstractGroovyCpsTest {
         ''') == SAFEPOINT
     }
 
-    @Ignore("Groovy doesn't support do-while")
+    @NotYetImplemented // Groovy doesn't support do-while
     @Test
     void doWhileLoop() {
         assert evalCPSonly('''

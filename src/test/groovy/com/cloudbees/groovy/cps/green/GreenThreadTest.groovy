@@ -1,7 +1,7 @@
 package com.cloudbees.groovy.cps.green
 
 import com.cloudbees.groovy.cps.AbstractGroovyCpsTest
-import org.junit.Ignore
+import groovy.transform.NotYetImplemented
 import org.junit.Test
 
 /**
@@ -10,7 +10,7 @@ import org.junit.Test
  * @author Kohsuke Kawaguchi
  */
 class GreenThreadTest extends AbstractGroovyCpsTest {
-    @Test @Ignore/*TODO: still a work in progress*/
+    @Test @NotYetImplemented // TODO: still a work in progress
     void thread() {
         assert evalCPS("""
             GreenWorld.startThread {

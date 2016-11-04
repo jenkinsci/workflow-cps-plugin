@@ -3,8 +3,8 @@ package com.cloudbees.groovy.cps
 import com.cloudbees.groovy.cps.impl.ContinuationGroup
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import com.cloudbees.groovy.cps.impl.DGMPatcher
+import groovy.transform.NotYetImplemented
 import org.codehaus.groovy.control.MultipleCompilationErrorsException
-import org.junit.Ignore
 import org.junit.Test
 import org.jvnet.hudson.test.Issue
 
@@ -209,7 +209,7 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
      * do-while loop that evaluates to false immediately
      */
     @Test
-    @Ignore
+    @NotYetImplemented
     void doWhileLoop() {
         assert evalCPS("""
             int x=1;
@@ -224,7 +224,7 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
      * do/while loop that goes through several iterations.
      */
     @Test
-    @Ignore
+    @NotYetImplemented
     void dowhileLoop5() {
         assert evalCPS("""
             int x=1;
@@ -466,7 +466,7 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     /**
      * Testing {@link CpsDefaultGroovyMethods}.
      */
-    @Ignore("TODO JENKINS-34064")
+    @NotYetImplemented // TODO JENKINS-34064
     @Test
     void each() {
         assert evalCPS("""
@@ -645,7 +645,7 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     public static int add(int a, int b) { return a+b; }
 
-    @Ignore("TODO JENKINS-34064")
+    @NotYetImplemented // TODO JENKINS-34064
     @Test
     void eachArray() {
         assert evalCPS("""

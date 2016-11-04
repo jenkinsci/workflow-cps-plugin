@@ -1,7 +1,7 @@
 package com.cloudbees.groovy.cps.impl
 
 import com.cloudbees.groovy.cps.AbstractGroovyCpsTest
-import org.junit.Ignore
+import groovy.transform.NotYetImplemented
 import org.junit.Test
 
 import javax.naming.NamingException
@@ -254,7 +254,7 @@ class SwitchBlockTest extends AbstractGroovyCpsTest {
      * Default match and fall through
      */
     @Test
-    @Ignore("Groovy doesn't handle this correctly")
+    @NotYetImplemented // Groovy doesn't handle this correctly
     void fallthroughWithDefault() {
         assert evalCPS("""
             def x = 9;
