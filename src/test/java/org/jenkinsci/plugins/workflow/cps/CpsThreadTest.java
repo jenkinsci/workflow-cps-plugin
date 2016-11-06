@@ -67,7 +67,7 @@ public class CpsThreadTest {
         List<CauseOfInterruption> causes = iba.getCauses();
         assertEquals(1, causes.size());
         assertEquals(CauseOfInterruption.UserInterruption.class, causes.get(0).getClass());
-        r.assertLogContains("never going to stop", b);
+        r.assertLogContains("never going to stop", b); // TODO under heavy load sometimes fails here; why?
         r.assertLogNotContains("\tat ", b);
     }
 

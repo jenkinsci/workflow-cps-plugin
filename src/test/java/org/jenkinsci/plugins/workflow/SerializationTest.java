@@ -3,6 +3,7 @@ package org.jenkinsci.plugins.workflow;
 import groovy.lang.Closure;
 import hudson.model.Result;
 import hudson.slaves.DumbSlave;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
@@ -152,6 +153,7 @@ public class SerializationTest extends SingleJobTestBase {
     @Test public void listIterator() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
+                ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.List java.lang.Object"); // TODO pending https://github.com/jenkinsci/script-security-plugin/pull/96
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(
                     "def arr = []; arr += 'one'; arr += 'two'\n" +
@@ -289,6 +291,7 @@ public class SerializationTest extends SingleJobTestBase {
     @Test public void eachClosureNonCps() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
+                ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.List java.lang.Object"); // TODO pending https://github.com/jenkinsci/script-security-plugin/pull/96
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(
                     "@NonCPS def fine() {\n" +
