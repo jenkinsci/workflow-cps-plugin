@@ -13,26 +13,15 @@ import org.kohsuke.stapler.DataBoundConstructor;
  * Test class to make sure step descriptions with special characters are escaped properly.
  */
 public class DisplaynameWithEscapeCharState extends AbstractStepImpl {
-    public final DisplaynameEscapeCharData data;
 
     @DataBoundConstructor
-    public DisplaynameWithEscapeCharState(DisplaynameEscapeCharData data) {
-        this.data = data;
-    }
+    public DisplaynameWithEscapeCharState() {}
 
     private static final class Execution extends AbstractSynchronousNonBlockingStepExecution<Void> {
-        @Inject
-        private transient DisplaynameWithEscapeCharState step;
-        @StepContextParameter
-        private transient TaskListener listener;
-
         @Override protected Void run() throws Exception {
-            listener.getLogger().println(step.data.getArgs());
             return null;
         }
-
         private static final long serialVersionUID = 1L;
-
     }
 
     @Extension

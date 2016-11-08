@@ -57,8 +57,6 @@ import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.CarbonMonoxide;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.DetectionMetaStep;
-import org.jenkinsci.plugins.workflow.testMetaStep.DisplaynameWithEscapeCharState;
-import org.jenkinsci.plugins.workflow.testMetaStep.DisplaynameEscapeCharData;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Email;
@@ -307,12 +305,6 @@ public class SnippetizerTest {
         dataList.add(new MonomorphicDataWithSymbol("three", "four"));
         MonomorphicListWithSymbolStep monomorphicStep = new MonomorphicListWithSymbolStep(dataList);
         st.assertRoundTrip(monomorphicStep, "monomorphListSymbolStep([monomorphSymbol(firstArg: 'one', secondArg: 'two'), monomorphSymbol(firstArg: 'three', secondArg: 'four')])");
-    }
-
-    @Test
-    public void escapeCharacters() throws Exception {
-        DisplaynameWithEscapeCharState displaynameWithEscapeCharState = new DisplaynameWithEscapeCharState(new DisplaynameEscapeCharData("one"));
-        st.assertRoundTrip(displaynameWithEscapeCharState, "displaynameWithEscapeCharState([firstArg: 'one'])");
     }
 
     @Test
