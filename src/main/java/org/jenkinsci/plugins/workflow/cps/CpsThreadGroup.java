@@ -136,7 +136,9 @@ public final class CpsThreadGroup implements Serializable {
 
     /** Track a script so that we can fix up its {@link Script#getBinding}s after deserialization. */
     void register(Script script) {
-        scripts.add(script);
+        if (scripts != null) {
+            scripts.add(script);
+        }
     }
 
     @SuppressWarnings("unchecked")
