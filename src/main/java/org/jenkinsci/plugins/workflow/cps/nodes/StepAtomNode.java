@@ -25,7 +25,6 @@
 package org.jenkinsci.plugins.workflow.cps.nodes;
 
 import hudson.model.Action;
-import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.graph.AtomNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -59,10 +58,7 @@ public class StepAtomNode extends AtomNode implements StepNode {
 
     @Override public StepDescriptor getDescriptor() {
         if (descriptor == null && descriptorId != null) {
-            Jenkins j = Jenkins.getInstance();
-            if (j != null) {
-                descriptor = (StepDescriptor) j.getDescriptor(descriptorId);
-            }
+            descriptor = StepDescriptorCache.getPublicCache().getDescriptor(descriptorId);
         }
         return descriptor;
     }

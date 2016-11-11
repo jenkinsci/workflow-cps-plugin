@@ -1,7 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps.nodes;
 
 import hudson.model.Action;
-import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.actions.BodyInvocationAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.graph.BlockStartNode;
@@ -34,11 +33,8 @@ public class StepStartNode extends BlockStartNode implements StepNode {
     }
 
     public StepDescriptor getDescriptor() {
-        if (descriptor == null) {
-            Jenkins j = Jenkins.getInstance();
-            if (j != null) {
-                descriptor = (StepDescriptor) j.getDescriptor(descriptorId);
-            }
+        if (descriptor == null && descriptorId != null) {
+            descriptor = StepDescriptorCache.getPublicCache().getDescriptor(descriptorId);
         }
         return descriptor;
     }
