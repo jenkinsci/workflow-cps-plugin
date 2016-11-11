@@ -1,8 +1,5 @@
 package org.jenkinsci.plugins.workflow.cps.nodes;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import hudson.Extension;
 import hudson.ExtensionListListener;
 import jenkins.model.Jenkins;
@@ -11,7 +8,7 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.CheckForNull;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Shared cacheSingleton for the StepDescriptors, extension-scoped to avoid test issues
@@ -50,30 +47,35 @@ public class StepDescriptorCache {
     }
 
     public void invalidateAll() {
-        descriptorCache.invalidateAll();
+        descriptorCache.clear();
     }
 
-    private static transient final LoadingCache<String,StepDescriptor> descriptorCache = CacheBuilder.newBuilder().maximumSize(1000).build(new CacheLoader<String,StepDescriptor>() {
-        @Override public StepDescriptor load(String descriptorId) {
-            if (descriptorId != null) {
-                Jenkins j = Jenkins.getInstance();
-                if (j != null) {
-                    return (StepDescriptor) j.getDescriptor(descriptorId);
+    private final ConcurrentHashMap<String, StepDescriptor> descriptorCache = new ConcurrentHashMap<String, StepDescriptor>() {
+        public StepDescriptor get(String descriptorId) {
+            StepDescriptor output = super.get(descriptorId);
+            if (output == null) {
+                output = load(descriptorId);
+                if (output != null) {
+                    this.put(descriptorId, output); // We may get redundant writes but that is ok
                 }
             }
-            return null;
+            return output;
         }
-    });
+
+        public StepDescriptor load(String descriptorId) {
+            Jenkins j = Jenkins.getInstance();
+            if (j != null) {
+                return (StepDescriptor) j.getDescriptor(descriptorId);
+            } else {
+                return null;
+            }
+        }
+    };
 
     @CheckForNull
     public StepDescriptor getDescriptor(String descriptorId) {
         if (descriptorId != null) {
-            try {
-                return descriptorCache.get(descriptorId);
-            } catch (ExecutionException exec) {
-                throw new RuntimeException(exec);  // If we can't get the descriptor good grief
-            }
-
+            return descriptorCache.get(descriptorId);
         }
         return null;
     }
