@@ -2,6 +2,7 @@ package org.jenkinsci.plugins.workflow.cps.nodes;
 
 import hudson.Extension;
 import hudson.ExtensionListListener;
+import hudson.util.Memoizer;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.kohsuke.accmod.Restricted;
@@ -17,22 +18,17 @@ import java.util.concurrent.ConcurrentHashMap;
 @Restricted(NoExternalUse.class)
 public class StepDescriptorCache {
 
-    // This ensures we use extension loading unless running a pure unit test with no Jenkins
-    private static StepDescriptorCache getCacheInstance() {
+    /** Used ONLY for unit tests where there isn't actually a running Jenkins */
+    private static final StepDescriptorCache fallbackSingleton = new StepDescriptorCache();
+
+    public static StepDescriptorCache getPublicCache() {
         Jenkins myJenkins = Jenkins.getInstance();
         if ( myJenkins == null) {
-            return new StepDescriptorCache();
+            return fallbackSingleton;
         } else {
             return myJenkins.getExtensionList(StepDescriptorCache.class).get(0);
         }
     }
-
-    private static final StepDescriptorCache cacheSingleton = StepDescriptorCache.getCacheInstance();
-
-    public static StepDescriptorCache getPublicCache() {
-        return cacheSingleton;
-    }
-
 
     ExtensionListListener myListener = new ExtensionListListener() {
         @Override
@@ -50,25 +46,14 @@ public class StepDescriptorCache {
         descriptorCache.clear();
     }
 
-    private final ConcurrentHashMap<String, StepDescriptor> descriptorCache = new ConcurrentHashMap<String, StepDescriptor>() {
-        public StepDescriptor get(String descriptorId) {
-            StepDescriptor output = super.get(descriptorId);
-            if (output == null) {
-                output = load(descriptorId);
-                if (output != null) {
-                    this.put(descriptorId, output); // We may get redundant writes but that is ok
-                }
-            }
-            return output;
-        }
+    private final Memoizer<String, StepDescriptor> descriptorCache = new Memoizer<String, StepDescriptor>() {
 
-        public StepDescriptor load(String descriptorId) {
+        public StepDescriptor compute(String descriptorId) {
             Jenkins j = Jenkins.getInstance();
-            if (j != null) {
+            if (descriptorId != null && j != null) {
                 return (StepDescriptor) j.getDescriptor(descriptorId);
-            } else {
-                return null;
             }
+            return null;
         }
     };
 
