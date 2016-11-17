@@ -44,19 +44,8 @@ import javax.annotation.CheckForNull;
 @Restricted(NoExternalUse.class)
 public class StepDescriptorCache implements ExtensionPoint {
 
-    /** Used ONLY for unit tests where there isn't actually a running Jenkins */
-    private static StepDescriptorCache fallbackSingleton = null;
-
     public static StepDescriptorCache getPublicCache() {
-        Jenkins myJenkins = Jenkins.getInstance();
-        if ( myJenkins == null) {
-            if (fallbackSingleton == null) {
-                 fallbackSingleton = new StepDescriptorCache();
-            }
-            return fallbackSingleton;
-        } else {
-            return myJenkins.getExtensionList(StepDescriptorCache.class).get(0);
-        }
+        return Jenkins.getActiveInstance().getExtensionList(StepDescriptorCache.class).get(0);
     }
 
     public StepDescriptorCache() {}
