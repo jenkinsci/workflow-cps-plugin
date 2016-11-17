@@ -83,9 +83,6 @@ public class StepDescriptorCache implements ExtensionPoint {
 
     @CheckForNull
     public StepDescriptor getDescriptor(String descriptorId) {
-        if (descriptorId != null && Jenkins.getInstance() != null) {
-            return (StepDescriptor) (Jenkins.getInstance().getDescriptor(descriptorId));
-        }
         if (descriptorId != null) {
             return descriptorCache.get(descriptorId);
         }
