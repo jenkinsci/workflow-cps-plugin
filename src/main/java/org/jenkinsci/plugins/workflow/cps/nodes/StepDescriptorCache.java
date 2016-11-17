@@ -25,7 +25,6 @@
 package org.jenkinsci.plugins.workflow.cps.nodes;
 
 import hudson.Extension;
-import hudson.ExtensionListListener;
 import hudson.ExtensionPoint;
 import hudson.init.InitMilestone;
 import hudson.init.Initializer;
