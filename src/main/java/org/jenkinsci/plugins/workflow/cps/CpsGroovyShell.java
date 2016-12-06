@@ -9,6 +9,8 @@ import org.codehaus.groovy.control.CompilerConfiguration;
 
 import javax.annotation.CheckForNull;
 import java.io.IOException;
+import java.net.URL;
+import java.util.Enumeration;
 
 /**
  * {@link GroovyShell} with additional tweaks necessary to run {@link CpsScript}
@@ -29,7 +31,7 @@ class CpsGroovyShell extends GroovyShell {
      * Use {@link CpsGroovyShellFactory} to instantiate it.
      */
     CpsGroovyShell(ClassLoader parent, @CheckForNull CpsFlowExecution execution, CompilerConfiguration cc) {
-        super(parent,new Binding(),cc);
+        super(new TimingLoader(parent, execution), new Binding(), cc);
         this.execution = execution;
     }
 
@@ -52,7 +54,7 @@ class CpsGroovyShell extends GroovyShell {
      */
     @Override
     public Script parse(GroovyCodeSource codeSource) throws CompilationFailedException {
-        Script s = super.parse(codeSource);
+        Script s = doParse(codeSource);
         if (execution!=null)
             execution.loadedScripts.put(s.getClass().getName(), codeSource.getScriptText());
         prepareScript(s);
@@ -64,7 +66,16 @@ class CpsGroovyShell extends GroovyShell {
      * (therefore we don't want to record this.)
      */
     /*package*/ Script reparse(String className, String text) throws CompilationFailedException {
-        return super.parse(new GroovyCodeSource(text,className,DEFAULT_CODE_BASE));
+        return doParse(new GroovyCodeSource(text,className,DEFAULT_CODE_BASE));
+    }
+
+    private Script doParse(GroovyCodeSource codeSource) throws CompilationFailedException {
+        execution.time(CpsFlowExecution.TimingKind.parse, false);
+        try {
+            return super.parse(codeSource);
+        } finally {
+            execution.time(CpsFlowExecution.TimingKind.parse, true);
+        }
     }
 
     /**
@@ -78,4 +89,37 @@ class CpsGroovyShell extends GroovyShell {
         else
             return super.generateScriptName();
     }
+
+    private static class TimingLoader extends ClassLoader {
+        private final CpsFlowExecution execution;
+        TimingLoader(ClassLoader parent, CpsFlowExecution execution) {
+            super(parent);
+            this.execution = execution;
+        }
+        @Override protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            execution.time(CpsFlowExecution.TimingKind.load, false);
+            try {
+                return super.loadClass(name, resolve);
+            } finally {
+                execution.time(CpsFlowExecution.TimingKind.load, true);
+            }
+        }
+        @Override public URL getResource(String name) {
+            execution.time(CpsFlowExecution.TimingKind.load, false);
+            try {
+                return super.getResource(name);
+            } finally {
+                execution.time(CpsFlowExecution.TimingKind.load, true);
+            }
+        }
+        @Override public Enumeration<URL> getResources(String name) throws IOException {
+            execution.time(CpsFlowExecution.TimingKind.load, false);
+            try {
+                return super.getResources(name);
+            } finally {
+                execution.time(CpsFlowExecution.TimingKind.load, true);
+            }
+        }
+    }
+
 }

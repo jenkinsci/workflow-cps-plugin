@@ -90,6 +90,7 @@ class CpsVmExecutorService extends InterceptingExecutorService {
 
     private ThreadContext setUp() {
         CpsFlowExecution execution = cpsThreadGroup.getExecution();
+        execution.time(CpsFlowExecution.TimingKind.run, false);
         ACL.impersonate(execution.getAuthentication());
         CURRENT.set(cpsThreadGroup);
         cpsThreadGroup.busy = true;
@@ -108,6 +109,11 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         CURRENT.set(null);
         cpsThreadGroup.busy = false;
         context.restore();
+        CpsFlowExecution execution = cpsThreadGroup.getExecution();
+        execution.time(CpsFlowExecution.TimingKind.run, true);
+        if (isShutdown()) {
+            execution.logTimings();
+        }
     }
 
     static ThreadLocal<CpsThreadGroup> CURRENT = new ThreadLocal<>();
