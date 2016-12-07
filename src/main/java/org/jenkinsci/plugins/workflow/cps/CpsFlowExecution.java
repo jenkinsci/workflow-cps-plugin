@@ -404,7 +404,7 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     synchronized void logTimings() {
-        if (LOGGER.isLoggable(Level.FINE)) {
+        if (timings != null && LOGGER.isLoggable(Level.FINE)) {
             Map<String, String> formatted = new TreeMap<>();
             for (Map.Entry<String, Long> entry : timings.entrySet()) {
                 formatted.put(entry.getKey(), entry.getValue() / 1000 / 1000 + "ms");
@@ -1288,7 +1288,9 @@ public class CpsFlowExecution extends FlowExecution {
             writeChild(w, context, "result", e.result, Result.class);
             writeChild(w, context, "script", e.script, String.class);
             writeChild(w, context, "loadedScripts", e.loadedScripts, Map.class);
-            writeChild(w, context, "timings", e.timings, Map.class);
+            synchronized (e) {
+                writeChild(w, context, "timings", e.timings, Map.class);
+            }
             writeChild(w, context, "sandbox", e.sandbox, Boolean.class);
             if (e.user != null) {
                 writeChild(w, context, "user", e.user, String.class);

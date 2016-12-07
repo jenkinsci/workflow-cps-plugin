@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Binding;
 import groovy.lang.GroovyCodeSource;
 import groovy.lang.GroovyShell;
@@ -30,6 +31,7 @@ class CpsGroovyShell extends GroovyShell {
     /**
      * Use {@link CpsGroovyShellFactory} to instantiate it.
      */
+    @SuppressFBWarnings(value="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED", justification="Irrelevant in Jenkins.")
     CpsGroovyShell(ClassLoader parent, @CheckForNull CpsFlowExecution execution, CompilerConfiguration cc) {
         super(new TimingLoader(parent, execution), new Binding(), cc);
         this.execution = execution;
@@ -70,11 +72,15 @@ class CpsGroovyShell extends GroovyShell {
     }
 
     private Script doParse(GroovyCodeSource codeSource) throws CompilationFailedException {
-        execution.time(CpsFlowExecution.TimingKind.parse, false);
-        try {
+        if (execution != null) {
+            execution.time(CpsFlowExecution.TimingKind.parse, false);
+            try {
+                return super.parse(codeSource);
+            } finally {
+                execution.time(CpsFlowExecution.TimingKind.parse, true);
+            }
+        } else {
             return super.parse(codeSource);
-        } finally {
-            execution.time(CpsFlowExecution.TimingKind.parse, true);
         }
     }
 
