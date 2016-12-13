@@ -1,7 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps.nodes;
 
 import hudson.model.Action;
-import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.actions.BodyInvocationAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.graph.BlockStartNode;
@@ -9,6 +8,7 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
+import java.io.ObjectStreamException;
 import java.util.Collections;
 
 /**
@@ -17,14 +17,14 @@ import java.util.Collections;
  * @author Kohsuke Kawaguchi
  */
 public class StepStartNode extends BlockStartNode implements StepNode {
-    private final String descriptorId;
+    private String descriptorId;
 
     private transient StepDescriptor descriptor;
 
     public StepStartNode(CpsFlowExecution exec, StepDescriptor d, FlowNode parent) {
         super(exec, exec.iotaStr(), parent);
         this.descriptor = d;
-        this.descriptorId = d!=null ? d.getId() : null;
+        this.descriptorId = d!=null ? d.getId().intern() : null;
 
         // we use SimpleXStreamFlowNodeStorage, which uses XStream, so
         // constructor call is always for brand-new FlowNode that has not existed anywhere.
@@ -33,13 +33,15 @@ public class StepStartNode extends BlockStartNode implements StepNode {
     }
 
     public StepDescriptor getDescriptor() {
-        if (descriptor == null) {
-            Jenkins j = Jenkins.getInstance();
-            if (j != null) {
-                descriptor = (StepDescriptor) j.getDescriptor(descriptorId);
-            }
+        if (descriptor == null && descriptorId != null) {
+            descriptor = StepDescriptorCache.getPublicCache().getDescriptor(descriptorId);
         }
         return descriptor;
+    }
+
+    protected Object readResolve() throws ObjectStreamException {
+        this.descriptorId = this.descriptorId.intern();
+        return super.readResolve();
     }
 
     @Override

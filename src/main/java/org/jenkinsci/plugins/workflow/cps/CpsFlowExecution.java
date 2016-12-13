@@ -106,13 +106,16 @@ import hudson.model.User;
 import hudson.security.ACL;
 import hudson.security.AccessControlled;
 import java.beans.Introspector;
+import java.lang.ref.Reference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -257,6 +260,18 @@ public class CpsFlowExecution extends FlowExecution {
     private transient Map<Integer,String> headsSerial; // used only between unmarshal and onLoad
 
     private final AtomicInteger iota = new AtomicInteger();
+
+    /** Number of node IDs to use in lookup table, 500 covers most common flow graphs  */
+    private static final int ID_LOOKUP_TABLE_SIZE = 500;
+
+    /** Preallocated lookup table for small ID values, used instead of interning for speed & simplicity */
+    private static final String[] ID_LOOKUP_TABLE = new String[ID_LOOKUP_TABLE_SIZE];
+
+    static {
+        for(int i = 0; i< ID_LOOKUP_TABLE.length; i++) {
+            ID_LOOKUP_TABLE[i] = String.valueOf(i).intern();  // Interning here allows allows us to just intern on deserialize
+        }
+    }
 
     private transient List<GraphListener> listeners;
 
@@ -432,7 +447,13 @@ public class CpsFlowExecution extends FlowExecution {
      */
     @Restricted(NoExternalUse.class)
     public String iotaStr() {
-        return String.valueOf(iota());
+        int iotaVal = iota();
+        // We intern this because many, many FlowNodes will have the same ID values
+        if ( iotaVal > 0 && iotaVal < ID_LOOKUP_TABLE_SIZE) {
+            return ID_LOOKUP_TABLE[iotaVal];
+        } else {
+            return String.valueOf(iota()).intern();
+        }
     }
 
     @Restricted(NoExternalUse.class)
@@ -942,9 +963,12 @@ public class CpsFlowExecution extends FlowExecution {
             if (encounteredClasses.add(clazz)) {
                 LOGGER.log(Level.FINER, "found {0}", clazz.getName());
                 Introspector.flushFromCaches(clazz);
+                cleanUpGlobalClassSet(clazz);
+                cleanUpObjectStreamClassCaches(clazz);
                 cleanUpLoader(clazz.getClassLoader(), encounteredLoaders, encounteredClasses);
             }
         }
+        gcl.clearCache();
     }
 
     private static void cleanUpGlobalClassValue(@Nonnull ClassLoader loader) throws Exception {
@@ -985,6 +1009,51 @@ public class CpsFlowExecution extends FlowExecution {
         LOGGER.log(Level.FINE, "cleaning up {0} associated with {1}", new Object[] {toRemove.toString(), loader.toString()});
         for (Class<?> klazz : toRemove) {
             removeM.invoke(map, klazz);
+        }
+    }
+
+    private static void cleanUpGlobalClassSet(@Nonnull Class<?> clazz) throws Exception {
+        Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
+        Field globalClassSetF = classInfoC.getDeclaredField("globalClassSet");
+        globalClassSetF.setAccessible(true);
+        Object globalClassSet = globalClassSetF.get(null);
+        try { // Groovy 1
+            globalClassSet.getClass().getMethod("remove", Object.class).invoke(globalClassSet, clazz); // like Map but not
+            LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
+        } catch (NoSuchMethodException x) { // Groovy 2
+            Field itemsF = globalClassSet.getClass().getDeclaredField("items");
+            itemsF.setAccessible(true);
+            Object items = itemsF.get(globalClassSet);
+            Method iteratorM = items.getClass().getMethod("iterator");
+            Field klazzF = classInfoC.getDeclaredField("klazz");
+            klazzF.setAccessible(true);
+            synchronized (items) {
+                Iterator<?> iterator = (Iterator) iteratorM.invoke(items);
+                while (iterator.hasNext()) {
+                    Object classInfo = iterator.next();
+                    if (klazzF.get(classInfo) == clazz) {
+                        iterator.remove();
+                        LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
+                    }
+                }
+            }
+        }
+    }
+
+    private static void cleanUpObjectStreamClassCaches(@Nonnull Class<?> clazz) throws Exception {
+        Class<?> cachesC = Class.forName("java.io.ObjectStreamClass$Caches");
+        for (String cacheFName : new String[] {"localDescs", "reflectors"}) {
+            Field cacheF = cachesC.getDeclaredField(cacheFName);
+            cacheF.setAccessible(true);
+            ConcurrentMap<Reference<Class<?>>, ?> cache = (ConcurrentMap) cacheF.get(null);
+            Iterator<? extends Entry<Reference<Class<?>>, ?>> iterator = cache.entrySet().iterator();
+            while (iterator.hasNext()) {
+                if (iterator.next().getKey().get() == clazz) {
+                    iterator.remove();
+                    LOGGER.log(Level.FINER, "cleaning up {0} from ObjectStreamClass.Caches.{1}", new Object[] {clazz.getName(), cacheFName});
+                    break;
+                }
+            }
         }
     }
 

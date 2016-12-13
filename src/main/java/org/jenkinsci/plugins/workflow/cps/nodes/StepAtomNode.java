@@ -25,13 +25,13 @@
 package org.jenkinsci.plugins.workflow.cps.nodes;
 
 import hudson.model.Action;
-import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.graph.AtomNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
+import java.io.ObjectStreamException;
 import java.util.Collections;
 
 /**
@@ -41,14 +41,14 @@ import java.util.Collections;
  */
 public class StepAtomNode extends AtomNode implements StepNode {
 
-    private final String descriptorId;
+    private String descriptorId;
 
     // once we successfully convert descriptorId to a real instance, cache that
     private transient StepDescriptor descriptor;
 
     public StepAtomNode(CpsFlowExecution exec, StepDescriptor d, FlowNode parent) {
         super(exec, exec.iotaStr(), parent);
-        this.descriptorId = d!=null ? d.getId() : null;
+        this.descriptorId = d!=null ? d.getId().intern() : null;
 
         // we use SimpleXStreamFlowNodeStorage, which uses XStream, so
         // constructor call is always for brand-new FlowNode that has not existed anywhere.
@@ -58,12 +58,14 @@ public class StepAtomNode extends AtomNode implements StepNode {
 
     @Override public StepDescriptor getDescriptor() {
         if (descriptor == null && descriptorId != null) {
-            Jenkins j = Jenkins.getInstance();
-            if (j != null) {
-                descriptor = (StepDescriptor) j.getDescriptor(descriptorId);
-            }
+            descriptor = StepDescriptorCache.getPublicCache().getDescriptor(descriptorId);
         }
         return descriptor;
+    }
+
+    protected Object readResolve() throws ObjectStreamException {
+        this.descriptorId = this.descriptorId.intern();
+        return super.readResolve();
     }
 
     @Override

@@ -63,6 +63,7 @@ import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
 import javax.annotation.Nullable;
+import javax.annotation.CheckForNull;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.kohsuke.accmod.Restricted;
@@ -125,7 +126,7 @@ public final class CpsThreadGroup implements Serializable {
      */
     public final Map<Integer,Closure> closures = new HashMap<Integer,Closure>();
 
-    private final List<Script> scripts = new ArrayList<>();
+    private final @CheckForNull List<Script> scripts = new ArrayList<>();
 
     CpsThreadGroup(CpsFlowExecution execution) {
         this.execution = execution;
@@ -138,7 +139,9 @@ public final class CpsThreadGroup implements Serializable {
 
     /** Track a script so that we can fix up its {@link Script#getBinding}s after deserialization. */
     void register(Script script) {
-        scripts.add(script);
+        if (scripts != null) {
+            scripts.add(script);
+        }
     }
 
     /**
@@ -372,7 +375,9 @@ public final class CpsThreadGroup implements Serializable {
         }
         if (ending) {
             execution.cleanUpHeap();
-            scripts.clear();
+            if (scripts != null) {
+                scripts.clear();
+            }
             closures.clear();
         }
 

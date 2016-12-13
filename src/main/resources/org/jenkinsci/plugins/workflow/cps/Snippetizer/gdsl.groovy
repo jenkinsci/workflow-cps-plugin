@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps.Snippetizer
 
+import groovy.json.StringEscapeUtils
 import hudson.FilePath
 import hudson.Functions
 import org.jenkinsci.plugins.structs.describable.DescribableModel
@@ -50,7 +51,8 @@ steps.each { StepDescriptor step, DescribableModel model ->
 
     boolean requiresNode = step.requiredContext.contains(FilePath)
     boolean takesClosure = step.takesImplicitBlockArgument()
-    String description = step.displayName
+    def sanitizedDisplayName = StringEscapeUtils.escapeJavaScript(step.displayName)
+    String description = sanitizedDisplayName
     if (step.isAdvanced()) {
         description = "Advanced/Deprecated " + description
     }
@@ -83,9 +85,9 @@ steps.each { StepDescriptor step, DescribableModel model ->
         }
         String contr
         if (takesClosure) {
-            contr = "method(name: '${step.functionName}', type: 'Object', params: [body:Closure], namedParams: [${namedParamsS.toString()}], doc: '${step.displayName}')"
+            contr = "method(name: '${step.functionName}', type: 'Object', params: [body:Closure], namedParams: [${namedParamsS.toString()}], doc: '${sanitizedDisplayName}')"
         } else {
-            contr = "method(name: '${step.functionName}', type: 'Object', namedParams: [${namedParamsS.toString()}], doc: '${step.displayName}')"
+            contr = "method(name: '${step.functionName}', type: 'Object', namedParams: [${namedParamsS.toString()}], doc: '${sanitizedDisplayName}')"
         }
         if (requiresNode) {
             nodeContext.add(contr)
