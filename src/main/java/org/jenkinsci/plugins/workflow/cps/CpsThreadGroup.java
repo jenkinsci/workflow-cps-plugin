@@ -149,7 +149,7 @@ public final class CpsThreadGroup implements Serializable {
      */
     @Restricted(NoExternalUse.class)
     public @Nullable Script getMainScript() {
-        return scripts.isEmpty() ? null : scripts.get(0);
+        return scripts == null || scripts.isEmpty() ? null : scripts.get(0);
     }
 
     @SuppressWarnings("unchecked")
