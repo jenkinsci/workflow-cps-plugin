@@ -74,11 +74,6 @@ public class GroovyStepTest {
         });
     }
 
-    /**
-     * Invokes helloWorldGroovy.groovy in resources/stepsInGroovy and make sure that works.
-     *
-     * Restart Jenkins in the middle to make sure the resurrection works as expected.
-     */
     @Test
     public void security() throws Exception {
         story.addStep(new Statement() {
