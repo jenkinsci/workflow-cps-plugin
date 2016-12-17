@@ -57,6 +57,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -76,6 +77,10 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 @PersistIn(PROGRAM)
 @edu.umd.cs.findbugs.annotations.SuppressWarnings("SE_BAD_FIELD") // bogus warning about closures
 public final class CpsThreadGroup implements Serializable {
+    /**
+     * The maximum number of times to retry I/O operations.
+     */
+    private static final int MAX_RETRIES = 30;
     /**
      * {@link CpsThreadGroup} always belong to the same {@link CpsFlowExecution}.
      *
@@ -428,24 +433,46 @@ public final class CpsThreadGroup implements Serializable {
             return;
         }
 
-        try {
-            RiverWriter w = new RiverWriter(tmpFile, execution.getOwner());
+        for (int i = 0; i < MAX_RETRIES; ++i) {
             try {
-                w.writeObject(this);
+                RiverWriter w = new RiverWriter(tmpFile, execution.getOwner());
+                try {
+                    w.writeObject(this);
+                } finally {
+                    w.close();
+                }
+                Files.move(tmpFile.toPath(), f.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                LOGGER.log(FINE, "program state saved");
+            } catch (RuntimeException e) {
+                if (i < MAX_RETRIES - 1) {
+                    LOGGER.log(FINE, "Retry [" + (i + 1) + "/" + MAX_RETRIES + "]", e);
+                    long timeout = Math.min(1000, (long) (10 * Math.pow(2, i)));
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(timeout);
+                        continue;
+                    } catch (InterruptedException ignore) {
+                        // give up
+                    }
+                }
+                propagateErrorToWorkflow(e);
+                throw new IOException("Failed to persist "+f,e);
+            } catch (IOException e) {
+                if (i < MAX_RETRIES - 1) {
+                    LOGGER.log(FINE, "Retry [" + (i + 1) + "/" + MAX_RETRIES + "]", e);
+                    long timeout = Math.min(1000, (long) (10 * Math.pow(2, i)));
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(timeout);
+                        continue;
+                    } catch (InterruptedException ignore) {
+                        // give up
+                    }
+                }
+                propagateErrorToWorkflow(e);
+                throw new IOException("Failed to persist "+f,e);
             } finally {
-                w.close();
+                PROGRAM_STATE_SERIALIZATION.set(old);
+                Util.deleteFile(tmpFile);
             }
-            Files.move(tmpFile.toPath(), f.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            LOGGER.log(FINE, "program state saved");
-        } catch (RuntimeException e) {
-            propagateErrorToWorkflow(e);
-            throw new IOException("Failed to persist "+f,e);
-        } catch (IOException e) {
-            propagateErrorToWorkflow(e);
-            throw new IOException("Failed to persist "+f,e);
-        } finally {
-            PROGRAM_STATE_SERIALIZATION.set(old);
-            Util.deleteFile(tmpFile);
         }
     }
 
