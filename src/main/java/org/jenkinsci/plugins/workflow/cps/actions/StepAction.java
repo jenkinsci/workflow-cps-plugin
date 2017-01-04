@@ -34,12 +34,12 @@ import javax.annotation.Nonnull;
 /**
  * Action that captures the actual {@link Step} run in a node, for deeper inspection
  */
-public class StepAction<T extends Step> implements PersistentAction {
+public class StepAction implements PersistentAction {
 
-    private T step;
+    private Step step;
 
     @Nonnull
-    public T getStep() {
+    public Step getStep() {
         return step;
     }
 
@@ -69,7 +69,7 @@ public class StepAction<T extends Step> implements PersistentAction {
         return "step";
     }
 
-    public StepAction(T myStep) {
+    public StepAction(Step myStep) {
         this.step = myStep;
     }
 }

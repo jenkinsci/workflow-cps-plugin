@@ -38,6 +38,7 @@ import hudson.model.TaskListener;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
+import org.jenkinsci.plugins.workflow.cps.actions.StepAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
@@ -179,6 +180,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             d.checkContextAvailability(context);
             Thread.currentThread().setContextClassLoader(CpsVmExecutorService.ORIGINAL_CONTEXT_CLASS_LOADER.get());
             s = d.newInstance(ps.namedArgs);
+            an.addAction(new StepAction(s));
             StepExecution e = s.start(context);
             thread.setStep(e);
             sync = e.start();
