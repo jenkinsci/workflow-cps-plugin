@@ -64,7 +64,9 @@ public class StepAtomNode extends AtomNode implements StepNode {
     }
 
     protected Object readResolve() throws ObjectStreamException {
-        this.descriptorId = this.descriptorId.intern();
+        if (descriptorId != null) {
+            this.descriptorId = this.descriptorId.intern();
+        }
         return super.readResolve();
     }
 
