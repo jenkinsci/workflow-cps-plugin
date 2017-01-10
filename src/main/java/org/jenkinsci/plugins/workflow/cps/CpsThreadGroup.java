@@ -355,7 +355,7 @@ public final class CpsThreadGroup implements Serializable {
             }
         }
 
-        if (changed) {
+        if (changed && !stillRunnable) {
             try {
                 saveProgram();
             } catch (IOException x) {
@@ -420,6 +420,9 @@ public final class CpsThreadGroup implements Serializable {
 
     @CpsVmThreadOnly
     public void saveProgram(File f) throws IOException {
+        boolean logging = LOGGER.isLoggable(Level.FINER);
+        long start = logging ? System.nanoTime() : 0;
+
         File dir = f.getParentFile();
         File tmpFile = File.createTempFile("atomic",null, dir);
 
@@ -451,6 +454,11 @@ public final class CpsThreadGroup implements Serializable {
         } finally {
             PROGRAM_STATE_SERIALIZATION.set(old);
             Util.deleteFile(tmpFile);
+        }
+
+        if (logging) {
+            long end = System.nanoTime();
+            LOGGER.log(FINER, "saved {0} of size {1}Kb in {2}ms", new Object[] {f, f.length() / 1000, (end - start) / 1000 / 1000});
         }
     }
 
