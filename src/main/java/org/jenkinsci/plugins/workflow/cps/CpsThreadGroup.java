@@ -444,19 +444,6 @@ public final class CpsThreadGroup implements Serializable {
                 Files.move(tmpFile.toPath(), f.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
                 LOGGER.log(FINE, "program state saved");
                 break;
-            } catch (RuntimeException e) {
-                if (i < MAX_RETRIES - 1) {
-                    LOGGER.log(FINE, "Retry [" + (i + 1) + "/" + MAX_RETRIES + "]", e);
-                    long timeout = Math.min(1000, (long) (10 * Math.pow(2, i)));
-                    try {
-                        TimeUnit.MILLISECONDS.sleep(timeout);
-                        continue;
-                    } catch (InterruptedException ignore) {
-                        // give up
-                    }
-                }
-                propagateErrorToWorkflow(e);
-                throw new IOException("Failed to persist "+f,e);
             } catch (IOException e) {
                 if (i < MAX_RETRIES - 1) {
                     LOGGER.log(FINE, "Retry [" + (i + 1) + "/" + MAX_RETRIES + "]", e);
