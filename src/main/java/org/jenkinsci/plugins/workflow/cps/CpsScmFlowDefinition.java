@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import jenkins.model.Jenkins;
+import jenkins.scm.api.SCMFileSystem;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.JOB;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
@@ -51,6 +52,7 @@ import org.jenkinsci.plugins.workflow.steps.scm.GenericSCMStep;
 import org.jenkinsci.plugins.workflow.steps.scm.SCMStep;
 import org.jenkinsci.plugins.workflow.support.actions.WorkspaceActionImpl;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
 
@@ -59,6 +61,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
 
     private final SCM scm;
     private final String scriptPath;
+    private boolean lightweight;
 
     @DataBoundConstructor public CpsScmFlowDefinition(SCM scm, String scriptPath) {
         this.scm = scm;
@@ -73,18 +76,35 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         return scriptPath;
     }
 
+    public boolean isLightweight() {
+        return lightweight;
+    }
+
+    @DataBoundSetter public void setLightweight(boolean lightweight) {
+        this.lightweight = lightweight;
+    }
+
     @Override public CpsFlowExecution create(FlowExecutionOwner owner, TaskListener listener, List<? extends Action> actions) throws Exception {
         for (Action a : actions) {
             if (a instanceof CpsFlowFactoryAction2) {
                 return ((CpsFlowFactoryAction2) a).create(this, owner, actions);
             }
         }
-        FilePath dir;
         Queue.Executable _build = owner.getExecutable();
         if (!(_build instanceof Run)) {
             throw new IOException("can only check out SCM into a Run");
         }
         Run<?,?> build = (Run<?,?>) _build;
+        if (lightweight) {
+            SCMFileSystem fs = SCMFileSystem.of(build.getParent(), scm);
+            if (fs == null) {
+                throw new AbortException("Lightweight checkout support not available");
+            }
+            String script = fs.child(scriptPath).contentAsString();
+            listener.getLogger().println("Obtained " + scriptPath + " from " + scm.getKey());
+            return new CpsFlowExecution(script, true, owner);
+        }
+        FilePath dir;
         Node node = Jenkins.getActiveInstance();
         if (build.getParent() instanceof TopLevelItem) {
             FilePath baseWorkspace = node.getWorkspaceFor((TopLevelItem) build.getParent());
@@ -138,9 +158,11 @@ public class CpsScmFlowDefinition extends FlowDefinition {
 
         public Collection<? extends SCMDescriptor<?>> getApplicableDescriptors() {
             StaplerRequest req = Stapler.getCurrentRequest();
-            Job job = req != null ? req.findAncestorObject(Job.class) : null;
-            return job != null ? SCM._for(job) : /* TODO 1.599+ does this for job == null */ SCM.all();
+            Job<?,?> job = req != null ? req.findAncestorObject(Job.class) : null;
+            return SCM._for(job);
         }
+
+        // TODO doCheckLightweight impossible to write even though we have SCMFileSystem.supports(SCM), because form validation cannot pass the SCM object
 
     }
 

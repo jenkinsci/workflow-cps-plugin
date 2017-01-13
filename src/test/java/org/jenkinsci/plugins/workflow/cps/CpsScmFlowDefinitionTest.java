@@ -125,6 +125,24 @@ public class CpsScmFlowDefinitionTest {
         assertEquals(Collections.emptyList(), changeSets);
     }
 
+    @Issue("JENKINS-33273")
+    @Test public void lightweight() throws Exception {
+        sampleRepo.init();
+        sampleRepo.write("flow.groovy", "echo 'version one'");
+        sampleRepo.git("add", "flow.groovy");
+        sampleRepo.git("commit", "--message=init");
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        GitStep step = new GitStep(sampleRepo.toString());
+        step.setCredentialsId("nonexistent"); // TODO work around NPE pending https://github.com/jenkinsci/git-plugin/pull/467
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(step.createSCM(), "flow.groovy");
+        def.setLightweight(true);
+        p.setDefinition(def);
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogNotContains("Cloning the remote Git repository", b);
+        r.assertLogContains("Obtained flow.groovy from git " + sampleRepo, b);
+        r.assertLogContains("version one", b);
+    }
+
     @Issue("JENKINS-28447")
     @Test public void usingParameter() throws Exception {
         sampleRepo.init();
