@@ -123,8 +123,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         SCMStep delegate = new GenericSCMStep(scm);
         delegate.setPoll(true);
         delegate.setChangelog(true);
-        WorkspaceList.Lease lease = computer.getWorkspaceList().acquire(dir);
-        try {
+        try (WorkspaceList.Lease lease = computer.getWorkspaceList().acquire(dir)) {
             delegate.checkout(build, dir, listener, node.createLauncher(listener));
             FilePath scriptFile = dir.child(scriptPath);
             if (!scriptFile.absolutize().getRemote().replace('\\', '/').startsWith(dir.absolutize().getRemote().replace('\\', '/') + '/')) { // TODO JENKINS-26838
@@ -134,8 +133,6 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                 throw new AbortException(scriptFile + " not found");
             }
             script = scriptFile.readToString();
-        } finally {
-            lease.release();
         }
         CpsFlowExecution exec = new CpsFlowExecution(script, true, owner);
         exec.flowStartNodeActions.add(new WorkspaceActionImpl(dir, null));
