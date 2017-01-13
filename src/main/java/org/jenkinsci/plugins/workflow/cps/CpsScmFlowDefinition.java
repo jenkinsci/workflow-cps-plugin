@@ -104,6 +104,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             listener.getLogger().println("Obtained " + scriptPath + " from " + scm.getKey());
             return new CpsFlowExecution(script, true, owner);
         }
+        listener.getLogger().println("Checking out " + scm.getKey() + " to read " + scriptPath);
         FilePath dir;
         Node node = Jenkins.getActiveInstance();
         if (build.getParent() instanceof TopLevelItem) {
