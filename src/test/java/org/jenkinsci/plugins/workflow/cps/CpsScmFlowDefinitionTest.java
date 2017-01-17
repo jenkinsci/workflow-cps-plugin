@@ -133,7 +133,6 @@ public class CpsScmFlowDefinitionTest {
         sampleRepo.git("commit", "--message=init");
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         GitStep step = new GitStep(sampleRepo.toString());
-        step.setCredentialsId("nonexistent"); // TODO work around NPE pending https://github.com/jenkinsci/git-plugin/pull/467
         CpsScmFlowDefinition def = new CpsScmFlowDefinition(step.createSCM(), "flow.groovy");
         def.setLightweight(true);
         p.setDefinition(def);
