@@ -96,13 +96,14 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         }
         Run<?,?> build = (Run<?,?>) _build;
         if (lightweight) {
-            SCMFileSystem fs = SCMFileSystem.of(build.getParent(), scm);
-            if (fs == null) {
-                throw new AbortException("Lightweight checkout support not available");
+            try (SCMFileSystem fs = SCMFileSystem.of(build.getParent(), scm)) {
+                if (fs == null) {
+                    throw new AbortException("Lightweight checkout support not available");
+                }
+                String script = fs.child(scriptPath).contentAsString();
+                listener.getLogger().println("Obtained " + scriptPath + " from " + scm.getKey());
+                return new CpsFlowExecution(script, true, owner);
             }
-            String script = fs.child(scriptPath).contentAsString();
-            listener.getLogger().println("Obtained " + scriptPath + " from " + scm.getKey());
-            return new CpsFlowExecution(script, true, owner);
         }
         listener.getLogger().println("Checking out " + scm.getKey() + " to read " + scriptPath);
         FilePath dir;
