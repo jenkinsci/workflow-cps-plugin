@@ -28,6 +28,7 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
@@ -225,13 +226,13 @@ public final class CpsThreadGroup implements Serializable {
         final SettableFuture<Void> f = SettableFuture.create();
         try {
             runner.submit(new Callable<Void>() {
-                @edu.umd.cs.findbugs.annotations.SuppressWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE") // runner.submit() result
+                @SuppressFBWarnings(value="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE", justification="runner.submit() result")
                 public Void call() throws Exception {
                     Jenkins j = Jenkins.getInstance();
                     if (paused.get() || j == null || j.isQuietingDown()) {
                         // by doing the pause check inside, we make sure that scheduleRun() returns a
                         // future that waits for any previously scheduled tasks to be completed.
-                        saveProgram();
+                        saveProgramIfPossible();
                         f.set(null);
                         return null;
                     }
@@ -356,11 +357,7 @@ public final class CpsThreadGroup implements Serializable {
         }
 
         if (changed && !stillRunnable) {
-            try {
-                saveProgram();
-            } catch (IOException x) {
-                LOGGER.log(WARNING, "program state save failed", x);
-            }
+            saveProgramIfPossible();
         }
         if (ending) {
             execution.cleanUpHeap();
@@ -410,6 +407,18 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     /**
+     * Like {@link #saveProgram()} but will not fail.
+     */
+    @CpsVmThreadOnly
+    void saveProgramIfPossible() {
+        try {
+            saveProgram();
+        } catch (IOException x) {
+            LOGGER.log(WARNING, "program state save failed", x);
+        }
+    }
+
+    /**
      * Persists the current state of {@link CpsThreadGroup}.
      */
     @CpsVmThreadOnly
@@ -436,6 +445,7 @@ public final class CpsThreadGroup implements Serializable {
             return;
         }
 
+        boolean serializedOK = false;
         try {
             RiverWriter w = new RiverWriter(tmpFile, execution.getOwner());
             try {
@@ -443,13 +453,16 @@ public final class CpsThreadGroup implements Serializable {
             } finally {
                 w.close();
             }
+            serializedOK = true;
             Files.move(tmpFile.toPath(), f.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             LOGGER.log(FINE, "program state saved");
         } catch (RuntimeException e) {
             propagateErrorToWorkflow(e);
             throw new IOException("Failed to persist "+f,e);
         } catch (IOException e) {
-            propagateErrorToWorkflow(e);
+            if (!serializedOK) {
+                propagateErrorToWorkflow(e);
+            } // JENKINS-29656: otherwise just send the I/O error to caller and move on
             throw new IOException("Failed to persist "+f,e);
         } finally {
             PROGRAM_STATE_SERIALIZATION.set(old);
