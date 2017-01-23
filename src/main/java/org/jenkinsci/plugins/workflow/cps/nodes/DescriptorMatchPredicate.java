@@ -22,54 +22,35 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.workflow.cps.actions;
+package org.jenkinsci.plugins.workflow.cps.nodes;
 
-import org.jenkinsci.plugins.workflow.actions.PersistentAction;
+import com.google.common.base.Predicate;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
-import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
- * Action that captures the actual {@link Step} run in a node, for deeper inspection
+ * Search predicate for {@link FlowNode}s that have a given descriptor type
  */
-public class StepAction implements PersistentAction {
+public class DescriptorMatchPredicate implements Predicate<FlowNode> {
+    final Class<? extends StepDescriptor> myDescriptor;
 
-    private Step step;
-
-    @Nonnull
-    public Step getStep() {
-        return step;
-    }
-
-    /**
-     * Get the {@link Step} run for a {@link FlowNode}, or null if not stored
-     * @param n FlowNode to look for the step of
-     * @return Step run or null
-     */
-    @CheckForNull
-    public static Step getNodeStep(@Nonnull FlowNode n) {
-        StepAction sa = n.getPersistentAction(StepAction.class);
-        return (sa != null) ? sa.step : null;
+    public DescriptorMatchPredicate(@Nonnull Class<? extends StepDescriptor> descriptorClass) {
+        this.myDescriptor = descriptorClass;
     }
 
     @Override
-    public String getIconFileName() {
-        return null;
+    public boolean apply(@Nullable FlowNode input) {
+        return input instanceof StepNode && myDescriptor.isInstance(((StepNode) input).getDescriptor());
     }
 
     @Override
-    public String getDisplayName() {
-        return "StepInfo";
-    }
-
-    @Override
-    public String getUrlName() {
-        return "step";
-    }
-
-    public StepAction(Step myStep) {
-        this.step = myStep;
+    public boolean equals(@Nullable Object object) {
+        if (object == null || !(object instanceof DescriptorMatchPredicate)) {
+            return false;
+        }
+        return this.myDescriptor == ((DescriptorMatchPredicate)object).myDescriptor;
     }
 }

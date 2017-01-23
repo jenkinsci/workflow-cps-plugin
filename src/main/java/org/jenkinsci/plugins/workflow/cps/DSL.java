@@ -30,11 +30,14 @@ import groovy.lang.Closure;
 import groovy.lang.GString;
 import groovy.lang.GroovyObject;
 import groovy.lang.GroovyObjectSupport;
+import hudson.EnvVars;
+import hudson.model.Computer;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.model.Queue;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
@@ -97,6 +100,14 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
     protected Object readResolve() throws IOException {
         return this;
+    }
+
+    /** Allows user to disable saving step info, if this imposes too high a performance overhead
+     *   by setting System Property org.jenkinsci.plugins.workflow.cps.DSL.keepStepInfo to 'false'.
+     *  This may be modified at runtime by the user if needed for debugging. */
+    private static boolean isKeepStepInfo() {
+        String prop = System.getProperty(DSL.class.getName()+".keepStepInfo");
+        return (StringUtils.isEmpty(prop)|| Boolean.parseBoolean(prop));
     }
 
     /**
@@ -180,7 +191,17 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             d.checkContextAvailability(context);
             Thread.currentThread().setContextClassLoader(CpsVmExecutorService.ORIGINAL_CONTEXT_CLASS_LOADER.get());
             s = d.newInstance(ps.namedArgs);
-            an.addAction(new StepAction(s));
+            if (isKeepStepInfo()) { // Storing StepActions or not
+                EnvVars allEnv = context.get(EnvVars.class);
+                if (allEnv != null) {
+                    allEnv = new EnvVars(allEnv);
+                    Computer comp = context.get(Computer.class);
+                    if (comp != null) { // Filter out environment not supplied in the build
+                        allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
+                    }
+                }
+                an.addAction(new StepAction(s, allEnv));
+            }
             StepExecution e = s.start(context);
             thread.setStep(e);
             sync = e.start();
