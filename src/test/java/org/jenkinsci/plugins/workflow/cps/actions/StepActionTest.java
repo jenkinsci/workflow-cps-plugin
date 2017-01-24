@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Tests the input sanitization and step persistence here
@@ -63,20 +64,21 @@ public class StepActionTest {
 
     @Test
     public void testBasicCreateAndSanitize() throws Exception {
-        EchoStep potentiallyUnsafeEcho = new EchoStep("I have a secret p4ssw0rd");
         HashMap<String,String> passwordBinding = new HashMap<String,String>();
         passwordBinding.put("mypass", "p4ssw0rd");
+        Map<String, Object> arguments = new HashMap<String,Object>();
+        arguments.put("message", "I have a secret p4ssw0rd");
 
-        StepAction stepAction = new StepAction(potentiallyUnsafeEcho, new EnvVars());
+        StepAction stepAction = new StepAction(arguments, new EnvVars());
         Assert.assertEquals(false, stepAction.isModifiedBySanitization());
-        Assert.assertEquals(potentiallyUnsafeEcho.getMessage(), ((EchoStep)stepAction.getStep()).getMessage());
+        Assert.assertEquals(arguments.get("message"), stepAction.getParameterValueOrReason("message"));
         Assert.assertEquals(1, stepAction.getParameters().size());
         Assert.assertEquals("I have a secret p4ssw0rd", stepAction.getParameters().get("message"));
 
         // Test sanitizing parameters now
-        stepAction = new StepAction(potentiallyUnsafeEcho, new EnvVars(passwordBinding));
+        stepAction = new StepAction(arguments, new EnvVars(passwordBinding));
         Assert.assertEquals(true, stepAction.isModifiedBySanitization());
-        Assert.assertNull(stepAction.getStep());
+        Assert.assertEquals(StepAction.NotStoredReason.MASKED_VALUE, stepAction.getParameterValueOrReason("message"));
         Assert.assertEquals(1, stepAction.getParameters().size());
         Assert.assertEquals(StepInfoAction.NotStoredReason.MASKED_VALUE, stepAction.getParameters().get("message"));
     }
@@ -109,15 +111,13 @@ public class StepActionTest {
         Assert.assertEquals(4, filtered.size());
         FlowNode node = Collections2.filter(filtered, FlowScanningUtils.hasActionPredicate(StepAction.class)).iterator().next();
         StepAction act = node.getPersistentAction(StepAction.class);
-        Assert.assertNotNull(act.getStep());
-        Assert.assertEquals(BindingStep.class, act.getStep().getClass());
+        Assert.assertNotNull(act.getParameterValue("bindings"));
         Assert.assertNotNull(act.getParameters().get("bindings"));
 
         // Test that masking really does mask bound credentials appropriately
         filtered = scanner.filteredNodes(exec, new DescriptorMatchPredicate(EchoStep.DescriptorImpl.class));
         for (FlowNode f : filtered) {
             act = f.getPersistentAction(StepAction.class);
-            Assert.assertNull(act.getStep());
             Assert.assertEquals(StepInfoAction.NotStoredReason.MASKED_VALUE, act.getParameters().get("message"));
         }
 

@@ -191,16 +191,17 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             d.checkContextAvailability(context);
             Thread.currentThread().setContextClassLoader(CpsVmExecutorService.ORIGINAL_CONTEXT_CLASS_LOADER.get());
             s = d.newInstance(ps.namedArgs);
-            if (isKeepStepInfo()) { // Storing StepActions or not
-                EnvVars allEnv = context.get(EnvVars.class);
-                if (allEnv != null) {
-                    allEnv = new EnvVars(allEnv);
-                    Computer comp = context.get(Computer.class);
-                    if (comp != null) { // Filter out environment not supplied in the build
-                        allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
-                    }
+            if (isKeepStepInfo() && !(s instanceof ParallelStep)) { // Storing StepActions or not
+                Computer comp = context.get(Computer.class);
+                if (comp != null) {
+                    // Get the environment variables to find ones that might be credentials bindings
+                    // But filter out variables coming from the host itself
+                    EnvVars allEnv = new EnvVars(context.get(EnvVars.class));
+                    allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
+                    an.addAction(new StepAction(ps.namedArgs, allEnv));
+                } else {
+                    an.addAction(new StepAction(ps.namedArgs));  // No EnvVars that can supply credentials bindings
                 }
-                an.addAction(new StepAction(s, allEnv));
             }
             StepExecution e = s.start(context);
             thread.setStep(e);
