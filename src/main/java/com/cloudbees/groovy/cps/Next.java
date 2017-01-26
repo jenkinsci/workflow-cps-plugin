@@ -1,6 +1,8 @@
 package com.cloudbees.groovy.cps;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Remaining computation to execute. To work around the lack of tail-call optimization.
@@ -49,6 +51,20 @@ public final class Next implements Serializable, Continuation {
             n = n.step();
         }
         return n;
+    }
+
+    public Outcome run(int max) {
+        List<String> functions = new ArrayList<String>();
+        Next n = this;
+        while(n.yield==null) {
+            functions.add(n.f.getClass().getCanonicalName());
+            if (--max == 0) {
+                int len = functions.size();
+                throw new AssertionError("Did not terminate; ran " + len + " steps ending with: " + functions.subList(len - 20, len));
+            }
+            n = n.step();
+        }
+        return n.yield;
     }
 
     /**
