@@ -45,12 +45,4 @@ public class DescriptorMatchPredicate implements Predicate<FlowNode> {
     public boolean apply(@Nullable FlowNode input) {
         return input instanceof StepNode && myDescriptor.isInstance(((StepNode) input).getDescriptor());
     }
-
-    @Override
-    public boolean equals(@Nullable Object object) {
-        if (object == null || !(object instanceof DescriptorMatchPredicate)) {
-            return false;
-        }
-        return this.myDescriptor == ((DescriptorMatchPredicate)object).myDescriptor;
-    }
 }
