@@ -612,18 +612,22 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         ''') == [-3,2];
     }
 
+    @Test
+    void fieldDirect() {
+        assert evalCPS('class C {private int x = 33}; new C().x') == 33
+    }
+
     @Issue("JENKINS-31484")
     @Test
     void fieldViaGetter() {
-        assert evalCPS('class C {private int x = 33}; new C().x') == 33
         assert evalCPS('class C {private int x = 33; int getX() {2 * this.@x}}; new C().x') == 66
         assert evalCPS('class C {private int x = 33; int getX() {2 * x}}; new C().x') == 66
     }
 
     @Issue("JENKINS-31484")
     @Test
-    @NotYetImplemented // TODO does not terminate
     void fieldViaSetter() {
+        assert evalCPS('class C {private int x = 0; int getX() {2 * x}; void setX(int x) {this.@x = x / 3}}; C c = new C(); c.x = 33; c.x') == 22
         assert evalCPS('class C {private int x = 0; int getX() {2 * x}; void setX(int x) {this.x = x / 3}}; C c = new C(); c.x = 33; c.x') == 22
     }
 

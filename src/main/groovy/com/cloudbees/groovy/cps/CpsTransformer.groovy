@@ -183,7 +183,10 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         Expression body;
 
         // transform the body
-        parent = { e -> body=e }
+        parent = {
+            e -> body = e
+            // println "transformed $m.typeDescriptor to $e.text"
+        }
         visitWithSafepoint(m.code)
 
         def params = new ListExpression();
@@ -724,11 +727,21 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
     void visitPropertyExpression(PropertyExpression exp) {
         // TODO: spread
-        makeNode("property") {
-            loc(exp)
-            visit(exp.objectExpression)
-            visit(exp.property)
-            literal(exp.safe)
+        Expression object = exp.objectExpression
+        if (object instanceof VariableExpression && object.thisExpression && exp.property instanceof ConstantExpression) {
+            makeNode("attribute") {
+                loc(exp)
+                visit(exp.objectExpression)
+                visit(exp.property)
+                literal(exp.safe)
+            }
+        } else {
+            makeNode("property") {
+                loc(exp)
+                visit(exp.objectExpression)
+                visit(exp.property)
+                literal(exp.safe)
+            }
         }
     }
 
