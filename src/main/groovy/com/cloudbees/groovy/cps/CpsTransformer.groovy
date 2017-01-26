@@ -785,12 +785,19 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             }
         } else
         if (ref instanceof DynamicVariable
-        ||  ref instanceof PropertyNode
-        ||  ref instanceof FieldNode) {
+        ||  ref instanceof PropertyNode) {
             makeNode("property") {
                 loc(exp)
                 makeNode("javaThis_")
                 literal(exp.name)
+            }
+        } else
+        if (ref instanceof FieldNode) {
+            makeNode("attribute") {
+                loc(exp)
+                makeNode("javaThis_")
+                visit(new ConstantExpression(exp.name))
+                literal(false)
             }
         } else
         if (exp.name=="this") {

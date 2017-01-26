@@ -612,6 +612,13 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         ''') == [-3,2];
     }
 
+    @Issue("JENKINS-31484")
+    @Test
+    void fieldViaGetter() {
+        assert evalCPS('class C {private int x = 33}; new C().x') == 33
+        assert evalCPS('class C {private int x = 33; int getX() {this.@x}}; new C().x') == 33
+        assert evalCPS('class C {private int x = 33; int getX() {x}}; new C().x') == 33
+    }
 
     @Test
     void method_pointer() {
