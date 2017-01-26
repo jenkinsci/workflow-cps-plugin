@@ -616,8 +616,8 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     void fieldViaGetter() {
         assert evalCPS('class C {private int x = 33}; new C().x') == 33
-        assert evalCPS('class C {private int x = 33; int getX() {this.@x}}; new C().x') == 33
-        assert evalCPS('class C {private int x = 33; int getX() {x}}; new C().x') == 33
+        assert evalCPS('class C {private int x = 33; int getX() {2 * this.@x}}; new C().x') == 66
+        assert evalCPS('class C {private int x = 33; int getX() {2 * x}}; new C().x') == 66
     }
 
     @Test
