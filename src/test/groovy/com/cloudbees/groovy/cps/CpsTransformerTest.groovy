@@ -618,6 +618,9 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         assert evalCPS('class C {private int x = 33}; new C().x') == 33
         assert evalCPS('class C {private int x = 33; int getX() {2 * this.@x}}; new C().x') == 66
         assert evalCPS('class C {private int x = 33; int getX() {2 * x}}; new C().x') == 66
+        /* TODO this hangs AssignmentBlock → LValueBlock.BlockImpl → LocalVariableBlock → ConstantBlock → FunctionCallBlock → LocalVariableBlock → ConstantBlock → ConstantBlock → BlockScopedBlock → AssignmentBlock
+        assert evalCPS('class C {private int x = 0; int getX() {2 * x}; void setX(int x) {this.x = x / 3}}; C c = new C(); c.x = 33; c.x') == 22
+        */
     }
 
     @Test
