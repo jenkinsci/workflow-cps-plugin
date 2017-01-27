@@ -727,8 +727,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
     void visitPropertyExpression(PropertyExpression exp) {
         // TODO: spread
-        Expression object = exp.objectExpression
-        if (object instanceof VariableExpression && object.thisExpression &&
+        if (exp.objectExpression instanceof VariableExpression && exp.objectExpression.thisExpression &&
                 exp.property instanceof ConstantExpression && classNode.getSetterMethod('set' + Verifier.capitalize(exp.property.value), false) != null) {
             makeNode("attribute") {
                 loc(exp)
