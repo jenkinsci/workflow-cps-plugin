@@ -626,7 +626,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Issue("JENKINS-31484")
     @Test
-    @NotYetImplemented // TODO original fix regresses nonField
     void fieldViaSetter() {
         assert evalCPS('class C {private int x = 0; int getX() {2 * x}; void setX(int x) {this.@x = x / 3}}; C c = new C(); c.x = 33; c.x') == 22
         assert evalCPS('class C {private int x = 0; int getX() {2 * x}; void setX(int x) {this.x = x / 3}}; C c = new C(); c.x = 33; c.x') == 22

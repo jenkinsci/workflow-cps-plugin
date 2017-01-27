@@ -727,11 +727,21 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
     void visitPropertyExpression(PropertyExpression exp) {
         // TODO: spread
-        makeNode("property") {
-            loc(exp)
-            visit(exp.objectExpression)
-            visit(exp.property)
-            literal(exp.safe)
+        Expression object = exp.objectExpression
+        if (object instanceof VariableExpression && object.thisExpression && exp.property instanceof ConstantExpression && classNode.getSetterMethod('set' + Verifier.capitalize(exp.property.value), false) != null) {
+            makeNode("attribute") {
+                loc(exp)
+                visit(exp.objectExpression)
+                visit(exp.property)
+                literal(exp.safe)
+            }
+        } else {
+            makeNode("property") {
+                loc(exp)
+                visit(exp.objectExpression)
+                visit(exp.property)
+                literal(exp.safe)
+            }
         }
     }
 
@@ -788,19 +798,21 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
             }
         } else
         if (ref instanceof DynamicVariable
-        ||  ref instanceof PropertyNode) {
-            makeNode("property") {
-                loc(exp)
-                makeNode("javaThis_")
-                literal(exp.name)
-            }
-        } else
-        if (ref instanceof FieldNode) {
-            makeNode("attribute") {
-                loc(exp)
-                makeNode("javaThis_")
-                visit(new ConstantExpression(exp.name))
-                literal(false)
+        ||  ref instanceof PropertyNode
+        ||  ref instanceof FieldNode) {
+            if (ref instanceof FieldNode && classNode.getGetterMethod('get' + Verifier.capitalize(exp.name)) != null) {
+                makeNode("attribute") {
+                    loc(exp)
+                    makeNode("javaThis_")
+                    visit(new ConstantExpression(exp.name))
+                    literal(false)
+                }
+            } else {
+                makeNode("property") {
+                    loc(exp)
+                    makeNode("javaThis_")
+                    literal(exp.name)
+                }
             }
         } else
         if (exp.name=="this") {
