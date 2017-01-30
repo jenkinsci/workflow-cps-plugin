@@ -22,6 +22,7 @@ import org.codehaus.groovy.syntax.Token
 import javax.annotation.Nonnull
 import java.lang.annotation.Annotation
 import java.lang.reflect.Modifier
+import java.util.concurrent.atomic.AtomicLong
 
 import static org.codehaus.groovy.syntax.Types.*
 
@@ -78,7 +79,7 @@ import static org.codehaus.groovy.syntax.Types.*
  * @author Kohsuke Kawaguchi
  */
 class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor {
-    private int iota=0;
+    private static final AtomicLong iota = new AtomicLong();
     private SourceUnit sourceUnit;
     protected ClassNode classNode;
     protected TransformerConfiguration config = new TransformerConfiguration();
@@ -196,7 +197,7 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
               }
          */
 
-        def cpsName = "___cps___${iota++}"
+        def cpsName = "___cps___${iota.getAndIncrement()}"
 
         def builderMethod = m.declaringClass.addMethod(cpsName, PRIVATE_STATIC_FINAL, FUNCTION_TYPE, new Parameter[0], new ClassNode[0],
             new BlockStatement([
