@@ -616,10 +616,16 @@ public class CpsFlowExecution extends FlowExecution {
             }
             @Override public void onFailure(Throwable t) {
                 LOGGER.log(Level.WARNING, "Failed to set program failure on " + owner, t);
-                onProgramEnd(new Outcome(null, t));
-                cleanUpHeap();
+                croak(t);
             }
         });
+    }
+
+    /** Report a fatal error in the VM. */
+    void croak(Throwable t) {
+        setResult(Result.FAILURE);
+        onProgramEnd(new Outcome(null, t));
+        cleanUpHeap();
     }
 
     /**
@@ -916,11 +922,11 @@ public class CpsFlowExecution extends FlowExecution {
         return done || super.isComplete();
     }
 
-    /*packgage*/ synchronized void onProgramEnd(Outcome outcome) {
-        // end of the program
-        // run till the end successfully FIXME: failure comes here, too
-        // TODO: if program terminates with exception, we need to record it
-        // TODO: in the error case, we have to close all the open nodes
+    /**
+     * Record the end of the build.
+     * @param outcome success; or a normal failure (uncaught exception); or a fatal error in VM machinery
+     */
+    synchronized void onProgramEnd(Outcome outcome) {
         FlowNode head = new FlowEndNode(this, iotaStr(), (FlowStartNode)startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
         if (outcome.isFailure())
             head.addAction(new ErrorAction(outcome.getAbnormal()));
