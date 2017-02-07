@@ -11,5 +11,6 @@ import javax.annotation.CheckForNull;
  * Retained for binary & API compatibility but the interface has been pushed up a level into the
  *  workflow-api plugin to allow broader access.
  */
+@Deprecated
 public interface StepNode extends org.jenkinsci.plugins.workflow.graph.StepNode {
 }
