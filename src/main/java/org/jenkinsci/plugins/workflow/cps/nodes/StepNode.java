@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps.nodes;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -12,5 +13,6 @@ import javax.annotation.CheckForNull;
  *  workflow-api plugin to allow broader access.
  */
 @Deprecated
+@SuppressFBWarnings(value="NM_SAME_SIMPLE_NAME_AS_INTERFACE", justification="We want to keep the SimpleName the same, to make it easy to replace usages")
 public interface StepNode extends org.jenkinsci.plugins.workflow.graph.StepNode {
 }
