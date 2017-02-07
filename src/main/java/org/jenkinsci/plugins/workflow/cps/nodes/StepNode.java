@@ -7,16 +7,9 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import javax.annotation.CheckForNull;
 
 /**
- * Optional interface for {@link FlowNode} that has associated {@link StepDescriptor}
- *
- * @author Kohsuke Kawaguchi
+ * Optional interface for {@link FlowNode} that has associated {@link StepDescriptor}.
+ * Retained for binary & API compatibility but the interface has been pushed up a level into the
+ *  workflow-api plugin to allow broader access.
  */
-public interface StepNode {
-    /**
-     * Returns the descriptor for {@link Step} that produced this flow node.
-     *
-     * @return
-     *      null for example if the descriptor that created the node has since been uninstalled.
-     */
-    @CheckForNull StepDescriptor getDescriptor();
+public interface StepNode extends org.jenkinsci.plugins.workflow.graph.StepNode {
 }
