@@ -75,7 +75,8 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <version>2.6</version>
+            <!-- Temporary version to pull in upstream PRs, will revert before merge once that is released -->
+            <version>2.9-stepnode-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
