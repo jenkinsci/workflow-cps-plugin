@@ -8,7 +8,7 @@ import javax.annotation.CheckForNull;
 
 /**
  * Optional interface for {@link FlowNode} that has associated {@link StepDescriptor}.
- * Retained for binary & API compatibility but the interface has been pushed up a level into the
+ * Retained for binary and API compatibility but the interface has been pushed up a level into the
  *  workflow-api plugin to allow broader access.
  */
 @Deprecated
