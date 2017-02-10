@@ -50,7 +50,8 @@ class CpsVmExecutorService extends InterceptingExecutorService {
      * That makes it worth reporting.
      */
     private void reportProblem(Throwable t) {
-        LOGGER.log(WARNING, "Unexpected exception in CPS VM thread: "+cpsThreadGroup.getExecution().toString(), t);
+        LOGGER.log(WARNING, "Unexpected exception in CPS VM thread: " + cpsThreadGroup.getExecution(), t);
+        cpsThreadGroup.getExecution().croak(t);
     }
 
     @Override
