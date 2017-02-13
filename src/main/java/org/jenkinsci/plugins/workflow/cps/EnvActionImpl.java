@@ -66,7 +66,12 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
     @Override public EnvVars getEnvironment() throws IOException, InterruptedException {
         TaskListener listener;
         if (owner instanceof FlowExecutionOwner.Executable) {
-            listener = ((FlowExecutionOwner.Executable) owner).asFlowExecutionOwner().getListener();
+            FlowExecutionOwner executionOwner = ((FlowExecutionOwner.Executable) owner).asFlowExecutionOwner();
+            if (executionOwner != null) {
+                listener = executionOwner.getListener();
+            } else {
+                listener = new LogTaskListener(LOGGER, Level.INFO);
+            }
         } else {
             listener = new LogTaskListener(LOGGER, Level.INFO);
         }
