@@ -28,7 +28,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>2.21</version>
+        <version>2.22</version>
         <relativePath />
     </parent>
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -80,7 +80,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-support</artifactId>
-            <version>2.13-20170205.153141-1</version> <!-- TODO https://github.com/jenkinsci/workflow-support-plugin/pull/29 -->
+            <version>2.13</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
@@ -111,7 +111,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-support</artifactId>
-            <version>2.13-20170205.153141-1</version> <!-- TODO https://github.com/jenkinsci/workflow-support-plugin/pull/29 -->
+            <version>2.13</version>
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
