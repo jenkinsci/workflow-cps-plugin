@@ -1019,7 +1019,7 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     private static void cleanUpGlobalClassSet(@Nonnull Class<?> clazz) throws Exception {
-        Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
+        Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo"); // or just ClassInfo.class, but unclear whether this will always be there
         Field globalClassSetF = classInfoC.getDeclaredField("globalClassSet");
         globalClassSetF.setAccessible(true);
         Object globalClassSet = globalClassSetF.get(null);
@@ -1027,6 +1027,7 @@ public class CpsFlowExecution extends FlowExecution {
             globalClassSet.getClass().getMethod("remove", Object.class).invoke(globalClassSet, clazz); // like Map but not
             LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
         } catch (NoSuchMethodException x) { // Groovy 2
+            // Cannot just call .values() since that returns a copy.
             Field itemsF = globalClassSet.getClass().getDeclaredField("items");
             itemsF.setAccessible(true);
             Object items = itemsF.get(globalClassSet);
@@ -1037,6 +1038,10 @@ public class CpsFlowExecution extends FlowExecution {
                 Iterator<?> iterator = (Iterator) iteratorM.invoke(items);
                 while (iterator.hasNext()) {
                     Object classInfo = iterator.next();
+                    if (classInfo == null) {
+                        LOGGER.finer("JENKINS-41945: ignoring null ClassInfo from ManagedLinkedList.Iter.next");
+                        continue;
+                    }
                     if (klazzF.get(classInfo) == clazz) {
                         iterator.remove();
                         LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
