@@ -696,10 +696,16 @@ public class CpsFlowExecution extends FlowExecution {
             }
             @Override public void onFailure(Throwable t) {
                 LOGGER.log(Level.WARNING, "Failed to set program failure on " + owner, t);
-                onProgramEnd(new Outcome(null, t));
-                cleanUpHeap();
+                croak(t);
             }
         });
+    }
+
+    /** Report a fatal error in the VM. */
+    void croak(Throwable t) {
+        setResult(Result.FAILURE);
+        onProgramEnd(new Outcome(null, t));
+        cleanUpHeap();
     }
 
     /**
@@ -996,11 +1002,11 @@ public class CpsFlowExecution extends FlowExecution {
         return done || super.isComplete();
     }
 
-    /*packgage*/ synchronized void onProgramEnd(Outcome outcome) {
-        // end of the program
-        // run till the end successfully FIXME: failure comes here, too
-        // TODO: if program terminates with exception, we need to record it
-        // TODO: in the error case, we have to close all the open nodes
+    /**
+     * Record the end of the build.
+     * @param outcome success; or a normal failure (uncaught exception); or a fatal error in VM machinery
+     */
+    synchronized void onProgramEnd(Outcome outcome) {
         FlowNode head = new FlowEndNode(this, iotaStr(), (FlowStartNode)startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
         if (outcome.isFailure())
             head.addAction(new ErrorAction(outcome.getAbnormal()));
@@ -1093,7 +1099,7 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     private static void cleanUpGlobalClassSet(@Nonnull Class<?> clazz) throws Exception {
-        Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
+        Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo"); // or just ClassInfo.class, but unclear whether this will always be there
         Field globalClassSetF = classInfoC.getDeclaredField("globalClassSet");
         globalClassSetF.setAccessible(true);
         Object globalClassSet = globalClassSetF.get(null);
@@ -1101,6 +1107,7 @@ public class CpsFlowExecution extends FlowExecution {
             globalClassSet.getClass().getMethod("remove", Object.class).invoke(globalClassSet, clazz); // like Map but not
             LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
         } catch (NoSuchMethodException x) { // Groovy 2
+            // Cannot just call .values() since that returns a copy.
             Field itemsF = globalClassSet.getClass().getDeclaredField("items");
             itemsF.setAccessible(true);
             Object items = itemsF.get(globalClassSet);
@@ -1111,6 +1118,10 @@ public class CpsFlowExecution extends FlowExecution {
                 Iterator<?> iterator = (Iterator) iteratorM.invoke(items);
                 while (iterator.hasNext()) {
                     Object classInfo = iterator.next();
+                    if (classInfo == null) {
+                        LOGGER.finer("JENKINS-41945: ignoring null ClassInfo from ManagedLinkedList.Iter.next");
+                        continue;
+                    }
                     if (klazzF.get(classInfo) == clazz) {
                         iterator.remove();
                         LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());

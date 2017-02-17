@@ -47,7 +47,7 @@ The [Pipeline Snippet Generator epic](https://issues.jenkins-ci.org/browse/JENKI
 
 ## Technical design
 
-The plugin uses the [Groovy CPS library](https://github.com/cloudbees/groovy-cps/) to implement a [contination-passing style transformation](https://en.wikipedia.org/wiki/Continuation-passing_style) on the program as it is compiled.
+The plugin uses the [Groovy CPS library](https://github.com/cloudbees/groovy-cps/) to implement a [continuation-passing style transformation](https://en.wikipedia.org/wiki/Continuation-passing_style) on the program as it is compiled.
 The standard Groovy compiler is used to create the AST, but generation of bytecode is intercepted by a `CompilationCustomizer` which replaces most operations with variants that throw a special “error”, `CpsCallableInvocation`.
 This is then caught by the engine, which uses information from it (such as arguments about to be passed to a method call) to pass control on to the next continuation.
 

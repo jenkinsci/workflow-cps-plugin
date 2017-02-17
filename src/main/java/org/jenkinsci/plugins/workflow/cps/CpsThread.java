@@ -38,11 +38,13 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
+import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
 
 /**
  * Represents a {@link Continuable} that is either runnable or suspended (that waits for an
@@ -156,7 +158,7 @@ public final class CpsThread implements Serializable {
         final CpsThread old = CURRENT.get();
         CURRENT.set(this);
 
-        try {
+        try (Timeout timeout = Timeout.limit(5, TimeUnit.MINUTES)) {
             LOGGER.log(FINE, "runNextChunk on {0}", resumeValue);
             Outcome o = resumeValue;
             resumeValue = null;
@@ -281,7 +283,7 @@ public final class CpsThread implements Serializable {
             return;
         }
 
-        try {
+        try (Timeout timeout = Timeout.limit(30, TimeUnit.SECONDS)) {
             s.stop(t);
         } catch (Exception e) {
             t.addSuppressed(e);
