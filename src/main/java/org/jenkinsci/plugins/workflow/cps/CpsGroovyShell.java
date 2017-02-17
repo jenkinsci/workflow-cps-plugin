@@ -12,6 +12,7 @@ import javax.annotation.CheckForNull;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Enumeration;
+import javax.annotation.Nonnull;
 
 /**
  * {@link GroovyShell} with additional tweaks necessary to run {@link CpsScript}
@@ -33,7 +34,7 @@ class CpsGroovyShell extends GroovyShell {
      */
     @SuppressFBWarnings(value="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED", justification="Irrelevant in Jenkins.")
     CpsGroovyShell(ClassLoader parent, @CheckForNull CpsFlowExecution execution, CompilerConfiguration cc) {
-        super(new TimingLoader(parent, execution), new Binding(), cc);
+        super(execution != null ? new TimingLoader(parent, execution) : parent, new Binding(), cc);
         this.execution = execution;
     }
 
@@ -73,11 +74,8 @@ class CpsGroovyShell extends GroovyShell {
 
     private Script doParse(GroovyCodeSource codeSource) throws CompilationFailedException {
         if (execution != null) {
-            execution.time(CpsFlowExecution.TimingKind.parse, false);
-            try {
+            try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.parse)) {
                 return super.parse(codeSource);
-            } finally {
-                execution.time(CpsFlowExecution.TimingKind.parse, true);
             }
         } else {
             return super.parse(codeSource);
@@ -97,33 +95,24 @@ class CpsGroovyShell extends GroovyShell {
     }
 
     private static class TimingLoader extends ClassLoader {
-        private final CpsFlowExecution execution;
-        TimingLoader(ClassLoader parent, CpsFlowExecution execution) {
+        private final @Nonnull CpsFlowExecution execution;
+        TimingLoader(ClassLoader parent, @Nonnull CpsFlowExecution execution) {
             super(parent);
             this.execution = execution;
         }
         @Override protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-            execution.time(CpsFlowExecution.TimingKind.load, false);
-            try {
+            try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.classLoad)) {
                 return super.loadClass(name, resolve);
-            } finally {
-                execution.time(CpsFlowExecution.TimingKind.load, true);
             }
         }
         @Override public URL getResource(String name) {
-            execution.time(CpsFlowExecution.TimingKind.load, false);
-            try {
+            try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.classLoad)) {
                 return super.getResource(name);
-            } finally {
-                execution.time(CpsFlowExecution.TimingKind.load, true);
             }
         }
         @Override public Enumeration<URL> getResources(String name) throws IOException {
-            execution.time(CpsFlowExecution.TimingKind.load, false);
-            try {
+            try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.classLoad)) {
                 return super.getResources(name);
-            } finally {
-                execution.time(CpsFlowExecution.TimingKind.load, true);
             }
         }
     }

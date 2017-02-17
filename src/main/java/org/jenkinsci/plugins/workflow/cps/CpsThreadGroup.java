@@ -442,9 +442,8 @@ public final class CpsThreadGroup implements Serializable {
             return;
         }
 
-        execution.time(TimingKind.save, false);
         boolean serializedOK = false;
-        try {
+        try (CpsFlowExecution.Timing t = execution.time(TimingKind.saveProgram)) {
             RiverWriter w = new RiverWriter(tmpFile, execution.getOwner());
             try {
                 w.writeObject(this);
@@ -464,7 +463,6 @@ public final class CpsThreadGroup implements Serializable {
             throw new IOException("Failed to persist "+f,e);
         } finally {
             PROGRAM_STATE_SERIALIZATION.set(old);
-            execution.time(TimingKind.save, true);
             Util.deleteFile(tmpFile);
         }
     }

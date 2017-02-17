@@ -252,7 +252,7 @@ public class CpsFlowExecution extends FlowExecution {
     /**
      * Recreated from {@link #owner}
      */
-    /*package*/ transient /*almos final*/ TimingFlowNodeStorage storage;
+    /*package*/ transient /*almost final*/ TimingFlowNodeStorage storage;
 
     /** User ID associated with this build, or null if none specific. */
     private final @CheckForNull String user;
@@ -323,7 +323,7 @@ public class CpsFlowExecution extends FlowExecution {
 
     enum TimingKind {
         /**
-         * Parsing Groovy sources; includes {@link #load}.
+         * Parsing Groovy sources; includes {@link #classLoad}.
          * @see CpsGroovyShell#parse(GroovyCodeSource)
          */
         parse,
@@ -332,7 +332,7 @@ public class CpsFlowExecution extends FlowExecution {
          * @see ClassLoader#loadClass(String, boolean)
          * @see ClassLoader#getResource
          */
-        load,
+        classLoad,
         /**
          * Running inside {@link CpsVmExecutorService}, which includes many other things.
          */
@@ -341,20 +341,17 @@ public class CpsFlowExecution extends FlowExecution {
          * Saving the program state.
          * @see CpsThreadGroup#saveProgram(File)
          */
-        save,
+        saveProgram,
         /**
          * Loading or saving flow nodes.
          * @see FlowNodeStorage
          */
-        flow
+        flowNode
     }
 
-    /** accumulated time in ns of a given kind */
+    /** accumulated time in ns of a given {@link TimingKind#name}; {@link String} key for pretty XStream form */
     @GuardedBy("this")
-    @CheckForNull private Map</* for pretty XStream form */String, Long> timings;
-    /** last start time in ns of a given kind; unreliable to just subtract on start and add on end, since the VM might die in between */
-    @GuardedBy("this")
-    @CheckForNull private transient Map<TimingKind, Long> starts;
+    @CheckForNull Map<String, Long> timings;
 
     @Deprecated
     public CpsFlowExecution(String script, FlowExecutionOwner owner) throws IOException {
@@ -379,37 +376,45 @@ public class CpsFlowExecution extends FlowExecution {
         return this;
     }
 
-    /**
-     * Record time taken during a certain class of operation in this build.
-     * @param kind what sort of operation is being done
-     * @param end false to start, true at the end (pair in a {@code finally}-block)
-     */
-    synchronized void time(@Nonnull TimingKind kind, boolean end) {
-        if (timings == null) {
-            timings = new HashMap<>();
+    class Timing implements AutoCloseable {
+        private final TimingKind kind;
+        private final long start;
+        private Timing(TimingKind kind) {
+            this.kind = kind;
+            start = System.nanoTime();
         }
-        if (starts == null) {
-            starts = new HashMap<>();
-        }
-        if (end) {
-            Long orig = timings.get(kind.name());
-            if (orig == null) {
-                orig = 0L;
+        @Override public void close() {
+            synchronized (CpsFlowExecution.this) {
+                if (timings == null) {
+                    timings = new HashMap<>();
+                }
+                Long orig = timings.get(kind.name());
+                if (orig == null) {
+                    orig = 0L;
+                }
+                timings.put(kind.name(), orig + System.nanoTime() - start);
             }
-            assert starts.containsKey(kind) : kind + " not in " + starts;
-            timings.put(kind.name(), orig + System.nanoTime() - starts.get(kind));
-        } else {
-            starts.put(kind, System.nanoTime());
         }
     }
 
+    /**
+     * Record time taken during a certain class of operation in this build.
+     * @param kind what sort of operation is being done
+     * @return something to {@link Timing#close} when finished
+     */
+    Timing time(TimingKind kind) {
+        return new Timing(kind);
+    }
+
+    static final Logger TIMING_LOGGER = Logger.getLogger(CpsFlowExecution.class.getName() + ".timing");
+
     synchronized void logTimings() {
-        if (timings != null && LOGGER.isLoggable(Level.FINE)) {
+        if (timings != null && TIMING_LOGGER.isLoggable(Level.FINE)) {
             Map<String, String> formatted = new TreeMap<>();
             for (Map.Entry<String, Long> entry : timings.entrySet()) {
                 formatted.put(entry.getKey(), entry.getValue() / 1000 / 1000 + "ms");
             }
-            LOGGER.log(Level.FINE, "timings for {0}: {1}", new Object[] {owner, formatted});
+            TIMING_LOGGER.log(Level.FINE, "timings for {0}: {1}", new Object[] {owner, formatted});
         }
     }
 
@@ -1421,35 +1426,23 @@ public class CpsFlowExecution extends FlowExecution {
             this.delegate = delegate;
         }
         @Override public FlowNode getNode(String string) throws IOException {
-            time(TimingKind.flow, false);
-            try {
+            try (Timing t = time(TimingKind.flowNode)) {
                 return delegate.getNode(string);
-            } finally {
-                time(TimingKind.flow, true);
             }
         }
         @Override public void storeNode(FlowNode fn) throws IOException {
-            time(TimingKind.flow, false);
-            try {
+            try (Timing t = time(TimingKind.flowNode)) {
                 delegate.storeNode(fn);
-            } finally {
-                time(TimingKind.flow, true);
             }
         }
         @Override public List<Action> loadActions(FlowNode node) throws IOException {
-            time(TimingKind.flow, false);
-            try {
+            try (Timing t = time(TimingKind.flowNode)) {
                 return delegate.loadActions(node);
-            } finally {
-                time(TimingKind.flow, true);
             }
         }
         @Override public void saveActions(FlowNode node, List<Action> actions) throws IOException {
-            time(TimingKind.flow, false);
-            try {
+            try (Timing t = time(TimingKind.flowNode)) {
                 delegate.saveActions(node, actions);
-            } finally {
-                time(TimingKind.flow, true);
             }
         }
     }

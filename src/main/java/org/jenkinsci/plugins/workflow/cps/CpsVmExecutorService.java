@@ -76,27 +76,29 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         final Thread thread;
         final String name;
         final ClassLoader classLoader;
-        ThreadContext(Thread thread) {
+        final CpsFlowExecution.Timing timing;
+        ThreadContext(Thread thread, CpsFlowExecution execution) {
             this.thread = thread;
             this.name = thread.getName();
             this.classLoader = thread.getContextClassLoader();
             ORIGINAL_CONTEXT_CLASS_LOADER.set(classLoader);
+            timing = execution.time(CpsFlowExecution.TimingKind.run);
         }
         void restore() {
             thread.setName(name);
             thread.setContextClassLoader(classLoader);
             ORIGINAL_CONTEXT_CLASS_LOADER.set(null);
+            timing.close();
         }
     }
 
     private ThreadContext setUp() {
         CpsFlowExecution execution = cpsThreadGroup.getExecution();
-        execution.time(CpsFlowExecution.TimingKind.run, false);
         ACL.impersonate(execution.getAuthentication());
         CURRENT.set(cpsThreadGroup);
         cpsThreadGroup.busy = true;
         Thread t = Thread.currentThread();
-        ThreadContext context = new ThreadContext(t);
+        ThreadContext context = new ThreadContext(t, execution);
         t.setName("Running " + execution);
         assert cpsThreadGroup.getExecution() != null;
         if (cpsThreadGroup.getExecution().getShell() != null) {
@@ -111,7 +113,6 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         cpsThreadGroup.busy = false;
         context.restore();
         CpsFlowExecution execution = cpsThreadGroup.getExecution();
-        execution.time(CpsFlowExecution.TimingKind.run, true);
         if (isShutdown()) {
             execution.logTimings();
         }
