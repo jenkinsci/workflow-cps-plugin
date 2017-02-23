@@ -452,7 +452,7 @@ public class CpsFlowExecution extends FlowExecution {
         if ( iotaVal > 0 && iotaVal < ID_LOOKUP_TABLE_SIZE) {
             return ID_LOOKUP_TABLE[iotaVal];
         } else {
-            return String.valueOf(iota()).intern();
+            return String.valueOf(iotaVal).intern();
         }
     }
 
