@@ -1041,7 +1041,7 @@ public class CpsFlowExecution extends FlowExecution {
             LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
         } catch (NoSuchMethodException x) { // Groovy 2
             try {
-                Field classRefF = classInfoC.getDeclaredField("classRef");
+                classInfoC.getDeclaredField("classRef");
                 return; // 2.4.8+, nothing to do here (classRef is weak anyway)
             } catch (NoSuchFieldException x2) {} // 2.4.7-
             // Cannot just call .values() since that returns a copy.
