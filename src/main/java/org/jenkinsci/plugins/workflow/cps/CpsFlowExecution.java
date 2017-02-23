@@ -107,6 +107,7 @@ import hudson.security.ACL;
 import hudson.security.AccessControlled;
 import java.beans.Introspector;
 import java.lang.ref.Reference;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -996,19 +997,31 @@ public class CpsFlowExecution extends FlowExecution {
         Object map = mapF.get(globalClassValue);
         Class<?> groovyClassValuePreJava7Map = Class.forName("org.codehaus.groovy.reflection.GroovyClassValuePreJava7$GroovyClassValuePreJava7Map");
         Collection entries = (Collection) groovyClassValuePreJava7Map.getMethod("values").invoke(map);
-        Field klazzF = classInfoC.getDeclaredField("klazz");
-        klazzF.setAccessible(true);
         Method removeM = groovyClassValuePreJava7Map.getMethod("remove", Object.class);
         Class<?> entryC = Class.forName("org.codehaus.groovy.util.AbstractConcurrentMapBase$Entry");
         Method getValueM = entryC.getMethod("getValue");
         List<Class<?>> toRemove = new ArrayList<>(); // not sure if it is safe against ConcurrentModificationException or not
-        for (Object entry : entries) {
-            Object value = getValueM.invoke(entry);
-            Class<?> klazz = (Class) klazzF.get(value);
+        try {
+            Field classRefF = classInfoC.getDeclaredField("classRef"); // 2.4.8+
+            classRefF.setAccessible(true);
+            for (Object entry : entries) {
+                Object value = getValueM.invoke(entry);
+                toRemove.add(((WeakReference<Class<?>>) classRefF.get(value)).get());
+            }
+        } catch (NoSuchFieldException x) {
+            Field klazzF = classInfoC.getDeclaredField("klazz"); // 2.4.7-
+            klazzF.setAccessible(true);
+            for (Object entry : entries) {
+                Object value = getValueM.invoke(entry);
+                toRemove.add((Class) klazzF.get(value));
+            }
+        }
+        Iterator<Class<?>> it = toRemove.iterator();
+        while (it.hasNext()) {
+            Class<?> klazz = it.next();
             ClassLoader encounteredLoader = klazz.getClassLoader();
-            if (encounteredLoader == loader) {
-                toRemove.add(klazz);
-            } else {
+            if (encounteredLoader != loader) {
+                it.remove();
                 LOGGER.log(Level.FINEST, "ignoring {0} with loader {1}", new Object[] {klazz, /* do not hold from LogRecord */String.valueOf(encounteredLoader)});
             }
         }
@@ -1027,6 +1040,10 @@ public class CpsFlowExecution extends FlowExecution {
             globalClassSet.getClass().getMethod("remove", Object.class).invoke(globalClassSet, clazz); // like Map but not
             LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
         } catch (NoSuchMethodException x) { // Groovy 2
+            try {
+                classInfoC.getDeclaredField("classRef");
+                return; // 2.4.8+, nothing to do here (classRef is weak anyway)
+            } catch (NoSuchFieldException x2) {} // 2.4.7-
             // Cannot just call .values() since that returns a copy.
             Field itemsF = globalClassSet.getClass().getDeclaredField("items");
             itemsF.setAccessible(true);
