@@ -980,6 +980,7 @@ public class CpsFlowExecution extends FlowExecution {
 
     private static void cleanUpGlobalClassValue(@Nonnull ClassLoader loader) throws Exception {
         Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
+        // TODO switch to MethodHandle for speed
         Field globalClassValueF;
         try {
             globalClassValueF = classInfoC.getDeclaredField("globalClassValue");
