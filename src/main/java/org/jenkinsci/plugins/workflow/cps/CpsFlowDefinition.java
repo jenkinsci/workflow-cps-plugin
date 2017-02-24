@@ -39,7 +39,6 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import jenkins.model.Jenkins;
 import net.sf.json.JSON;
 import net.sf.json.JSONArray;
 import org.codehaus.groovy.control.CompilationFailedException;
@@ -119,18 +118,10 @@ public class CpsFlowDefinition extends FlowDefinition {
         }
 
         public FormValidation doCheckScript(@QueryParameter String value, @QueryParameter boolean sandbox) {
-            Jenkins j = Jenkins.getInstance();
-            if (j == null) {
-                return FormValidation.ok();
-            }
             return sandbox ? FormValidation.ok() : ScriptApproval.get().checking(value, GroovyLanguage.get());
         }
 
         public JSON doCheckScriptCompile(@QueryParameter String value) {
-            Jenkins j = Jenkins.getInstance();
-            if (j == null) {
-                return CpsFlowDefinitionValidator.CheckStatus.SUCCESS.asJSON();
-            }
             try {
                 CpsGroovyShell trusted = new CpsGroovyShellFactory(null).forTrusted().build();
                 new CpsGroovyShellFactory(null).withParent(trusted).build().getClassLoader().parseClass(value);
