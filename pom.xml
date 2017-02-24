@@ -190,6 +190,10 @@
                     <groupId>commons-io</groupId>
                     <artifactId>commons-io</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>org.jvnet.localizer</groupId>
+                    <artifactId>localizer</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
