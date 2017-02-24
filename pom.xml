@@ -65,42 +65,45 @@
         <jenkins.version>1.642.3</jenkins.version>
         <npm.loglevel>--silent</npm.loglevel>
         <no-test-jar>false</no-test-jar>
+        <git-plugin.version>3.0.5</git-plugin.version>
+        <workflow-scm-step-plugin.version>2.3</workflow-scm-step-plugin.version>
+        <workflow-support-plugin.version>2.13</workflow-support-plugin.version>
     </properties>
     <dependencies>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
-            <version>2.5</version>
+            <version>2.9</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <version>2.10</version>
+            <version>2.11</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-support</artifactId>
-            <version>2.13</version>
+            <version>${workflow-support-plugin.version}</version>
         </dependency>
         <dependency>
-            <groupId>${project.groupId}</groupId>
+            <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-scm-step</artifactId>
-            <version>1.15</version>
+            <version>${workflow-scm-step-plugin.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1.24</version>
+            <version>1.26</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>scm-api</artifactId>
-            <version>1.1</version>
+            <version>2.0.7</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>structs</artifactId>
-            <version>1.5</version>
+            <version>1.6</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -111,14 +114,14 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-support</artifactId>
-            <version>2.13</version>
+            <version>${workflow-support-plugin.version}</version>
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>${project.groupId}</groupId>
+            <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-basic-steps</artifactId>
-            <version>1.15</version>
+            <version>2.4</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -130,25 +133,25 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-job</artifactId>
-            <version>2.7</version>
+            <version>2.10</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-durable-task-step</artifactId>
-            <version>2.0</version>
+            <version>2.9</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>pipeline-build-step</artifactId>
-            <version>2.0</version>
+            <version>2.4</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>pipeline-input-step</artifactId>
-            <version>2.0</version>
+            <version>2.5</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -192,14 +195,14 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-scm-step</artifactId>
-            <version>2.0</version>
+            <version>${workflow-scm-step-plugin.version}</version>
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>git</artifactId>
-            <version>2.4.1</version>
+            <version>${git-plugin.version}</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -208,11 +211,18 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <dependency> <!-- optional dep of workflow-scm-step, have to override 1.54 version that gets pulled in somehow during tests -->
+        <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>subversion</artifactId>
-            <version>2.5</version>
+            <artifactId>git</artifactId>
+            <version>${git-plugin.version}</version>
+            <classifier>tests</classifier>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.httpcomponents</groupId>
+                    <artifactId>httpclient</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
     <build>
