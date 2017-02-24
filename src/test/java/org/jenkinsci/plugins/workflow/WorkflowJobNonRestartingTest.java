@@ -92,7 +92,7 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
      */
     @Test
     public void missingContextCheck() throws Exception {
-        p.setDefinition(new CpsFlowDefinition("sh 'true'", true));
+        p.setDefinition(new CpsFlowDefinition("readFile 'true'", true));
 
         WorkflowRun b = p.scheduleBuild2(0).get();
 
