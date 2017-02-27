@@ -66,7 +66,7 @@
         <npm.loglevel>--silent</npm.loglevel>
         <no-test-jar>false</no-test-jar>
         <git-plugin.version>3.0.5</git-plugin.version>
-        <workflow-scm-step-plugin.version>2.4-20170224.221458-1</workflow-scm-step-plugin.version>
+        <workflow-scm-step-plugin.version>2.4</workflow-scm-step-plugin.version>
         <workflow-support-plugin.version>2.13</workflow-support-plugin.version>
     </properties>
     <dependencies>
