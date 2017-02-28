@@ -95,14 +95,15 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             throw new IOException("can only check out SCM into a Run");
         }
         Run<?,?> build = (Run<?,?>) _build;
-        if (lightweight) {
+        if (isLightweight()) {
             try (SCMFileSystem fs = SCMFileSystem.of(build.getParent(), scm)) {
-                if (fs == null) {
-                    throw new AbortException("Lightweight checkout support not available");
+                if (fs != null) {
+                    String script = fs.child(scriptPath).contentAsString();
+                    listener.getLogger().println("Obtained " + scriptPath + " from " + scm.getKey());
+                    return new CpsFlowExecution(script, true, owner);
+                } else {
+                    listener.getLogger().println("Lightweight checkout support not available, falling back to full checkout.");
                 }
-                String script = fs.child(scriptPath).contentAsString();
-                listener.getLogger().println("Obtained " + scriptPath + " from " + scm.getKey());
-                return new CpsFlowExecution(script, true, owner);
             }
         }
         listener.getLogger().println("Checking out " + scm.getKey() + " to read " + scriptPath);
