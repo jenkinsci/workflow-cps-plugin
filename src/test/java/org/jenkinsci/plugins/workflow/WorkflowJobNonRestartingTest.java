@@ -46,7 +46,6 @@ import org.jenkinsci.plugins.workflow.graph.AtomNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.jenkinsci.plugins.workflow.steps.RetryStep;
 import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
@@ -124,59 +123,6 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
         jenkins.assertLogContains("Out!", b);
         String log = JenkinsRule.getLog(b);
         assertTrue(log.indexOf("Yo!") < log.indexOf("Out!"));
-    }
-
-    /**
-     * Test the {@link RetryStep}.
-     */
-    @Test
-    public void testRetry() throws Exception {
-        p.setDefinition(new CpsFlowDefinition(
-            "int i = 0;\n" +
-            "retry(3) {\n" +
-            "    println 'Trying!'\n" +
-            "    if (i++ < 2) error('oops');\n" +
-            "    println 'Done!'\n" +
-            "}\n" +
-            "println 'Over!'"
-        ));
-
-        QueueTaskFuture<WorkflowRun> f = p.scheduleBuild2(0);
-        WorkflowRun b = jenkins.assertBuildStatusSuccess(f);
-
-        String log = JenkinsRule.getLog(b);
-        jenkins.assertLogNotContains("\tat ", b);
-
-        int idx = 0;
-        for (String msg : new String[] {
-            "Trying!",
-            "oops",
-            "Retrying",
-            "Trying!",
-            "oops",
-            "Retrying",
-            "Trying!",
-            "Done!",
-            "Over!",
-        }) {
-            idx = log.indexOf(msg, idx + 1);
-            assertTrue(msg + " not found", idx != -1);
-        }
-
-        idx = 0;
-        for (String msg : new String[] {
-            "[Pipeline] retry",
-            "[Pipeline] {",
-            "[Pipeline] }",
-            "[Pipeline] {",
-            "[Pipeline] }",
-            "[Pipeline] {",
-            "[Pipeline] }",
-            "[Pipeline] // retry",
-        }) {
-            idx = log.indexOf(msg, idx + 1);
-            assertTrue(msg + " not found", idx != -1);
-        }
     }
 
     /**

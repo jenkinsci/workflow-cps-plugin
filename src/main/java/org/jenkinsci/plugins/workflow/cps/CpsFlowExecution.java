@@ -107,6 +107,7 @@ import hudson.security.ACL;
 import hudson.security.AccessControlled;
 import java.beans.Introspector;
 import java.lang.ref.Reference;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -452,7 +453,7 @@ public class CpsFlowExecution extends FlowExecution {
         if ( iotaVal > 0 && iotaVal < ID_LOOKUP_TABLE_SIZE) {
             return ID_LOOKUP_TABLE[iotaVal];
         } else {
-            return String.valueOf(iota()).intern();
+            return String.valueOf(iotaVal).intern();
         }
     }
 
@@ -616,10 +617,16 @@ public class CpsFlowExecution extends FlowExecution {
             }
             @Override public void onFailure(Throwable t) {
                 LOGGER.log(Level.WARNING, "Failed to set program failure on " + owner, t);
-                onProgramEnd(new Outcome(null, t));
-                cleanUpHeap();
+                croak(t);
             }
         });
+    }
+
+    /** Report a fatal error in the VM. */
+    void croak(Throwable t) {
+        setResult(Result.FAILURE);
+        onProgramEnd(new Outcome(null, t));
+        cleanUpHeap();
     }
 
     /**
@@ -916,11 +923,11 @@ public class CpsFlowExecution extends FlowExecution {
         return done || super.isComplete();
     }
 
-    /*packgage*/ synchronized void onProgramEnd(Outcome outcome) {
-        // end of the program
-        // run till the end successfully FIXME: failure comes here, too
-        // TODO: if program terminates with exception, we need to record it
-        // TODO: in the error case, we have to close all the open nodes
+    /**
+     * Record the end of the build.
+     * @param outcome success; or a normal failure (uncaught exception); or a fatal error in VM machinery
+     */
+    synchronized void onProgramEnd(Outcome outcome) {
         FlowNode head = new FlowEndNode(this, iotaStr(), (FlowStartNode)startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
         if (outcome.isFailure())
             head.addAction(new ErrorAction(outcome.getAbnormal()));
@@ -973,6 +980,7 @@ public class CpsFlowExecution extends FlowExecution {
 
     private static void cleanUpGlobalClassValue(@Nonnull ClassLoader loader) throws Exception {
         Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
+        // TODO switch to MethodHandle for speed
         Field globalClassValueF;
         try {
             globalClassValueF = classInfoC.getDeclaredField("globalClassValue");
@@ -990,19 +998,31 @@ public class CpsFlowExecution extends FlowExecution {
         Object map = mapF.get(globalClassValue);
         Class<?> groovyClassValuePreJava7Map = Class.forName("org.codehaus.groovy.reflection.GroovyClassValuePreJava7$GroovyClassValuePreJava7Map");
         Collection entries = (Collection) groovyClassValuePreJava7Map.getMethod("values").invoke(map);
-        Field klazzF = classInfoC.getDeclaredField("klazz");
-        klazzF.setAccessible(true);
         Method removeM = groovyClassValuePreJava7Map.getMethod("remove", Object.class);
         Class<?> entryC = Class.forName("org.codehaus.groovy.util.AbstractConcurrentMapBase$Entry");
         Method getValueM = entryC.getMethod("getValue");
         List<Class<?>> toRemove = new ArrayList<>(); // not sure if it is safe against ConcurrentModificationException or not
-        for (Object entry : entries) {
-            Object value = getValueM.invoke(entry);
-            Class<?> klazz = (Class) klazzF.get(value);
+        try {
+            Field classRefF = classInfoC.getDeclaredField("classRef"); // 2.4.8+
+            classRefF.setAccessible(true);
+            for (Object entry : entries) {
+                Object value = getValueM.invoke(entry);
+                toRemove.add(((WeakReference<Class<?>>) classRefF.get(value)).get());
+            }
+        } catch (NoSuchFieldException x) {
+            Field klazzF = classInfoC.getDeclaredField("klazz"); // 2.4.7-
+            klazzF.setAccessible(true);
+            for (Object entry : entries) {
+                Object value = getValueM.invoke(entry);
+                toRemove.add((Class) klazzF.get(value));
+            }
+        }
+        Iterator<Class<?>> it = toRemove.iterator();
+        while (it.hasNext()) {
+            Class<?> klazz = it.next();
             ClassLoader encounteredLoader = klazz.getClassLoader();
-            if (encounteredLoader == loader) {
-                toRemove.add(klazz);
-            } else {
+            if (encounteredLoader != loader) {
+                it.remove();
                 LOGGER.log(Level.FINEST, "ignoring {0} with loader {1}", new Object[] {klazz, /* do not hold from LogRecord */String.valueOf(encounteredLoader)});
             }
         }
@@ -1013,7 +1033,7 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     private static void cleanUpGlobalClassSet(@Nonnull Class<?> clazz) throws Exception {
-        Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
+        Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo"); // or just ClassInfo.class, but unclear whether this will always be there
         Field globalClassSetF = classInfoC.getDeclaredField("globalClassSet");
         globalClassSetF.setAccessible(true);
         Object globalClassSet = globalClassSetF.get(null);
@@ -1021,6 +1041,11 @@ public class CpsFlowExecution extends FlowExecution {
             globalClassSet.getClass().getMethod("remove", Object.class).invoke(globalClassSet, clazz); // like Map but not
             LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
         } catch (NoSuchMethodException x) { // Groovy 2
+            try {
+                classInfoC.getDeclaredField("classRef");
+                return; // 2.4.8+, nothing to do here (classRef is weak anyway)
+            } catch (NoSuchFieldException x2) {} // 2.4.7-
+            // Cannot just call .values() since that returns a copy.
             Field itemsF = globalClassSet.getClass().getDeclaredField("items");
             itemsF.setAccessible(true);
             Object items = itemsF.get(globalClassSet);
@@ -1031,6 +1056,10 @@ public class CpsFlowExecution extends FlowExecution {
                 Iterator<?> iterator = (Iterator) iteratorM.invoke(items);
                 while (iterator.hasNext()) {
                     Object classInfo = iterator.next();
+                    if (classInfo == null) {
+                        LOGGER.finer("JENKINS-41945: ignoring null ClassInfo from ManagedLinkedList.Iter.next");
+                        continue;
+                    }
                     if (klazzF.get(classInfo) == clazz) {
                         iterator.remove();
                         LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
