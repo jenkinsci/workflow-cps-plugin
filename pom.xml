@@ -63,6 +63,7 @@
     </pluginRepositories>
     <properties>
         <jenkins.version>1.642.3</jenkins.version>
+        <jenkins-test-harness.version>2.19</jenkins-test-harness.version>
         <npm.loglevel>--silent</npm.loglevel>
         <no-test-jar>false</no-test-jar>
         <git-plugin.version>3.0.5</git-plugin.version>
