@@ -466,6 +466,9 @@ import org.kohsuke.stapler.StaplerRequest;
         Jenkins j = Jenkins.getActiveInstance();
         Class<?> c = j.getPluginManager().uberClassLoader.loadClass(jsonO.getString("stapler-class"));
         Descriptor descriptor = j.getDescriptor(c.asSubclass(Describable.class));
+        if (descriptor == null) {
+            return HttpResponses.plainText("<could not find " + c.getName() + ">");
+        }
         Object o;
         try {
             o = descriptor.newInstance(req, jsonO);

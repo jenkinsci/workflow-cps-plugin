@@ -109,8 +109,7 @@ class CpsGroovyShellFactory {
     }
 
     private ClassLoader makeClassLoader() {
-        Jenkins j = Jenkins.getInstance();
-        ClassLoader cl = j != null ? j.getPluginManager().uberClassLoader : CpsGroovyShell.class.getClassLoader();
+        ClassLoader cl = Jenkins.getActiveInstance().getPluginManager().uberClassLoader;
         return GroovySandbox.createSecureClassLoader(cl);
     }
 
