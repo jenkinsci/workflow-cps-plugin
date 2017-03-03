@@ -60,9 +60,24 @@ public class CpsScmFlowDefinitionTest {
     @Rule public JenkinsRule r = new JenkinsRule();
     @Rule public GitSampleRepoRule sampleRepo = new GitSampleRepoRule();
 
+    @Test public void configRoundtrip() throws Exception {
+        sampleRepo.init();
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(new GitStep(sampleRepo.toString()).createSCM(), "Jenkinsfile");
+        def.setLightweight(true);
+        p.setDefinition(def);
+        r.configRoundtrip(p);
+        def = (CpsScmFlowDefinition) p.getDefinition();
+        assertEquals("Jenkinsfile", def.getScriptPath());
+        assertTrue(def.isLightweight());
+        assertEquals(GitSCM.class, def.getScm().getClass());
+    }
+
     @Test public void basics() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsScmFlowDefinition(new SingleFileSCM("flow.groovy", "echo 'hello from SCM'"), "flow.groovy"));
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(new SingleFileSCM("flow.groovy", "echo 'hello from SCM'"), "flow.groovy");
+        def.setLightweight(false); // currently the default, but just to be clear that we do rely on that in this test
+        p.setDefinition(def);
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         // TODO currently the log text is in Run.log, but not on FlowStartNode/LogAction, so not visible from Workflow Steps etc.
         r.assertLogContains("hello from SCM", b);
@@ -84,7 +99,9 @@ public class CpsScmFlowDefinitionTest {
         sampleRepo.git("commit", "--message=init");
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.addTrigger(new SCMTrigger("")); // no schedule, use notifyCommit only
-        p.setDefinition(new CpsScmFlowDefinition(new GitStep(sampleRepo.toString()).createSCM(), "flow.groovy"));
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(new GitStep(sampleRepo.toString()).createSCM(), "flow.groovy");
+        def.setLightweight(false);
+        p.setDefinition(def);
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("Cloning the remote Git repository", b);
         r.assertLogContains("version one", b);
@@ -115,7 +132,9 @@ public class CpsScmFlowDefinitionTest {
         sampleRepo.git("add", "flow.groovy");
         sampleRepo.git("commit", "--message=init");
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsScmFlowDefinition(new GitStep(sampleRepo.toString()).createSCM(), "flow.groovy"));
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(new GitStep(sampleRepo.toString()).createSCM(), "flow.groovy");
+        def.setLightweight(false);
+        p.setDefinition(def);
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("Cloning the remote Git repository", b);
         r.assertLogContains("version one", b);
@@ -123,6 +142,23 @@ public class CpsScmFlowDefinitionTest {
         assertEquals(2, b.number);
         List<ChangeLogSet<? extends ChangeLogSet.Entry>> changeSets = b.getChangeSets();
         assertEquals(Collections.emptyList(), changeSets);
+    }
+
+    @Issue("JENKINS-33273")
+    @Test public void lightweight() throws Exception {
+        sampleRepo.init();
+        sampleRepo.write("flow.groovy", "echo 'version one'");
+        sampleRepo.git("add", "flow.groovy");
+        sampleRepo.git("commit", "--message=init");
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        GitStep step = new GitStep(sampleRepo.toString());
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(step.createSCM(), "flow.groovy");
+        def.setLightweight(true);
+        p.setDefinition(def);
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogNotContains("Cloning the remote Git repository", b);
+        r.assertLogContains("Obtained flow.groovy from git " + sampleRepo, b);
+        r.assertLogContains("version one", b);
     }
 
     @Issue("JENKINS-28447")
@@ -135,9 +171,11 @@ public class CpsScmFlowDefinitionTest {
         sampleRepo.write("flow.groovy", "echo 'version two'");
         sampleRepo.git("commit", "--all", "--message=two");
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsScmFlowDefinition(new GitSCM(Collections.singletonList(new UserRemoteConfig(sampleRepo.fileUrl(), null, null, null)),
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(new GitSCM(Collections.singletonList(new UserRemoteConfig(sampleRepo.fileUrl(), null, null, null)),
             Collections.singletonList(new BranchSpec("${VERSION}")),
-            false, Collections.<SubmoduleConfig>emptyList(), null, null, Collections.<GitSCMExtension>emptyList()), "flow.groovy"));
+            false, Collections.<SubmoduleConfig>emptyList(), null, null, Collections.<GitSCMExtension>emptyList()), "flow.groovy");
+        def.setLightweight(false); // TODO SCMFileSystem.of cannot pick up build parameters
+        p.setDefinition(def);
         p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("VERSION", "master")));
         r.assertLogContains("version two", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
         r.assertLogContains("version one", r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("VERSION", "one")))));
