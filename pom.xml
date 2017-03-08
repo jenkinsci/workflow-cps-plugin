@@ -28,7 +28,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>2.23</version>
+        <version>2.24</version>
         <relativePath />
     </parent>
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -64,7 +64,6 @@
     <properties>
         <jenkins.version>1.642.3</jenkins.version>
         <jenkins-test-harness.version>2.19</jenkins-test-harness.version>
-        <npm.loglevel>--silent</npm.loglevel>
         <no-test-jar>false</no-test-jar>
         <git-plugin.version>3.0.5</git-plugin.version>
         <workflow-scm-step-plugin.version>2.4</workflow-scm-step-plugin.version>
