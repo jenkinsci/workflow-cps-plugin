@@ -321,6 +321,6 @@ public final class CpsThread implements Serializable {
      * @return
      */
     public long getRunTimeoutMinutes() {
-        return Long.valueOf(System.getProperty(getClass().getName() + ".runTimeoutMinutes", "5"));
+        return Long.parseLong(System.getProperty(getClass().getName() + ".runTimeoutMinutes", "5"));
     }
 }
