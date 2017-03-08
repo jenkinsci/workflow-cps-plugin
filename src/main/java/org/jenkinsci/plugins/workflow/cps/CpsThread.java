@@ -158,7 +158,7 @@ public final class CpsThread implements Serializable {
         final CpsThread old = CURRENT.get();
         CURRENT.set(this);
 
-        try (Timeout timeout = Timeout.limit(5, TimeUnit.MINUTES)) {
+        try (Timeout timeout = Timeout.limit(getRunTimeoutMinutes(), TimeUnit.MINUTES)) {
             LOGGER.log(FINE, "runNextChunk on {0}", resumeValue);
             Outcome o = resumeValue;
             resumeValue = null;
@@ -313,5 +313,14 @@ public final class CpsThread implements Serializable {
     @Override public String toString() {
         // getExecution().getOwner() would be useful but seems problematic.
         return "Thread #" + id + String.format(" @%h", this);
+    }
+
+    /**
+     * Gets a the timeout collect from a System property or default value.
+     * Use -Dorg.jenkinsci.plugins.workflow.cps.CpsThread.runTimeoutMinutes
+     * @return
+     */
+    public long getRunTimeoutMinutes() {
+        return Long.valueOf(System.getProperty(getClass().getName() + ".runTimeoutMinutes", "5"));
     }
 }
