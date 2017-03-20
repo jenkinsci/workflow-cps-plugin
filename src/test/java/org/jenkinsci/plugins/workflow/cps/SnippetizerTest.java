@@ -339,4 +339,25 @@ public class SnippetizerTest {
     public void parallelStepDocs() throws Exception {
         SnippetizerTester.assertDocGeneration(ParallelStep.class);
     }
+
+    @Test
+    public void testStandardJavaObject2Groovy() {
+        StringBuilder builder = new StringBuilder();
+
+        Snippetizer.object2Groovy(builder, new Boolean(true), false);
+        builder.append(',');
+        Snippetizer.object2Groovy(builder, new Byte((byte) 123), false);
+        builder.append(',');
+        Snippetizer.object2Groovy(builder, new Short((short) 1213), false);
+        builder.append(',');
+        Snippetizer.object2Groovy(builder, new Integer(121312), false);
+        builder.append(',');
+        Snippetizer.object2Groovy(builder, new Long(1213121213), false);
+        builder.append(',');
+        Snippetizer.object2Groovy(builder, new Float(121312.2), false);
+        builder.append(',');
+        Snippetizer.object2Groovy(builder, new Double(1213455.2), false);
+
+        assertEquals("true,123,1213,121312,1213121213,121312.2,1213455.2", builder.toString());
+    }
 }
