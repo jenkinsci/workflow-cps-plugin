@@ -67,7 +67,7 @@
         <no-test-jar>false</no-test-jar>
         <git-plugin.version>3.0.5</git-plugin.version>
         <workflow-scm-step-plugin.version>2.4</workflow-scm-step-plugin.version>
-        <workflow-support-plugin.version>2.14-20170324.021801-1</workflow-support-plugin.version> <!-- TODO https://github.com/jenkinsci/workflow-support-plugin/pull/35 -->
+        <workflow-support-plugin.version>2.14</workflow-support-plugin.version>
     </properties>
     <dependencies>
         <dependency>
