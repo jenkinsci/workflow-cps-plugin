@@ -24,25 +24,24 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static java.util.logging.Level.FINE;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
+
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.SettableFuture;
-import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-import org.jenkinsci.plugins.workflow.steps.StepExecution;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-
-import static java.util.logging.Level.*;
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
 import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
 
@@ -54,6 +53,8 @@ import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
  */
 @PersistIn(PROGRAM)
 public final class CpsThread implements Serializable {
+
+    public static String CPS_TIMEOUT_MINUTES_CONFIG = "org.jenkinsci.plugins.workflow.cps.CpsThread.runTimeoutMinutes";
     /**
      * Owner object. A thread always belong to a {@link CpsThreadGroup}
      */
@@ -321,6 +322,6 @@ public final class CpsThread implements Serializable {
      * @return
      */
     public long getRunTimeoutMinutes() {
-        return Long.parseLong(System.getProperty(getClass().getName() + ".runTimeoutMinutes", "5"));
+        return Long.getLong(CPS_TIMEOUT_MINUTES_CONFIG, 5L);
     }
 }
