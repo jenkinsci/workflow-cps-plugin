@@ -694,7 +694,7 @@ public class CpsFlowExecution extends FlowExecution {
         g.scheduleRun().get();
     }
 
-    public synchronized FlowHead getFlowHead(int id) {
+    public synchronized @CheckForNull FlowHead getFlowHead(int id) {
         return heads.get(id);
     }
 
