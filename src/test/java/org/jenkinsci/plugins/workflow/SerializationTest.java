@@ -194,13 +194,13 @@ public class SerializationTest extends SingleJobTestBase {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(
                     "def map = [one: 1, two: 2]\n" +
-                    "@NonCPS def entrySet(m) {m.collect {k, v -> [key: k, value: v]}}; for (def e in entrySet(map)) {echo \"running flattened loop on ${e.key} → ${e.value}\"; semaphore \"C-${e.key}\"}\n" +
-                    "for (def e : map.entrySet()) {echo \"running new-style loop on ${e.key} → ${e.value}\"; semaphore \"new-${e.key}\"}"
+                    "@NonCPS def entrySet(m) {m.collect {k, v -> [key: k, value: v]}}; for (def e in entrySet(map)) {echo \"running flattened loop on ${e.key} -> ${e.value}\"; semaphore \"C-${e.key}\"}\n" +
+                    "for (def e : map.entrySet()) {echo \"running new-style loop on ${e.key} -> ${e.value}\"; semaphore \"new-${e.key}\"}"
                     // TODO check also keySet(), values()
                     , true));
                 startBuilding();
                 SemaphoreStep.waitForStart("C-one/1", b);
-                story.j.waitForMessage("running flattened loop on one → 1", b);
+                story.j.waitForMessage("running flattened loop on one -> 1", b);
             }
         });
         story.addStep(new Statement() {
@@ -208,9 +208,9 @@ public class SerializationTest extends SingleJobTestBase {
                 rebuildContext(story.j);
                 SemaphoreStep.success("C-one/1", null);
                 SemaphoreStep.success("C-two/1", null);
-                story.j.waitForMessage("running flattened loop on two → 2", b);
+                story.j.waitForMessage("running flattened loop on two -> 2", b);
                 SemaphoreStep.waitForStart("new-one/1", b);
-                story.j.waitForMessage("running new-style loop on one → 1", b);
+                story.j.waitForMessage("running new-style loop on one -> 1", b);
             }
         });
         story.addStep(new Statement() {
@@ -221,7 +221,7 @@ public class SerializationTest extends SingleJobTestBase {
                 story.j.waitForCompletion(b);
                 /* TODO desired behavior:
                 story.j.assertBuildStatusSuccess(b);
-                story.j.assertLogContains("running new-style loop on two → 2", b);
+                story.j.assertLogContains("running new-style loop on two -> 2", b);
                 */
                 story.j.assertBuildStatus(Result.FAILURE, b);
                 story.j.assertLogContains("java.io.NotSerializableException: java.util.LinkedHashMap$Entry", b);

@@ -67,7 +67,8 @@ public class CpsThreadTest {
         List<CauseOfInterruption> causes = iba.getCauses();
         assertEquals(1, causes.size());
         assertEquals(CauseOfInterruption.UserInterruption.class, causes.get(0).getClass());
-        r.assertLogContains("never going to stop", b); // TODO under heavy load sometimes fails here; why?
+        r.waitForMessage("Finished: ABORTED", b); // TODO WorkflowRun.isBuilding() can go to false before .finish has completed
+        r.assertLogContains("never going to stop", b);
         r.assertLogNotContains("\tat ", b);
     }
 

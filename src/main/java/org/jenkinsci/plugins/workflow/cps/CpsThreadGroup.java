@@ -28,6 +28,7 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
@@ -47,6 +48,7 @@ import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -65,6 +67,7 @@ import static java.util.logging.Level.*;
 import javax.annotation.CheckForNull;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
 
 /**
  * List of {@link CpsThread}s that form a single {@link CpsFlowExecution}.
@@ -225,13 +228,13 @@ public final class CpsThreadGroup implements Serializable {
         final SettableFuture<Void> f = SettableFuture.create();
         try {
             runner.submit(new Callable<Void>() {
-                @edu.umd.cs.findbugs.annotations.SuppressWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE") // runner.submit() result
+                @SuppressFBWarnings(value="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE", justification="runner.submit() result")
                 public Void call() throws Exception {
                     Jenkins j = Jenkins.getInstance();
                     if (paused.get() || j == null || j.isQuietingDown()) {
                         // by doing the pause check inside, we make sure that scheduleRun() returns a
                         // future that waits for any previously scheduled tasks to be completed.
-                        saveProgram();
+                        saveProgramIfPossible();
                         f.set(null);
                         return null;
                     }
@@ -355,12 +358,8 @@ public final class CpsThreadGroup implements Serializable {
             }
         }
 
-        if (changed) {
-            try {
-                saveProgram();
-            } catch (IOException x) {
-                LOGGER.log(WARNING, "program state save failed", x);
-            }
+        if (changed && !stillRunnable) {
+            saveProgramIfPossible();
         }
         if (ending) {
             execution.cleanUpHeap();
@@ -410,6 +409,18 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     /**
+     * Like {@link #saveProgram()} but will not fail.
+     */
+    @CpsVmThreadOnly
+    void saveProgramIfPossible() {
+        try {
+            saveProgram();
+        } catch (IOException x) {
+            LOGGER.log(WARNING, "program state save failed", x);
+        }
+    }
+
+    /**
      * Persists the current state of {@link CpsThreadGroup}.
      */
     @CpsVmThreadOnly
@@ -418,8 +429,12 @@ public final class CpsThreadGroup implements Serializable {
         saveProgram(f);
     }
 
+    @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")
     @CpsVmThreadOnly
     public void saveProgram(File f) throws IOException {
+        boolean logging = LOGGER.isLoggable(Level.FINER);
+        long start = logging ? System.nanoTime() : 0;
+
         File dir = f.getParentFile();
         File tmpFile = File.createTempFile("atomic",null, dir);
 
@@ -428,29 +443,39 @@ public final class CpsThreadGroup implements Serializable {
         CpsFlowExecution old = PROGRAM_STATE_SERIALIZATION.get();
         PROGRAM_STATE_SERIALIZATION.set(execution);
 
-        if (Jenkins.getInstance() == null) {
-            LOGGER.log(WARNING, "Skipping save to {0} since Jenkins seems to be shutting down", f);
+        Collection<? extends PickleFactory> pickleFactories = PickleFactory.all();
+        if (pickleFactories.isEmpty()) {
+            LOGGER.log(WARNING, "Skipping save to {0} since Jenkins seems to be either starting up or shutting down", f);
             return;
         }
 
+        boolean serializedOK = false;
         try {
-            RiverWriter w = new RiverWriter(tmpFile, execution.getOwner());
+            RiverWriter w = new RiverWriter(tmpFile, execution.getOwner(), pickleFactories);
             try {
                 w.writeObject(this);
             } finally {
                 w.close();
             }
+            serializedOK = true;
             Files.move(tmpFile.toPath(), f.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             LOGGER.log(FINE, "program state saved");
         } catch (RuntimeException e) {
             propagateErrorToWorkflow(e);
             throw new IOException("Failed to persist "+f,e);
         } catch (IOException e) {
-            propagateErrorToWorkflow(e);
+            if (!serializedOK) {
+                propagateErrorToWorkflow(e);
+            } // JENKINS-29656: otherwise just send the I/O error to caller and move on
             throw new IOException("Failed to persist "+f,e);
         } finally {
             PROGRAM_STATE_SERIALIZATION.set(old);
             Util.deleteFile(tmpFile);
+        }
+
+        if (logging) {
+            long end = System.nanoTime();
+            LOGGER.log(FINER, "saved {0} of size {1}Kb in {2}ms", new Object[] {f, f.length() / 1000, (end - start) / 1000 / 1000});
         }
     }
 

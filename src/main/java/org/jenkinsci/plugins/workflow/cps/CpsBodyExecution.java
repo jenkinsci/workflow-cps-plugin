@@ -29,6 +29,7 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -37,6 +38,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
@@ -264,7 +266,7 @@ class CpsBodyExecution extends BodyExecution {
 
                 @Override
                 public void onFailure(Throwable t) {
-                    // couldn't cancel
+                    LOGGER.log(Level.WARNING, "could not cancel " + context + " with " + Arrays.toString(causes), t);
                 }
             });
         } else {

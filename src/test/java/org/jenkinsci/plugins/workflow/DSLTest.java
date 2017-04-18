@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.workflow;
 
 import hudson.model.Result;
 import javax.inject.Inject;
+import static org.hamcrest.Matchers.containsString;
 
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -33,6 +34,7 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousStepExecution;
+import static org.junit.Assert.*;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -85,7 +87,7 @@ public class DSLTest {
     public void dollar_class_must_die2() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die2");
         p.setDefinition(new CpsFlowDefinition("california ocean:'pacific', mountain:'sierra', moderate:true"));
-        r.assertLogContains("Introducing california\nCalifornia from pacific to sierra", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+        assertThat(JenkinsRule.getLog(r.assertBuildStatusSuccess(p.scheduleBuild2(0))).replace("\r\n", "\n"), containsString("Introducing california\nCalifornia from pacific to sierra"));
     }
 
     /**
@@ -108,7 +110,7 @@ public class DSLTest {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die5");
         p.setDefinition(new CpsFlowDefinition("newYork motto:'Empire', moderate:true"));
         WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-        r.assertLogContains("Introducing newYork\nThe Empire State", run);
+        assertThat(JenkinsRule.getLog(run).replace("\r\n", "\n"), containsString("Introducing newYork\nThe Empire State"));
         r.assertLogNotContains("New York can be moderate in spring or fall", run);
     }
 
