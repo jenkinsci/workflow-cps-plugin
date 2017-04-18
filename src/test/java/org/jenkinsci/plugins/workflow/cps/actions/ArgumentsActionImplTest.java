@@ -227,11 +227,12 @@ public class ArgumentsActionImplTest {
                 "echo 'test' \n " +
                         " node('master') { \n" +
                         "   retry(3) {\n"+
-                        "   if (isUnix()) { \n" +
-                        "     sh 'whoami' \n" + // TODO add testcase with $class syntax and direct Step creation
-                        "   } else { \n"+
-                        "     bat 'echo %USERNAME%' \n"+
-                        "   }\n"+
+                        "     if (isUnix()) { \n" +
+                        "       sh 'whoami' \n" + // TODO add testcase with $class syntax and direct Step creation
+                        "     } else { \n"+
+                        "       bat 'echo %USERNAME%' \n"+
+                        "     }\n"+
+                        "   } \n"+
                         "}"
         ));
         WorkflowRun run = r.buildAndAssertSuccess(job);
