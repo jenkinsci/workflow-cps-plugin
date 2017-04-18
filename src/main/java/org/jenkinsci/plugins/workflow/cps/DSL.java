@@ -191,7 +191,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             d.checkContextAvailability(context);
             Thread.currentThread().setContextClassLoader(CpsVmExecutorService.ORIGINAL_CONTEXT_CLASS_LOADER.get());
             s = d.newInstance(ps.namedArgs);
-            if (isKeepStepInfo() && !(s instanceof ParallelStep)) { // Storing StepActions or not
+            if (isKeepStepInfo() && !(s instanceof ParallelStep)) { // Storing ArgumentsActions or not
                 Computer comp = context.get(Computer.class);
                 if (comp != null) {
                     // Get the environment variables to find ones that might be credentials bindings

@@ -9,8 +9,10 @@ import com.google.common.collect.Collections2;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import hudson.EnvVars;
+import hudson.Functions;
 import hudson.XmlFile;
 import hudson.model.Action;
+import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -172,7 +174,7 @@ public class ArgumentsActionImplTest {
                 "    //available as an env variable, but will be masked if you try to print it out any which way\n" +
                 "    echo \"$PASSWORD'\" \n" +
                 "    echo \"${env.USERNAME}\"\n" +
-                "    echo \"bob\"\n" +
+                "    echo \"bob\"\n" +  // TODO add testcase with $class syntax and direct Step creation
                 "} }"
         ));
         WorkflowRun run  = job.scheduleBuild2(0).getStartCondition().get();
@@ -225,10 +227,12 @@ public class ArgumentsActionImplTest {
                 "echo 'test' \n " +
                         " node('master') { \n" +
                         "   retry(3) {\n"+
-                        "     sh 'whoami' \n" +
+                        "   if (isUnix()) { \n" +
+                        "     sh 'whoami' \n" + // TODO add testcase with $class syntax and direct Step creation
+                        "   } else { \n"+
+                        "     bat 'echo %USERNAME%' \n"+
                         "   }\n"+
                         "}"
-
         ));
         WorkflowRun run = r.buildAndAssertSuccess(job);
         LinearScanner scan = new LinearScanner();
@@ -238,9 +242,15 @@ public class ArgumentsActionImplTest {
         Assert.assertEquals("test", ArgumentsAction.getArguments(echoNode).values().iterator().next());
         Assert.assertEquals("test", ArgumentsAction.getArgumentDescriptionString(echoNode));
 
-        FlowNode pwdNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("sh"));
-        Assert.assertEquals("whoami", ArgumentsAction.getArguments(pwdNode).values().iterator().next());
-        Assert.assertEquals("whoami", ArgumentsAction.getArgumentDescriptionString(pwdNode));
+        if (Functions.isWindows()) {
+            FlowNode batchNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("bat"));
+            Assert.assertEquals("echo %USERNAME%", ArgumentsAction.getArguments(batchNode).values().iterator().next());
+            Assert.assertEquals("echo %USERNAME%", ArgumentsAction.getArgumentDescriptionString(batchNode));
+        } else { // Unix
+            FlowNode shellNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("sh"));
+            Assert.assertEquals("whoami", ArgumentsAction.getArguments(shellNode).values().iterator().next());
+            Assert.assertEquals("whoami", ArgumentsAction.getArgumentDescriptionString(shellNode));
+        }
 
         FlowNode nodeNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0),
                 Predicates.and(Predicates.instanceOf(StepStartNode.class), new NodeStepTypePredicate("node"), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class)));
