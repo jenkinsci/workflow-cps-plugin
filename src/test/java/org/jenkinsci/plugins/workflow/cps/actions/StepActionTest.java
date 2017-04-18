@@ -69,6 +69,9 @@ public class StepActionTest {
         List<FlowNode> nodes = new DepthFirstScanner().allNodes(execution.getCurrentHeads());
         Collections.sort(nodes, FlowScanningUtils.ID_ORDER_COMPARATOR);
 
+        Field nodeExecutionF = FlowNode.class.getDeclaredField("exec");
+        nodeExecutionF.setAccessible(true);
+
         // Read each node via deserialization from storage, and sanity check the node, the actions, and the StepInfoAction read back right
         for (FlowNode f : nodes) {
             XmlFile file = (XmlFile)(getFileM.invoke(storage, f.getId()));
@@ -78,11 +81,13 @@ public class StepActionTest {
             // Check actions & node in the Tag object, but without getting at the private Tag class
             Field actionField = tagObj.getClass().getDeclaredField("actions");
             Field nodeField = tagObj.getClass().getDeclaredField("node");
+
             actionField.setAccessible(true);
             nodeField.setAccessible(true);
 
             Action[] deserializedActions = (Action[]) actionField.get(tagObj);
             FlowNode deserializedNode = (FlowNode)(nodeField.get(tagObj));
+            nodeExecutionF.set(deserializedNode, f.getExecution());
 
             Assert.assertNotNull(deserializedNode);
             if (f.getActions().size() > 0) {
