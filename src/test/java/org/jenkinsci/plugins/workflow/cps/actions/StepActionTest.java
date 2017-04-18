@@ -17,6 +17,7 @@ import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.CpsThread;
 import org.jenkinsci.plugins.workflow.cps.nodes.DescriptorMatchPredicate;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
@@ -217,7 +218,7 @@ public class StepActionTest {
         WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "paramDescription");
         job.setDefinition(new CpsFlowDefinition(
                 "echo 'test' \n " +
-                        " node { \n" +
+                        " node('master') { \n" +
                         "   retry(3) {\n"+
                         "     sh 'whoami' \n" +
                         "   }\n"+
@@ -229,17 +230,17 @@ public class StepActionTest {
 
         // Parameter test
         FlowNode echoNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("echo"));
-        Assert.assertNotNull(echoNode);
         Assert.assertEquals("test", StepInfoAction.getNodeParameters(echoNode).values().iterator().next());
         Assert.assertEquals("test", StepInfoAction.getParameterDescriptionString(echoNode));
 
-        FlowNode pwdNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("shell"));
+        FlowNode pwdNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("sh"));
         Assert.assertEquals("whoami", StepInfoAction.getNodeParameters(pwdNode).values().iterator().next());
         Assert.assertEquals("whoami", StepInfoAction.getParameterDescriptionString(pwdNode));
 
-        FlowNode nodeNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("node"));
-        Assert.assertEquals(null, StepInfoAction.getNodeParameters(nodeNode).values().iterator().next());
-        Assert.assertEquals(null, StepInfoAction.getParameterDescriptionString(nodeNode));
+        FlowNode nodeNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0),
+                Predicates.and(Predicates.instanceOf(StepStartNode.class), new NodeStepTypePredicate("node"), FlowScanningUtils.hasActionPredicate(StepAction.class)));
+        Assert.assertEquals("master", StepInfoAction.getNodeParameters(nodeNode).values().iterator().next());
+        Assert.assertEquals("master", StepInfoAction.getParameterDescriptionString(nodeNode));
 
         testDeserialize(run.getExecution());
     }
