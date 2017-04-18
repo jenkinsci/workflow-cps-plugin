@@ -25,8 +25,7 @@
 package org.jenkinsci.plugins.workflow.cps.actions;
 
 import hudson.EnvVars;
-import org.jenkinsci.plugins.workflow.actions.StepInfoAction;
-import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -39,16 +38,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import static org.jenkinsci.plugins.workflow.actions.StepInfoAction.NotStoredReason.MASKED_VALUE;
+import static org.jenkinsci.plugins.workflow.actions.ArgumentsAction.NotStoredReason.MASKED_VALUE;
 
 /**
- * Implements {@link StepInfoAction} by storing step parameters, with sanitization
+ * Implements {@link ArgumentsAction} by storing step arguments, with sanitization
  */
-public class StepAction extends StepInfoAction {
+public class ArgumentsActionImpl extends ArgumentsAction {
 
-    /** Parameters to the step, for cases where we cannot simply store the step because masking was applied */
+    /** Arguments to the step, for cases where we cannot simply store the step because masking was applied */
     @CheckForNull
-    private Map<String,Object> parameters;
+    private Map<String,Object> arguments;
 
 
     private boolean isModifiedBySanitization = false;
@@ -57,20 +56,21 @@ public class StepAction extends StepInfoAction {
         return isModifiedBySanitization;
     }
 
-    public StepAction(@Nonnull Map<String, Object> stepParameters, @Nullable EnvVars env) {
-        Map<String,Object> sanitizedParameters = sanitizedStepArguments(stepParameters, env);
-        for (Object o : sanitizedParameters.values()) {
+    /** FIXME needs to handle getting an uninstantiatedDeliverable or a fully configured step instance in the params map */
+    public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @Nullable EnvVars env) {
+        Map<String,Object> sanitizedArguments = sanitizedStepArguments(stepArguments, env);
+        for (Object o : sanitizedArguments.values()) {
             if (o != null && (o.equals(MASKED_VALUE) || o.equals(NotStoredReason.OVERSIZE_VALUE))) {
                 isModifiedBySanitization = true;
                 break;
             }
         }
-        parameters = sanitizedParameters;
+        arguments = sanitizedArguments;
     }
 
     /** Create a step, sanitizing strings for secured content */
-    public StepAction(@Nonnull Map<String, Object> stepParameters) {
-        this(stepParameters, new EnvVars());
+    public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments) {
+        this(stepArguments, new EnvVars());
     }
 
     /** See if sensitive environment variable content is in a string */
@@ -142,24 +142,24 @@ public class StepAction extends StepInfoAction {
     ));
 
     /**
-     * Does first-level sanitization of a step's params, returning the Describable parameters map
-     * @param stepParameters Arguments provided when creating the step
+     * Does first-level sanitization of a step's params, returning the Describable arguments map
+     * @param stepArguments Arguments provided when creating the step
      * @param variables Environment variables to remove
      * @return
      */
     @Nonnull
-    public static Map<String,Object> sanitizedStepArguments(@Nonnull Map<String, Object> stepParameters, @CheckForNull EnvVars variables) {
+    public static Map<String,Object> sanitizedStepArguments(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars variables) {
         if (variables == null || variables.size() == 0) {
             // No need to sanitize against environment variables
-            return stepParameters;
+            return stepArguments;
         }
         HashMap<String, Object> output = new HashMap<String, Object>();
 
-        for (Map.Entry<String,?> param : stepParameters.entrySet()) {
+        for (Map.Entry<String,?> param : stepArguments.entrySet()) {
             Object val = param.getValue();
             if (val != null && val instanceof String) {
                 String valString = (String)val;
-                if (valString.length() > StepInfoAction.MAX_STRING_LENGTH) {
+                if (valString.length() > ArgumentsAction.MAX_STRING_LENGTH) {
                     output.put(param.getKey(), NotStoredReason.OVERSIZE_VALUE);
                 } else {
                     boolean isSafe = isStringSafe(valString, variables, SAFE_ENVIRONMENT_VARIABLES);
@@ -178,12 +178,12 @@ public class StepAction extends StepInfoAction {
 
     @Nonnull
     @Override
-    protected Map<String, Object> getParametersInternal() {
-        return (parameters == null)? Collections.EMPTY_MAP : parameters;
+    protected Map<String, Object> getArgumentsInternal() {
+        return (arguments == null)? Collections.EMPTY_MAP : arguments;
     }
 
     @Override
-    public boolean isFullParameters() {
+    public boolean isFullArguments() {
         return isModifiedBySanitization;
     }
 }

@@ -41,7 +41,7 @@ import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
-import org.jenkinsci.plugins.workflow.cps.actions.StepAction;
+import org.jenkinsci.plugins.workflow.cps.actions.ArgumentsActionImpl;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
@@ -198,9 +198,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                     // But filter out variables coming from the host itself
                     EnvVars allEnv = new EnvVars(context.get(EnvVars.class));
                     allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
-                    an.addAction(new StepAction(ps.namedArgs, allEnv));
+                    an.addAction(new ArgumentsActionImpl(ps.namedArgs, allEnv));
                 } else {
-                    an.addAction(new StepAction(ps.namedArgs));  // No EnvVars that can supply credentials bindings
+                    an.addAction(new ArgumentsActionImpl(ps.namedArgs));  // No EnvVars that can supply credentials bindings
                 }
             }
             StepExecution e = s.start(context);
