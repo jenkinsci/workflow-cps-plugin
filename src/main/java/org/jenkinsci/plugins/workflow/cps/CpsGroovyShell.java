@@ -1,23 +1,29 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import groovy.lang.Binding;
+import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyCodeSource;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
-import org.codehaus.groovy.control.CompilationFailedException;
-import org.codehaus.groovy.control.CompilerConfiguration;
-
-import javax.annotation.CheckForNull;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import org.codehaus.groovy.control.CompilationFailedException;
+import org.codehaus.groovy.control.CompilationUnit;
+import org.codehaus.groovy.control.CompilerConfiguration;
+import org.codehaus.groovy.control.SourceUnit;
 
 /**
  * {@link GroovyShell} with additional tweaks necessary to run {@link CpsScript}
- *
- * @author Kohsuke Kawaguchi
- * @see "doc/clasloader.md"
+ * @see "doc/classloader.md"
  * @see CpsGroovyShellFactory
  */
 class CpsGroovyShell extends GroovyShell {
+
+    private static final Logger LOGGER = Logger.getLogger(CpsGroovyShell.class.getName());
+
     /**
      * {@link CpsFlowExecution} for which this shell is created.
      *
@@ -31,6 +37,42 @@ class CpsGroovyShell extends GroovyShell {
     CpsGroovyShell(ClassLoader parent, @CheckForNull CpsFlowExecution execution, CompilerConfiguration cc) {
         super(parent,new Binding(),cc);
         this.execution = execution;
+        try {
+            Field loaderF = GroovyShell.class.getDeclaredField("loader");
+            loaderF.setAccessible(true);
+            loaderF.set(this, new CleanGroovyClassLoader(parent, cc));
+        } catch (Exception x) {
+            LOGGER.log(Level.WARNING, "failed to install CleanGroovyClassLoader", x);
+        }
+    }
+
+    /**
+     * Disables the weird and unreliable {@link groovy.lang.GroovyClassLoader.InnerLoader}.
+     * This is apparently only necessary when you are using class recompilation, which we are not.
+     * @see GroovyClassLoader#getTimeStamp
+     */
+    private static final class CleanGroovyClassLoader extends GroovyClassLoader {
+
+        CleanGroovyClassLoader(ClassLoader loader, CompilerConfiguration config) {
+            super(loader, config);
+        }
+
+        @Override protected ClassCollector createCollector(CompilationUnit unit, SourceUnit su) {
+            return new CleanClassCollector(unit, su);
+        }
+
+        private final class CleanClassCollector extends ClassCollector {
+
+            CleanClassCollector(CompilationUnit unit, SourceUnit su) {
+                super(null, unit, su);
+            }
+
+            @Override public GroovyClassLoader getDefiningClassLoader() {
+                return CleanGroovyClassLoader.this;
+            }
+
+        }
+
     }
 
     public void prepareScript(Script script) {
