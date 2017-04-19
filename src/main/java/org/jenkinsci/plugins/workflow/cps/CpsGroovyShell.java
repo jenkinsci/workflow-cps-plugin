@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyCodeSource;
@@ -34,6 +35,7 @@ class CpsGroovyShell extends GroovyShell {
     /**
      * Use {@link CpsGroovyShellFactory} to instantiate it.
      */
+    @SuppressFBWarnings(value="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED", justification="irrelevant")
     CpsGroovyShell(ClassLoader parent, @CheckForNull CpsFlowExecution execution, CompilerConfiguration cc) {
         super(parent,new Binding(),cc);
         this.execution = execution;
