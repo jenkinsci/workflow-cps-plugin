@@ -106,7 +106,7 @@ public class SnippetizerTest {
         ArtifactArchiver aa = new ArtifactArchiver("x.jar");
         aa.setAllowEmptyArchive(true);
         if (ArtifactArchiver.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
-            st.assertRoundTrip(new CoreStep(aa), "step archiveArtifacts(allowEmptyArchive: true, artifacts: 'x.jar')");
+            st.assertRoundTrip(new CoreStep(aa), "archiveArtifacts allowEmptyArchive: true, artifacts: 'x.jar'");
         } else { // TODO 2.x delete
             st.assertRoundTrip(new CoreStep(aa), "step([$class: 'ArtifactArchiver', allowEmptyArchive: true, artifacts: 'x.jar'])");
         }
@@ -114,7 +114,7 @@ public class SnippetizerTest {
 
     @Test public void coreStep2() throws Exception {
         if (ArtifactArchiver.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
-            st.assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "step archiveArtifacts('x.jar')");
+            st.assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "archiveArtifacts 'x.jar'");
         } else { // TODO 2.x delete
             st.assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "step([$class: 'ArtifactArchiver', artifacts: 'x.jar'])");
         }

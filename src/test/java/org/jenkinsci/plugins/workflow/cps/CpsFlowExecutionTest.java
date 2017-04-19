@@ -119,7 +119,7 @@ public class CpsFlowExecutionTest {
                     clearInvocationCaches.invoke(metaClass);
                 }
                 for (WeakReference<ClassLoader> loaderRef : LOADERS) {
-                    MemoryAssert.assertGC(loaderRef);
+                    MemoryAssert.assertGC(loaderRef, false);
                 }
             }
         });

@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.model.Run;
 import java.io.IOException;
 import org.codehaus.groovy.runtime.GStringImpl;
@@ -98,6 +99,7 @@ class CpsWhitelist extends AbstractWhitelist {
      */
     private static final Map<Jenkins,Whitelist> wrappedByJenkins = new WeakHashMap<Jenkins,Whitelist>();
 
+    @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")
     static synchronized Whitelist get() {
         Jenkins j = Jenkins.getInstance();
         if (j == null) {

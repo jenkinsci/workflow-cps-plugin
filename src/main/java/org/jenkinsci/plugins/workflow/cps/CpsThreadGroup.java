@@ -48,6 +48,7 @@ import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -66,6 +67,7 @@ import static java.util.logging.Level.*;
 import javax.annotation.CheckForNull;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
 
 /**
  * List of {@link CpsThread}s that form a single {@link CpsFlowExecution}.
@@ -427,6 +429,7 @@ public final class CpsThreadGroup implements Serializable {
         saveProgram(f);
     }
 
+    @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")
     @CpsVmThreadOnly
     public void saveProgram(File f) throws IOException {
         File dir = f.getParentFile();
@@ -437,14 +440,15 @@ public final class CpsThreadGroup implements Serializable {
         CpsFlowExecution old = PROGRAM_STATE_SERIALIZATION.get();
         PROGRAM_STATE_SERIALIZATION.set(execution);
 
-        if (Jenkins.getInstance() == null) {
-            LOGGER.log(WARNING, "Skipping save to {0} since Jenkins seems to be shutting down", f);
+        Collection<? extends PickleFactory> pickleFactories = PickleFactory.all();
+        if (pickleFactories.isEmpty()) {
+            LOGGER.log(WARNING, "Skipping save to {0} since Jenkins seems to be either starting up or shutting down", f);
             return;
         }
 
         boolean serializedOK = false;
         try (CpsFlowExecution.Timing t = execution.time(TimingKind.saveProgram)) {
-            RiverWriter w = new RiverWriter(tmpFile, execution.getOwner());
+            RiverWriter w = new RiverWriter(tmpFile, execution.getOwner(), pickleFactories);
             try {
                 w.writeObject(this);
             } finally {

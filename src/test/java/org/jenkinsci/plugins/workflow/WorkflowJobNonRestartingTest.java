@@ -25,32 +25,22 @@
 package org.jenkinsci.plugins.workflow;
 
 import hudson.model.Result;
-import hudson.model.Slave;
 import hudson.model.queue.QueueTaskFuture;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import hudson.security.WhoAmI;
 import hudson.util.OneShotEvent;
-import java.io.IOException;
-import java.io.StringWriter;
-import static org.hamcrest.Matchers.containsString;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
-import org.jenkinsci.plugins.workflow.actions.LogAction;
 import org.jenkinsci.plugins.workflow.cps.AbstractCpsFlowTest;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
-import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
-import org.jenkinsci.plugins.workflow.graph.AtomNode;
-import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
-import org.jvnet.hudson.test.JenkinsRule;
 
 import org.junit.ClassRule;
 import org.jvnet.hudson.test.BuildWatcher;
@@ -69,79 +59,6 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
     @Before public void setUp() throws Exception {
         super.setUp();
         p = jenkins.jenkins.createProject(WorkflowJob.class, "demo");
-    }
-
-    @Test
-    public void shellStep() throws Exception {
-        p.setDefinition(new CpsFlowDefinition("node {sh 'echo hello world'}"));
-
-        QueueTaskFuture<WorkflowRun> f = p.scheduleBuild2(0);
-        WorkflowRun b = f.getStartCondition().get();
-
-        CpsFlowExecution e = (CpsFlowExecution) b.getExecutionPromise().get();
-        e.waitForSuspension();
-
-        Thread.sleep(1000);  // give a bit of time for shell script to complete
-
-        while (!e.isComplete()) {
-            e.waitForSuspension();   // let the workflow run to the completion
-        }
-
-        f.get();
-        jenkins.assertBuildStatusSuccess(b);
-        // currentHeads[0] is FlowEndNode, whose parent is BlockEndNode for "node",
-        // whose parent is BlockEndNode for body invocation, whose parent is AtomNode
-        AtomNode atom = (AtomNode) e.getCurrentHeads().get(0).getParents().get(0).getParents().get(0).getParents().get(0);
-        assertThat(logOf(atom), containsString("hello world"));
-    }
-
-    private String logOf(FlowNode node) throws IOException {
-        LogAction la = node.getAction(LogAction.class);
-        assertNotNull(la);
-        StringWriter w = new StringWriter();
-        la.getLogText().writeLogTo(0, w);
-        return w.toString();
-    }
-
-    /**
-     * Obtains a node.
-     */
-    @Test
-    public void nodeLease() throws Exception {
-        Slave s = jenkins.createSlave();
-        s.getComputer().connect(false).get(); // wait for the slave to fully get connected
-
-        p.setDefinition(new CpsFlowDefinition(
-           "node {println 'Yo!'}\n" +
-           "println 'Out!'"
-        ));
-
-        WorkflowRun b = p.scheduleBuild2(0).get();
-
-        jenkins.assertBuildStatusSuccess(b);
-        jenkins.assertLogContains("Yo!", b);
-        jenkins.assertLogContains("Out!", b);
-        String log = JenkinsRule.getLog(b);
-        assertTrue(log.indexOf("Yo!") < log.indexOf("Out!"));
-    }
-
-    /**
-     * The first test case to try out the sandbox execution.
-     */
-    @Test
-    public void sandbox() throws Exception {
-        p.setDefinition(new CpsFlowDefinition(
-            "def message() {'hello world'}\n" +
-            "node {\n" +
-            "  sh('echo ' + message())\n" +
-            "}\n", true));
-
-        WorkflowRun b = jenkins.assertBuildStatusSuccess(p.scheduleBuild2(0));
-
-        // currentHeads[0] is FlowEndNode, whose parent is BlockEndNode for "node",
-        // whose parent is BlockEndNode for body invocation, whose parent is AtomNode
-        AtomNode atom = (AtomNode) b.getExecution().getCurrentHeads().get(0).getParents().get(0).getParents().get(0).getParents().get(0);
-        assertThat(logOf(atom), containsString("hello world"));
     }
 
     /**
@@ -175,20 +92,13 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
      */
     @Test
     public void missingContextCheck() throws Exception {
-        p.setDefinition(new CpsFlowDefinition("sh 'true'", true));
+        p.setDefinition(new CpsFlowDefinition("readFile 'true'", true));
 
         WorkflowRun b = p.scheduleBuild2(0).get();
 
         jenkins.assertLogContains("such as: node", b); // make sure the 'node' is a suggested message. this comes from MissingContextVariableException
 //        jenkins.assertLogNotContains("Exception", b)   // haven't figured out how to hide this
         jenkins.assertBuildStatus(Result.FAILURE, b);
-    }
-
-    @Test
-    public void addAction() throws Exception {
-        WhoAmI a = new WhoAmI();
-        p.addAction(a);
-        assertNotNull(p.getAction(WhoAmI.class));
     }
 
     @Test @Issue("JENKINS-25623")

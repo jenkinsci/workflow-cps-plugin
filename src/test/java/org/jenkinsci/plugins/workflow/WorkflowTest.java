@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.workflow;
 
 import com.google.common.base.Function;
 import hudson.EnvVars;
+import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Executor;
@@ -271,15 +272,15 @@ public class WorkflowTest extends SingleJobTestBase {
                 createSpecialEnvSlave(story.j, "slave", null, slaveEnv);
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition("node('slave') {\n"
-                        + "  sh 'echo tag=$BUILD_TAG PERMACHINE=$PERMACHINE'\n"
+                        + "  if (isUnix()) {sh 'echo tag=$BUILD_TAG PERMACHINE=$PERMACHINE'} else {bat 'echo tag=%BUILD_TAG% PERMACHINE=%PERMACHINE%'}\n"
                         + "  env.BUILD_TAG='custom'\n"
-                        + "  sh 'echo tag2=$BUILD_TAG'\n"
+                        + "  if (isUnix()) {sh 'echo tag2=$BUILD_TAG'} else {bat 'echo tag2=%BUILD_TAG%'}\n"
                         + "  env.STUFF='more'\n"
                         + "  semaphore 'env'\n"
                         + "  env.BUILD_TAG=\"${env.BUILD_TAG}2\"\n"
-                        + "  sh 'echo tag3=$BUILD_TAG stuff=$STUFF'\n"
-                        + "  env.PATH=\"/opt/stuff/bin:${env.PATH}\"\n"
-                        + "  sh 'echo shell PATH=$PATH'\n"
+                        + "  if (isUnix()) {sh 'echo tag3=$BUILD_TAG stuff=$STUFF'} else {bat 'echo tag3=%BUILD_TAG% stuff=%STUFF%'}\n"
+                        + "  if (isUnix()) {env.PATH=\"/opt/stuff/bin:${env.PATH}\"} else {env.PATH=$/c:\\whatever;${env.PATH}/$}\n"
+                        + "  if (isUnix()) {sh 'echo shell PATH=$PATH'} else {bat 'echo shell PATH=%PATH%'}\n"
                         + "  echo \"groovy PATH=${env.PATH}\"\n"
                         + "  echo \"simplified groovy PATH=${PATH}\"\n"
                         + "}", true));
@@ -297,9 +298,10 @@ public class WorkflowTest extends SingleJobTestBase {
                 story.j.assertLogContains("tag=jenkins-demo-1 PERMACHINE=set", b);
                 story.j.assertLogContains("tag2=custom", b);
                 story.j.assertLogContains("tag3=custom2 stuff=more", b);
-                story.j.assertLogContains("shell PATH=/opt/stuff/bin:", b);
-                story.j.assertLogContains("groovy PATH=/opt/stuff/bin:", b);
-                story.j.assertLogContains("simplified groovy PATH=/opt/stuff/bin:", b);
+                String prefix = Functions.isWindows() ? "c:\\whatever;" : "/opt/stuff/bin:";
+                story.j.assertLogContains("shell PATH=" + prefix, b);
+                story.j.assertLogContains("groovy PATH=" + prefix, b);
+                story.j.assertLogContains("simplified groovy PATH=" + prefix, b);
                 EnvironmentAction a = b.getAction(EnvironmentAction.class);
                 assertNotNull(a);
                 assertEquals("custom2", a.getEnvironment().get("BUILD_TAG"));
