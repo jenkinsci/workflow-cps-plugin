@@ -40,6 +40,7 @@ class CpsGroovyShell extends GroovyShell {
         super(parent,new Binding(),cc);
         this.execution = execution;
         try {
+            // Apparently there is no supported way to initialize a GroovyShell with a specified GroovyClassLoader.
             Field loaderF = GroovyShell.class.getDeclaredField("loader");
             loaderF.setAccessible(true);
             loaderF.set(this, new CleanGroovyClassLoader(parent, cc));
@@ -51,6 +52,8 @@ class CpsGroovyShell extends GroovyShell {
     /**
      * Disables the weird and unreliable {@link groovy.lang.GroovyClassLoader.InnerLoader}.
      * This is apparently only necessary when you are using class recompilation, which we are not.
+     * We want the {@linkplain Class#getClassLoader defining loader} of {@code *.groovy} to be this one.
+     * Otherwise the defining loader will be an {@code InnerLoader}, and not necessarily the same instance from load to load.
      * @see GroovyClassLoader#getTimeStamp
      */
     private static final class CleanGroovyClassLoader extends GroovyClassLoader {
@@ -60,12 +63,14 @@ class CpsGroovyShell extends GroovyShell {
         }
 
         @Override protected ClassCollector createCollector(CompilationUnit unit, SourceUnit su) {
+            // Super implementation is what creates the InnerLoader.
             return new CleanClassCollector(unit, su);
         }
 
         private final class CleanClassCollector extends ClassCollector {
 
             CleanClassCollector(CompilationUnit unit, SourceUnit su) {
+                // Cannot override {@code final cl} field so have to do it this way.
                 super(null, unit, su);
             }
 
