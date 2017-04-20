@@ -260,4 +260,35 @@ public class ArgumentsActionImplTest {
 
         testDeserialize(run.getExecution());
     }
+
+    @Test
+    public void testUnusualStepInstantiations() throws Exception {
+        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "unusualInstantiation");
+        job.setDefinition(new CpsFlowDefinition(
+                        " node('master') { \n" +
+                        "   writeFile text: 'hello world', file: 'msg.out'\n" +
+                        "   step([$class: 'ArtifactArchiver', artifacts: 'msg.out', fingerprint: false])\n "+
+                        // TODO add a symbol based call here, or a symbol-based call for params
+                        "}"
+        ));
+        WorkflowRun run = r.buildAndAssertSuccess(job);
+        LinearScanner scan = new LinearScanner();
+
+        FlowNode testNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("writeFile"));
+        ArgumentsAction act = testNode.getPersistentAction(ArgumentsAction.class);
+        Assert.assertNotNull(act);
+        Assert.assertEquals("hello world", act.getArgumentValue("text"));
+        Assert.assertEquals("msg.out", act.getArgumentValue("file"));
+
+        testNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("step"));
+        act = testNode.getPersistentAction(ArgumentsAction.class);
+        Assert.assertNotNull(act);
+        Assert.assertEquals("msg.out", act.getArgumentValue("artifacts"));
+        Assert.assertEquals(Boolean.FALSE, act.getArgumentValue("fingerprint"));
+
+        List<FlowNode> allNodes = scan.allNodes(run.getExecution());
+
+
+        testDeserialize(run.getExecution());
+    }
 }
