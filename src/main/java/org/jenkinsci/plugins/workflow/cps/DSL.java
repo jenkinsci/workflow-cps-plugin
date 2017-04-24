@@ -191,16 +191,21 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             d.checkContextAvailability(context);
             Thread.currentThread().setContextClassLoader(CpsVmExecutorService.ORIGINAL_CONTEXT_CLASS_LOADER.get());
             s = d.newInstance(ps.namedArgs);
-            if (isKeepStepInfo() && !(s instanceof ParallelStep)) { // Storing ArgumentsActions or not
+            // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
+            if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepInfo() && !(s instanceof ParallelStep)) {
+                Map<String, Object> actualArgs = ps.namedArgs;
+                if (d.isMetaStep() && ps.namedArgs.get("delegate") instanceof Map) {
+                    actualArgs = (Map<String,Object>)ps.namedArgs.get("delegate");
+                }
                 Computer comp = context.get(Computer.class);
                 if (comp != null) {
                     // Get the environment variables to find ones that might be credentials bindings
                     // But filter out variables coming from the host itself
                     EnvVars allEnv = new EnvVars(context.get(EnvVars.class));
                     allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
-                    an.addAction(new ArgumentsActionImpl(ps.namedArgs, allEnv));
+                    an.addAction(new ArgumentsActionImpl(actualArgs, allEnv));
                 } else {
-                    an.addAction(new ArgumentsActionImpl(ps.namedArgs));  // No EnvVars that can supply credentials bindings
+                    an.addAction(new ArgumentsActionImpl(actualArgs));  // No EnvVars that can supply credentials bindings
                 }
             }
             StepExecution e = s.start(context);

@@ -41,6 +41,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -174,7 +175,7 @@ public class ArgumentsActionImplTest {
                 "    //available as an env variable, but will be masked if you try to print it out any which way\n" +
                 "    echo \"$PASSWORD'\" \n" +
                 "    echo \"${env.USERNAME}\"\n" +
-                "    echo \"bob\"\n" +  // TODO add testcase with $class syntax and direct Step creation
+                "    echo \"bob\"\n" +
                 "} }"
         ));
         WorkflowRun run  = job.scheduleBuild2(0).getStartCondition().get();
@@ -228,7 +229,7 @@ public class ArgumentsActionImplTest {
                         " node('master') { \n" +
                         "   retry(3) {\n"+
                         "     if (isUnix()) { \n" +
-                        "       sh 'whoami' \n" + // TODO add testcase with $class syntax and direct Step creation
+                        "       sh 'whoami' \n" +
                         "     } else { \n"+
                         "       bat 'echo %USERNAME%' \n"+
                         "     }\n"+
@@ -268,7 +269,9 @@ public class ArgumentsActionImplTest {
                         " node('master') { \n" +
                         "   writeFile text: 'hello world', file: 'msg.out'\n" +
                         "   step([$class: 'ArtifactArchiver', artifacts: 'msg.out', fingerprint: false])\n "+
-                        // TODO add a symbol based call here, or a symbol-based call for params
+                        "   withEnv(['CUSTOM=val']) {\n"+  //Symbol-based, because withEnv is a metastep
+                        "     echo env.CUSTOM\n"+
+                        "   }\n"+
                         "}"
         ));
         WorkflowRun run = r.buildAndAssertSuccess(job);
@@ -286,9 +289,12 @@ public class ArgumentsActionImplTest {
         Assert.assertEquals("msg.out", act.getArgumentValue("artifacts"));
         Assert.assertEquals(Boolean.FALSE, act.getArgumentValue("fingerprint"));
 
-        List<FlowNode> allNodes = scan.allNodes(run.getExecution());
-
-
+        testNode = run.getExecution().getNode("7"); // Start node for EnvAction
+        act = testNode.getPersistentAction(ArgumentsAction.class);
+        Assert.assertNotNull(act);
+        Assert.assertEquals(1, act.getArguments().size());
+        Object ob = act.getArguments().get("overrides");
+        Assert.assertEquals("CUSTOM=val", (String)((ArrayList) ob).get(0));
         testDeserialize(run.getExecution());
     }
 }
