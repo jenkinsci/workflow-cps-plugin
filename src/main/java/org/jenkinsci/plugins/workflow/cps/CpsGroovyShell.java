@@ -38,15 +38,19 @@ class CpsGroovyShell extends GroovyShell {
     /**
      * Use {@link CpsGroovyShellFactory} to instantiate it.
      */
-    @SuppressFBWarnings(value="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED", justification="irrelevant")
     CpsGroovyShell(ClassLoader parent, @CheckForNull CpsFlowExecution execution, CompilerConfiguration cc) {
-        super(execution != null ? new TimingLoader(parent, execution) : parent, new Binding(), cc);
+        this(execution, cc, execution != null ? new TimingLoader(parent, execution) : parent);
+    }
+
+    @SuppressFBWarnings(value="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED", justification="irrelevant")
+    private CpsGroovyShell(@CheckForNull CpsFlowExecution execution, CompilerConfiguration cc, ClassLoader usuallyTimingLoader) {
+        super(usuallyTimingLoader, new Binding(), cc);
         this.execution = execution;
         try {
             // Apparently there is no supported way to initialize a GroovyShell with a specified GroovyClassLoader.
             Field loaderF = GroovyShell.class.getDeclaredField("loader");
             loaderF.setAccessible(true);
-            loaderF.set(this, new CleanGroovyClassLoader(parent, cc));
+            loaderF.set(this, new CleanGroovyClassLoader(usuallyTimingLoader, cc));
         } catch (Exception x) {
             LOGGER.log(Level.WARNING, "failed to install CleanGroovyClassLoader", x);
         }
