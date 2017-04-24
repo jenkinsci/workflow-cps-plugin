@@ -24,6 +24,7 @@ import org.codehaus.groovy.control.SourceUnit;
  * @see "doc/classloader.md"
  * @see CpsGroovyShellFactory
  */
+@SuppressFBWarnings(value="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED", justification="irrelevant")
 class CpsGroovyShell extends GroovyShell {
 
     private static final Logger LOGGER = Logger.getLogger(CpsGroovyShell.class.getName());
@@ -42,7 +43,6 @@ class CpsGroovyShell extends GroovyShell {
         this(execution, cc, execution != null ? new TimingLoader(parent, execution) : parent);
     }
 
-    @SuppressFBWarnings(value="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED", justification="irrelevant")
     private CpsGroovyShell(@CheckForNull CpsFlowExecution execution, CompilerConfiguration cc, ClassLoader usuallyTimingLoader) {
         super(usuallyTimingLoader, new Binding(), cc);
         this.execution = execution;
