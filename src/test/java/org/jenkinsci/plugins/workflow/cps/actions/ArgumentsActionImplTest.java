@@ -12,7 +12,6 @@ import hudson.EnvVars;
 import hudson.Functions;
 import hudson.XmlFile;
 import hudson.model.Action;
-import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -201,7 +200,7 @@ public class ArgumentsActionImplTest {
         }
 
         List<FlowNode> allStepped = scanner.filteredNodes(run.getExecution().getCurrentHeads(), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class));
-        Assert.assertEquals(5, allStepped.size());  // One ArgumentsActionImpl per block or atomic step
+        Assert.assertEquals(4, allStepped.size());  // One ArgumentsActionImpl per block or atomic step
 
         testDeserialize(exec);
     }
