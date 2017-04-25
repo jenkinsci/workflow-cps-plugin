@@ -97,7 +97,8 @@ public class CpsFlowExecutionTest {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 story.j.jenkins.getWorkspaceFor(p).child("lib.groovy").write(CpsFlowExecutionTest.class.getName() + ".register(this)", null);
                 p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionTest.class.getName() + ".register(this); node {load 'lib.groovy'}", false));
-                story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
+                WorkflowRun b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
+                assertFalse(((CpsFlowExecution) b.getExecution()).getProgramDataFile().exists());
                 assertFalse(LOADERS.isEmpty());
                 try {
                     // In Groovy 1.8.9 this keeps static state, but only for the last script (as also noted in JENKINS-23762).
