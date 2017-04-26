@@ -12,7 +12,6 @@ import hudson.EnvVars;
 import hudson.Functions;
 import hudson.XmlFile;
 import hudson.model.Action;
-import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -41,6 +40,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -174,7 +174,7 @@ public class ArgumentsActionImplTest {
                 "    //available as an env variable, but will be masked if you try to print it out any which way\n" +
                 "    echo \"$PASSWORD'\" \n" +
                 "    echo \"${env.USERNAME}\"\n" +
-                "    echo \"bob\"\n" +  // TODO add testcase with $class syntax and direct Step creation
+                "    echo \"bob\"\n" +
                 "} }"
         ));
         WorkflowRun run  = job.scheduleBuild2(0).getStartCondition().get();
@@ -200,7 +200,7 @@ public class ArgumentsActionImplTest {
         }
 
         List<FlowNode> allStepped = scanner.filteredNodes(run.getExecution().getCurrentHeads(), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class));
-        Assert.assertEquals(5, allStepped.size());  // One ArgumentsActionImpl per block or atomic step
+        Assert.assertEquals(4, allStepped.size());  // One ArgumentsActionImpl per block or atomic step
 
         testDeserialize(exec);
     }
@@ -228,7 +228,7 @@ public class ArgumentsActionImplTest {
                         " node('master') { \n" +
                         "   retry(3) {\n"+
                         "     if (isUnix()) { \n" +
-                        "       sh 'whoami' \n" + // TODO add testcase with $class syntax and direct Step creation
+                        "       sh 'whoami' \n" +
                         "     } else { \n"+
                         "       bat 'echo %USERNAME%' \n"+
                         "     }\n"+
@@ -258,6 +258,42 @@ public class ArgumentsActionImplTest {
         Assert.assertEquals("master", ArgumentsAction.getArguments(nodeNode).values().iterator().next());
         Assert.assertEquals("master", ArgumentsAction.getArgumentDescriptionString(nodeNode));
 
+        testDeserialize(run.getExecution());
+    }
+
+    @Test
+    public void testUnusualStepInstantiations() throws Exception {
+        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "unusualInstantiation");
+        job.setDefinition(new CpsFlowDefinition(
+                        " node('master') { \n" +
+                        "   writeFile text: 'hello world', file: 'msg.out'\n" +
+                        "   step([$class: 'ArtifactArchiver', artifacts: 'msg.out', fingerprint: false])\n "+
+                        "   withEnv(['CUSTOM=val']) {\n"+  //Symbol-based, because withEnv is a metastep
+                        "     echo env.CUSTOM\n"+
+                        "   }\n"+
+                        "}"
+        ));
+        WorkflowRun run = r.buildAndAssertSuccess(job);
+        LinearScanner scan = new LinearScanner();
+
+        FlowNode testNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("writeFile"));
+        ArgumentsAction act = testNode.getPersistentAction(ArgumentsAction.class);
+        Assert.assertNotNull(act);
+        Assert.assertEquals("hello world", act.getArgumentValue("text"));
+        Assert.assertEquals("msg.out", act.getArgumentValue("file"));
+
+        testNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("step"));
+        act = testNode.getPersistentAction(ArgumentsAction.class);
+        Assert.assertNotNull(act);
+        Assert.assertEquals("msg.out", act.getArgumentValue("artifacts"));
+        Assert.assertEquals(Boolean.FALSE, act.getArgumentValue("fingerprint"));
+
+        testNode = run.getExecution().getNode("7"); // Start node for EnvAction
+        act = testNode.getPersistentAction(ArgumentsAction.class);
+        Assert.assertNotNull(act);
+        Assert.assertEquals(1, act.getArguments().size());
+        Object ob = act.getArguments().get("overrides");
+        Assert.assertEquals("CUSTOM=val", (String)((ArrayList) ob).get(0));
         testDeserialize(run.getExecution());
     }
 }
