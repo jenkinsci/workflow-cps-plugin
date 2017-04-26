@@ -1489,11 +1489,14 @@ public class CpsFlowExecution extends FlowExecution {
                                 if (owner != null) {
                                     FlowExecution exec = owner.getOrNull();
                                     if (exec instanceof CpsFlowExecution) {
-                                        pw.println("Timings for " + run + ":");
-                                        for (Map.Entry<String, Long> entry : new TreeMap<>(((CpsFlowExecution) exec).timings).entrySet()) {
-                                            pw.println("  " + entry.getKey() + "\t" + entry.getValue() / 1000 / 1000 + "ms");
+                                        Map<String, Long> timings = ((CpsFlowExecution) exec).timings;
+                                        if (timings != null) {
+                                            pw.println("Timings for " + run + ":");
+                                            for (Map.Entry<String, Long> entry : new TreeMap<>(timings).entrySet()) {
+                                                pw.println("  " + entry.getKey() + "\t" + entry.getValue() / 1000 / 1000 + "ms");
+                                            }
+                                            pw.println();
                                         }
-                                        pw.println();
                                     }
                                 }
                             }
