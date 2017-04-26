@@ -367,6 +367,11 @@ public final class CpsThreadGroup implements Serializable {
                 scripts.clear();
             }
             closures.clear();
+            try {
+                Util.deleteFile(execution.getProgramDataFile());
+            } catch (IOException x) {
+                LOGGER.log(Level.WARNING, "Failed to delete program.dat in " + execution, x);
+            }
         }
 
         return stillRunnable;
