@@ -437,9 +437,6 @@ public final class CpsThreadGroup implements Serializable {
     @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")
     @CpsVmThreadOnly
     public void saveProgram(File f) throws IOException {
-        boolean logging = LOGGER.isLoggable(Level.FINER);
-        long start = logging ? System.nanoTime() : 0;
-
         File dir = f.getParentFile();
         File tmpFile = File.createTempFile("atomic",null, dir);
 
@@ -455,7 +452,7 @@ public final class CpsThreadGroup implements Serializable {
         }
 
         boolean serializedOK = false;
-        try {
+        try (CpsFlowExecution.Timing t = execution.time(TimingKind.saveProgram)) {
             RiverWriter w = new RiverWriter(tmpFile, execution.getOwner(), pickleFactories);
             try {
                 w.writeObject(this);
@@ -476,11 +473,6 @@ public final class CpsThreadGroup implements Serializable {
         } finally {
             PROGRAM_STATE_SERIALIZATION.set(old);
             Util.deleteFile(tmpFile);
-        }
-
-        if (logging) {
-            long end = System.nanoTime();
-            LOGGER.log(FINER, "saved {0} of size {1}Kb in {2}ms", new Object[] {f, f.length() / 1000, (end - start) / 1000 / 1000});
         }
     }
 

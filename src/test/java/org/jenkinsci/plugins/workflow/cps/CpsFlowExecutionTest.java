@@ -52,6 +52,7 @@ import javax.annotation.CheckForNull;
 import jenkins.model.Jenkins;
 import org.codehaus.groovy.reflection.ClassInfo;
 import org.codehaus.groovy.transform.ASTTransformationVisitor;
+import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
@@ -272,6 +273,28 @@ public class CpsFlowExecutionTest {
                 WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
                 WorkflowRun b = p.getLastBuild();
                 story.j.assertLogContains("I am done", story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b)));
+            }
+        });
+    }
+
+    @Test public void timing() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                logger.record(CpsFlowExecution.TIMING_LOGGER, Level.FINE).capture(100);
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition("semaphore 'wait'", true));
+                WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+                SemaphoreStep.waitForStart("wait/1", b);
+            }
+        });
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+                WorkflowRun b = p.getLastBuild();
+                SemaphoreStep.success("wait/1", null);
+                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
+                assertThat(logger.getRecords(), Matchers.hasSize(Matchers.equalTo(1)));
+                assertEquals(CpsFlowExecution.TimingKind.values().length, ((CpsFlowExecution) b.getExecution()).timings.keySet().size());
             }
         });
     }
