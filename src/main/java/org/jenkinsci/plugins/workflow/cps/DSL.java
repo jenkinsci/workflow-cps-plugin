@@ -94,6 +94,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     private transient CpsFlowExecution exec;
     private transient Map<String,StepDescriptor> functions;
 
+    private static final Logger LOGGER = Logger.getLogger(DSL.class.getName());
+
     public DSL(FlowExecutionOwner handle) {
         this.handle = handle;
     }
@@ -192,22 +194,28 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             Thread.currentThread().setContextClassLoader(CpsVmExecutorService.ORIGINAL_CONTEXT_CLASS_LOADER.get());
             s = d.newInstance(ps.namedArgs);
             // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
-            if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepInfo() && !(s instanceof ParallelStep)) {
-                Map<String, Object> actualArgs = ps.namedArgs;
-                if (d.isMetaStep() && ps.namedArgs.get("delegate") instanceof Map) {
-                    actualArgs = (Map<String,Object>)ps.namedArgs.get("delegate");
+            try {
+                if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepInfo() && !(s instanceof ParallelStep)) {
+                    Map<String, Object> actualArgs = ps.namedArgs;
+                    if (d.isMetaStep() && ps.namedArgs.get("delegate") instanceof Map) {
+                        actualArgs = (Map<String,Object>)ps.namedArgs.get("delegate");
+                    }
+                    Computer comp = context.get(Computer.class);
+                    if (comp != null) {
+                        // Get the environment variables to find ones that might be credentials bindings
+                        // But filter out variables coming from the host itself
+                        EnvVars allEnv = new EnvVars(context.get(EnvVars.class));
+                        allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
+                        an.addAction(new ArgumentsActionImpl(actualArgs, allEnv));
+                    } else {
+                        an.addAction(new ArgumentsActionImpl(actualArgs));  // No EnvVars that can supply credentials bindings
+                    }
                 }
-                Computer comp = context.get(Computer.class);
-                if (comp != null) {
-                    // Get the environment variables to find ones that might be credentials bindings
-                    // But filter out variables coming from the host itself
-                    EnvVars allEnv = new EnvVars(context.get(EnvVars.class));
-                    allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
-                    an.addAction(new ArgumentsActionImpl(actualArgs, allEnv));
-                } else {
-                    an.addAction(new ArgumentsActionImpl(actualArgs));  // No EnvVars that can supply credentials bindings
-                }
+            } catch (Exception e) {
+                // Avoid breaking execution because we can't store some sort of crazy Step argument
+                LOGGER.log(Level.WARNING, "Error storing the arguments for step: "+d.getFunctionName(), e);
             }
+
             StepExecution e = s.start(context);
             thread.setStep(e);
             sync = e.start();
