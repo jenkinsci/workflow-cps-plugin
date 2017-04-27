@@ -12,6 +12,8 @@ import hudson.EnvVars;
 import hudson.Functions;
 import hudson.XmlFile;
 import hudson.model.Action;
+import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -140,12 +142,13 @@ public class ArgumentsActionImplTest {
     }
 
     @Test
-    public void testBasicCreateAndSanitize() throws Exception {
+    public void testBasicCreateAndMask() throws Exception {
         HashMap<String,String> passwordBinding = new HashMap<String,String>();
         passwordBinding.put("mypass", "p4ssw0rd");
         Map<String, Object> arguments = new HashMap<String,Object>();
         arguments.put("message", "I have a secret p4ssw0rd");
 
+        // Same string, unsanitized
         ArgumentsActionImpl argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars());
         Assert.assertEquals(false, argumentsActionImpl.isModifiedBySanitization());
         Assert.assertEquals(arguments.get("message"), argumentsActionImpl.getArgumentValueOrReason("message"));
@@ -158,6 +161,13 @@ public class ArgumentsActionImplTest {
         Assert.assertEquals(ArgumentsActionImpl.NotStoredReason.MASKED_VALUE, argumentsActionImpl.getArgumentValueOrReason("message"));
         Assert.assertEquals(1, argumentsActionImpl.getArguments().size());
         Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, argumentsActionImpl.getArguments().get("message"));
+
+        // Mask oversized values
+        int length = ArgumentsAction.MAX_STRING_LENGTH;
+        arguments.clear();
+        arguments.put("text", RandomStringUtils.random(length+1));
+        argumentsActionImpl = new ArgumentsActionImpl(arguments);
+        Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, argumentsActionImpl.getArgumentValueOrReason("text"));
     }
 
     @Test
