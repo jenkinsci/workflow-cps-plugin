@@ -200,16 +200,13 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                     if (d.isMetaStep() && ps.namedArgs.get("delegate") instanceof Map) {
                         actualArgs = (Map<String,Object>)ps.namedArgs.get("delegate");
                     }
+                    // Get the environment variables to find ones that might be credentials bindings
                     Computer comp = context.get(Computer.class);
-                    if (comp != null) {
-                        // Get the environment variables to find ones that might be credentials bindings
-                        // But filter out variables coming from the host itself
-                        EnvVars allEnv = new EnvVars(context.get(EnvVars.class));
+                    EnvVars allEnv = new EnvVars(context.get(EnvVars.class));
+                    if (comp != null && allEnv != null) {
                         allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
-                        an.addAction(new ArgumentsActionImpl(actualArgs, allEnv));
-                    } else {
-                        an.addAction(new ArgumentsActionImpl(actualArgs));  // No EnvVars that can supply credentials bindings
                     }
+                    an.addAction(new ArgumentsActionImpl(actualArgs, allEnv));
                 }
             } catch (Exception e) {
                 // Avoid breaking execution because we can't store some sort of crazy Step argument

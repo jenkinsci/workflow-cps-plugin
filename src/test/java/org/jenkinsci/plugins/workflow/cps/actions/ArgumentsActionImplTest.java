@@ -185,7 +185,10 @@ public class ArgumentsActionImplTest {
                 "    echo \"$PASSWORD'\" \n" +
                 "    echo \"${env.USERNAME}\"\n" +
                 "    echo \"bob\"\n" +
-                "} }"
+                "} }\n" +
+                "withCredentials([usernamePassword(credentialsId: 'test', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"+
+                "  echo \"${env.USERNAME} ${env.PASSWORD}\"\n"+
+                "}"
         ));
         WorkflowRun run  = job.scheduleBuild2(0).getStartCondition().get();
         r.waitForCompletion(run);
@@ -195,7 +198,7 @@ public class ArgumentsActionImplTest {
         List<FlowNode> filtered = scanner.filteredNodes(exec, new DescriptorMatchPredicate(BindingStep.DescriptorImpl.class));
 
         // Check the binding step is OK
-        Assert.assertEquals(4, filtered.size());
+        Assert.assertEquals(8, filtered.size());
         FlowNode node = Collections2.filter(filtered, FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class)).iterator().next();
         ArgumentsActionImpl act = node.getPersistentAction(ArgumentsActionImpl.class);
         Assert.assertNotNull(act.getArgumentValue("bindings"));
@@ -210,7 +213,7 @@ public class ArgumentsActionImplTest {
         }
 
         List<FlowNode> allStepped = scanner.filteredNodes(run.getExecution().getCurrentHeads(), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class));
-        Assert.assertEquals(4, allStepped.size());  // One ArgumentsActionImpl per block or atomic step
+        Assert.assertEquals(6, allStepped.size());  // One ArgumentsActionImpl per block or atomic step
 
         testDeserialize(exec);
     }
