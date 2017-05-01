@@ -65,8 +65,10 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
 import org.jenkinsci.plugins.workflow.support.pickles.TryRepeatedly;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
+import org.junit.After;
 import static org.junit.Assert.*;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runners.model.Statement;
@@ -84,20 +86,24 @@ public class CpsFlowExecutionTest {
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
     @Rule public LoggerRule logger = new LoggerRule();
-    
+
+    @After public void clearLoaders() {
+        LOADERS.clear();
+    }
     private static final List<WeakReference<ClassLoader>> LOADERS = new ArrayList<>();
     public static void register(Object o) {
         ClassLoader loader = o.getClass().getClassLoader();
         System.err.println("registering " + o + " from " + loader);
         LOADERS.add(new WeakReference<>(loader));
     }
+
     @Test public void loaderReleased() {
         logger.record(CpsFlowExecution.class, Level.FINER);
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 story.j.jenkins.getWorkspaceFor(p).child("lib.groovy").write(CpsFlowExecutionTest.class.getName() + ".register(this)", null);
-                p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionTest.class.getName() + ".register(this); node {load 'lib.groovy'}", false));
+                p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionTest.class.getName() + ".register(this); node {load 'lib.groovy'; evaluate(readFile('lib.groovy'))}", false));
                 WorkflowRun b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
                 assertFalse(((CpsFlowExecution) b.getExecution()).getProgramDataFile().exists());
                 assertFalse(LOADERS.isEmpty());
@@ -121,6 +127,33 @@ public class CpsFlowExecutionTest {
                 }
                 for (WeakReference<ClassLoader> loaderRef : LOADERS) {
                     MemoryAssert.assertGC(loaderRef, false);
+                }
+            }
+        });
+    }
+
+    @Ignore("creates classes such as script1493642504440203321963 in a new GroovyClassLoader.InnerLoader delegating to CleanGroovyClassLoader which are invisible to cleanUpHeap")
+    @Test public void doNotUseConfigSlurper() throws Exception {
+        logger.record(CpsFlowExecution.class, Level.FINER);
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionTest.class.getName() + ".register(this); echo(/parsed ${new ConfigSlurper().parse('foo.bar.baz = 99')}/)", false));
+                WorkflowRun b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
+                assertFalse(LOADERS.isEmpty());
+                try { // as above
+                    Field f = ASTTransformationVisitor.class.getDeclaredField("compUnit");
+                    f.setAccessible(true);
+                    f.set(null, null);
+                } catch (NoSuchFieldException e) {}
+                { // TODO as above
+                    MetaClass metaClass = ClassInfo.getClassInfo(CpsFlowExecutionTest.class).getMetaClass();
+                    Method clearInvocationCaches = metaClass.getClass().getDeclaredMethod("clearInvocationCaches");
+                    clearInvocationCaches.setAccessible(true);
+                    clearInvocationCaches.invoke(metaClass);
+                }
+                for (WeakReference<ClassLoader> loaderRef : LOADERS) {
+                    MemoryAssert.assertGC(loaderRef, true);
                 }
             }
         });
