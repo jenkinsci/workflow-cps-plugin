@@ -32,6 +32,9 @@ import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import com.cloudbees.groovy.cps.sandbox.DefaultInvoker;
 import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
+import com.cloudbees.jenkins.support.api.Component;
+import com.cloudbees.jenkins.support.api.Container;
+import com.cloudbees.jenkins.support.api.Content;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.FutureCallback;
@@ -98,14 +101,21 @@ import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyCodeSource;
 import hudson.AbortException;
 import hudson.BulkChange;
+import hudson.Extension;
 import hudson.init.Terminator;
 import hudson.model.Item;
+import hudson.model.Job;
 import hudson.model.Queue;
+import hudson.model.Run;
 import hudson.model.Saveable;
 import hudson.model.User;
 import hudson.security.ACL;
 import hudson.security.AccessControlled;
+import hudson.security.Permission;
 import java.beans.Introspector;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
@@ -125,6 +135,7 @@ import jenkins.security.NotReallyRoleSensitiveCallable;
 
 import org.acegisecurity.Authentication;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
+import org.apache.commons.io.Charsets;
 import org.jboss.marshalling.reflect.SerializableClassRegistry;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
@@ -242,7 +253,7 @@ public class CpsFlowExecution extends FlowExecution {
     /**
      * Recreated from {@link #owner}
      */
-    /*package*/ transient /*almos final*/ FlowNodeStorage storage;
+    /*package*/ transient /*almost final*/ TimingFlowNodeStorage storage;
 
     /** User ID associated with this build, or null if none specific. */
     private final @CheckForNull String user;
@@ -311,6 +322,38 @@ public class CpsFlowExecution extends FlowExecution {
     /** Actions to add to the {@link FlowStartNode}. */
     transient final List<Action> flowStartNodeActions = new ArrayList<Action>();
 
+    enum TimingKind {
+        /**
+         * Parsing Groovy sources; includes {@link #classLoad}.
+         * @see CpsGroovyShell#parse(GroovyCodeSource)
+         */
+        parse,
+        /**
+         * Loading classes needed during {@link #parse}.
+         * @see ClassLoader#loadClass(String, boolean)
+         * @see ClassLoader#getResource
+         */
+        classLoad,
+        /**
+         * Running inside {@link CpsVmExecutorService}, which includes many other things.
+         */
+        run,
+        /**
+         * Saving the program state.
+         * @see CpsThreadGroup#saveProgram(File)
+         */
+        saveProgram,
+        /**
+         * Loading or saving flow nodes.
+         * @see FlowNodeStorage
+         */
+        flowNode
+    }
+
+    /** accumulated time in ns of a given {@link TimingKind#name}; {@link String} key for pretty XStream form */
+    @GuardedBy("this")
+    @CheckForNull Map<String, Long> timings;
+
     @Deprecated
     public CpsFlowExecution(String script, FlowExecutionOwner owner) throws IOException {
         this(script, false, owner);
@@ -332,6 +375,48 @@ public class CpsFlowExecution extends FlowExecution {
         if (loadedScripts==null)
             loadedScripts = new HashMap<String,String>();   // field added later
         return this;
+    }
+
+    class Timing implements AutoCloseable {
+        private final TimingKind kind;
+        private final long start;
+        private Timing(TimingKind kind) {
+            this.kind = kind;
+            start = System.nanoTime();
+        }
+        @Override public void close() {
+            synchronized (CpsFlowExecution.this) {
+                if (timings == null) {
+                    timings = new HashMap<>();
+                }
+                Long orig = timings.get(kind.name());
+                if (orig == null) {
+                    orig = 0L;
+                }
+                timings.put(kind.name(), orig + System.nanoTime() - start);
+            }
+        }
+    }
+
+    /**
+     * Record time taken during a certain class of operation in this build.
+     * @param kind what sort of operation is being done
+     * @return something to {@link Timing#close} when finished
+     */
+    Timing time(TimingKind kind) {
+        return new Timing(kind);
+    }
+
+    static final Logger TIMING_LOGGER = Logger.getLogger(CpsFlowExecution.class.getName() + ".timing");
+
+    synchronized void logTimings() {
+        if (timings != null && TIMING_LOGGER.isLoggable(Level.FINE)) {
+            Map<String, String> formatted = new TreeMap<>();
+            for (Map.Entry<String, Long> entry : timings.entrySet()) {
+                formatted.put(entry.getKey(), entry.getValue() / 1000 / 1000 + "ms");
+            }
+            TIMING_LOGGER.log(Level.FINE, "timings for {0}: {1}", new Object[] {owner, formatted});
+        }
     }
 
     /**
@@ -377,8 +462,8 @@ public class CpsFlowExecution extends FlowExecution {
         return owner;
     }
 
-    private SimpleXStreamFlowNodeStorage createStorage() throws IOException {
-        return new SimpleXStreamFlowNodeStorage(this, getStorageDir());
+    private TimingFlowNodeStorage createStorage() throws IOException {
+        return new TimingFlowNodeStorage(new SimpleXStreamFlowNodeStorage(this, getStorageDir()));
     }
 
     /**
@@ -694,7 +779,7 @@ public class CpsFlowExecution extends FlowExecution {
         g.scheduleRun().get();
     }
 
-    public synchronized FlowHead getFlowHead(int id) {
+    public synchronized @CheckForNull FlowHead getFlowHead(int id) {
         return heads.get(id);
     }
 
@@ -1237,6 +1322,9 @@ public class CpsFlowExecution extends FlowExecution {
             writeChild(w, context, "result", e.result, Result.class);
             writeChild(w, context, "script", e.script, String.class);
             writeChild(w, context, "loadedScripts", e.loadedScripts, Map.class);
+            synchronized (e) {
+                writeChild(w, context, "timings", e.timings, Map.class);
+            }
             writeChild(w, context, "sandbox", e.sandbox, Boolean.class);
             if (e.user != null) {
                 writeChild(w, context, "user", e.user, String.class);
@@ -1290,6 +1378,10 @@ public class CpsFlowExecution extends FlowExecution {
                     if (nodeName.equals("loadedScripts")) {
                         Map loadedScripts = readChild(reader, context, Map.class, result);
                         setField(result, "loadedScripts", loadedScripts);
+                    } else
+                    if (nodeName.equals("timings")) {
+                        Map timings = readChild(reader, context, Map.class, result);
+                        setField(result, "timings", timings);
                     } else
                     if (nodeName.equals("sandbox")) {
                         boolean sandbox = readChild(reader, context, Boolean.class, result);
@@ -1345,4 +1437,76 @@ public class CpsFlowExecution extends FlowExecution {
      * this field is set to {@link CpsFlowExecution} that will own it.
      */
     static final ThreadLocal<CpsFlowExecution> PROGRAM_STATE_SERIALIZATION = new ThreadLocal<CpsFlowExecution>();
+
+    class TimingFlowNodeStorage extends FlowNodeStorage {
+        private final FlowNodeStorage delegate;
+        TimingFlowNodeStorage(FlowNodeStorage delegate) {
+            this.delegate = delegate;
+        }
+        @Override public FlowNode getNode(String string) throws IOException {
+            try (Timing t = time(TimingKind.flowNode)) {
+                return delegate.getNode(string);
+            }
+        }
+        @Override public void storeNode(FlowNode fn) throws IOException {
+            try (Timing t = time(TimingKind.flowNode)) {
+                delegate.storeNode(fn);
+            }
+        }
+        @Override public List<Action> loadActions(FlowNode node) throws IOException {
+            try (Timing t = time(TimingKind.flowNode)) {
+                return delegate.loadActions(node);
+            }
+        }
+        @Override public void saveActions(FlowNode node, List<Action> actions) throws IOException {
+            try (Timing t = time(TimingKind.flowNode)) {
+                delegate.saveActions(node, actions);
+            }
+        }
+    }
+
+    // If we wanted to expose via REST and/or floatingBox, could add a TransientActionFactory to show similar information.
+    @Extension(optional=true) public static class PipelineTimings extends Component {
+
+        @Override public Set<Permission> getRequiredPermissions() {
+            return Collections.singleton(Jenkins.ADMINISTER);
+        }
+
+        @Override public String getDisplayName() {
+            return "Timing data about recently completed Pipeline builds";
+        }
+
+        @Override public void addContents(Container container) {
+            container.add(new Content("nodes/master/pipeline-timings.txt") {
+                @Override public void writeTo(OutputStream outputStream) throws IOException {
+                    PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, Charsets.UTF_8));
+                    for (Job<?, ?> job : Jenkins.getActiveInstance().getAllItems(Job.class)) {
+                        // TODO no clear way to tell if this might have Run instanceof FlowExecutionOwner.Executable, so for now just check for FlyweightTask which should exclude AbstractProject
+                        if (job instanceof Queue.FlyweightTask) {
+                            Run<?, ?> run = job.getLastCompletedBuild();
+                            if (run instanceof FlowExecutionOwner.Executable) {
+                                FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
+                                if (owner != null) {
+                                    FlowExecution exec = owner.getOrNull();
+                                    if (exec instanceof CpsFlowExecution) {
+                                        Map<String, Long> timings = ((CpsFlowExecution) exec).timings;
+                                        if (timings != null) {
+                                            pw.println("Timings for " + run + ":");
+                                            for (Map.Entry<String, Long> entry : new TreeMap<>(timings).entrySet()) {
+                                                pw.println("  " + entry.getKey() + "\t" + entry.getValue() / 1000 / 1000 + "ms");
+                                            }
+                                            pw.println();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    pw.flush();
+                }
+            });
+        }
+
+    }
+
 }
