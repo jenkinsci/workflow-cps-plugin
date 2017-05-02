@@ -169,7 +169,7 @@ public class DSLTest {
         FlowNode node = scanner.findFirstMatch(run.getExecution().getCurrentHeads(), new NodeStepTypePredicate("monomorphStep"));
         ArgumentsAction argumentsAction = node.getPersistentAction(ArgumentsAction.class);
         Assert.assertNotNull(argumentsAction);
-        Assert.assertEquals("one,two", ArgumentsAction.getArgumentDescriptionString(node));
+        Assert.assertEquals("one,two", ArgumentsAction.getStepArgumentsAsString(node));
     }
 
     @Issue("JENKINS-29711")

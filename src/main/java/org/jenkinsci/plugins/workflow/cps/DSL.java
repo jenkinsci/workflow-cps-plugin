@@ -193,8 +193,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             d.checkContextAvailability(context);
             Thread.currentThread().setContextClassLoader(CpsVmExecutorService.ORIGINAL_CONTEXT_CLASS_LOADER.get());
             s = d.newInstance(ps.namedArgs);
-            // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
             try {
+                // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
                 if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepInfo() && !(s instanceof ParallelStep)) {
                     Map<String, Object> actualArgs = ps.namedArgs;
                     if (d.isMetaStep() && ps.namedArgs.get("delegate") instanceof Map) {

@@ -13,7 +13,6 @@ import hudson.Functions;
 import hudson.XmlFile;
 import hudson.model.Action;
 import org.apache.commons.lang.RandomStringUtils;
-import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -106,7 +105,7 @@ public class ArgumentsActionImplTest {
                 ArgumentsAction ArgumentsAction = (ArgumentsAction)deserializedInfoAction;
 
                 // Compare original and deserialized step arguments to see if they match
-                Assert.assertEquals(ArgumentsAction.getArgumentDescriptionString(f), ArgumentsAction.getArgumentDescriptionString(deserializedNode));
+                Assert.assertEquals(ArgumentsAction.getStepArgumentsAsString(f), ArgumentsAction.getStepArgumentsAsString(deserializedNode));
                 Map<String,Object> expectedParams = expectedInfoAction.getArguments();
                 Map<String, Object> deserializedParams = ArgumentsAction.getArguments();
                 Assert.assertEquals(expectedParams.size(), deserializedParams.size());
@@ -209,7 +208,7 @@ public class ArgumentsActionImplTest {
         for (FlowNode f : filtered) {
             act = f.getPersistentAction(ArgumentsActionImpl.class);
             Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, act.getArguments().get("message"));
-            Assert.assertNull(ArgumentsAction.getArgumentDescriptionString(f));
+            Assert.assertNull(ArgumentsAction.getStepArgumentsAsString(f));
         }
 
         List<FlowNode> allStepped = scanner.filteredNodes(run.getExecution().getCurrentHeads(), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class));
@@ -253,23 +252,23 @@ public class ArgumentsActionImplTest {
 
         // Argument test
         FlowNode echoNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("echo"));
-        Assert.assertEquals("test", ArgumentsAction.getArguments(echoNode).values().iterator().next());
-        Assert.assertEquals("test", ArgumentsAction.getArgumentDescriptionString(echoNode));
+        Assert.assertEquals("test", echoNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
+        Assert.assertEquals("test", ArgumentsAction.getStepArgumentsAsString(echoNode));
 
         if (Functions.isWindows()) {
             FlowNode batchNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("bat"));
-            Assert.assertEquals("echo %USERNAME%", ArgumentsAction.getArguments(batchNode).values().iterator().next());
-            Assert.assertEquals("echo %USERNAME%", ArgumentsAction.getArgumentDescriptionString(batchNode));
+            Assert.assertEquals("echo %USERNAME%", batchNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
+            Assert.assertEquals("echo %USERNAME%", ArgumentsAction.getStepArgumentsAsString(batchNode));
         } else { // Unix
             FlowNode shellNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("sh"));
-            Assert.assertEquals("whoami", ArgumentsAction.getArguments(shellNode).values().iterator().next());
-            Assert.assertEquals("whoami", ArgumentsAction.getArgumentDescriptionString(shellNode));
+            Assert.assertEquals("whoami", shellNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
+            Assert.assertEquals("whoami", ArgumentsAction.getStepArgumentsAsString(shellNode));
         }
 
         FlowNode nodeNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0),
                 Predicates.and(Predicates.instanceOf(StepStartNode.class), new NodeStepTypePredicate("node"), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class)));
-        Assert.assertEquals("master", ArgumentsAction.getArguments(nodeNode).values().iterator().next());
-        Assert.assertEquals("master", ArgumentsAction.getArgumentDescriptionString(nodeNode));
+        Assert.assertEquals("master", nodeNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
+        Assert.assertEquals("master", ArgumentsAction.getStepArgumentsAsString(nodeNode));
 
         testDeserialize(run.getExecution());
     }

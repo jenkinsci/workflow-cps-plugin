@@ -34,7 +34,7 @@
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
     <artifactId>workflow-cps</artifactId>
     <!-- Temporary version is only to allow building linked PRs from SNAPSHOT, to be changed before merge -->
-    <version>2.30-stepstorage2-SNAPSHOT</version>
+    <version>2.30-stepstorage4-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>Pipeline: Groovy</name>
     <url>https://wiki.jenkins-ci.org/display/JENKINS/Pipeline+Groovy+Plugin</url>
@@ -74,13 +74,14 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
-            <version>2.9</version>
+            <!-- Temporary version until releases are cut -->
+            <version>2.10-stepstorage4-beta</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <!-- Temporary version is only to allow building linked PRs from SNAPSHOT, to be changed before merge -->
-            <version>2.14-stepstorage2-SNAPSHOT</version>
+            <!-- Temporary version until releases are cut -->
+            <version>2.14-stepstorage4-beta</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
