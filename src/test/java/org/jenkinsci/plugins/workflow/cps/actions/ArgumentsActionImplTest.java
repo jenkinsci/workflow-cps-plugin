@@ -12,6 +12,7 @@ import hudson.EnvVars;
 import hudson.Functions;
 import hudson.XmlFile;
 import hudson.model.Action;
+import org.apache.commons.lang.RandomStringUtils;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -104,7 +105,7 @@ public class ArgumentsActionImplTest {
                 ArgumentsAction ArgumentsAction = (ArgumentsAction)deserializedInfoAction;
 
                 // Compare original and deserialized step arguments to see if they match
-                Assert.assertEquals(ArgumentsAction.getArgumentDescriptionString(f), ArgumentsAction.getArgumentDescriptionString(deserializedNode));
+                Assert.assertEquals(ArgumentsAction.getStepArgumentsAsString(f), ArgumentsAction.getStepArgumentsAsString(deserializedNode));
                 Map<String,Object> expectedParams = expectedInfoAction.getArguments();
                 Map<String, Object> deserializedParams = ArgumentsAction.getArguments();
                 Assert.assertEquals(expectedParams.size(), deserializedParams.size());
@@ -140,12 +141,13 @@ public class ArgumentsActionImplTest {
     }
 
     @Test
-    public void testBasicCreateAndSanitize() throws Exception {
+    public void testBasicCreateAndMask() throws Exception {
         HashMap<String,String> passwordBinding = new HashMap<String,String>();
         passwordBinding.put("mypass", "p4ssw0rd");
         Map<String, Object> arguments = new HashMap<String,Object>();
         arguments.put("message", "I have a secret p4ssw0rd");
 
+        // Same string, unsanitized
         ArgumentsActionImpl argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars());
         Assert.assertEquals(false, argumentsActionImpl.isModifiedBySanitization());
         Assert.assertEquals(arguments.get("message"), argumentsActionImpl.getArgumentValueOrReason("message"));
@@ -158,6 +160,13 @@ public class ArgumentsActionImplTest {
         Assert.assertEquals(ArgumentsActionImpl.NotStoredReason.MASKED_VALUE, argumentsActionImpl.getArgumentValueOrReason("message"));
         Assert.assertEquals(1, argumentsActionImpl.getArguments().size());
         Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, argumentsActionImpl.getArguments().get("message"));
+
+        // Mask oversized values
+        int length = ArgumentsAction.MAX_STRING_LENGTH;
+        arguments.clear();
+        arguments.put("text", RandomStringUtils.random(length+1));
+        argumentsActionImpl = new ArgumentsActionImpl(arguments);
+        Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, argumentsActionImpl.getArgumentValueOrReason("text"));
     }
 
     @Test
@@ -175,7 +184,10 @@ public class ArgumentsActionImplTest {
                 "    echo \"$PASSWORD'\" \n" +
                 "    echo \"${env.USERNAME}\"\n" +
                 "    echo \"bob\"\n" +
-                "} }"
+                "} }\n" +
+                "withCredentials([usernamePassword(credentialsId: 'test', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"+
+                "  echo \"${env.USERNAME} ${env.PASSWORD}\"\n"+
+                "}"
         ));
         WorkflowRun run  = job.scheduleBuild2(0).getStartCondition().get();
         r.waitForCompletion(run);
@@ -185,7 +197,7 @@ public class ArgumentsActionImplTest {
         List<FlowNode> filtered = scanner.filteredNodes(exec, new DescriptorMatchPredicate(BindingStep.DescriptorImpl.class));
 
         // Check the binding step is OK
-        Assert.assertEquals(4, filtered.size());
+        Assert.assertEquals(8, filtered.size());
         FlowNode node = Collections2.filter(filtered, FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class)).iterator().next();
         ArgumentsActionImpl act = node.getPersistentAction(ArgumentsActionImpl.class);
         Assert.assertNotNull(act.getArgumentValue("bindings"));
@@ -196,11 +208,11 @@ public class ArgumentsActionImplTest {
         for (FlowNode f : filtered) {
             act = f.getPersistentAction(ArgumentsActionImpl.class);
             Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, act.getArguments().get("message"));
-            Assert.assertNull(ArgumentsAction.getArgumentDescriptionString(f));
+            Assert.assertNull(ArgumentsAction.getStepArgumentsAsString(f));
         }
 
         List<FlowNode> allStepped = scanner.filteredNodes(run.getExecution().getCurrentHeads(), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class));
-        Assert.assertEquals(4, allStepped.size());  // One ArgumentsActionImpl per block or atomic step
+        Assert.assertEquals(6, allStepped.size());  // One ArgumentsActionImpl per block or atomic step
 
         testDeserialize(exec);
     }
@@ -240,23 +252,23 @@ public class ArgumentsActionImplTest {
 
         // Argument test
         FlowNode echoNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("echo"));
-        Assert.assertEquals("test", ArgumentsAction.getArguments(echoNode).values().iterator().next());
-        Assert.assertEquals("test", ArgumentsAction.getArgumentDescriptionString(echoNode));
+        Assert.assertEquals("test", echoNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
+        Assert.assertEquals("test", ArgumentsAction.getStepArgumentsAsString(echoNode));
 
         if (Functions.isWindows()) {
             FlowNode batchNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("bat"));
-            Assert.assertEquals("echo %USERNAME%", ArgumentsAction.getArguments(batchNode).values().iterator().next());
-            Assert.assertEquals("echo %USERNAME%", ArgumentsAction.getArgumentDescriptionString(batchNode));
+            Assert.assertEquals("echo %USERNAME%", batchNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
+            Assert.assertEquals("echo %USERNAME%", ArgumentsAction.getStepArgumentsAsString(batchNode));
         } else { // Unix
             FlowNode shellNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("sh"));
-            Assert.assertEquals("whoami", ArgumentsAction.getArguments(shellNode).values().iterator().next());
-            Assert.assertEquals("whoami", ArgumentsAction.getArgumentDescriptionString(shellNode));
+            Assert.assertEquals("whoami", shellNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
+            Assert.assertEquals("whoami", ArgumentsAction.getStepArgumentsAsString(shellNode));
         }
 
         FlowNode nodeNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0),
                 Predicates.and(Predicates.instanceOf(StepStartNode.class), new NodeStepTypePredicate("node"), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class)));
-        Assert.assertEquals("master", ArgumentsAction.getArguments(nodeNode).values().iterator().next());
-        Assert.assertEquals("master", ArgumentsAction.getArgumentDescriptionString(nodeNode));
+        Assert.assertEquals("master", nodeNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
+        Assert.assertEquals("master", ArgumentsAction.getStepArgumentsAsString(nodeNode));
 
         testDeserialize(run.getExecution());
     }

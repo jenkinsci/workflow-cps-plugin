@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import static org.jenkinsci.plugins.workflow.actions.ArgumentsAction.NotStoredReason.MASKED_VALUE;
+import static org.jenkinsci.plugins.workflow.actions.ArgumentsAction.NotStoredReason.OVERSIZE_VALUE;
 
 /**
  * Implements {@link ArgumentsAction} by storing step arguments, with sanitization
@@ -56,9 +57,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         return isModifiedBySanitization;
     }
 
-    /** FIXME needs to handle getting an uninstantiatedDeliverable or a fully configured step instance in the params map */
     public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @Nullable EnvVars env) {
-        // TODO add handling with $class syntax and direct Step creation
         Map<String,Object> sanitizedArguments = sanitizedStepArguments(stepArguments, env);
         for (Object o : sanitizedArguments.values()) {
             if (o != null && (o.equals(MASKED_VALUE) || o.equals(NotStoredReason.OVERSIZE_VALUE))) {
@@ -150,11 +149,19 @@ public class ArgumentsActionImpl extends ArgumentsAction {
      */
     @Nonnull
     public static Map<String,Object> sanitizedStepArguments(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars variables) {
+        HashMap<String, Object> output = new HashMap<String, Object>();
+
         if (variables == null || variables.size() == 0) {
             // No need to sanitize against environment variables
-            return stepArguments;
+            for (Map.Entry<String,Object> entry : stepArguments.entrySet()) {
+                if (entry.getValue() instanceof CharSequence && ((CharSequence)(entry.getValue())).length() > ArgumentsAction.MAX_STRING_LENGTH) {
+                    output.put(entry.getKey(), OVERSIZE_VALUE);
+                } else {
+                    output.put(entry.getKey(), entry.getValue());
+                }
+            }
+            return output;
         }
-        HashMap<String, Object> output = new HashMap<String, Object>();
 
         for (Map.Entry<String,?> param : stepArguments.entrySet()) {
             Object val = param.getValue();

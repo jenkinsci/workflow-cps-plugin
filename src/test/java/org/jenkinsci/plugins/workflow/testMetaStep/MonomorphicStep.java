@@ -10,6 +10,9 @@ import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousNonBlockingStepEx
 import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
 import org.kohsuke.stapler.DataBoundConstructor;
 
+import javax.annotation.CheckForNull;
+import java.util.Map;
+
 /**
  * @author Andrew Bayer
  * @see DSLTest
@@ -39,7 +42,7 @@ public class MonomorphicStep extends AbstractStepImpl {
     }
 
     @Extension
-    public static final class DescriptorImpl extends AbstractStepDescriptorImpl {
+    public static final class DescriptorImpl extends AbstractStepDescriptorImpl  {
         public DescriptorImpl() {
             super(Execution.class);
         }
@@ -50,6 +53,16 @@ public class MonomorphicStep extends AbstractStepImpl {
 
         @Override public String getDisplayName() {
             return "Testing monomorphic single parameter.";
+        }
+
+
+        @Override
+        public String argumentsToString(@CheckForNull Map<String, Object> map) {
+            if (map.get("data") instanceof Map) {
+                Map<String,String> data = (Map<String,String>)(map.get("data"));
+                return data.get("firstArg")+","+data.get("secondArg");
+            }
+            return null;
         }
     }
 
