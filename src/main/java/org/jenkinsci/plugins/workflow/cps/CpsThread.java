@@ -53,6 +53,7 @@ import static java.util.logging.Level.*;
 import org.codehaus.groovy.runtime.DefaultGroovyMethods;
 import org.codehaus.groovy.runtime.GroovyCategorySupport;
 import org.codehaus.groovy.runtime.InvokerHelper;
+import org.jenkinsci.plugins.workflow.cps.persistence.IteratorHack;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
 import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
@@ -196,7 +197,7 @@ public final class CpsThread implements Serializable {
             LOGGER.log(FINE, "runNextChunk on {0}", resumeValue);
             final Outcome o = resumeValue;
             resumeValue = null;
-            outcome = GroovyCategorySupport.use(Arrays.<Class>asList(CpsDefaultGroovyMethods.class, CpsDefaultGroovyMethodsExt.class), new Closure<Outcome>(null) {
+            outcome = GroovyCategorySupport.use(Arrays.<Class>asList(CpsDefaultGroovyMethods.class, CpsDefaultGroovyMethodsExt.class, IteratorHack.class), new Closure<Outcome>(null) {
                 @Override public Outcome call() {
                     return program.run0(o);
                 }

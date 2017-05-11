@@ -219,12 +219,8 @@ public class SerializationTest extends SingleJobTestBase {
                 SemaphoreStep.success("new-one/1", null);
                 SemaphoreStep.success("new-two/1", null);
                 story.j.waitForCompletion(b);
-                /* TODO desired behavior:
                 story.j.assertBuildStatusSuccess(b);
                 story.j.assertLogContains("running new-style loop on two -> 2", b);
-                */
-                story.j.assertBuildStatus(Result.FAILURE, b);
-                story.j.assertLogContains("java.io.NotSerializableException: java.util.LinkedHashMap$Entry", b);
             }
         });
     }
