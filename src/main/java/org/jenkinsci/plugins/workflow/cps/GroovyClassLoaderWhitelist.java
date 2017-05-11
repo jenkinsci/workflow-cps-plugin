@@ -11,7 +11,6 @@ import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
 
 import org.codehaus.groovy.runtime.DefaultGroovyMethods;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
@@ -85,9 +84,11 @@ class GroovyClassLoaderWhitelist extends Whitelist {
         if (permits(method.getDeclaringClass())) { // fine for source-defined methods to take closures
             return true;
         }
-        for (int i = 0; i < args.length; i++) {
-            if (args[i] instanceof CpsClosure && parameterTypes.length > i && parameterTypes[i] == Closure.class) {
-                throw new UnsupportedOperationException("Calling " + method + " on a CPS-transformed closure is not yet supported (JENKINS-26481); encapsulate in a @NonCPS method, or use Java-style loops");
+        if (false) { // TODO be more discriminating
+            for (int i = 0; i < args.length; i++) {
+                if (args[i] instanceof CpsClosure && parameterTypes.length > i && parameterTypes[i] == Closure.class) {
+                    throw new UnsupportedOperationException("Calling " + method + " on a CPS-transformed closure is not yet supported (JENKINS-26481); encapsulate in a @NonCPS method, or use Java-style loops");
+                }
             }
         }
         return false;
