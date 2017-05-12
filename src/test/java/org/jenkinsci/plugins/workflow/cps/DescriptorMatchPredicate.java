@@ -22,9 +22,10 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.workflow.cps.nodes;
+package org.jenkinsci.plugins.workflow.cps;
 
 import com.google.common.base.Predicate;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 

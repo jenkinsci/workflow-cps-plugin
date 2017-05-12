@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.workflow.cps.actions;
 
 import hudson.EnvVars;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
+import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -59,7 +60,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @Nullable EnvVars env) {
         Map<String,Object> sanitizedArguments = sanitizedStepArguments(stepArguments, env);
         for (Object o : sanitizedArguments.values()) {
-            if (o != null && (o.equals(MASKED_VALUE) || o.equals(NotStoredReason.OVERSIZE_VALUE))) {
+            if (o instanceof NotStoredReason)  {
                 isUnmodifiedBySanitization = false;
                 break;
             }
@@ -138,14 +139,60 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             "SHLVL",
             "TERM",
             "USER",
-            "XFILESEARCHPATH"
+            "XFILESEARCHPATH",
+
+            // Windows system variables
+            "ALLUSERSPROFILE",
+            "APPDATA",
+            "CD",
+            "ClientName",
+            "CMDEXTVERSION",
+            "CMDCMDLINE",
+            "CommonProgramFiles",
+            "COMPUTERNAME",
+            "COMSPEC",
+            "DATE",
+            "ERRORLEVEL",
+            "HighestNumaNodeNumber",
+            "HOMEDRIVE",
+            "HOMEPATH",
+            "LOCALAPPDATA",
+            "LOGONSERVER",
+            "NUMBER_OF_PROCESSORS",
+            "OS",
+            "PATHEXT",
+            "PROCESSOR_ARCHITECTURE",
+            "PROCESSOR_ARCHITEW6432",
+            "PROCESSOR_IDENTIFIER",
+            "PROCESSOR_LEVEL",
+            "PROCESSOR_REVISION",
+            "ProgramW6432",
+            "ProgramData",
+            "ProgramFiles",
+            "ProgramFiles (x86)",
+            "PROMPT",
+            "PSModulePath",
+            "Public",
+            "RANDOM",
+            "%SessionName%",
+            "SYSTEMDRIVE",
+            "SYSTEMROOT",
+            "TEMP", "TMP",
+            "TIME",
+            "UserDnsDomain",
+            "USERDOMAIN",
+            "USERDOMAIN_roamingprofile",
+            "USERNAME",
+            "USERPROFILE",
+            "WINDIR"
     ));
 
     /**
-     * Does first-level sanitization of a step's params, returning the Describable arguments map
+     * Does first-level sanitization of a step's params, returning the Describable arguments map,
+     * as from {@link org.jenkinsci.plugins.workflow.steps.StepDescriptor#defineArguments(Step)}
      * @param stepArguments Arguments provided when creating the step
      * @param variables Environment variables to remove
-     * @return
+     * @return Arguments map, with oversized values and values containing bound credentials stripped out.
      */
     @Nonnull
     public static Map<String,Object> sanitizedStepArguments(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars variables) {
@@ -175,7 +222,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     @Nonnull
     @Override
     protected Map<String, Object> getArgumentsInternal() {
-        return (arguments == null)? Collections.EMPTY_MAP : arguments;
+        return arguments == null ? Collections.EMPTY_MAP : arguments;
     }
 
     @Override

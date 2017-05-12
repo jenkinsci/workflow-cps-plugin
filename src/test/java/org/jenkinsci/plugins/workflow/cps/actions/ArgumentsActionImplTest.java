@@ -18,7 +18,7 @@ import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.CpsThread;
-import org.jenkinsci.plugins.workflow.cps.nodes.DescriptorMatchPredicate;
+import org.jenkinsci.plugins.workflow.cps.DescriptorMatchPredicate;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
