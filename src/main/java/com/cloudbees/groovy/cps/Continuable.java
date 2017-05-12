@@ -2,7 +2,6 @@ package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
-import com.cloudbees.groovy.cps.impl.SourceLocation;
 import com.cloudbees.groovy.cps.impl.SuspendBlock;
 import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
@@ -18,6 +17,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.cloudbees.groovy.cps.impl.SourceLocation.UNKNOWN;
+import com.google.common.collect.ImmutableList;
+import groovy.lang.Closure;
+import org.codehaus.groovy.runtime.GroovyCategorySupport;
 
 /**
  * Mutable representation of the program. This is the primary API of the groovy-cps library to the outside.
@@ -25,6 +27,13 @@ import static com.cloudbees.groovy.cps.impl.SourceLocation.UNKNOWN;
  * @author Kohsuke Kawaguchi
  */
 public class Continuable implements Serializable {
+
+    @SuppressWarnings("rawtypes")
+    static final List<Class> categories = ImmutableList.<Class>of(
+        CpsDefaultGroovyMethods.class,
+        CpsDefaultGroovyStaticMethods.class,
+        CpsProcessGroovyMethods.class);
+
     /**
      * When the program resumes with a value (in particular an exception thrown), what environment
      * do we evaluate that in?
@@ -142,22 +151,27 @@ public class Continuable implements Serializable {
      * Resumes this program by either returning the value from {@link Continuable#suspend(Object)} or
      * throwing an exception
      */
-    public Outcome run0(Outcome cn) {
-        Next n = cn.resumeFrom(e,k);
+    public Outcome run0(final Outcome cn) {
+        return GroovyCategorySupport.use(categories, new Closure<Outcome>(null) {
+            @Override
+            public Outcome call() {
+                Next n = cn.resumeFrom(e,k);
 
-        while(n.yield==null) {
-            if (interrupt!=null) {
-                // TODO: correctly reporting a source location requires every block to have the line number
-                n = new Next(new ThrowBlock(UNKNOWN, new ConstantBlock(interrupt), true),n.e,n.k);
-                interrupt = null;
+                while(n.yield==null) {
+                    if (interrupt!=null) {
+                        // TODO: correctly reporting a source location requires every block to have the line number
+                        n = new Next(new ThrowBlock(UNKNOWN, new ConstantBlock(interrupt), true),n.e,n.k);
+                        interrupt = null;
+                    }
+                    n = n.step();
+                }
+
+                e = n.e;
+                k = n.k;
+
+                return n.yield;
             }
-            n = n.step();
-        }
-
-        e = n.e;
-        k = n.k;
-
-        return n.yield;
+        });
     }
 
     /**

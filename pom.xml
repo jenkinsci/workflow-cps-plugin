@@ -4,7 +4,8 @@
   <parent>
     <groupId>com.cloudbees</groupId>
     <artifactId>cloudbees-oss-parent</artifactId>
-    <version>6</version>
+    <version>7</version>
+    <relativePath />
   </parent>
 
   <artifactId>groovy-cps</artifactId>
@@ -14,6 +15,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <groovy.version>2.4.7</groovy.version>
   </properties>
 
   <build>
@@ -54,6 +56,14 @@
           </dependency>
         </dependencies>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.20</version>
+        <configuration>
+          <trimStackTrace>false</trimStackTrace> <!-- SUREFIRE-1226 workaround -->
+        </configuration>
+      </plugin>
     </plugins>
     <extensions>
       <extension>
@@ -81,12 +91,18 @@
     <dependency>
       <groupId>org.codehaus.groovy</groupId>
       <artifactId>groovy</artifactId>
-      <version>1.8.9</version>
+      <version>${groovy.version}</version>
       <!--
         let the user of this library select the right flavor of groovy,
         including groovy vs groovy-all
       -->
       <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.codehaus.groovy</groupId>
+      <artifactId>groovy-test</artifactId>
+      <version>${groovy.version}</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>

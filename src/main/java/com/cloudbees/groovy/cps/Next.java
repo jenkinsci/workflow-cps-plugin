@@ -1,8 +1,10 @@
 package com.cloudbees.groovy.cps;
 
+import groovy.lang.Closure;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import org.codehaus.groovy.runtime.GroovyCategorySupport;
 
 /**
  * Remaining computation to execute. To work around the lack of tail-call optimization.
@@ -53,18 +55,25 @@ public final class Next implements Serializable, Continuation {
         return n;
     }
 
-    public Outcome run(int max) {
-        List<String> functions = new ArrayList<String>();
-        Next n = this;
-        while(n.yield==null) {
-            functions.add(n.f.getClass().getCanonicalName());
-            if (--max == 0) {
-                int len = functions.size();
-                throw new AssertionError("Did not terminate; ran " + len + " steps ending with: " + functions.subList(len - 20, len));
+    /** for testing only */
+    public Outcome run(final int max) {
+        return GroovyCategorySupport.use(Continuable.categories, new Closure<Outcome>(null) {
+            @Override
+            public Outcome call() {
+                int remaining = max;
+                List<String> functions = new ArrayList<String>();
+                Next n = Next.this;
+                while(n.yield==null) {
+                    functions.add(n.f.getClass().getCanonicalName());
+                    if (--remaining == 0) {
+                        int len = functions.size();
+                        throw new AssertionError("Did not terminate; ran " + len + " steps ending with: " + functions.subList(len - 20, len));
+                    }
+                    n = n.step();
+                }
+                return n.yield;
             }
-            n = n.step();
-        }
-        return n.yield;
+        });
     }
 
     /**

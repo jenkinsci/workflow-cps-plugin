@@ -2,7 +2,6 @@ package com.cloudbees.groovy.cps
 
 import com.cloudbees.groovy.cps.impl.ContinuationGroup
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
-import com.cloudbees.groovy.cps.impl.DGMPatcher
 import groovy.transform.NotYetImplemented
 import org.junit.Test
 import org.jvnet.hudson.test.Issue
@@ -465,7 +464,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     /**
      * Testing {@link CpsDefaultGroovyMethods}.
      */
-    @NotYetImplemented // TODO JENKINS-34064
     @Test
     void each() {
         assert evalCPS("""
@@ -667,7 +665,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     public static int add(int a, int b) { return a+b; }
 
-    @NotYetImplemented // TODO JENKINS-34064
     @Test
     void eachArray() {
         assert evalCPS("""

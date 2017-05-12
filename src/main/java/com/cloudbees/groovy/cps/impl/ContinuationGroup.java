@@ -63,40 +63,7 @@ abstract class ContinuationGroup implements Serializable {
         } catch (Throwable t) {
             return throwException(e, t, loc, new ReferenceStackTrace());
         }
-
-/*
-    Because of GROOVY-6263, if we use category, CpsTransformer fails wherever it calls its private method
-    when 'this' is SandboxCpsTransformer. A similar problem will likely happen anywhere we call Groovy code.
-
-    So instead of using category, insert methods into MetaClass, which is what Groovy runtime does
-    for its builtin DefaultGroovyMethods.
-
-    This affects every Groovy code execution in the same JVM, which is too wide, but
-
-
-        return CategorySupport.use(CpsDefaultGroovyMethods.class, new Callable<Next>() {
-            public Next call() {
-                try {
-                    Caller.record(receiver,methodName,args);
-                    // TODO: spread and safe
-                    Object v = e.getInvoker().methodCall(receiver, methodName, args);
-                    // if this was a normal function, the method had just executed synchronously
-                    return k.receive(v);
-                } catch (CpsCallableInvocation inv) {
-                    return inv.invoke(e, loc, k);
-                } catch (Throwable t) {
-                    return throwException(e, t, loc, new ReferenceStackTrace());
-                }
-            }
-        });
-*/
     }
-
-    /* TODO JENKINS-34064 does not yet work in Groovy 2:
-    static {
-        DGMPatcher.init();
-    }
-    */
 
     /**
      * Fix up the stack trace of an exception thrown from synchronous code.
