@@ -26,6 +26,8 @@ package org.jenkinsci.plugins.workflow.cps.actions;
 
 import hudson.EnvVars;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -42,8 +44,9 @@ import static org.jenkinsci.plugins.workflow.actions.ArgumentsAction.NotStoredRe
 import static org.jenkinsci.plugins.workflow.actions.ArgumentsAction.NotStoredReason.OVERSIZE_VALUE;
 
 /**
- * Implements {@link ArgumentsAction} by storing step arguments, with sanitization
+ * Implements {@link ArgumentsAction} by storing step arguments, with sanitization.
  */
+@Restricted(NoExternalUse.class)
 public class ArgumentsActionImpl extends ArgumentsAction {
 
     /** Arguments to the step, for cases where we cannot simply store the step because masking was applied */
@@ -51,17 +54,13 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     private Map<String,Object> arguments;
 
 
-    private boolean isModifiedBySanitization = false;
-
-    public boolean isModifiedBySanitization() {
-        return isModifiedBySanitization;
-    }
+    private boolean isUnmodifiedBySanitization = true;
 
     public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @Nullable EnvVars env) {
         Map<String,Object> sanitizedArguments = sanitizedStepArguments(stepArguments, env);
         for (Object o : sanitizedArguments.values()) {
             if (o != null && (o.equals(MASKED_VALUE) || o.equals(NotStoredReason.OVERSIZE_VALUE))) {
-                isModifiedBySanitization = true;
+                isUnmodifiedBySanitization = false;
                 break;
             }
         }
@@ -96,6 +95,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
                 : true;
     }
 
+    /** Normal environment variables, as opposed to ones that might come from credentials bindings */
     private static final HashSet<String> SAFE_ENVIRONMENT_VARIABLES = new HashSet<String>(Arrays.asList(
             // Pipeline/Jenkins variables in normal builds
             "BRANCH_NAME",
@@ -154,29 +154,17 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         if (variables == null || variables.size() == 0) {
             // No need to sanitize against environment variables
             for (Map.Entry<String,Object> entry : stepArguments.entrySet()) {
-                if (entry.getValue() instanceof CharSequence && ((CharSequence)(entry.getValue())).length() > ArgumentsAction.MAX_STRING_LENGTH) {
-                    output.put(entry.getKey(), OVERSIZE_VALUE);
-                } else {
-                    output.put(entry.getKey(), entry.getValue());
-                }
+                output.put(entry.getKey(), ArgumentsAction.isOversized(entry.getValue()) ? OVERSIZE_VALUE : entry.getValue());
             }
             return output;
         }
 
         for (Map.Entry<String,?> param : stepArguments.entrySet()) {
             Object val = param.getValue();
-            if (val != null && val instanceof String) {
-                String valString = (String)val;
-                if (valString.length() > ArgumentsAction.MAX_STRING_LENGTH) {
-                    output.put(param.getKey(), NotStoredReason.OVERSIZE_VALUE);
-                } else {
-                    boolean isSafe = isStringSafe(valString, variables, SAFE_ENVIRONMENT_VARIABLES);
-                    if (isSafe) {
-                        output.put(param.getKey(), valString);
-                    } else {
-                        output.put(param.getKey(), MASKED_VALUE);
-                    }
-                }
+            if (ArgumentsAction.isOversized(val)) {
+                output.put(param.getKey(), OVERSIZE_VALUE);
+            } else if (val instanceof String && !isStringSafe((String)val, variables, SAFE_ENVIRONMENT_VARIABLES)) {
+                output.put(param.getKey(), MASKED_VALUE);
             } else {
                 output.put(param.getKey(), val);
             }
@@ -191,7 +179,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     }
 
     @Override
-    public boolean isFullArguments() {
-        return isModifiedBySanitization;
+    public boolean isUnmodifiedArguments() {
+        return isUnmodifiedBySanitization;
     }
 }

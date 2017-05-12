@@ -104,12 +104,15 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         return this;
     }
 
-    /** Allows user to disable saving step info, if this imposes too high a performance overhead
-     *   by setting System Property org.jenkinsci.plugins.workflow.cps.DSL.keepStepInfo to 'false'.
-     *  This may be modified at runtime by the user if needed for debugging. */
-    private static boolean isKeepStepInfo() {
-        String prop = System.getProperty(DSL.class.getName()+".keepStepInfo");
-        return (StringUtils.isEmpty(prop)|| Boolean.parseBoolean(prop));
+    private static final String KEEP_STEP_ARGUMENTS_PROPERTYNAME = (DSL.class.getName()+".keepStepArguments");
+
+    private static boolean isKeepStepArguments = StringUtils.isEmpty(System.getProperty(KEEP_STEP_ARGUMENTS_PROPERTYNAME))
+            || Boolean.parseBoolean(System.getProperty(KEEP_STEP_ARGUMENTS_PROPERTYNAME));
+
+    /** Tell us if we should store {@link Step} arguments in an {@link org.jenkinsci.plugins.workflow.actions.ArgumentsAction}
+     *  or simply discard them (if set to false, explicitly) */
+    public static boolean isKeepStepArguments() {
+        return isKeepStepArguments;
     }
 
     /**
@@ -195,7 +198,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             s = d.newInstance(ps.namedArgs);
             try {
                 // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
-                if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepInfo() && !(s instanceof ParallelStep)) {
+                if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepArguments() && !(s instanceof ParallelStep)) {
                     Map<String, Object> actualArgs = ps.namedArgs;
                     if (d.isMetaStep() && ps.namedArgs.get("delegate") instanceof Map) {
                         actualArgs = (Map<String,Object>)ps.namedArgs.get("delegate");
