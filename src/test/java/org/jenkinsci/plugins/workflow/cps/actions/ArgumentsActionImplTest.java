@@ -147,24 +147,27 @@ public class ArgumentsActionImplTest {
         Map<String, Object> arguments = new HashMap<String,Object>();
         arguments.put("message", "I have a secret p4ssw0rd");
 
+        Field maxSizeF = ArgumentsAction.class.getDeclaredField("MAX_RETAINED_LENGTH");
+        maxSizeF.setAccessible(true);
+        int maxSize = maxSizeF.getInt(null);
+
         // Same string, unsanitized
         ArgumentsActionImpl argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars());
-        Assert.assertEquals(false, argumentsActionImpl.isModifiedBySanitization());
+        Assert.assertEquals(true, argumentsActionImpl.isUnmodifiedArguments());
         Assert.assertEquals(arguments.get("message"), argumentsActionImpl.getArgumentValueOrReason("message"));
         Assert.assertEquals(1, argumentsActionImpl.getArguments().size());
         Assert.assertEquals("I have a secret p4ssw0rd", argumentsActionImpl.getArguments().get("message"));
 
         // Test sanitizing arguments now
         argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars(passwordBinding));
-        Assert.assertEquals(true, argumentsActionImpl.isModifiedBySanitization());
+        Assert.assertEquals(false, argumentsActionImpl.isUnmodifiedArguments());
         Assert.assertEquals(ArgumentsActionImpl.NotStoredReason.MASKED_VALUE, argumentsActionImpl.getArgumentValueOrReason("message"));
         Assert.assertEquals(1, argumentsActionImpl.getArguments().size());
         Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, argumentsActionImpl.getArguments().get("message"));
 
         // Mask oversized values
-        int length = ArgumentsAction.MAX_STRING_LENGTH;
         arguments.clear();
-        arguments.put("text", RandomStringUtils.random(length+1));
+        arguments.put("text", RandomStringUtils.random(maxSize+1));
         argumentsActionImpl = new ArgumentsActionImpl(arguments);
         Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, argumentsActionImpl.getArgumentValueOrReason("text"));
     }
