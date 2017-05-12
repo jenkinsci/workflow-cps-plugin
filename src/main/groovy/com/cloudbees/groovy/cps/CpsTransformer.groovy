@@ -103,7 +103,10 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
 
 //        copy(source.ast.methods)?.each { visitMethod(it) }
 //        classNode?.declaredConstructors?.each { visitMethod(it) } // can't transform constructor
-        copy(classNode?.methods)?.each { visitMethod(it) }
+        def methods = classNode?.methods
+        if (methods) {
+            new ArrayList(methods).each { visitMethod(it) }
+        }
 //        classNode?.objectInitializerStatements?.each { it.visit(visitor) }
 //        classNode?.fields?.each { visitor.visitField(it) }
 
@@ -126,11 +129,6 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
         }
     }
 
-    private <T> List<T> copy(List<T> t) {
-        if (t==null)    return t;
-        else            return new ArrayList<T>(t);
-    }
-
     /**
      * Should this method be transformed?
      */
@@ -141,17 +139,8 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
                 !node.isAbstract();
     }
 
-    private boolean hasAnnotation(MethodNode node, Class<? extends Annotation> a) {
+    boolean hasAnnotation(MethodNode node, Class<? extends Annotation> a) {
         node.annotations.find { it.classNode.name == a.name } != null
-    }
-
-    private boolean extendsFromScript(ClassNode c) {
-        while (c!=null) {
-            if (c.name==Script.class.name)
-                return true;
-            c = c.superClass
-        }
-        return false;
     }
 
     /**
