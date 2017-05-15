@@ -83,6 +83,8 @@ import org.jvnet.hudson.annotation_indexer.Index;
 import org.kohsuke.stapler.ClassDescriptor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
 
+import javax.annotation.Nonnull;
+
 /**
  * Scaffolding to experiment with the call into {@link Step}.
  *
@@ -167,6 +169,18 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     }
 
     /**
+     * If the step arguments represent a MetaStep containing a {@link Step}, and the Step is the only argument,
+     * then unwrap it and just return the step arguments -- making the arguments API easier to work with.
+     */
+    protected Map<String, Object> unwrapStepArguments(@Nonnull StepDescriptor descriptor, @Nonnull Map<String, Object> namedArgs) {
+        if (descriptor.isMetaStep() && namedArgs.get("delegate") instanceof Map) {
+            return (Map<String,Object>)(namedArgs.get("delegate"));
+        } else {
+            return namedArgs;
+        }
+    }
+
+    /**
      * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
      */
     protected Object invokeStep(StepDescriptor d, Object args) {
@@ -199,10 +213,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             try {
                 // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
                 if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepArguments() && !(s instanceof ParallelStep)) {
-                    Map<String, Object> actualArgs = ps.namedArgs;
-                    if (d.isMetaStep() && ps.namedArgs.get("delegate") instanceof Map) {
-                        actualArgs = (Map<String,Object>)ps.namedArgs.get("delegate");
-                    }
+                    Map<String, Object> actualArgs = unwrapStepArguments(d, ps.namedArgs);
                     // Get the environment variables to find ones that might be credentials bindings
                     Computer comp = context.get(Computer.class);
                     EnvVars allEnv = new EnvVars(context.get(EnvVars.class));

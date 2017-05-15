@@ -32,6 +32,8 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
 import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
+import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -218,6 +220,37 @@ public class ArgumentsActionImplTest {
         Assert.assertEquals(6, allStepped.size());  // One ArgumentsActionImpl per block or atomic step
 
         testDeserialize(exec);
+    }
+
+    @Test
+    public void testSpecialMetastepCases() throws Exception {
+        // First we test a metastep with a state argument
+        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "meta");
+        job.setDefinition(new CpsFlowDefinition(
+                // Need to do some customization to load me
+                "state(moderate: true, state:[$class: 'Oregon'])"
+        ));
+        WorkflowRun run  = r.buildAndAssertSuccess(job);
+        LinearScanner scan = new LinearScanner();
+        FlowNode node = scan.findFirstMatch(run.getExecution(), new DescriptorMatchPredicate(StateMetaStep.DescriptorImpl.class));
+        Assert.assertNotNull(node);
+        Map<String,Object> args = ArgumentsAction.getArguments(node);
+        Assert.assertEquals(2, args.size());
+        Assert.assertEquals(true, args.get("moderate"));
+        Assert.assertEquals(Oregon.class, args.get("state").getClass());
+
+        // Same metastep but only one arg supplied, shouldn't auto-unwrap the internal step because can take 2 args
+        job = r.jenkins.createProject(WorkflowJob.class, "meta2");
+        job.setDefinition(new CpsFlowDefinition(
+                // Need to do some customization to load me
+                "state(state:[$class: 'Oregon'])"
+        ));
+        run  = r.buildAndAssertSuccess(job);
+        node = scan.findFirstMatch(run.getExecution(), new DescriptorMatchPredicate(StateMetaStep.DescriptorImpl.class));
+        Assert.assertNotNull(node);
+        args = ArgumentsAction.getArguments(node);
+        Assert.assertEquals(1, args.size());
+        Assert.assertEquals(Oregon.class, args.get("state").getClass());
     }
 
     @Test
