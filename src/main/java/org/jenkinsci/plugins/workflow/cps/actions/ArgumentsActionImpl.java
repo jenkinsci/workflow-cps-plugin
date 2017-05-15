@@ -182,7 +182,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             "UserDnsDomain",
             "USERDOMAIN",
             "USERDOMAIN_roamingprofile",
-            "USERNAME",
+//            "USERNAME",  // Not whitelisted because this is a likely variable name for credentials binding
             "USERPROFILE",
             "WINDIR"
     ));
