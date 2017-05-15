@@ -702,15 +702,34 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     void overloadedMethods() {
         assert evalCPS('''
-            public String bar(List<String> l) {
+            public String bar(List l) {
                 return bar((Iterable)l)
             }
 
-            public String bar(Iterable<String> l) {
+            public String bar(Iterable l) {
                 return "iterable"
             }
 
-            List<String> s = ["a", "b"]
+            List s = ["a", "b"]
+
+            return bar(s)
+        ''') == "iterable"
+    }
+
+    @Issue("JENKINS-44280")
+    @NotYetImplemented
+    @Test
+    void overloadedStaticMethods() {
+        assert evalCPS('''
+            public static String bar(List l) {
+                return bar((Iterable)l)
+            }
+
+            public static String bar(Iterable l) {
+                return "iterable"
+            }
+
+            List s = ["a", "b"]
 
             return bar(s)
         ''') == "iterable"
