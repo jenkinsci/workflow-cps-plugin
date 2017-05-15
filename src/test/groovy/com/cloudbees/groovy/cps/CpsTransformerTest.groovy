@@ -697,6 +697,25 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         ''') == true;
     }
 
+    @Issue("JENKINS-44280")
+    @NotYetImplemented
+    @Test
+    void overloadedMethods() {
+        assert evalCPS('''
+            public String bar(List<String> l) {
+                return bar((Iterable)l)
+            }
+
+            public String bar(Iterable<String> l) {
+                return "iterable"
+            }
+
+            List<String> s = ["a", "b"]
+
+            return bar(s)
+        ''') == "iterable"
+    }
+
     public static class Base {
         @Override
         String toString() {
