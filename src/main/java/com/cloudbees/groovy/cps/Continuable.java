@@ -18,6 +18,7 @@ import java.util.List;
 
 import static com.cloudbees.groovy.cps.impl.SourceLocation.UNKNOWN;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import groovy.lang.Closure;
 import org.codehaus.groovy.runtime.GroovyCategorySupport;
 
@@ -29,7 +30,7 @@ import org.codehaus.groovy.runtime.GroovyCategorySupport;
 public class Continuable implements Serializable {
 
     @SuppressWarnings("rawtypes")
-    static final List<Class> categories = ImmutableList.<Class>of(
+    public static final List<Class> categories = ImmutableList.<Class>of(
         CpsDefaultGroovyMethods.class,
         CpsDefaultGroovyStaticMethods.class,
         CpsProcessGroovyMethods.class);
@@ -152,6 +153,10 @@ public class Continuable implements Serializable {
      * throwing an exception
      */
     public Outcome run0(final Outcome cn) {
+        return run0(cn, categories);
+    }
+
+    public Outcome run0(final Outcome cn, List<Class> categories) {
         return GroovyCategorySupport.use(categories, new Closure<Outcome>(null) {
             @Override
             public Outcome call() {
