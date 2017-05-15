@@ -24,17 +24,10 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import com.cloudbees.groovy.cps.Builder;
 import com.cloudbees.groovy.cps.Continuable;
-import com.cloudbees.groovy.cps.CpsDefaultGroovyMethods;
-import com.cloudbees.groovy.cps.MethodLocation;
 import com.cloudbees.groovy.cps.Outcome;
-import com.cloudbees.groovy.cps.impl.Caller;
-import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
-import com.cloudbees.groovy.cps.impl.CpsFunction;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.SettableFuture;
-import groovy.lang.Closure;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
@@ -43,16 +36,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
-import org.codehaus.groovy.runtime.DefaultGroovyMethods;
-import org.codehaus.groovy.runtime.GroovyCategorySupport;
-import org.codehaus.groovy.runtime.InvokerHelper;
 import org.jenkinsci.plugins.workflow.cps.persistence.IteratorHack;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
@@ -158,26 +147,11 @@ public final class CpsThread implements Serializable {
         this.step = step;
     }
 
-    /** TODO pending full coverage in {@link CpsDefaultGroovyMethods} */
-    public static class CpsDefaultGroovyMethodsExt {
-        private static MethodLocation loc(String methodName) {
-            return new MethodLocation(CpsDefaultGroovyMethodsExt.class, methodName);
-        }
-        public static <T> List<T> each(List<T> self, Closure<?> closure) {
-            if (!Caller.isAsynchronous(self, "each", closure) &&
-                    !Caller.isAsynchronous(CpsDefaultGroovyMethodsExt.class, "each", self, closure)) {
-                return DefaultGroovyMethods.each(self, closure);
-            }
-            Builder b = new Builder(loc("each"));
-            CpsFunction f = new CpsFunction(Arrays.asList("self", "closure"), b.block(
-                    b.staticCall(-1, CpsDefaultGroovyMethods.class, "each",
-                            b.staticCall(-1, InvokerHelper.class, "asIterator",
-                                    b.localVariable("self")),
-                            b.localVariable("closure")),
-                    b.return_(b.localVariable("self"))));
-            throw new CpsCallableInvocation(f, null, self, closure);
-        }
-        private CpsDefaultGroovyMethodsExt() {}
+    private static final List<Class> categories;
+    static {
+        categories = new ArrayList<>();
+        categories.addAll(Continuable.categories);
+        categories.add(IteratorHack.class);
     }
 
     /**
@@ -197,11 +171,7 @@ public final class CpsThread implements Serializable {
             LOGGER.log(FINE, "runNextChunk on {0}", resumeValue);
             final Outcome o = resumeValue;
             resumeValue = null;
-            outcome = GroovyCategorySupport.use(Arrays.<Class>asList(CpsDefaultGroovyMethods.class, CpsDefaultGroovyMethodsExt.class, IteratorHack.class), new Closure<Outcome>(null) {
-                @Override public Outcome call() {
-                    return program.run0(o);
-                }
-            });
+            outcome = program.run0(o, categories);
             if (outcome.getAbnormal() != null) {
                 LOGGER.log(FINE, "ran and produced error", outcome.getAbnormal());
             } else {

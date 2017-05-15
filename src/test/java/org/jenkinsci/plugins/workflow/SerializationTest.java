@@ -247,6 +247,8 @@ public class SerializationTest extends SingleJobTestBase {
     @Test public void eachClosure() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
+                ScriptApproval.get().approveSignature("staticMethod com.cloudbees.groovy.cps.CpsDefaultGroovyMethods each java.lang.Iterable groovy.lang.Closure"); // TODO move to generic-whitelist
+                ScriptApproval.get().approveSignature("method java.lang.Iterable iterator"); // TODO ditto
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(
                     "node {\n" +
