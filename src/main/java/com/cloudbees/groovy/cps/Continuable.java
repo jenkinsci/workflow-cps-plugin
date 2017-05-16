@@ -140,22 +140,25 @@ public class Continuable implements Serializable {
      * @throws InvocationTargetException
      *      if the program threw an exception that it didn't handle by itself.
      */
+    @Deprecated
     public Object run(Object arg) throws InvocationTargetException {
         return run0(new Outcome(arg,null)).wrapReplay();
     }
 
+    @Deprecated
     public Object runByThrow(Throwable arg) throws InvocationTargetException {
         return run0(new Outcome(null,arg)).wrapReplay();
+    }
+
+    @Deprecated
+    public Outcome run0(final Outcome cn) {
+        return run0(cn, categories);
     }
 
     /**
      * Resumes this program by either returning the value from {@link Continuable#suspend(Object)} or
      * throwing an exception
      */
-    public Outcome run0(final Outcome cn) {
-        return run0(cn, categories);
-    }
-
     public Outcome run0(final Outcome cn, List<Class> categories) {
         return GroovyCategorySupport.use(categories, new Closure<Outcome>(null) {
             @Override
