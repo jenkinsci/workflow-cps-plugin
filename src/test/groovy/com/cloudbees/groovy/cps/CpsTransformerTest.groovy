@@ -634,15 +634,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     public static int add(int a, int b) { return a+b; }
 
-    @Test
-    void eachArray() {
-        assert evalCPS("""
-            def x = 10;
-            [1, 2, 3].each { y -> x+=y; }
-            return x;
-        """) == 16;
-    }
-
     @Issue('https://github.com/cloudbees/groovy-cps/issues/26')
     @Test
     void interfaceDeclaration() {

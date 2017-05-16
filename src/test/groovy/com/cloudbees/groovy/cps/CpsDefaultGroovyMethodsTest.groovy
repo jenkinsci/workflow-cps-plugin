@@ -23,6 +23,9 @@ class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
         // Third element is expected result
         return [
             ["each", "def x = 100; (0..10).each { y -> x+=y }; return x", 155] as Object[],
+            ["eachArray", "def x = 10;\n" +
+                "[1, 2, 3].each { y -> x+=y; }\n" +
+                "return x;", 16] as Object[],
             ["eachMapKV", "def x = 100\n" +
                 "def m = [a: 1, b: 2, c: 3];\n" +
                 "m.each { k, v -> x += v }\n" +
@@ -82,17 +85,6 @@ class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
 
     }
 
-    private String codeAsMethod(String contents) {
-        return """
-    @NonCPS
-    def someMethod() {
-      ${contents}
-    }
-
-    someMethod()
-"""
-    }
-
     @Test
     void cps() {
         assert evalCPS(testCode) == testResult
@@ -100,7 +92,13 @@ class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
 
     @Test
     void sync() {
-        assert evalCPS(codeAsMethod(testCode)) == testResult
+        assert evalCPS("""
+@NonCPS
+def someMethod() {
+  ${contents}
+}
+someMethod()
+""") == testResult
     }
 
 }
