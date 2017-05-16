@@ -168,7 +168,7 @@
         <dependency>
             <groupId>com.cloudbees</groupId>
             <artifactId>groovy-cps</artifactId>
-            <version>1.13-20170515.220420-1</version> <!-- TODO https://github.com/cloudbees/groovy-cps/pull/54 -->
+            <version>1.13-20170516.141121-2</version> <!-- TODO https://github.com/cloudbees/groovy-cps/pull/54 -->
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.ui</groupId>
