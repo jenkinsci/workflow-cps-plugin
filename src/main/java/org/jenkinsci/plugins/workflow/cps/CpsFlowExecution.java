@@ -422,7 +422,7 @@ public class CpsFlowExecution extends FlowExecution {
     /**
      * Returns a groovy compiler used to load the script.
      *
-     * @see "doc/classloader.md"
+     * see "doc/classloader.md"
      * @see GroovyShell#getClassLoader()
      */
     public GroovyShell getShell() {
@@ -432,7 +432,7 @@ public class CpsFlowExecution extends FlowExecution {
     /**
      * Returns a groovy compiler used to load the trusted script.
      *
-     * @see "doc/classloader.md"
+     * see "doc/classloader.md"
      */
     public GroovyShell getTrustedShell() {
         return trusted;
