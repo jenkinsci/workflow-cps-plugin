@@ -31,6 +31,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import groovy.lang.GroovyShell;
 import groovy.lang.MetaClass;
 import hudson.AbortException;
+import hudson.ExtensionList;
 import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.TaskListener;
@@ -56,6 +57,7 @@ import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionListener;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -379,6 +381,53 @@ public class CpsFlowExecutionTest {
     @TestExtension("interruptProgramLoad") public static class BadThingPickleFactory extends SingleTypedPickleFactory<BadThing> {
         @Override protected Pickle pickle(BadThing object) {
             return new BadThingPickle();
+        }
+    }
+
+    @Test
+    public void flowExecutionListener() throws Exception {
+        story.addStep(new Statement() {
+                          @Override
+                          public void evaluate() throws Throwable {
+                              WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                              p.setDefinition(new CpsFlowDefinition("echo 'Running for listener'; semaphore 'wait'", true));
+                              WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+                              SemaphoreStep.waitForStart("wait/1", b);
+                          }
+                      });
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+                WorkflowRun b = p.getLastBuild();
+                assertTrue(b.isBuilding());
+                SemaphoreStep.success("wait/1", null);
+
+                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
+                story.j.assertLogContains("Running for listener", b);
+
+                ExecListener listener = ExtensionList.lookup(FlowExecutionListener.class).get(ExecListener.class);
+                assertNotNull(listener);
+                assertEquals(2, listener.started);
+                assertEquals(1, listener.finished);
+            }
+        });
+
+    }
+
+    @TestExtension
+    public static class ExecListener extends FlowExecutionListener {
+        public int started;
+        public int finished;
+
+        @Override
+        public void onRunning(FlowExecution execution) {
+            started++;
+        }
+
+        @Override
+        public void onCompleted(FlowExecution execution) {
+            finished++;
         }
     }
 
