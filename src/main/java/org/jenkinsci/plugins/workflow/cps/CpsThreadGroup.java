@@ -32,6 +32,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
+import hudson.ExtensionList;
 import hudson.Util;
 import hudson.model.Result;
 import jenkins.model.Jenkins;
@@ -233,9 +234,6 @@ public final class CpsThreadGroup implements Serializable {
                 public Void call() throws Exception {
                     Jenkins j = Jenkins.getInstance();
                     if (paused.get() || j == null || j.isQuietingDown()) {
-                        for (FlowExecutionListener listener : FlowExecutionListener.all()) {
-                            listener.onPaused(execution);
-                        }
                         // by doing the pause check inside, we make sure that scheduleRun() returns a
                         // future that waits for any previously scheduled tasks to be completed.
                         saveProgramIfPossible();
@@ -243,7 +241,7 @@ public final class CpsThreadGroup implements Serializable {
                         return null;
                     }
 
-                    for (FlowExecutionListener listener : FlowExecutionListener.all()) {
+                    for (FlowExecutionListener listener : ExtensionList.lookup(FlowExecutionListener.class)) {
                         listener.onRunning(execution);
                     }
 
@@ -370,7 +368,7 @@ public final class CpsThreadGroup implements Serializable {
             saveProgramIfPossible();
         }
         if (ending) {
-            for (FlowExecutionListener listener : FlowExecutionListener.all()) {
+            for (FlowExecutionListener listener : ExtensionList.lookup(FlowExecutionListener.class)) {
                 listener.onCompleted(execution);
             }
 
