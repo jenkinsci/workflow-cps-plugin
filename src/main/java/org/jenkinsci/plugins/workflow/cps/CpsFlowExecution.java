@@ -489,6 +489,7 @@ public class CpsFlowExecution extends FlowExecution {
         g.register(s);
         final SettableFuture<CpsThreadGroup> f = SettableFuture.create();
         programPromise = f;
+
         g.runner.submit(new Runnable() {
             @Override
             public void run() {

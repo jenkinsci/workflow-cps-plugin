@@ -37,6 +37,7 @@ import hudson.model.Result;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionListener;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverWriter;
@@ -232,11 +233,18 @@ public final class CpsThreadGroup implements Serializable {
                 public Void call() throws Exception {
                     Jenkins j = Jenkins.getInstance();
                     if (paused.get() || j == null || j.isQuietingDown()) {
+                        for (FlowExecutionListener listener : FlowExecutionListener.all()) {
+                            listener.onPaused(execution);
+                        }
                         // by doing the pause check inside, we make sure that scheduleRun() returns a
                         // future that waits for any previously scheduled tasks to be completed.
                         saveProgramIfPossible();
                         f.set(null);
                         return null;
+                    }
+
+                    for (FlowExecutionListener listener : FlowExecutionListener.all()) {
+                        listener.onRunning(execution);
                     }
 
                     boolean stillRunnable = run();
@@ -362,6 +370,10 @@ public final class CpsThreadGroup implements Serializable {
             saveProgramIfPossible();
         }
         if (ending) {
+            for (FlowExecutionListener listener : FlowExecutionListener.all()) {
+                listener.onCompleted(execution);
+            }
+
             execution.cleanUpHeap();
             if (scripts != null) {
                 scripts.clear();
