@@ -95,7 +95,7 @@ class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
         assert evalCPS("""
 @NonCPS
 def someMethod() {
-  ${contents}
+  ${testCode}
 }
 someMethod()
 """) == testResult
