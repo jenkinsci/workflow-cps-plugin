@@ -1,6 +1,5 @@
 package com.cloudbees.groovy.cps
 
-import com.cloudbees.groovy.cps.impl.ContinuationGroup
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import groovy.transform.NotYetImplemented
 import org.junit.Test
@@ -461,36 +460,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         assert evalCPS("def x=50; x/=5; return x;") == 10;
     }
 
-    /**
-     * Testing {@link CpsDefaultGroovyMethods}.
-     */
-    @Test
-    void each() {
-        assert evalCPS("""
-    def x = 0;
-    (0..10).each { y -> x+=y; }
-    return x;
-""") == 55;
-    }
-
-    /**
-     * Testing {@link CpsDefaultGroovyMethods} to ensure it doesn't kick in incorrectly
-     * while processing synchronous code
-     */
-    @Test
-    void syncEach() {
-        assert evalCPS("""
-    @NonCPS
-    def sum() {
-      def x = 0;
-      (0..10).each { y -> x+=y; }
-      return x;
-    }
-
-    sum()
-""") == 55;
-    }
-
     @Test
     void instanceOf() {
         assert evalCPS("null instanceof String")==false;
@@ -664,15 +633,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     }
 
     public static int add(int a, int b) { return a+b; }
-
-    @Test
-    void eachArray() {
-        assert evalCPS("""
-            def x = 0;
-            [1, 2, 3].each { y -> x+=y; }
-            return x;
-        """) == 6;
-    }
 
     @Issue('https://github.com/cloudbees/groovy-cps/issues/26')
     @Test
