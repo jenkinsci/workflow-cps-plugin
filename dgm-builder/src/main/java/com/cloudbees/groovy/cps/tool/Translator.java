@@ -62,6 +62,7 @@ import com.sun.tools.javac.code.Types.DefaultSymbolVisitor;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
+import groovy.lang.Closure;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
@@ -90,20 +91,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import javax.annotation.Generated;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 
 /**
- * Generates {@code CpsDefaultGroovyMethods} from the source code of {@code DefaultGroovyMethods}.
- *
- * @author Kohsuke Kawaguchi
+ * Generates, for example, {@code CpsDefaultGroovyMethods} from the source code of {@code DefaultGroovyMethods}.
  */
 @SuppressWarnings("Since15")
 public class Translator {
 
-    public final Types types;
-    public final Elements elements;
-    public final Trees trees;
-    public final JavacTask javac;
+    private final Types types;
+    private final Elements elements;
+    private final Trees trees;
+    private final JavacTask javac;
 
     private final JCodeModel codeModel = new JCodeModel();
 
@@ -113,6 +113,8 @@ public class Translator {
     private final JClass $CpsCallableInvocation;
     private final JClass $Builder;
     private final JClass $CatchExpression;
+    private final DeclaredType closureType;
+
 
     /**
      * Parsed source files.
@@ -134,6 +136,7 @@ public class Translator {
         trees = Trees.instance(javac);
         elements = javac.getElements();
         types = javac.getTypes();
+        closureType = types.getDeclaredType(elements.getTypeElement(Closure.class.getName()));
 
         this.parsed = javac.parse();
         javac.analyze();
@@ -142,7 +145,7 @@ public class Translator {
     /**
      * Transforms a single class.
      */
-    public void translate(String fqcn, String outfqcn, Predicate<ExecutableElement> methodSelector, Predicate<ExecutableElement> supportedSelector, String sourceJarName) throws JClassAlreadyExistsException {
+    public void translate(String fqcn, String outfqcn, Predicate<ExecutableElement> supportedSelector, String sourceJarName) throws JClassAlreadyExistsException {
         // TODO avoid calling _class until we have confirmed we are selecting at least one method
         final JDefinedClass $output = codeModel._class(outfqcn);
         $output.annotate(Generated.class).param("value", Translator.class.getName()).param("date", new Date().toString()).param("comments", "based on " + sourceJarName);
@@ -151,13 +154,24 @@ public class Translator {
 
         ClassSymbol dgm = (ClassSymbol) elements.getTypeElement(fqcn);
         dgm.accept(new ElementScanner7<Void,Void>() {
+            @Override
             public Void visitExecutable(ExecutableElement e, Void __) {
-                if (methodSelector.test(e)) {
-                    try {
-                        translateMethod(dgmCut, e, $output, fqcn, supportedSelector.test(e));
-                    } catch (Exception x) {
-                        throw new RuntimeException("Unable to transform "+fqcn+"."+e, x);
-                    }
+                if (e.getKind() != ElementKind.METHOD) {
+                    return null; // Only interested here in methods; not currently handling nested classes.
+                }
+                if (!e.getModifiers().contains(Modifier.STATIC)) {
+                    return null; // Top-level invocations can only be public static methods. But some private/protected static helper methods need translation, too.
+                }
+                if (!e.getParameters().subList(1, e.getParameters().size()).stream().anyMatch(p -> types.isAssignable(p.asType(), closureType))) {
+                    return null; // Do not translate methods not taking Closure as an argument (ignore receivers).
+                }
+                if (e.getAnnotation(Deprecated.class) != null) {
+                    return null; // Ran into problems resolving overloads from these methods. TODO might be obsolete with new overload delegation system.
+                }
+                try {
+                    translateMethod(dgmCut, e, $output, fqcn, supportedSelector.test(e));
+                } catch (Exception x) {
+                    throw new RuntimeException("Unable to transform "+fqcn+"."+e, x);
                 }
                 return null;
             }
@@ -235,17 +249,17 @@ public class Translator {
             /*
                 If the call to this method happen outside CPS code, execute normally via DefaultGroovyMethods
              */
-            delegating.body()._if(JOp.cand(
-                    JOp.not($Caller.staticInvoke("isAsynchronous").tap(inv -> {
-                        inv.arg(delegatingParams.get(0));
-                        inv.arg(methodName);
-                        for (int i = 1; i < delegatingParams.size(); i++)
-                            inv.arg(delegatingParams.get(i));
-                    })),
-                    JOp.not($Caller.staticInvoke("isAsynchronous")
-                            .arg($output.dotclass())
-                            .arg(methodName)
-                            .args(params))
+                delegating.body()._if(JOp.cand(
+                        JOp.not($Caller.staticInvoke("isAsynchronous").tap(inv -> {
+                            inv.arg(delegatingParams.get(0));
+                            inv.arg(methodName);
+                            for (int i = 1; i < delegatingParams.size(); i++)
+                                inv.arg(delegatingParams.get(i));
+                        })),
+                        JOp.not($Caller.staticInvoke("isAsynchronous")
+                                .arg($output.dotclass())
+                                .arg(methodName)
+                                .args(params))
             ))._then().tap(blk -> {
                 JClass $WhateverGroovyMethods  = codeModel.ref(fqcn);
                 JInvocation forward = $WhateverGroovyMethods.staticInvoke(methodName).args(delegatingParams);
