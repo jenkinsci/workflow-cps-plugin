@@ -24,7 +24,7 @@ class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
         return [
             ["each", "def x = 100; (0..10).each { y -> x+=y }; return x", 155] as Object[],
             ["eachArray", "def x = 10;\n" +
-                "[1, 2, 3].each { y -> x+=y; }\n" +
+                "([1, 2, 3] as Integer[]).each { y -> x+=y; }\n" +
                 "return x;", 16] as Object[],
             ["eachMapKV", "def x = 100\n" +
                 "def m = [a: 1, b: 2, c: 3];\n" +
@@ -77,8 +77,21 @@ class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
             ["every", "return [0, 1, 2].every { i -> i < 3 }", true] as Object[],
             ["everyMapKV", "return [a: 0, b: 1, c: 2].every { k, v -> v < 3 }", true] as Object[],
             ["everyMapEntry", "return [a: 0, b: 1, c: 2].every { e -> e.getValue() < 3 }", true] as Object[],
-            ["everyFalse", "return [0, 1, 2].every { i -> i < 2 }", false] as Object[]
-
+            ["everyFalse", "return [0, 1, 2].every { i -> i < 2 }", false] as Object[],
+            ["collectEntriesArray", "return ([1, 2, 3] as Integer[]).collectEntries { i -> [(i): i * 2] }", [1: 2, 2: 4, 3: 6]] as Object[],
+            ["collectEntriesArrayExistingMap", "return ([2, 3] as Integer[]).collectEntries([1: 2]) { i -> [(i): i * 2] }", [1: 2, 2: 4, 3: 6]] as Object[],
+            ["collectEntriesList", "return [1, 2, 3].collectEntries { i -> [(i): i * 2] }", [1: 2, 2: 4, 3: 6]] as Object[],
+            ["collectEntriesListExistingMap", "return [2, 3].collectEntries([1: 2]) { i -> [(i): i * 2] }", [1: 2, 2: 4, 3: 6]] as Object[],
+            ["collectMany", "(0..5).collectMany { [it, 2*it ]}", [0,0,1,2,2,4,3,6,4,8,5,10]] as Object[],
+            ["collectManyExistingList", "(1..5).collectMany([0,0]) { [it, 2*it ]}", [0,0,1,2,2,4,3,6,4,8,5,10]] as Object[],
+            ["collectManyArray", "([0, 1, 2, 3, 4, 5] as Integer[]).collectMany { [it, 2*it ]}", [0,0,1,2,2,4,3,6,4,8,5,10]] as Object[],
+            ["collectManyMapKV", "[a:0,b:1,c:2].collectMany { k,v -> [v, 2*v ]}", [0,0,1,2,2,4]] as Object[],
+            ["collectManyMapKVExistingList", "[b:1,c:2].collectMany([0,0]) { k,v -> [v, 2*v ]}", [0,0,1,2,2,4]] as Object[],
+            ["collectManyMapEntry", "[a:0,b:1,c:2].collectMany { e -> [e.getValue(), 2*e.getValue() ]}", [0,0,1,2,2,4]] as Object[],
+            ["collectManyMapEntryExistingList", "[b:1,c:2].collectMany([0,0]) { e -> [e.getValue(), 2*e.getValue() ]}", [0,0,1,2,2,4]] as Object[],
+            ["collectNested", "[[0,1,2],[3,4]].collectNested { i -> i * 2 }", [[0,2,4],[6,8]]] as Object[],
+            ["collectNestedExistingList", "[[0,1,2],[3,4]].collectNested(['test']) { i -> i * 2 }", ['test', [0,2,4],[6,8]]] as Object[],
+            ["combinations", "[[2, 3],[4, 5, 6]].combinations { x, y -> x*y }", [8, 12, 10, 15, 12, 18]] as Object[],
 /*
             // Waiting for StringGroovyMethods to be added to transformer
             ["eachLine", 'def s = """a\n' +
