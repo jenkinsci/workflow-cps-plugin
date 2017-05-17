@@ -49,6 +49,7 @@ import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 import com.thoughtworks.xstream.mapper.Mapper;
 import groovy.lang.GroovyShell;
+import hudson.ExtensionList;
 import hudson.model.Action;
 import hudson.model.Result;
 import hudson.util.Iterators;
@@ -1176,8 +1177,21 @@ public class CpsFlowExecution extends FlowExecution {
         return heads.firstEntry().getValue();
     }
 
-    void notifyListeners(List<FlowNode> nodes, boolean synchronous) {
+    List<GraphListener> getListenersToRun() {
+        List<GraphListener> l = new ArrayList<>();
+
         if (listeners != null) {
+            l.addAll(listeners);
+        }
+        l.addAll(ExtensionList.lookup(GraphListener.class));
+
+        return l;
+    }
+
+    void notifyListeners(List<FlowNode> nodes, boolean synchronous) {
+        List<GraphListener> toRun = getListenersToRun();
+
+        if (!toRun.isEmpty()) {
             Saveable s = Saveable.NOOP;
             try {
                 Queue.Executable exec = owner.getExecutable();
@@ -1190,7 +1204,7 @@ public class CpsFlowExecution extends FlowExecution {
             BulkChange bc = new BulkChange(s);
             try {
                 for (FlowNode node : nodes) {
-                    for (GraphListener listener : listeners) {
+                    for (GraphListener listener : toRun) {
                         if (listener instanceof GraphListener.Synchronous == synchronous) {
                             listener.onNewHead(node);
                         }
