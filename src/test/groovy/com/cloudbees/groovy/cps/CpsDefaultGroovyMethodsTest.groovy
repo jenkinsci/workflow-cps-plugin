@@ -70,7 +70,15 @@ class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
                 "return m.collectEntries([a: 2]) { k, v -> [(k): v * 2] }", [a: 2, b: 4, c: 6]] as Object[],
             ["collectEntriesIntoExistingMapEntry", "def m = [b: 2, c: 3]\n" +
                 "return m.collectEntries([a: 2]) { e -> [(e.getKey()): e.getValue() * 2] }", [a: 2, b: 4, c: 6]] as Object[],
-            ["any", "return [0, 1, 2].any { i -> i == 1 }", true] as Object[]
+            ["any", "return [0, 1, 2].any { i -> i == 1 }", true] as Object[],
+            ["anyMapKV", "return [a: 0, b: 1, c: 2].any { k, v -> v == 1 }", true] as Object[],
+            ["anyMapEntry", "return [a: 0, b: 1, c: 2].any { e -> e.getValue() == 1 }", true] as Object[],
+            ["anyFalse", "return [0, 1, 2].any { i -> i > 2 }", false] as Object[],
+            ["every", "return [0, 1, 2].every { i -> i < 3 }", true] as Object[],
+            ["everyMapKV", "return [a: 0, b: 1, c: 2].every { k, v -> v < 3 }", true] as Object[],
+            ["everyMapEntry", "return [a: 0, b: 1, c: 2].every { e -> e.getValue() < 3 }", true] as Object[],
+            ["everyFalse", "return [0, 1, 2].every { i -> i < 2 }", false] as Object[]
+
 /*
             // Waiting for StringGroovyMethods to be added to transformer
             ["eachLine", 'def s = """a\n' +
