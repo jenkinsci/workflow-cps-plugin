@@ -16,7 +16,7 @@ class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
         this.testResult = testResult
     }
 
-    @Parameterized.Parameters(name="Name: {0}")
+    @Parameterized.Parameters(name="{0}")
     public static Iterable<Object[]> generateParameters() {
         // First element is the name of the test
         // Second element is the code to eval
