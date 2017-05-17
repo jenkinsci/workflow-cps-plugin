@@ -1,137 +1,41 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
+    <modelVersion>4.0.0</modelVersion>
 
-  <parent>
-    <groupId>com.cloudbees</groupId>
-    <artifactId>cloudbees-oss-parent</artifactId>
-    <version>7</version>
-    <relativePath />
-  </parent>
+    <parent>
+        <groupId>com.cloudbees</groupId>
+        <artifactId>cloudbees-oss-parent</artifactId>
+        <version>7</version>
+        <relativePath />
+    </parent>
 
-  <artifactId>groovy-cps</artifactId>
-  <version>1.13-SNAPSHOT</version>
+    <artifactId>groovy-cps-parent</artifactId>
+    <version>1.13-SNAPSHOT</version>
+    <packaging>pom</packaging>
 
-  <name>Groovy CPS Execution</name>
+    <name>Groovy CPS Execution Parent</name>
 
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <groovy.version>2.4.7</groovy.version>
-  </properties>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <groovy.version>2.4.7</groovy.version>
+    </properties>
 
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-site-plugin</artifactId>
-        <dependencies>
-          <dependency>
-            <groupId>org.kohsuke</groupId>
-            <artifactId>doxia-module-markdown</artifactId>
-            <version>1.0</version>
-          </dependency>
-        </dependencies>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.gmavenplus</groupId>
-        <artifactId>gmavenplus-plugin</artifactId>
-        <version>1.5</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>generateStubs</goal>
-              <goal>compile</goal>
-              <goal>testGenerateStubs</goal>
-              <goal>testCompile</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.20</version>
-        <configuration>
-          <trimStackTrace>false</trimStackTrace> <!-- SUREFIRE-1226 workaround -->
-        </configuration>
-      </plugin>
-    </plugins>
-    <extensions>
-      <extension>
-        <groupId>org.kathrynhuxtable.maven.wagon</groupId>
-        <artifactId>wagon-gitsite</artifactId>
-        <version>0.3.1</version>
-      </extension>
-    </extensions>
-  </build>
+    <scm>
+        <connection>scm:git:git@github.com/cloudbees/groovy-cps.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/cloudbees/groovy-cps.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
 
-  <dependencies>
-    <dependency>
-      <groupId>org.kohsuke</groupId>
-      <artifactId>groovy-sandbox</artifactId>
-      <version>1.11</version>
-      <optional>true</optional>
-    </dependency>
-    <dependency>
-      <groupId>org.kohsuke</groupId>
-      <artifactId>groovy-sandbox</artifactId>
-      <version>1.11</version>
-      <classifier>tests</classifier>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.codehaus.groovy</groupId>
-      <artifactId>groovy</artifactId>
-      <version>${groovy.version}</version>
-      <!--
-        let the user of this library select the right flavor of groovy,
-        including groovy vs groovy-all
-      -->
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.codehaus.groovy</groupId>
-      <artifactId>groovy-test</artifactId>
-      <version>${groovy.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>11.0.1</version>
-    </dependency>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.11</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jenkins-ci</groupId>
-      <artifactId>test-annotations</artifactId>
-      <version>1.2</version>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
 
-  <scm>
-    <connection>scm:git:git@github.com/cloudbees/${project.artifactId}.git</connection>
-    <developerConnection>scm:git:ssh://git@github.com/cloudbees/${project.artifactId}.git</developerConnection>
-    <tag>HEAD</tag>
-  </scm>
+    <modules>
+        <module>dgm-builder</module>
+        <module>lib</module>
+    </modules>
 
-  <reporting>
-    <plugins>
-      <plugin>
-        <artifactId>maven-javadoc-plugin</artifactId>
-      </plugin>
-    </plugins>
-  </reporting>
-
-  <licenses>
-    <license>
-      <name>The Apache Software License, Version 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
 </project>
