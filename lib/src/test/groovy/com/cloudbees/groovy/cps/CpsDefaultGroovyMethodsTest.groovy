@@ -307,7 +307,7 @@ class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
 
             // .unique
             ["uniqueList", "[1, 2, -2, 3].unique { i -> i * i }", [1, 2, 3]],
-            ["uniqueSet", "([1, 2, -2, 3] as HashSet).unique { i -> i * i }", [1, 2, 3] as HashSet],
+            ["uniqueSet", "([1, 2, -2, 3] as HashSet).unique { i -> i * i }.collect { it.abs() } as HashSet", [1, 2, 3] as HashSet],
 
             // TODO: use?
 
@@ -321,7 +321,7 @@ class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
 
         assertEquals("Duplicate test names", [], rawTests.countBy { it[0] }.grep { it.value > 1}.collect { it.key })
 
-        return rawTests.collect { it as Object[] }
+        return rawTests.collect { it.toArray() }
     }
 
     @Test
