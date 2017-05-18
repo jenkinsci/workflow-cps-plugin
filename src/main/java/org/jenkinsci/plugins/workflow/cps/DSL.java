@@ -173,11 +173,21 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * then unwrap it and just return the step arguments -- making the arguments API easier to work with.
      */
     protected Map<String, Object> unwrapStepArguments(@Nonnull StepDescriptor descriptor, @Nonnull Map<String, Object> namedArgs) {
-        if (descriptor.isMetaStep() && namedArgs.get("delegate") instanceof Map) {
-            return (Map<String,Object>)(namedArgs.get("delegate"));
-        } else {
-            return namedArgs;
+        if (descriptor.isMetaStep() && descriptor.clazz != null) {  // Descriptor.clazz should only transiently null
+            DescribableModel model = new DescribableModel(descriptor.clazz);
+            DescribableParameter param = model.getSoleRequiredParameter();
+            if (param != null && namedArgs.size() == 1) {
+                // If more than one argument is supplied
+                Object ob = namedArgs.get(param.getName());
+                if (ob instanceof Map) {
+                    return (Map<String,Object>)ob;
+                } else if (ob instanceof Step) {
+                    return ((Step)ob).getDescriptor().defineArguments((Step)ob);
+                }
+            }
         }
+        // Not a metastep or can't unwrap the metastep because it's not trivially unwrappable
+        return namedArgs;
     }
 
     /**

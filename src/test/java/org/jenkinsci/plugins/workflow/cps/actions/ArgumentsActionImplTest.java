@@ -8,6 +8,7 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import hudson.EnvVars;
 import hudson.Functions;
 import hudson.XmlFile;
@@ -32,7 +33,6 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
 import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
-import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -44,6 +44,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -222,13 +223,16 @@ public class ArgumentsActionImplTest {
         testDeserialize(exec);
     }
 
+    /** Handling of Metasteps with nested parameter -- we unwrap the step if there's just a single parameter given
+     *  Otherwise we leave it as-is.
+     */
     @Test
     public void testSpecialMetastepCases() throws Exception {
         // First we test a metastep with a state argument
         WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "meta");
         job.setDefinition(new CpsFlowDefinition(
                 // Need to do some customization to load me
-                "state(moderate: true, state:[$class: 'Oregon'])"
+                "state(moderate: true, state:[$class: 'Oregon']) \n"
         ));
         WorkflowRun run  = r.buildAndAssertSuccess(job);
         LinearScanner scan = new LinearScanner();
@@ -237,7 +241,9 @@ public class ArgumentsActionImplTest {
         Map<String,Object> args = ArgumentsAction.getArguments(node);
         Assert.assertEquals(2, args.size());
         Assert.assertEquals(true, args.get("moderate"));
-        Assert.assertEquals(Oregon.class, args.get("state").getClass());
+        Map<String, Object> stateArgs = (Map<String,Object>)args.get("state");
+        Assert.assertTrue("Nested state Describable should only include a class argument or none at all",
+                stateArgs.size() <= 1 && Sets.difference(stateArgs.keySet(), new HashSet<String>(Arrays.asList("$class"))).size() == 0);
 
         // Same metastep but only one arg supplied, shouldn't auto-unwrap the internal step because can take 2 args
         job = r.jenkins.createProject(WorkflowJob.class, "meta2");
@@ -250,7 +256,8 @@ public class ArgumentsActionImplTest {
         Assert.assertNotNull(node);
         args = ArgumentsAction.getArguments(node);
         Assert.assertEquals(1, args.size());
-        Assert.assertEquals(Oregon.class, args.get("state").getClass());
+        Assert.assertTrue(args instanceof Map);
+        Assert.assertEquals("Oregon", args.get("$class"));
     }
 
     @Test
