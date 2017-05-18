@@ -169,28 +169,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     }
 
     /**
-     * If the step arguments represent a MetaStep containing a {@link Step}, and the Step is the only argument,
-     * then unwrap it and just return the step arguments -- making the arguments API easier to work with.
-     */
-    protected Map<String, Object> unwrapStepArguments(@Nonnull StepDescriptor descriptor, @Nonnull Map<String, Object> namedArgs) {
-        if (descriptor.isMetaStep() && descriptor.clazz != null) {  // Descriptor.clazz should only transiently null
-            DescribableModel model = new DescribableModel(descriptor.clazz);
-            DescribableParameter param = model.getSoleRequiredParameter();
-            if (param != null && namedArgs.size() == 1) {
-                // If more than one argument is supplied
-                Object ob = namedArgs.get(param.getName());
-                if (ob instanceof Map) {
-                    return (Map<String,Object>)ob;
-                } else if (ob instanceof Step) {
-                    return ((Step)ob).getDescriptor().defineArguments((Step)ob);
-                }
-            }
-        }
-        // Not a metastep or can't unwrap the metastep because it's not trivially unwrappable
-        return namedArgs;
-    }
-
-    /**
      * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
      */
     protected Object invokeStep(StepDescriptor d, Object args) {
@@ -223,14 +201,13 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             try {
                 // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
                 if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepArguments() && !(s instanceof ParallelStep)) {
-                    Map<String, Object> actualArgs = unwrapStepArguments(d, ps.namedArgs);
                     // Get the environment variables to find ones that might be credentials bindings
                     Computer comp = context.get(Computer.class);
                     EnvVars allEnv = new EnvVars(context.get(EnvVars.class));
                     if (comp != null && allEnv != null) {
                         allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
                     }
-                    an.addAction(new ArgumentsActionImpl(actualArgs, allEnv));
+                    an.addAction(new ArgumentsActionImpl(ps.namedArgs, allEnv));
                 }
             } catch (Exception e) {
                 // Avoid breaking execution because we can't store some sort of crazy Step argument

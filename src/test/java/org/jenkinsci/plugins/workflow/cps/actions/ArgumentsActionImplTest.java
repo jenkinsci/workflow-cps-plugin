@@ -259,12 +259,12 @@ public class ArgumentsActionImplTest {
             Assert.assertNotNull(n);
             args = ArgumentsAction.getArguments(n);
             Assert.assertEquals(1, args.size());
-            Assert.assertTrue(args instanceof Map);
             Map<String, Object> argsMap = (Map)args;
-            if (argsMap.get("$class") != null) {
-                Assert.assertEquals("Oregon", args.get("$class"));
+            Object stateValue = argsMap.get("state");
+            if (stateValue instanceof Map) {
+                Assert.assertEquals("Oregon", ((Map<String,Object>)stateValue).get("$class"));
             } else {
-                Assert.assertEquals(Oregon.class, args.get("state").getClass());
+                Assert.assertEquals(Oregon.class, stateValue.getClass());
             }
         }
     }
@@ -329,13 +329,13 @@ public class ArgumentsActionImplTest {
     public void testUnusualStepInstantiations() throws Exception {
         WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "unusualInstantiation");
         job.setDefinition(new CpsFlowDefinition(
-                        " node('master') { \n" +
-                        "   writeFile text: 'hello world', file: 'msg.out'\n" +
-                        "   step([$class: 'ArtifactArchiver', artifacts: 'msg.out', fingerprint: false])\n "+
-                        "   withEnv(['CUSTOM=val']) {\n"+  //Symbol-based, because withEnv is a metastep
-                        "     echo env.CUSTOM\n"+
-                        "   }\n"+
-                        "}"
+                " node('master') { \n" +
+                "   writeFile text: 'hello world', file: 'msg.out'\n" +
+                "   step([$class: 'ArtifactArchiver', artifacts: 'msg.out', fingerprint: false])\n "+
+                "   withEnv(['CUSTOM=val']) {\n"+  //Symbol-based, because withEnv is a metastep
+                "     echo env.CUSTOM\n"+
+                "   }\n"+
+                "}"
         ));
         WorkflowRun run = r.buildAndAssertSuccess(job);
         LinearScanner scan = new LinearScanner();
@@ -349,8 +349,9 @@ public class ArgumentsActionImplTest {
         testNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("step"));
         act = testNode.getPersistentAction(ArgumentsAction.class);
         Assert.assertNotNull(act);
-        Assert.assertEquals("msg.out", act.getArgumentValue("artifacts"));
-        Assert.assertEquals(Boolean.FALSE, act.getArgumentValue("fingerprint"));
+        Map<String, Object> delegateMap = ((Map<String,Object>)act.getArgumentValue("delegate"));
+        Assert.assertEquals("msg.out", delegateMap.get("artifacts"));
+        Assert.assertEquals(Boolean.FALSE, delegateMap.get("fingerprint"));
 
         testNode = run.getExecution().getNode("7"); // Start node for EnvAction
         act = testNode.getPersistentAction(ArgumentsAction.class);
