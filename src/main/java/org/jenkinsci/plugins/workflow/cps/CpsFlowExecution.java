@@ -780,6 +780,10 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     public synchronized @CheckForNull FlowHead getFlowHead(int id) {
+        if (heads == null) {
+            LOGGER.log(Level.WARNING, null, new IllegalStateException("List of flow heads unset for " + this));
+            return null;
+        }
         return heads.get(id);
     }
 
@@ -787,7 +791,7 @@ public class CpsFlowExecution extends FlowExecution {
     public synchronized List<FlowNode> getCurrentHeads() {
         List<FlowNode> r = new ArrayList<FlowNode>();
         if (heads == null) {
-            LOGGER.log(Level.WARNING, "List of flow heads unset for {0}, perhaps due to broken storage", this);
+            LOGGER.log(Level.WARNING, null, new IllegalStateException("List of flow heads unset for " + this));
             return r;
         }
         for (FlowHead h : heads.values()) {
@@ -880,6 +884,10 @@ public class CpsFlowExecution extends FlowExecution {
 
     @Override
     public synchronized boolean isCurrentHead(FlowNode n) {
+        if (heads == null) {
+            LOGGER.log(Level.WARNING, null, new IllegalStateException("List of flow heads unset for " + this));
+            return false;
+        }
         for (FlowHead h : heads.values()) {
             if (h.get().equals(n))
                 return true;
