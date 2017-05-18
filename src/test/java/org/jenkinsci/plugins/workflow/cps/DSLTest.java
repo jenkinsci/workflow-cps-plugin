@@ -22,8 +22,10 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.workflow;
+package org.jenkinsci.plugins.workflow.cps;
 
+import hudson.model.AbstractDescribableImpl;
+import hudson.model.Descriptor;
 import hudson.model.Result;
 import java.util.Collections;
 import java.util.List;
@@ -31,8 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import javax.inject.Inject;
 import static org.hamcrest.Matchers.containsString;
-
-import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
@@ -110,6 +111,45 @@ public class DSLTest {
                     b.append((String) arg);
                 }
                 return new MyJoinStep(b.toString());
+            }
+        }
+    }
+
+    @Issue("JENKINS-43934")
+    @Test public void flattenGString2() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("echo pops(pojo(/running #$BUILD_NUMBER/))", true));
+        r.assertLogContains("running #1", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
+    public static class Pojo extends AbstractDescribableImpl<Pojo> {
+        public final String x;
+        @DataBoundConstructor public Pojo(String x) {this.x = x;}
+        @Symbol("pojo")
+        @TestExtension("flattenGString2") public static class DescriptorImpl extends Descriptor<Pojo> {}
+    }
+    public static class Pops extends Step {
+        public final Pojo pojo;
+        @DataBoundConstructor public Pops(Pojo pojo) {this.pojo = pojo;}
+        @Override public StepExecution start(StepContext context) throws Exception {
+            return new Exec(context, pojo);
+        }
+        private static class Exec extends SynchronousStepExecution<String> {
+            final Pojo pojo;
+            Exec(StepContext context, Pojo pojo) {
+                super(context);
+                this.pojo = pojo;
+            }
+
+            @Override protected String run() throws Exception {
+                return pojo.x;
+            }
+        }
+        @TestExtension("flattenGString2") public static class DescriptorImpl extends StepDescriptor {
+            @Override public String getFunctionName() {
+                return "pops";
+            }
+            @Override public Set<? extends Class<?>> getRequiredContext() {
+                return Collections.emptySet();
             }
         }
     }
