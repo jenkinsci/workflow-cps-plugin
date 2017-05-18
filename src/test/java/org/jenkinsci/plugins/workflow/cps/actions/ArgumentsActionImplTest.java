@@ -33,6 +33,7 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
 import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -249,15 +250,23 @@ public class ArgumentsActionImplTest {
         job = r.jenkins.createProject(WorkflowJob.class, "meta2");
         job.setDefinition(new CpsFlowDefinition(
                 // Need to do some customization to load me
-                "state(state:[$class: 'Oregon'])"
+                "state(state:[$class: 'Oregon']) \n"+
+                "state(new org.jenkinsci.plugins.workflow.testMetaStep.Oregon()) \n"
         ));
         run  = r.buildAndAssertSuccess(job);
-        node = scan.findFirstMatch(run.getExecution(), new DescriptorMatchPredicate(StateMetaStep.DescriptorImpl.class));
-        Assert.assertNotNull(node);
-        args = ArgumentsAction.getArguments(node);
-        Assert.assertEquals(1, args.size());
-        Assert.assertTrue(args instanceof Map);
-        Assert.assertEquals("Oregon", args.get("$class"));
+        List<FlowNode> nodes = scan.filteredNodes(run.getExecution(), new DescriptorMatchPredicate(StateMetaStep.DescriptorImpl.class));
+        for (FlowNode n : nodes) {
+            Assert.assertNotNull(n);
+            args = ArgumentsAction.getArguments(n);
+            Assert.assertEquals(1, args.size());
+            Assert.assertTrue(args instanceof Map);
+            Map<String, Object> argsMap = (Map)args;
+            if (argsMap.get("$class") != null) {
+                Assert.assertEquals("Oregon", args.get("$class"));
+            } else {
+                Assert.assertEquals(Oregon.class, args.get("state").getClass());
+            }
+        }
     }
 
     @Test
