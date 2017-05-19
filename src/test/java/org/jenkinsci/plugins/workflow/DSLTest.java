@@ -25,6 +25,10 @@
 package org.jenkinsci.plugins.workflow;
 
 import hudson.model.Result;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import javax.inject.Inject;
 import static org.hamcrest.Matchers.containsString;
 
@@ -38,6 +42,11 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousStepExecution;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
@@ -68,10 +77,47 @@ public class DSLTest {
         r.assertLogContains("but this is still from a step", b2);
     }
 
+    @Issue("JENKINS-43934")
     @Test public void flattenGString() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("def x = 'the message'; echo \"What is ${x}?\""));
+        p.setDefinition(new CpsFlowDefinition("def message = myJoin(['the', /${'message'.toLowerCase(Locale.ENGLISH)}/]); echo(/What is $message?/)", true));
         r.assertLogContains("What is the message?", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
+    public static class MyJoinStep extends Step {
+        public final String args;
+        @DataBoundConstructor public MyJoinStep(String args) {this.args = args;}
+        @Override public StepExecution start(StepContext context) throws Exception {
+            return new Exec(context, args);
+        }
+        private static class Exec extends SynchronousStepExecution<String> {
+            final String args;
+            Exec(StepContext context, String args) {
+                super(context);
+                this.args = args;
+            }
+            @Override protected String run() throws Exception {
+                return args;
+            }
+        }
+        @TestExtension("flattenGString") public static class DescriptorImpl extends StepDescriptor {
+            @Override public String getFunctionName() {
+                return "myJoin";
+            }
+            @Override public Set<? extends Class<?>> getRequiredContext() {
+                return Collections.emptySet();
+            }
+            @Override public Step newInstance(Map<String, Object> arguments) throws Exception {
+                List<?> args = (List<?>) arguments.get("args");
+                StringBuilder b = new StringBuilder();
+                for (Object arg : args) {
+                    if (b.length() > 0) {
+                        b.append(' ');
+                    }
+                    b.append((String) arg);
+                }
+                return new MyJoinStep(b.toString());
+            }
+        }
     }
 
     /**

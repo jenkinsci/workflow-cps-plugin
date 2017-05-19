@@ -62,6 +62,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -74,6 +75,8 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
+import org.codehaus.groovy.reflection.CachedClass;
+import org.codehaus.groovy.reflection.ReflectionCache;
 import org.jenkinsci.Symbol;
 
 import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.*;
@@ -388,19 +391,48 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
             for (Map.Entry<?,?> entry : namedArgs.entrySet()) {
                 String k = entry.getKey().toString(); // coerces GString and more
-                Object v = entry.getValue();
-                // coerce GString, to save StepDescriptor.newInstance() from being made aware of that
-                // this isn't the only type coercion that Groovy does, so this is not very kosher, but
-                // doing a proper coercion like Groovy does require us to know the type that the receiver
-                // expects.
-                //
-                // For the reference, Groovy does:
-                //   ReflectionCache.getCachedClass(types[i]).coerceArgument(a)
-                if (v instanceof GString) {
-                    v = v.toString();
-                }
+                Object v = flattenGString(entry.getValue());
                 this.namedArgs.put(k, v);
             }
+        }
+    }
+
+    /**
+     * Coerce {@link GString}, to save {@link StepDescriptor#newInstance(Map)} from being made aware of that.
+     * This is not the only type coercion that Groovy does, so this is not very kosher, but
+     * doing a proper coercion like Groovy does require us to know the type that the receiver
+     * expects.
+     * For reference, Groovy does {@linkplain ReflectionCache#getCachedClass ReflectionCache.getCachedClass(types[i]).}{@linkplain CachedClass#coerceArgument coerceArgument(a)}.
+     * Note that {@link DescribableModel#instantiate} would also handle {@link GString} in {@code coerce},
+     * but better to do it here in the Groovy-specific code so we do not need to rely on that.
+     * @return {@code v} or an equivalent with all {@link GString}s flattened, including in nested {@link List}s or {@link Map}s
+     */
+    private static Object flattenGString(Object v) {
+        if (v instanceof GString) {
+            return v.toString();
+        } else if (v instanceof List) {
+            boolean mutated = false;
+            List<Object> r = new ArrayList<>();
+            for (Object o : ((List<?>) v)) {
+                Object o2 = flattenGString(o);
+                mutated |= o != o2;
+                r.add(o2);
+            }
+            return mutated ? r : v;
+        } else if (v instanceof Map) {
+            boolean mutated = false;
+            Map<Object,Object> r = new LinkedHashMap<>();
+            for (Map.Entry<?,?> e : ((Map<?, ?>) v).entrySet()) {
+                Object k = e.getKey();
+                Object k2 = flattenGString(k);
+                Object o = e.getValue();
+                Object o2 = flattenGString(o);
+                mutated |= k != k2 || o != o2;
+                r.put(k2, o2);
+            }
+            return mutated ? r : v;
+        } else {
+            return v;
         }
     }
 
