@@ -57,15 +57,21 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     private Map<String,Object> arguments;
 
 
-    private boolean isUnmodifiedBySanitization = true;
+    boolean isUnmodifiedBySanitization = true;
 
-    public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @Nullable EnvVars env) {
+    public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars env) {
         arguments = sanitizeMapAndRecordMutation(stepArguments, env);
     }
 
     /** Create a step, sanitizing strings for secured content */
     public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments) {
         this(stepArguments, new EnvVars());
+    }
+
+    /** For testing use only */
+    ArgumentsActionImpl(){
+        this.isUnmodifiedBySanitization = false;
+        this.arguments = Collections.emptyMap();
     }
 
     /** See if sensitive environment variable content is in a string */
@@ -183,9 +189,11 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     ));
 
     /**
-     * Sanitize a list recursively,
+     * Sanitize a list recursively
      */
-    private Object sanitizeListAndRecordMutation(@Nonnull List objects, @CheckForNull EnvVars variables) {
+    @CheckForNull
+    Object sanitizeListAndRecordMutation(@Nonnull List objects, @CheckForNull EnvVars variables) {
+        // Package scoped so we can test it directly
 
         if (isOversized(objects)) {
             this.isUnmodifiedBySanitization = false;
@@ -195,38 +203,12 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         boolean isMutated = false;
         List output = new ArrayList(objects.size());
         for (Object o : objects) {
-            Object tempVal = o;
+            Object modded = sanitizeObjectAndRecordMutation(o, variables);
 
-            // Need to explode these objects into maps for sanitization, to inspect contents
-            if (tempVal instanceof Step) {
-                tempVal = ((Step)tempVal).getDescriptor().defineArguments((Step)tempVal);
-            } else if (tempVal instanceof UninstantiatedDescribable) {
-                tempVal = ((UninstantiatedDescribable)tempVal).toMap();
-            }
-
-            if (isOversized(tempVal)) {
-                this.isUnmodifiedBySanitization = false;
-                isMutated = true;
-                output.add(NotStoredReason.OVERSIZE_VALUE);
-                continue;
-            }
-
-            Object modded = tempVal;
-            // Separate tempVal from modded so we only return a different object if sanitization changed it
-            // Rather than just exploding the Step/Describable
-            if (tempVal instanceof Map) {
-                modded = sanitizeMapAndRecordMutation((Map)tempVal, variables);
-            } else if (tempVal instanceof List) {
-                modded = sanitizeListAndRecordMutation((List)tempVal, variables);
-            } else {
-                modded = sanitizeSingletonAndRecordMutation(tempVal, variables);
-            }
-
-            if (modded != tempVal) {
+            if (modded != o) {
                 // Sanitization stripped out some values, so we need to store the mutated object
                 output.add(modded);
-                isMutated = true;
-                isUnmodifiedBySanitization = false;
+                isMutated = true; //isUnmodifiedBySanitization was already set
             } else { // Any mutation was just from exploding step/uninstantiated describable, and we can just use the original
                 output.add(o);
             }
@@ -236,17 +218,40 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     }
 
     /** Sanitize a single non-Map, non-List, non-{@link Step}/non-{@link UninstantiatedDescribable} item */
-    private Object sanitizeSingletonAndRecordMutation(@CheckForNull Object o, @CheckForNull EnvVars vars) {
-        if (isOversized(o)) {
+    @CheckForNull
+    Object sanitizeObjectAndRecordMutation(@CheckForNull Object o, @CheckForNull EnvVars vars) {
+        // Package scoped so we can test it directly
+        Object tempVal = o;
+        if (tempVal instanceof Step) {
+            // Ugly but functional used for legacy syntaxes with metasteps
+            tempVal = ((Step)tempVal).getDescriptor().defineArguments((Step)tempVal);
+        } else if (tempVal instanceof UninstantiatedDescribable) {
+            tempVal = ((UninstantiatedDescribable)tempVal).toMap();
+        }
+
+        if (isOversized(tempVal)) {
             this.isUnmodifiedBySanitization = false;
             return NotStoredReason.OVERSIZE_VALUE;
         }
 
-        if (o instanceof String && vars != null && !vars.isEmpty() && !isStringSafe((String)o, vars, SAFE_ENVIRONMENT_VARIABLES)) {
+        Object modded = tempVal;
+        if (modded instanceof Map) {
+            // Recursive sanitization, oh my!
+            modded = sanitizeMapAndRecordMutation((Map)modded, vars);
+        } else if (modded instanceof List) {
+            modded = sanitizeListAndRecordMutation((List) modded, vars);
+        } else if (modded instanceof String && vars != null && !vars.isEmpty() && !isStringSafe((String)modded, vars, SAFE_ENVIRONMENT_VARIABLES)) {
             this.isUnmodifiedBySanitization = false;
             return NotStoredReason.MASKED_VALUE;
         }
-        return o;
+
+        if (modded != tempVal) {
+            // Sanitization stripped out some values, so we need to record that and return modified version
+            this.isUnmodifiedBySanitization = false;
+            return modded;
+        } else {  // Any mutation was just from exploding step/uninstantiated describable, and we can just use the original
+            return o;
+        }
     }
 
     /**
@@ -260,47 +265,29 @@ public class ArgumentsActionImpl extends ArgumentsAction {
      * @return Arguments map, with oversized values and values containing bound credentials stripped out.
      */
     @Nonnull
-    private  Map<String,Object> sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars variables) {
+    Map<String,Object> sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars variables) {
+        // Package scoped so we can test it directly
         HashMap<String, Object> output = new HashMap<String, Object>();
 
         boolean isMutated = false;
         for (Map.Entry<String,?> param : stepArguments.entrySet()) {
-            Object tempVal = param.getValue();
-            if (tempVal instanceof Step) {
-                // Ugly but functional used for legacy syntaxes with metasteps
-                tempVal = ((Step)tempVal).getDescriptor().defineArguments((Step)tempVal);
-            } else if (tempVal instanceof UninstantiatedDescribable) {
-                tempVal = ((UninstantiatedDescribable)tempVal).toMap();
-            }
+            Object modded = sanitizeObjectAndRecordMutation(param.getValue(), variables);
 
-            if (ArgumentsAction.isOversized(tempVal)) {
-                isMutated = true;
-                this.isUnmodifiedBySanitization = false;
-                output.put(param.getKey(), NotStoredReason.OVERSIZE_VALUE);
-                continue;
-            }
-
-            Object modded = tempVal;
-            if (modded instanceof Map) {
-                // Recursive sanitization, oh my!
-                modded = sanitizeMapAndRecordMutation((Map)modded, variables);
-            } else if (modded instanceof List) {
-                modded = sanitizeListAndRecordMutation((List) modded, variables);
-            } else {
-                modded = sanitizeSingletonAndRecordMutation(modded, variables);
-            }
-
-            if (modded != tempVal) {
+            if (modded != param.getValue()) {
                 // Sanitization stripped out some values, so we need to store the mutated object
                 output.put(param.getKey(), modded);
-                isMutated = true;
-                isUnmodifiedBySanitization = false;
+                isMutated = true; //isUnmodifiedBySanitization was already set
             } else { // Any mutation was just from exploding step/uninstantiated describable, and we can just use the original
                 output.put(param.getKey(), param.getValue());
             }
         }
 
         return (isMutated) ? output : stepArguments;
+    }
+
+    /** Accessor for testing use */
+    static int getMaxRetainedLength() {
+        return MAX_RETAINED_LENGTH;
     }
 
     @Nonnull
