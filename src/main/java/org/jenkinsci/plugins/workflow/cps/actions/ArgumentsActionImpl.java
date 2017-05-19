@@ -43,11 +43,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
-import static org.jenkinsci.plugins.workflow.actions.ArgumentsAction.NotStoredReason.MASKED_VALUE;
-import static org.jenkinsci.plugins.workflow.actions.ArgumentsAction.NotStoredReason.OVERSIZE_VALUE;
 
 /**
  * Implements {@link ArgumentsAction} by storing step arguments, with sanitization.
@@ -63,7 +60,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     private boolean isUnmodifiedBySanitization = true;
 
     public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @Nullable EnvVars env) {
-        arguments = takeSanitizedMap(stepArguments, env);
+        arguments = sanitizeMapAndRecordMutation(stepArguments, env);
     }
 
     /** Create a step, sanitizing strings for secured content */
@@ -188,7 +185,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     /**
      * Sanitize a list recursively,
      */
-    private Object takeSanitizedList(@Nonnull List objects, @CheckForNull EnvVars variables) {
+    private Object sanitizeListAndRecordMutation(@Nonnull List objects, @CheckForNull EnvVars variables) {
 
         if (isOversized(objects)) {
             this.isUnmodifiedBySanitization = false;
@@ -218,11 +215,11 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             // Separate tempVal from modded so we only return a different object if sanitization changed it
             // Rather than just exploding the Step/Describable
             if (tempVal instanceof Map) {
-                modded = takeSanitizedMap((Map)tempVal, variables);
+                modded = sanitizeMapAndRecordMutation((Map)tempVal, variables);
             } else if (tempVal instanceof List) {
-                modded = takeSanitizedList((List)tempVal, variables);
+                modded = sanitizeListAndRecordMutation((List)tempVal, variables);
             } else {
-                modded = sanitizeSingleton(tempVal, variables);
+                modded = sanitizeSingletonAndRecordMutation(tempVal, variables);
             }
 
             if (modded != tempVal) {
@@ -239,7 +236,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     }
 
     /** Sanitize a single non-Map, non-List, non-{@link Step}/non-{@link UninstantiatedDescribable} item */
-    private Object sanitizeSingleton(@CheckForNull Object o, @CheckForNull EnvVars vars) {
+    private Object sanitizeSingletonAndRecordMutation(@CheckForNull Object o, @CheckForNull EnvVars vars) {
         if (isOversized(o)) {
             this.isUnmodifiedBySanitization = false;
             return NotStoredReason.OVERSIZE_VALUE;
@@ -263,7 +260,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
      * @return Arguments map, with oversized values and values containing bound credentials stripped out.
      */
     @Nonnull
-    private  Map<String,Object> takeSanitizedMap(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars variables) {
+    private  Map<String,Object> sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars variables) {
         HashMap<String, Object> output = new HashMap<String, Object>();
 
         boolean isMutated = false;
@@ -279,20 +276,18 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             if (ArgumentsAction.isOversized(tempVal)) {
                 isMutated = true;
                 this.isUnmodifiedBySanitization = false;
-                output.put(param.getKey(), OVERSIZE_VALUE);
+                output.put(param.getKey(), NotStoredReason.OVERSIZE_VALUE);
                 continue;
             }
 
             Object modded = tempVal;
             if (modded instanceof Map) {
                 // Recursive sanitization, oh my!
-                Map<String,Object> mapFormat = (Map<String,Object>)tempVal;
-                Map<String,Object> newVal = takeSanitizedMap(mapFormat, variables);
-                isMutated |= (newVal != tempVal); // If we got back a new object, something was modified
+                modded = sanitizeMapAndRecordMutation((Map)modded, variables);
             } else if (modded instanceof List) {
-                modded = takeSanitizedList((List) modded, variables);
+                modded = sanitizeListAndRecordMutation((List) modded, variables);
             } else {
-                modded = sanitizeSingleton(modded, variables);
+                modded = sanitizeSingletonAndRecordMutation(modded, variables);
             }
 
             if (modded != tempVal) {
