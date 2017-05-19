@@ -31,6 +31,7 @@ import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepTypePredicate;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
+import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
@@ -42,6 +43,7 @@ import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -142,6 +144,66 @@ public class ArgumentsActionImplTest {
         passwordBinding.put("harmless", "secret");
         Assert.assertTrue("Input containing whitelisted bound value is safe", ArgumentsActionImpl.isStringSafe(input, new EnvVars(safeBinding), safeVars));
         Assert.assertFalse("Input containing one safe and one unsafe bound value is unsafe", ArgumentsActionImpl.isStringSafe(input, new EnvVars(passwordBinding), safeVars));
+    }
+
+    @Test
+    public void testRecursiveSanitizationOfContent() {
+        int maxLen = ArgumentsActionImpl.getMaxRetainedLength();
+        ArgumentsActionImpl impl = new ArgumentsActionImpl();
+
+        EnvVars env = new EnvVars();
+        String secretUsername = "secretuser";
+        env.put("USERVARIABLE", secretUsername); // assume secretuser is a bound credential
+
+        char[] oversized = new char[maxLen+10];
+        Arrays.fill(oversized, 'a');
+        String oversizedString = new String (oversized);
+
+        // Simplest masking of secret and oversized value
+        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, impl.sanitizeObjectAndRecordMutation(secretUsername, env));
+        Assert.assertFalse(impl.isUnmodifiedArguments());
+        impl.isUnmodifiedBySanitization = true;
+
+        Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, impl.sanitizeObjectAndRecordMutation(oversizedString, env));
+        Assert.assertFalse(impl.isUnmodifiedArguments());
+        impl.isUnmodifiedBySanitization = true;
+
+        // Test explosion of Step & UninstantiatedDescribable objects
+        Step mystep = new EchoStep("I have a "+secretUsername);
+        Map<String, Object> singleSanitization = (Map<String,Object>)(impl.sanitizeObjectAndRecordMutation(mystep, env));
+        Assert.assertEquals(1, singleSanitization.size());
+        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, singleSanitization.get("message"));
+        Assert.assertFalse(impl.isUnmodifiedArguments());
+        impl.isUnmodifiedBySanitization = true;
+        singleSanitization = (Map<String,Object>)(impl.sanitizeObjectAndRecordMutation(mystep.getDescriptor().uninstantiate(mystep), env));
+        Assert.assertEquals(1, singleSanitization.size());
+        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, singleSanitization.get("message"));
+        Assert.assertFalse(impl.isUnmodifiedArguments());
+        impl.isUnmodifiedBySanitization = true;
+
+        // Maps
+        HashMap<String, Object> dangerous = new HashMap<>();
+        dangerous.put("name", secretUsername);
+        Map<String, Object> sanitizedMap = impl.sanitizeMapAndRecordMutation(dangerous, env);
+        Assert.assertNotEquals(sanitizedMap, dangerous);
+        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, sanitizedMap.get("name"));
+        Assert.assertFalse(impl.isUnmodifiedArguments());
+        impl.isUnmodifiedBySanitization = true;
+
+        Map<String, Object> identicalMap = impl.sanitizeMapAndRecordMutation(dangerous, new EnvVars());  // String is no longer dangerous
+        Assert.assertEquals(identicalMap, dangerous);
+        Assert.assertTrue(impl.isUnmodifiedArguments());
+
+        // Lists
+        List unsanitizedList = Arrays.asList("cheese", null, secretUsername);
+        List sanitized = (List)impl.sanitizeListAndRecordMutation(unsanitizedList, env);
+        Assert.assertEquals(3, sanitized.size());
+        Assert.assertFalse(impl.isUnmodifiedArguments());
+        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, sanitized.get(2));
+        impl.isUnmodifiedBySanitization = true;
+
+        Assert.assertEquals(unsanitizedList, impl.sanitizeObjectAndRecordMutation(unsanitizedList, new EnvVars()));
+        Assert.assertEquals(unsanitizedList, impl.sanitizeListAndRecordMutation(unsanitizedList, new EnvVars()));
     }
 
     @Test
