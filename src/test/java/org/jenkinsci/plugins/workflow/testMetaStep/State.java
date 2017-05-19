@@ -2,7 +2,7 @@ package org.jenkinsci.plugins.workflow.testMetaStep;
 
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.TaskListener;
-import org.jenkinsci.plugins.workflow.DSLTest;
+import org.jenkinsci.plugins.workflow.cps.DSLTest;
 
 /**
  * @author Kohsuke Kawaguchi
