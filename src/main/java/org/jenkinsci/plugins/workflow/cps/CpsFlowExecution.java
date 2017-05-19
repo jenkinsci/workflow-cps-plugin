@@ -58,6 +58,7 @@ import org.jboss.marshalling.Unmarshaller;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionListener;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.flow.GraphListener;
 import org.jenkinsci.plugins.workflow.graph.BlockEndNode;
@@ -489,6 +490,9 @@ public class CpsFlowExecution extends FlowExecution {
         g.register(s);
         final SettableFuture<CpsThreadGroup> f = SettableFuture.create();
         programPromise = f;
+
+        FlowExecutionListener.fireRunning(this, false);
+
         g.runner.submit(new Runnable() {
             @Override
             public void run() {
@@ -625,6 +629,7 @@ public class CpsFlowExecution extends FlowExecution {
                                 CpsThreadGroup g = (CpsThreadGroup) u.readObject();
                                 result.set(g);
                                 try {
+                                    FlowExecutionListener.fireRunning(CpsFlowExecution.this, true);
                                     if (g.isPaused()) {
                                         owner.getListener().getLogger().println("Still paused");
                                     } else {
@@ -1023,6 +1028,7 @@ public class CpsFlowExecution extends FlowExecution {
         first.setNewHead(head);
         heads.clear();
         heads.put(first.getId(),first);
+        FlowExecutionListener.fireCompleted(this);
     }
 
     void cleanUpHeap() {
