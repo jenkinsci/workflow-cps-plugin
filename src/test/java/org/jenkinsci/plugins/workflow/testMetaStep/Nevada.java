@@ -4,7 +4,7 @@ import hudson.Extension;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
 import org.jenkinsci.Symbol;
-import org.jenkinsci.plugins.workflow.DSLTest;
+import org.jenkinsci.plugins.workflow.cps.DSLTest;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
