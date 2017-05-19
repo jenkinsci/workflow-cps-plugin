@@ -31,6 +31,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import groovy.lang.GroovyShell;
 import groovy.lang.MetaClass;
 import hudson.AbortException;
+import hudson.ExtensionList;
 import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.TaskListener;
@@ -56,7 +57,12 @@ import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionListener;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
+import org.jenkinsci.plugins.workflow.flow.GraphListener;
+import org.jenkinsci.plugins.workflow.graph.FlowEndNode;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.pickles.Pickle;
@@ -379,6 +385,97 @@ public class CpsFlowExecutionTest {
     @TestExtension("interruptProgramLoad") public static class BadThingPickleFactory extends SingleTypedPickleFactory<BadThing> {
         @Override protected Pickle pickle(BadThing object) {
             return new BadThingPickle();
+        }
+    }
+
+    @Test
+    public void flowExecutionListener() throws Exception {
+        story.addStep(new Statement() {
+                          @Override
+                          public void evaluate() throws Throwable {
+                              WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                              p.setDefinition(new CpsFlowDefinition("echo 'Running for listener'; sleep 0; semaphore 'wait'; sleep 0; error 'fail'", true));
+                              WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+                              SemaphoreStep.waitForStart("wait/1", b);
+                              ExecListener listener = ExtensionList.lookup(FlowExecutionListener.class).get(ExecListener.class);
+                              assertNotNull(listener);
+                              assertEquals(1, listener.started);
+                              assertEquals(0, listener.resumed);
+                              assertEquals(0, listener.finished);
+                          }
+                      });
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+                WorkflowRun b = p.getLastBuild();
+                assertTrue(b.isBuilding());
+                SemaphoreStep.success("wait/1", null);
+
+                story.j.assertBuildStatus(Result.FAILURE, story.j.waitForCompletion(b));
+                story.j.assertLogContains("Running for listener", b);
+
+                ExecListener listener = ExtensionList.lookup(FlowExecutionListener.class).get(ExecListener.class);
+                assertNotNull(listener);
+                assertEquals(1, listener.started);
+                assertEquals(1, listener.resumed);
+                assertEquals(1, listener.finished);
+                assertTrue(listener.graphListener.wasCalledBeforeExecListener);
+            }
+        });
+
+    }
+
+    @TestExtension("flowExecutionListener")
+    public static class ExecListener extends FlowExecutionListener {
+        int started;
+        int finished;
+        int resumed;
+        ExecGraphListener graphListener = new ExecGraphListener();
+
+        @Override
+        public void onRunning(FlowExecution execution, boolean resumed) {
+            execution.addListener(graphListener);
+            boolean listHasExec = false;
+            for (FlowExecution e : FlowExecutionList.get()) {
+                if (e.equals(execution)) {
+                    listHasExec = true;
+                }
+            }
+            assertTrue(listHasExec);
+            started++;
+            if (resumed) {
+                this.resumed++;
+            }
+        }
+
+        @Override
+        public void onCompleted(FlowExecution execution) {
+            finished++;
+            for (FlowExecution e : FlowExecutionList.get()) {
+                assertNotEquals(e, execution);
+            }
+            assertTrue(execution.isComplete());
+            assertNotNull(execution.getCauseOfFailure());
+            List<FlowNode> heads = execution.getCurrentHeads();
+            assertEquals(1, heads.size());
+            assertTrue(heads.get(0) instanceof FlowEndNode);
+            FlowEndNode node = (FlowEndNode)heads.get(0);
+            assertEquals(Result.FAILURE, node.getResult());
+        }
+    }
+
+    public static class ExecGraphListener implements GraphListener.Synchronous {
+        boolean wasCalledBeforeExecListener;
+
+        @Override
+        public void onNewHead(FlowNode node) {
+            if (node instanceof FlowEndNode) {
+                ExecListener listener = ExtensionList.lookup(FlowExecutionListener.class).get(ExecListener.class);
+                if (listener.finished == 0) {
+                    wasCalledBeforeExecListener = true;
+                }
+            }
         }
     }
 
