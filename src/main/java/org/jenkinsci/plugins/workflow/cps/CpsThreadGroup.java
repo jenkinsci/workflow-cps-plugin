@@ -32,11 +32,13 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
+import hudson.ExtensionList;
 import hudson.Util;
 import hudson.model.Result;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionListener;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverWriter;
@@ -239,6 +241,10 @@ public final class CpsThreadGroup implements Serializable {
                         return null;
                     }
 
+                    for (FlowExecutionListener listener : ExtensionList.lookup(FlowExecutionListener.class)) {
+                        listener.onRunning(execution);
+                    }
+
                     boolean stillRunnable = run();
                     try {
                         if (stillRunnable) {
@@ -362,6 +368,10 @@ public final class CpsThreadGroup implements Serializable {
             saveProgramIfPossible();
         }
         if (ending) {
+            for (FlowExecutionListener listener : ExtensionList.lookup(FlowExecutionListener.class)) {
+                listener.onCompleted(execution);
+            }
+
             execution.cleanUpHeap();
             if (scripts != null) {
                 scripts.clear();
