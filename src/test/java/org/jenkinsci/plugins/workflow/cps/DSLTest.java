@@ -22,22 +22,19 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.workflow;
+package org.jenkinsci.plugins.workflow.cps;
 
+import hudson.model.AbstractDescribableImpl;
+import hudson.model.Descriptor;
 import hudson.model.Result;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.inject.Inject;
 import static org.hamcrest.Matchers.containsString;
-
-import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousStepExecution;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -63,7 +60,7 @@ public class DSLTest {
 
     @Test public void overrideFunction() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("echo 'this came from a step'"));
+        p.setDefinition(new CpsFlowDefinition("echo 'this came from a step'", true));
         r.assertLogContains("this came from a step", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
         p.setDefinition(new CpsFlowDefinition("def echo(s) {println s.toUpperCase()}\necho 'this came from my own function'\nsteps.echo 'but this is still from a step'", true));
         WorkflowRun b2 = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
@@ -114,6 +111,45 @@ public class DSLTest {
         }
     }
 
+    @Issue("JENKINS-43934")
+    @Test public void flattenGString2() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("echo pops(pojo(/running #$BUILD_NUMBER/))", true));
+        r.assertLogContains("running #1", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+    }
+    public static class Pojo extends AbstractDescribableImpl<Pojo> {
+        public final String x;
+        @DataBoundConstructor public Pojo(String x) {this.x = x;}
+        @Symbol("pojo")
+        @TestExtension("flattenGString2") public static class DescriptorImpl extends Descriptor<Pojo> {}
+    }
+    public static class Pops extends Step {
+        public final Pojo pojo;
+        @DataBoundConstructor public Pops(Pojo pojo) {this.pojo = pojo;}
+        @Override public StepExecution start(StepContext context) throws Exception {
+            return new Exec(context, pojo);
+        }
+        private static class Exec extends SynchronousStepExecution<String> {
+            final Pojo pojo;
+            Exec(StepContext context, Pojo pojo) {
+                super(context);
+                this.pojo = pojo;
+            }
+
+            @Override protected String run() throws Exception {
+                return pojo.x;
+            }
+        }
+        @TestExtension("flattenGString2") public static class DescriptorImpl extends StepDescriptor {
+            @Override public String getFunctionName() {
+                return "pops";
+            }
+            @Override public Set<? extends Class<?>> getRequiredContext() {
+                return Collections.emptySet();
+            }
+        }
+    }
+
     /**
      * Tests the ability to execute meta-step with clean syntax
      */
@@ -121,7 +157,7 @@ public class DSLTest {
     @Test
     public void dollar_class_must_die() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die1");
-        p.setDefinition(new CpsFlowDefinition("california ocean:'pacific', mountain:'sierra'"));
+        p.setDefinition(new CpsFlowDefinition("california ocean:'pacific', mountain:'sierra'", true));
         r.assertLogContains("California from pacific to sierra", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
 
@@ -132,7 +168,7 @@ public class DSLTest {
     @Test
     public void dollar_class_must_die2() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die2");
-        p.setDefinition(new CpsFlowDefinition("california ocean:'pacific', mountain:'sierra', moderate:true"));
+        p.setDefinition(new CpsFlowDefinition("california ocean:'pacific', mountain:'sierra', moderate:true", true));
         assertThat(JenkinsRule.getLog(r.assertBuildStatusSuccess(p.scheduleBuild2(0))).replace("\r\n", "\n"), containsString("Introducing california\nCalifornia from pacific to sierra"));
     }
 
@@ -143,7 +179,7 @@ public class DSLTest {
     @Test
     public void dollar_class_must_die3() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die3");
-        p.setDefinition(new CpsFlowDefinition("nevada()"));
+        p.setDefinition(new CpsFlowDefinition("nevada()", true));
         r.assertLogContains("All For Our Country", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
 
@@ -154,7 +190,7 @@ public class DSLTest {
     @Test
     public void dollar_class_must_die_colliding_argument() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die5");
-        p.setDefinition(new CpsFlowDefinition("newYork motto:'Empire', moderate:true"));
+        p.setDefinition(new CpsFlowDefinition("newYork motto:'Empire', moderate:true", true));
         WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         assertThat(JenkinsRule.getLog(run).replace("\r\n", "\n"), containsString("Introducing newYork\nThe Empire State"));
         r.assertLogNotContains("New York can be moderate in spring or fall", run);
@@ -167,7 +203,7 @@ public class DSLTest {
     @Test
     public void dollar_class_must_die_onearg() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die4");
-        p.setDefinition(new CpsFlowDefinition("newYork 'Empire'"));
+        p.setDefinition(new CpsFlowDefinition("newYork 'Empire'", true));
         r.assertLogContains("The Empire State", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
 
@@ -175,7 +211,7 @@ public class DSLTest {
     @Test
     public void nonexistentFunctions() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("nonexistent()"));
+        p.setDefinition(new CpsFlowDefinition("nonexistent()", true));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogContains("nonexistent", b);
         r.assertLogContains("wrapInCurve", b);
@@ -257,24 +293,34 @@ public class DSLTest {
         r.assertLogContains("Hello world", b);
     }
 
+    @Issue("JENKINS-37538")
     @Test public void contextClassLoader() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("try {def c = classLoad(getClass().name); error(/did not expect to be able to load ${c} from ${c.classLoader}/)} catch (ClassNotFoundException x) {echo(/good, got ${x}/)}", false));
         r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
-    public static class CLStep extends AbstractStepImpl {
+    public static class CLStep extends Step {
         public final String name;
         @DataBoundConstructor public CLStep(String name) {this.name = name;}
-        public static class Execution extends AbstractSynchronousStepExecution<Class<?>> {
-            @Inject CLStep step;
-            protected Class<?> run() throws Exception {
-                return Thread.currentThread().getContextClassLoader().loadClass(step.name);
+        @Override public StepExecution start(StepContext context) throws Exception {
+            return new Execution(name, context);
+        }
+        static class Execution extends SynchronousStepExecution<Class<?>> {
+            private final String name;
+            Execution(String name, StepContext context) {
+                super(context);
+                this.name = name;
+            }
+            @Override protected Class<?> run() throws Exception {
+                return Thread.currentThread().getContextClassLoader().loadClass(name);
             }
         }
-        @TestExtension("contextClassLoader") public static class DescriptorImpl extends AbstractStepDescriptorImpl {
-            public DescriptorImpl() {super(Execution.class);}
+        @TestExtension("contextClassLoader") public static class DescriptorImpl extends StepDescriptor {
             @Override public String getFunctionName() {
                 return "classLoad";
+            }
+            @Override public Set<? extends Class<?>> getRequiredContext() {
+                return Collections.emptySet();
             }
         }
     }
