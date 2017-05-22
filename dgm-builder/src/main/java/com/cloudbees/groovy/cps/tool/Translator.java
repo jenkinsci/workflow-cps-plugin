@@ -189,6 +189,7 @@ public class Translator {
                 if (translatable.contains(fqcn + "." + e)) {
                     overloadsResolved.put(mangledName(e), e);
                 }
+                // TODO else if it is public and has a Closure argument, translate to a form that just throws UnsupportedOperationException when called in CPS mode
                 return null;
             }
         },null);
