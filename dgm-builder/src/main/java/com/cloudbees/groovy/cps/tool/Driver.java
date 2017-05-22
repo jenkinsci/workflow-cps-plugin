@@ -1,6 +1,5 @@
 package com.cloudbees.groovy.cps.tool;
 
-import com.google.common.collect.ImmutableSet;
 import com.sun.codemodel.writer.FileCodeWriter;
 import com.sun.tools.javac.api.JavacTool;
 import com.sun.tools.javac.file.JavacFileManager;
@@ -20,7 +19,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.zip.ZipFile;
 
 import static java.util.Arrays.*;
@@ -41,8 +39,8 @@ public class Driver {
             File groovySrcJar = Which.jarFile(Driver.class.getClassLoader().getResource("groovy/lang/GroovyShell.java"));
 
             // classes to translate
-            // TODO include other classes mentioned in DgmConverter just in case (first see TODO in Translator.translate); and certainly StringGroovyMethods which has some Closure-based methods
-            List<String> fileNames = asList("DefaultGroovyMethods", "ProcessGroovyMethods", "DefaultGroovyStaticMethods");
+            // TODO include other classes mentioned in DgmConverter if they have any applicable methods; and certainly StringGroovyMethods which has some Closure-based methods
+            List<String> fileNames = asList("DefaultGroovyMethods", "DefaultGroovyStaticMethods");
 
             List<JavaFileObject> src = new ArrayList<>();
             ZipArchive a = new ZipArchive((JavacFileManager) fileManager, new ZipFile(groovySrcJar));
@@ -64,7 +62,6 @@ public class Driver {
                 t.translate(
                         "org.codehaus.groovy.runtime."+name,
                         "com.cloudbees.groovy.cps.Cps"+name,
-                        e -> !EXCLUSIONS.contains(e.getEnclosingElement().getSimpleName().toString() + "." + e.getSimpleName().toString()),
                         groovySrcJar.getName());
             }
 
@@ -78,15 +75,4 @@ public class Driver {
         return System.out::println;
     }
 
-    private static final Set<String> EXCLUSIONS = ImmutableSet.of(
-            "DefaultGroovyMethods.runAfter", /* use anonymous inner class we can't handle */
-            "DefaultGroovyMethods.accept" /* launches a thread */,
-            "DefaultGroovyStaticMethods.start", "DefaultGroovyStaticMethods.startDaemon", // ditto
-            "DefaultGroovyMethods.filterLine",    /* anonymous inner classes */
-            "DefaultGroovyMethods.dropWhile","DefaultGroovyMethods.takeWhile" /* TODO: translate inner classes to support this*/,
-            "DefaultGroovyMethods.toUnique", // ditto: UniqueIterator is private
-
-            "ProcessGroovyMethods.withWriter",
-            "ProcessGroovyMethods.withOutputStream" /* anonymous inner class */
-    );
 }

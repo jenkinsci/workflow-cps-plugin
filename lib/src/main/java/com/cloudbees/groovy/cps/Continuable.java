@@ -32,8 +32,7 @@ public class Continuable implements Serializable {
     @SuppressWarnings("rawtypes")
     public static final List<Class> categories = ImmutableList.<Class>of(
         CpsDefaultGroovyMethods.class,
-        CpsDefaultGroovyStaticMethods.class,
-        CpsProcessGroovyMethods.class);
+        CpsDefaultGroovyStaticMethods.class);
 
     /**
      * When the program resumes with a value (in particular an exception thrown), what environment

@@ -1,5 +1,6 @@
 package com.cloudbees.groovy.cps.tool;
 
+import com.google.common.io.Resources;
 import com.sun.codemodel.CodeWriter;
 import com.sun.codemodel.JClass;
 import com.sun.codemodel.JClassAlreadyExistsException;
@@ -82,14 +83,19 @@ import javax.lang.model.util.SimpleTypeVisitor6;
 import javax.lang.model.util.Types;
 import javax.tools.JavaCompiler.CompilationTask;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import javax.annotation.Generated;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
@@ -99,6 +105,15 @@ import javax.lang.model.element.Modifier;
  */
 @SuppressWarnings("Since15")
 public class Translator {
+
+    private static final Set<String> translatable;
+    static {
+        try {
+            translatable = new HashSet<>(Resources.readLines(Translator.class.getResource("translatable.txt"), StandardCharsets.UTF_8));
+        } catch (IOException x) {
+            throw new ExceptionInInitializerError(x);
+        }
+    }
 
     private final Types types;
     private final Elements elements;
@@ -114,7 +129,12 @@ public class Translator {
     private final JClass $Builder;
     private final JClass $CatchExpression;
     private final DeclaredType closureType;
-
+    
+    /**
+     * To allow sibling calls to overloads to be resolved properly at runtime, write the actual implementation to an overload-proof private method.
+     * Example key: {@code $eachByte__byte_array__groovy_lang_Closure}
+     */
+    private final Map<String, ExecutableElement> overloadsResolved = new TreeMap<>();
 
     /**
      * Parsed source files.
@@ -142,40 +162,44 @@ public class Translator {
         javac.analyze();
     }
 
+    private String mangledName(ExecutableElement e) {
+        StringBuilder overloadResolved = new StringBuilder("$").append(n(e));
+        e.getParameters().forEach(ve -> {
+            overloadResolved.append("__").append(types.erasure(ve.asType()).toString().replace("[]", "_array").replaceAll("[^\\p{javaJavaIdentifierPart}]+", "_"));
+        });
+        return overloadResolved.toString();
+    }
+
     /**
      * Transforms a single class.
      */
-    public void translate(String fqcn, String outfqcn, Predicate<ExecutableElement> supportedSelector, String sourceJarName) throws JClassAlreadyExistsException {
-        // TODO avoid calling _class until we have confirmed we are selecting at least one method
+    public void translate(String fqcn, String outfqcn, String sourceJarName) throws JClassAlreadyExistsException {
         final JDefinedClass $output = codeModel._class(outfqcn);
         $output.annotate(Generated.class).param("value", Translator.class.getName()).param("date", new Date().toString()).param("comments", "based on " + sourceJarName);
+        $output.annotate(SuppressWarnings.class).param("value", "rawtypes");
+        $output.constructor(JMod.PRIVATE);
 
-        CompilationUnitTree dgmCut = getDefaultGroovyMethodCompilationUnitTree(parsed);
+        CompilationUnitTree dgmCut = getDefaultGroovyMethodCompilationUnitTree(parsed, fqcn);
 
+        overloadsResolved.clear();
         ClassSymbol dgm = (ClassSymbol) elements.getTypeElement(fqcn);
         dgm.accept(new ElementScanner7<Void,Void>() {
             @Override
             public Void visitExecutable(ExecutableElement e, Void __) {
-                if (e.getKind() != ElementKind.METHOD) {
-                    return null; // Only interested here in methods; not currently handling nested classes.
-                }
-                if (!e.getModifiers().contains(Modifier.STATIC)) {
-                    return null; // Top-level invocations can only be public static methods. But some private/protected static helper methods need translation, too.
-                }
-                if (!e.getParameters().subList(1, e.getParameters().size()).stream().anyMatch(p -> types.isAssignable(p.asType(), closureType))) {
-                    return null; // Do not translate methods not taking Closure as an argument (ignore receivers).
-                }
-                if (e.getAnnotation(Deprecated.class) != null) {
-                    return null; // Ran into problems resolving overloads from these methods. TODO might be obsolete with new overload delegation system.
-                }
-                try {
-                    translateMethod(dgmCut, e, $output, fqcn, supportedSelector.test(e));
-                } catch (Exception x) {
-                    throw new RuntimeException("Unable to transform "+fqcn+"."+e, x);
+                if (translatable.contains(fqcn + "." + e)) {
+                    overloadsResolved.put(mangledName(e), e);
                 }
                 return null;
             }
         },null);
+        // TODO verify that we actually found everything listed in translatables
+        overloadsResolved.forEach((overloadResolved, e) -> {
+            try {
+                translateMethod(dgmCut, e, $output, fqcn, overloadResolved);
+            } catch (Exception x) {
+                throw new RuntimeException("Unable to transform " + fqcn + "." + e, x);
+            }
+        });
 
         /*
             private static MethodLocation loc(String methodName) {
@@ -194,53 +218,40 @@ public class Translator {
      * @param e
      *      Method in {@code fqcn} to translate.
      */
-    private void translateMethod(final CompilationUnitTree cut, ExecutableElement e, JDefinedClass $output, String fqcn, boolean supported) {
+    private void translateMethod(final CompilationUnitTree cut, ExecutableElement e, JDefinedClass $output, String fqcn, String overloadResolved) {
         String methodName = n(e);
         boolean isPublic = e.getModifiers().contains(Modifier.PUBLIC);
 
-        // To allow sibling calls to overloads to be resolved properly at runtime, write the actual implementation to an overload-proof private method.
-        StringBuilder overloadResolved = new StringBuilder("$").append(methodName);
-        e.getParameters().forEach(ve -> {
-            overloadResolved.append("__").append(types.erasure(ve.asType()).toString().replace("[]", "_array").replaceAll("[^\\p{javaJavaIdentifierPart}]+", "_"));
-        }); // so, e.g., $eachByte__byte_array__groovy_lang_Closure
         JMethod delegating = $output.method(isPublic ? JMod.PUBLIC | JMod.STATIC : JMod.STATIC, (JType) null, methodName);
-        JMethod m = supported ? $output.method(JMod.PRIVATE | JMod.STATIC, (JType) null, overloadResolved.toString()) : null;
+        JMethod m = $output.method(JMod.PRIVATE | JMod.STATIC, (JType) null, overloadResolved);
 
         Map<String, JTypeVar> typeVars = new HashMap<>();
         e.getTypeParameters().forEach(p -> {
             String name = n(p);
             JTypeVar typeVar = delegating.generify(name);
-            JTypeVar typeVar2 = supported ? m.generify(name) : null;
+            JTypeVar typeVar2 = m.generify(name);
             p.getBounds().forEach(b -> {
                 JClass binding = (JClass) t(b, typeVars);
                 typeVar.bound(binding);
-                if (supported) {
-                    typeVar2.bound(binding);
-                }
+                typeVar2.bound(binding);
             });
             typeVars.put(name, typeVar);
         });
         JType type = t(e.getReturnType(), typeVars);
         delegating.type(type);
-        if (supported) {
-            m.type(type);
-        }
+        m.type(type);
 
         List<JVar> delegatingParams = new ArrayList<>();
         List<JVar> params = new ArrayList<>();
         e.getParameters().forEach(p -> {
             JType paramType = t(p.asType(), typeVars);
             delegatingParams.add(delegating.param(paramType, n(p)));
-            if (supported) {
-                params.add(m.param(paramType, n(p)));
-            }
+            params.add(m.param(paramType, n(p)));
         });
 
         e.getThrownTypes().forEach(ex -> {
             delegating._throws((JClass)t(ex));
-            if (supported) {
-                m._throws((JClass)t(ex));
-            }
+            m._throws((JClass)t(ex));
         });
 
         boolean returnsVoid = e.getReturnType().getKind() == TypeKind.VOID;
@@ -273,19 +284,13 @@ public class Translator {
             });
         }
 
-        if (supported) {
-            JInvocation delegateCall = $output.staticInvoke(overloadResolved.toString());
-            if (returnsVoid) {
-                delegating.body().add(delegateCall);
-            } else {
-                delegating.body()._return(delegateCall);
-            }
-            delegatingParams.forEach(p -> delegateCall.arg(p));
+        JInvocation delegateCall = $output.staticInvoke(overloadResolved);
+        if (returnsVoid) {
+            delegating.body().add(delegateCall);
         } else {
-            delegating.body()._throw(JExpr._new(codeModel.ref(UnsupportedOperationException.class))
-                .arg(fqcn + "." + e + " is not yet supported for translation; use another idiom, or wrap in @NonCPS"));
-            return;
+            delegating.body()._return(delegateCall);
         }
+        delegatingParams.forEach(p -> delegateCall.arg(p));
 
         JVar $b = m.body().decl($Builder, "b", JExpr._new($Builder).arg(JExpr.invoke("loc").arg(methodName)));
         JInvocation f = JExpr._new($CpsFunction);
@@ -341,14 +346,30 @@ public class Translator {
                             .arg(n(it));
                     } else {
                         // invocation on this class
-                        StringBuilder overloadResolved = new StringBuilder("$").append(it.getName());
-                        it.type.getParameterTypes().forEach(t -> {
-                            overloadResolved.append("__").append(types.erasure(t).toString().replace("[]", "_array").replaceAll("[^\\p{javaJavaIdentifierPart}]+", "_"));
-                        });
-                        inv = $b.invoke("staticCall")
-                            .arg(loc(mt))
-                            .arg($output.dotclass())
-                            .arg(overloadResolved.toString());
+                        String overloadResolved = mangledName((Symbol.MethodSymbol) it.sym);
+                        Optional<? extends Element> callSite = elements.getTypeElement(fqcn).getEnclosedElements().stream().filter(e ->
+                            e.getKind() == ElementKind.METHOD && mangledName((ExecutableElement) e).equals(overloadResolved)
+                        ).findAny();
+                        if (callSite.isPresent()) {
+                            ExecutableElement e = (ExecutableElement) callSite.get();
+                            if (e.getModifiers().contains(Modifier.PUBLIC) && !e.getParameters().stream().anyMatch(p -> types.isAssignable(p.asType(), closureType))) {
+                                // Delegate to the standard version.
+                                inv = $b.invoke("staticCall")
+                                    .arg(loc(mt))
+                                    .arg(t(it.sym.owner.type).dotclass())
+                                    .arg(n(e));
+                            } else if (overloadsResolved.containsKey(overloadResolved)) {
+                                // Private, so delegate to our mangled version.
+                                inv = $b.invoke("staticCall")
+                                    .arg(loc(mt))
+                                    .arg($output.dotclass())
+                                    .arg(overloadResolved);
+                            } else {
+                                throw new IllegalStateException("Not yet translating a " + e.getModifiers() + " method; translatable.txt might need to include: " + fqcn + "." + e);
+                            }
+                        } else {
+                            throw new IllegalStateException("Could not find self-call site " + overloadResolved + " for " + mt);
+                        }
                     }
                 } else {
                     // TODO: figure out what can come here
@@ -630,18 +651,18 @@ public class Translator {
             .args(params));
     }
 
-    private CompilationUnitTree getDefaultGroovyMethodCompilationUnitTree(Iterable<? extends CompilationUnitTree> parsed) {
+    private CompilationUnitTree getDefaultGroovyMethodCompilationUnitTree(Iterable<? extends CompilationUnitTree> parsed, String fqcn) {
         for (CompilationUnitTree cut : parsed) {
             for (Tree t : cut.getTypeDecls()) {
                 if (t.getKind() == Kind.CLASS) {
                     ClassTree ct = (ClassTree)t;
-                    if (ct.getSimpleName().toString().equals("DefaultGroovyMethods")) { // TODO use fqcn
+                    if (ct.getSimpleName().toString().equals(fqcn.replaceFirst("^.+[.]", ""))) { // TODO how do we get the FQCN of a ClassTree?
                         return cut;
                     }
                 }
             }
         }
-        throw new IllegalStateException("DefaultGroovyMethods wasn't parsed");
+        throw new IllegalStateException(fqcn + " wasn't parsed");
     }
 
 
