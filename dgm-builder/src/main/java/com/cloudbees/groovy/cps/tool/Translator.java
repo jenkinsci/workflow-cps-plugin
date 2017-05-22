@@ -791,7 +791,7 @@ public class Translator {
 
     private JType primitive(Object src, TypeKind k) {
         switch (k) {
-        case BOOLEAN:   return codeModel.INT;
+        case BOOLEAN:   return codeModel.BOOLEAN;
         case BYTE:      return codeModel.BYTE;
         case SHORT:     return codeModel.SHORT;
         case INT:       return codeModel.INT;
