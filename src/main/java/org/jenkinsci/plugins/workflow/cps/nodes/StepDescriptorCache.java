@@ -35,6 +35,7 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.CheckForNull;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Shared cacheSingleton for the StepDescriptors, extension-scoped to avoid test issues
