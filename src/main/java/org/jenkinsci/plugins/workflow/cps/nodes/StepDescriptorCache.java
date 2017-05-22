@@ -68,11 +68,9 @@ public class StepDescriptorCache implements ExtensionPoint {
         }
 
         StepDescriptor v = store.get(descriptorId);
-        if(v!=null) return v;
-
-        synchronized (this) {
-            v = store.get(descriptorId);
-            if (v != null) return v;
+        if (v != null) {
+            return v;
+        } else {
             Jenkins j = Jenkins.getActiveInstance();
             Descriptor d = j.getDescriptor(descriptorId);
             if (d instanceof StepDescriptor) {
