@@ -189,6 +189,7 @@ public class Translator {
                 if (translatable.contains(fqcn + "." + e)) {
                     overloadsResolved.put(mangledName(e), e);
                 }
+                // System.err.println("Not translating " + e.getAnnotationMirrors() + " " + e.getModifiers() + " " + fqcn + "." + e);
                 // TODO else if it is public and has a Closure argument, translate to a form that just throws UnsupportedOperationException when called in CPS mode
                 return null;
             }
@@ -246,7 +247,7 @@ public class Translator {
         List<JVar> params = new ArrayList<>();
         e.getParameters().forEach(p -> {
             JType paramType = t(p.asType(), typeVars);
-            delegatingParams.add(delegating.param(paramType, n(p)));
+            delegatingParams.add(e.isVarArgs() && p == e.getParameters().get(e.getParameters().size() - 1) ? delegating.varParam(paramType.elementType(), n(p)) : delegating.param(paramType, n(p)));
             params.add(m.param(paramType, n(p)));
         });
 
@@ -353,7 +354,7 @@ public class Translator {
                         ).findAny();
                         if (callSite.isPresent()) {
                             ExecutableElement e = (ExecutableElement) callSite.get();
-                            if (e.getModifiers().contains(Modifier.PUBLIC) && !e.getParameters().stream().anyMatch(p -> types.isAssignable(p.asType(), closureType))) {
+                            if (e.getModifiers().contains(Modifier.PUBLIC) && !e.isVarArgs() && !e.getParameters().stream().anyMatch(p -> types.isAssignable(p.asType(), closureType))) {
                                 // Delegate to the standard version.
                                 inv = $b.invoke("staticCall")
                                     .arg(loc(mt))
