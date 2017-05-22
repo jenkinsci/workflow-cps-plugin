@@ -263,11 +263,13 @@ class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
             ["reverseEachMapKV", "def r = ''; ['a': 1, 'b': 2, 'c': 3].reverseEach { k, v -> r += k }; return r", "cba"],
             ["reverseEachMapEntry", "def r = ''; ['a': 1, 'b': 2, 'c': 3].reverseEach { e -> r += e.key }; return r", "cba"],
 
+            /* TODO would need to translate OrderBy and ClosureComparator
             // .sort
             ["sortList", "[3, 1, -2, -4].sort { i -> i * i }", [1, -2, 3, -4]],
             ["sortArray", "([3, 1, -2, -4] as Integer[]).sort { i -> i * i }", [1, -2, 3, -4]],
             ["sortMapEntryByKey", "[a: 3, c: 1, b: -2, d: -4].sort { e -> e.key }", [a: 3, b: -2, c: 1, d: -4]],
             ["sortMapEntryByValue", "[a: 3, c: 1, b: -2, d: -4].sort { e -> e.value }", [d: -4, b: -2, c: 1, a: 3]],
+            */
 
             // .split
             ["splitList", "[1, 2, 3, 4].split { i -> i % 2 == 0 }", [[2, 4], [1, 3]]],
@@ -292,11 +294,13 @@ class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
 
             // TODO: times
 
+            /* TODO as above
             // .toSorted
             ["toSortedList", "[3, 1, -2, -4].toSorted { i -> i * i }", [1, -2, 3, -4]],
             ["toSortedArray", "([3, 1, -2, -4] as Integer[]).toSorted { i -> i * i }", [1, -2, 3, -4]],
             ["toSortedMapEntryByKey", "[a: 3, c: 1, b: -2, d: -4].toSorted { e -> e.key }", [a: 3, b: -2, c: 1, d: -4]],
             ["toSortedMapEntryByValue", "[a: 3, c: 1, b: -2, d: -4].toSorted { e -> e.value }", [d: -4, b: -2, c: 1, a: 3]],
+            */
 
             /* TODO: waiting for toUnique support
             // .toUnique
