@@ -30,14 +30,18 @@ import groovy.lang.Closure;
 import groovy.lang.GString;
 import groovy.lang.GroovyObject;
 import groovy.lang.GroovyObjectSupport;
+import hudson.EnvVars;
+import hudson.model.Computer;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.model.Queue;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
+import org.jenkinsci.plugins.workflow.cps.actions.ArgumentsActionImpl;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
@@ -82,6 +86,8 @@ import org.jvnet.hudson.annotation_indexer.Index;
 import org.kohsuke.stapler.ClassDescriptor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
 
+import javax.annotation.Nonnull;
+
 /**
  * Scaffolding to experiment with the call into {@link Step}.
  *
@@ -93,12 +99,25 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     private transient CpsFlowExecution exec;
     private transient Map<String,StepDescriptor> functions;
 
+    private static final Logger LOGGER = Logger.getLogger(DSL.class.getName());
+
     public DSL(FlowExecutionOwner handle) {
         this.handle = handle;
     }
 
     protected Object readResolve() throws IOException {
         return this;
+    }
+
+    private static final String KEEP_STEP_ARGUMENTS_PROPERTYNAME = (DSL.class.getName()+".keepStepArguments");
+
+    private static boolean isKeepStepArguments = StringUtils.isEmpty(System.getProperty(KEEP_STEP_ARGUMENTS_PROPERTYNAME))
+            || Boolean.parseBoolean(System.getProperty(KEEP_STEP_ARGUMENTS_PROPERTYNAME));
+
+    /** Tell us if we should store {@link Step} arguments in an {@link org.jenkinsci.plugins.workflow.actions.ArgumentsAction}
+     *  or simply discard them (if set to false, explicitly) */
+    public static boolean isKeepStepArguments() {
+        return isKeepStepArguments;
     }
 
     /**
@@ -182,6 +201,22 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             d.checkContextAvailability(context);
             Thread.currentThread().setContextClassLoader(CpsVmExecutorService.ORIGINAL_CONTEXT_CLASS_LOADER.get());
             s = d.newInstance(ps.namedArgs);
+            try {
+                // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
+                if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepArguments() && !(s instanceof ParallelStep)) {
+                    // Get the environment variables to find ones that might be credentials bindings
+                    Computer comp = context.get(Computer.class);
+                    EnvVars allEnv = new EnvVars(context.get(EnvVars.class));
+                    if (comp != null && allEnv != null) {
+                        allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
+                    }
+                    an.addAction(new ArgumentsActionImpl(ps.namedArgs, allEnv));
+                }
+            } catch (Exception e) {
+                // Avoid breaking execution because we can't store some sort of crazy Step argument
+                LOGGER.log(Level.WARNING, "Error storing the arguments for step: "+d.getFunctionName(), e);
+            }
+
             StepExecution e = s.start(context);
             thread.setStep(e);
             sync = e.start();
