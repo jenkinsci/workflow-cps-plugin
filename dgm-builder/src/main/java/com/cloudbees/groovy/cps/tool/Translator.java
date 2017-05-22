@@ -537,8 +537,7 @@ public class Translator {
             @Override
             public JExpression visitNewArray(NewArrayTree nt, Void __) {
                 if (nt.getInitializers()!=null) {
-                    // This syntax does not seem to exist in Groovy (kohsuke in 88006fc tried to use a nonexistent Builder.newArrayFromInitializers).
-                    return $b.invoke("list").tap(inv -> {
+                    return $b.invoke("newArrayFromInitializers").tap(inv -> {
                         nt.getInitializers().forEach(d -> inv.arg(visit(d)));
                     });
                 } else {

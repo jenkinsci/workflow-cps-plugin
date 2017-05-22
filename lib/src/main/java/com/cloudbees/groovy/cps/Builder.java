@@ -25,6 +25,7 @@ import com.cloudbees.groovy.cps.impl.LogicalOpBlock;
 import com.cloudbees.groovy.cps.impl.MapBlock;
 import com.cloudbees.groovy.cps.impl.MethodPointerBlock;
 import com.cloudbees.groovy.cps.impl.NewArrayBlock;
+import com.cloudbees.groovy.cps.impl.NewArrayFromInitializersBlock;
 import com.cloudbees.groovy.cps.impl.NotBlock;
 import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
 import com.cloudbees.groovy.cps.impl.ReturnBlock;
@@ -649,6 +650,14 @@ public class Builder {
      */
     public Block newArray(int line, Class type, Block... argExps) {
         return new NewArrayBlock(loc(line),type,argExps);
+    }
+
+    /**
+     * Array with initializers like {@code new Object[] {1, "two"}} which exists in Java but not Groovy.
+     * Only used by {@link CpsDefaultGroovyMethods} and friends.
+     */
+    public Block newArrayFromInitializers(Block... args) {
+        return new NewArrayFromInitializersBlock(args);
     }
 
     /**
