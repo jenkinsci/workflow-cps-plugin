@@ -32,6 +32,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import static org.hamcrest.Matchers.containsString;
+
+import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graphanalysis.LinearScanner;
+import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepTypePredicate;
+
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -41,6 +48,8 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
 import static org.junit.Assert.*;
+
+import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -240,6 +249,12 @@ public class DSLTest {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "mon");
         p.setDefinition(new CpsFlowDefinition("monomorphStep([firstArg:'one', secondArg:'two'])", true));
         r.assertLogContains("First arg: one, second arg: two", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+        WorkflowRun run = p.getLastBuild();
+        LinearScanner scanner = new LinearScanner();
+        FlowNode node = scanner.findFirstMatch(run.getExecution().getCurrentHeads(), new NodeStepTypePredicate("monomorphStep"));
+        ArgumentsAction argumentsAction = node.getPersistentAction(ArgumentsAction.class);
+        Assert.assertNotNull(argumentsAction);
+        Assert.assertEquals("one,two", ArgumentsAction.getStepArgumentsAsString(node));
     }
 
     @Issue("JENKINS-29711")
