@@ -396,7 +396,9 @@ class CpsTransformer extends CompilationCustomizer implements GroovyCodeVisitor 
                 makeNode("javaThis_")
             else
                 visit(call.objectExpression);
-            // TODO: spread (which will require safepoints)
+            if (call.spreadSafe) {
+                throw new UnsupportedOperationException("TODO spread not yet supported in ${call.text}") // will require safepoints
+            }
             visit(call.method);
             literal(call.safe);
             visit(((TupleExpression)call.arguments).expressions)

@@ -235,16 +235,16 @@ class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
             ["injectMapEntry", "[a: 1, b: 2, c: 3].inject(4) { c, e -> c + e.value }", 10],
 
             // .max
-            ["maxList", "[42, 35, 17, 100].max { i -> i.toString().toList()*.toInteger().sum() }", 35],
-            ["maxArray", "([42, 35, 17, 100] as Integer[]).max { i -> i.toString().toList()*.toInteger().sum() }", 35],
-            ["maxMap", "[a: 42, b: 35, c: 17, d: 100].max { first, second -> first.value.toString().toList()*.toInteger().sum() <=> second.value.toString().toList()*.toInteger().sum() }", [b: 35].entrySet().iterator().next()],
+            ["maxList", "[42, 35, 17, 100].max {i -> i.toString().toList().collect {it.toInteger()}.sum() }", 35],
+            ["maxArray", "([42, 35, 17, 100] as Integer[]).max { i -> i.toString().toList().collect {it.toInteger()}.sum() }", 35],
+            ["maxMap", "[a: 42, b: 35, c: 17, d: 100].max { first, second -> first.value.toString().toList().collect {it.toInteger()}.sum() <=> second.value.toString().toList().collect {it.toInteger()}.sum() }", [b: 35].entrySet().iterator().next()],
 
             // TODO: metaClass
 
             // .min
-            ["minList", "[42, 35, 17, 100].min { i -> i.toString().toList()*.toInteger().sum() }", 100],
-            ["minArray", "([42, 35, 17, 100] as Integer[]).min { i -> i.toString().toList()*.toInteger().sum() }", 100],
-            ["minMap", "[a: 42, b: 35, c: 17, d: 100].min { first, second -> first.value.toString().toList()*.toInteger().sum() <=> second.value.toString().toList()*.toInteger().sum() }", [d: 100].entrySet().iterator().next()],
+            ["minList", "[42, 35, 17, 100].min { i -> i.toString().toList().collect {it.toInteger()}.sum() }", 100],
+            ["minArray", "([42, 35, 17, 100] as Integer[]).min { i -> i.toString().toList().collect {it.toInteger()}.sum() }", 100],
+            ["minMap", "[a: 42, b: 35, c: 17, d: 100].min { first, second -> first.value.toString().toList().collect {it.toInteger()}.sum() <=> second.value.toString().toList().collect {it.toInteger()}.sum() }", [d: 100].entrySet().iterator().next()],
 
             // .permutations
             ["permutations", "[1, 2, 3].permutations { i -> i.collect { v -> v * 2 } } as Set", [[2, 4, 6], [2, 6, 4], [4, 2, 6], [4, 6, 2], [6, 2, 4], [6, 4, 2]] as Set],
