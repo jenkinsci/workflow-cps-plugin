@@ -28,13 +28,13 @@ import hudson.EnvVars;
 import hudson.model.Describable;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
+import org.jenkinsci.plugins.workflow.actions.ArgumentsAction.NotStoredReason;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -217,7 +217,13 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         return (isMutated) ? output : objects; // Throw away copies and use originals wherever possible
     }
 
-    /** Sanitize a single non-Map, non-List, non-{@link Step}/non-{@link UninstantiatedDescribable} item */
+    /** Recursively sanitize a single object by:
+     *   - Exploding {@link Step}s and {@link UninstantiatedDescribable}s into their Maps to sanitize
+     *   - Removing unsafe strings using {@link #isStringSafe(String, EnvVars, Set)} and replace with {@link NotStoredReason#MASKED_VALUE}
+     *   - Removing oversized objects using {@link #isOversized(Object)} and replacing with {@link NotStoredReason#OVERSIZE_VALUE}
+     *  While making an effort not to retain needless copies of objects and to re-use originals where possible
+     *   (including the Step or UninstantiatedDescribable)
+     */
     @CheckForNull
     Object sanitizeObjectAndRecordMutation(@CheckForNull Object o, @CheckForNull EnvVars vars) {
         // Package scoped so we can test it directly
@@ -255,22 +261,15 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     }
 
     /**
-     * Does sanitization of a step's params, returning the Describable arguments map,
-     * as from {@link org.jenkinsci.plugins.workflow.steps.StepDescriptor#defineArguments(Step)}
-     * Returns original input if not modified.
-     * Due to restrictions in {@link org.jenkinsci.plugins.structs.describable.DescribableModel#instantiate(Map)}
-     *  we do not need to sanitize keys, which can only parameters to a {@link Describable}
-     * @param stepArguments Arguments provided when creating the step
-     * @param variables Environment variables to remove
-     * @return Arguments map, with oversized values and values containing bound credentials stripped out.
+     * Goes through {@link #sanitizeObjectAndRecordMutation(Object, EnvVars)} for each value in a map input.
      */
     @Nonnull
-    Map<String,Object> sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars variables) {
+    Map<String,Object> sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables) {
         // Package scoped so we can test it directly
         HashMap<String, Object> output = new HashMap<String, Object>();
 
         boolean isMutated = false;
-        for (Map.Entry<String,?> param : stepArguments.entrySet()) {
+        for (Map.Entry<String,?> param : mapContents.entrySet()) {
             Object modded = sanitizeObjectAndRecordMutation(param.getValue(), variables);
 
             if (modded != param.getValue()) {
@@ -282,7 +281,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             }
         }
 
-        return (isMutated) ? output : stepArguments;
+        return (isMutated) ? output : mapContents;
     }
 
     /** Accessor for testing use */
