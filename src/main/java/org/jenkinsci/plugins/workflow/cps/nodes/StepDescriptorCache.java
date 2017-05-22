@@ -28,7 +28,7 @@ import hudson.Extension;
 import hudson.ExtensionPoint;
 import hudson.init.InitMilestone;
 import hudson.init.Initializer;
-import hudson.util.Memoizer;
+import hudson.model.Descriptor;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.kohsuke.accmod.Restricted;
@@ -56,26 +56,30 @@ public class StepDescriptorCache implements ExtensionPoint {
     }
 
     public void invalidateAll() {
-        descriptorCache.clear();
+        store.clear();
     }
 
-    private final Memoizer<String, StepDescriptor> descriptorCache = new Memoizer<String, StepDescriptor>() {
-
-        public StepDescriptor compute(String descriptorId) {
-            Jenkins j = Jenkins.getInstance();
-            if (descriptorId != null && j != null) {
-                return (StepDescriptor) j.getDescriptor(descriptorId);
-            }
-            return null;
-        }
-    };
+    private final ConcurrentHashMap<String, StepDescriptor> store = new ConcurrentHashMap<String, StepDescriptor>();
 
     @CheckForNull
     public StepDescriptor getDescriptor(String descriptorId) {
-        if (descriptorId != null) {
-            return descriptorCache.get(descriptorId);
+        if (descriptorId == null) {
+            return null;
         }
-        return null;
 
+        StepDescriptor v = store.get(descriptorId);
+        if(v!=null) return v;
+
+        synchronized (this) {
+            v = store.get(descriptorId);
+            if (v != null) return v;
+            Jenkins j = Jenkins.getActiveInstance();
+            Descriptor d = j.getDescriptor(descriptorId);
+            if (d instanceof StepDescriptor) {
+                store.put(descriptorId, (StepDescriptor)d);
+                return (StepDescriptor)d;
+            }
+            return null;
+        }
     }
 }
