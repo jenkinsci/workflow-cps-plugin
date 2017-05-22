@@ -36,6 +36,8 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.CheckForNull;
 
+import static org.jenkinsci.plugins.workflow.cps.nodes.NullStepDescriptorHolder.nulllDescriptor;
+
 /**
  * Shared cacheSingleton for the StepDescriptors, extension-scoped to avoid test issues
  */
@@ -62,19 +64,28 @@ public class StepDescriptorCache implements ExtensionPoint {
 
         public StepDescriptor compute(String descriptorId) {
             Jenkins j = Jenkins.getInstance();
+            StepDescriptor descriptor=null;
             if (descriptorId != null && j != null) {
-                return (StepDescriptor) j.getDescriptor(descriptorId);
+                descriptor= (StepDescriptor) j.getDescriptor(descriptorId);
             }
-            return null;
+            if(descriptor==null){
+                descriptor=nulllDescriptor;
+            }
+            return descriptor;
         }
     };
 
     @CheckForNull
     public StepDescriptor getDescriptor(String descriptorId) {
+        StepDescriptor descriptor = null;
         if (descriptorId != null) {
-            return descriptorCache.get(descriptorId);
+            descriptor = descriptorCache.get(descriptorId);
         }
-        return null;
-
+        if (descriptor == nulllDescriptor ) {
+            return null;
+        } else {
+            return descriptor;
+        }
     }
+
 }
