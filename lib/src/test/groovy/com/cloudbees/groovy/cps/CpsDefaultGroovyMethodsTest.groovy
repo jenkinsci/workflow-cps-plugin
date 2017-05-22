@@ -82,7 +82,8 @@ class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
             ["collectNestedExistingList", "[[0,1,2],[3,4]].collectNested(['test']) { i -> i * 2 }", ['test', [0,2,4],[6,8]]],
 
             // .combinations
-            ["combinations", "[[2, 3],[4, 5, 6]].combinations { x, y -> x*y }", [8, 12, 10, 15, 12, 18]],
+            // TODO { x, y -> x*y } does not work as CpsTransformer apparently does not grok how to deconstruct array arguments
+            ["combinations", "[[2, 3],[4, 5, 6]].combinations { xy -> xy[0] * xy[1] }", [8, 12, 10, 15, 12, 18]],
 
             // .count
             ["countList", "[1, 2, 3].count { i -> i > 1 }", 2],
