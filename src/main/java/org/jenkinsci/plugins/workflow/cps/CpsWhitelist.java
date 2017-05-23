@@ -96,14 +96,32 @@ class CpsWhitelist extends AbstractWhitelist {
             return true;
         }
 
-        if (n.startsWith("$") && Continuable.categories.contains(c)) {
-            // E.g., CpsDefaultGroovyMethods.$each__java_util_List__groovy_lang_Closure
-            Class<?>[] expectedParameterTypes = method.getParameterTypes();
-            String expectedName = n.substring(1).replaceFirst("__.+$", "");
-            for (Method m2 : c.getMethods()) {
-                if (m2.getName().equals(expectedName) && Arrays.equals(m2.getParameterTypes(), expectedParameterTypes)) {
-                    return Whitelist.all().permitsStaticMethod(m2, args);
+        if (Continuable.categories.contains(c)) {
+            // Delegate permission checks to the original *GroovyMethods.
+            String cn = c.getName();
+            String driverFrom = "com.cloudbees.groovy.cps.Cps"; // cf. Driver
+            String driverTo = "org.codehaus.groovy.runtime.";
+            if (cn.startsWith(driverFrom)) {
+                try {
+                    Class<?> orig = Class.forName(driverTo + cn.substring(driverFrom.length()));
+                    Class<?>[] expectedParameterTypes = method.getParameterTypes();
+                    String expectedName;
+                    if (n.startsWith("$")) {
+                        // E.g., CpsDefaultGroovyMethods.$each__java_util_List__groovy_lang_Closure
+                        expectedName = n.substring(1).replaceFirst("__.+$", "");
+                    } else {
+                        expectedName = n;
+                    }
+                    for (Method m2 : orig.getMethods()) {
+                        if (m2.getName().equals(expectedName) && Arrays.equals(m2.getParameterTypes(), expectedParameterTypes)) {
+                            return Whitelist.all().permitsStaticMethod(m2, args);
+                        }
+                    }
+                } catch (ClassNotFoundException x) {
+                    LOGGER.log(Level.WARNING, null, x); // this would be unexpected
                 }
+            } else {
+                LOGGER.log(Level.WARNING, "Unexpected category name {0}", cn); // as would this
             }
         }
 

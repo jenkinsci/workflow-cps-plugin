@@ -46,7 +46,6 @@ public class IteratorHackTest {
     @Test public void listIterator() {
         rr.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
-                ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.List java.lang.Object"); // TODO pending https://github.com/jenkinsci/script-security-plugin/pull/96
                 WorkflowJob p = rr.j.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition(
                     "def arr = []; arr += 'one'; arr += 'two'\n" +
