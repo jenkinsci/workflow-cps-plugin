@@ -66,6 +66,7 @@ import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
+import org.springframework.util.ClassUtils;
 
 /**
  * Takes a {@link Step} as configured through the UI and tries to produce equivalent Groovy code.
@@ -102,9 +103,7 @@ import org.kohsuke.stapler.StaplerRequest;
             return b;
         }
 
-        if (clazz == Boolean.class || clazz == Integer.class || clazz == Long.class ||
-                clazz == Float.class || clazz == Double.class ||
-                clazz == Byte.class || clazz == Short.class) {
+        if (ClassUtils.isPrimitiveOrWrapper(clazz)) {
             return b.append(o);
         }
 
