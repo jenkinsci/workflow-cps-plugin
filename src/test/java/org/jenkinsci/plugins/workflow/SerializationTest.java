@@ -6,6 +6,7 @@ import hudson.slaves.DumbSlave;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
@@ -196,7 +197,6 @@ public class SerializationTest extends SingleJobTestBase {
                     "def map = [one: 1, two: 2]\n" +
                     "@NonCPS def entrySet(m) {m.collect {k, v -> [key: k, value: v]}}; for (def e in entrySet(map)) {echo \"running flattened loop on ${e.key} -> ${e.value}\"; semaphore \"C-${e.key}\"}\n" +
                     "for (def e : map.entrySet()) {echo \"running new-style loop on ${e.key} -> ${e.value}\"; semaphore \"new-${e.key}\"}"
-                    // TODO check also keySet(), values()
                     , true));
                 startBuilding();
                 SemaphoreStep.waitForStart("C-one/1", b);
@@ -221,6 +221,31 @@ public class SerializationTest extends SingleJobTestBase {
                 story.j.waitForCompletion(b);
                 story.j.assertBuildStatusSuccess(b);
                 story.j.assertLogContains("running new-style loop on two -> 2", b);
+            }
+        });
+    }
+
+    @Issue("JENKINS-27421")
+    @Test public void otherIterators() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                p = jenkins().createProject(WorkflowJob.class, "p");
+                // Map.keySet/values:
+                p.setDefinition(new CpsFlowDefinition(
+                    "def map = [one: 1, two: 2]\n" +
+                    "def append(c) {def t = ''; sleep 1; for (def e : c) {t += e; sleep 1}; t}\n" +
+                    "echo(/keys: ${append(map.keySet())} values: ${append(map.values())}/)"
+                    , true));
+                WorkflowRun b = story.j.buildAndAssertSuccess(p);
+                story.j.assertLogContains("keys: onetwo values: 12", b);
+                // List.listIterator:
+                ScriptApproval.get().approveSignature("method java.util.List listIterator"); // TODO add to generic-whitelist
+                ScriptApproval.get().approveSignature("method java.util.ListIterator set java.lang.Object"); // ditto
+                p.setDefinition(new CpsFlowDefinition("def list = [1, 2, 3]; def itr = list.listIterator(); while (itr.hasNext()) {itr.set(itr.next() + 1); sleep 1}; echo(/new list: $list/)", true));
+                story.j.assertLogContains("new list: [2, 3, 4]", story.j.buildAndAssertSuccess(p));
+                // Set.iterator:
+                p.setDefinition(new CpsFlowDefinition("def set = [1, 2, 3] as Set; def sum = 0; for (def e : set) {sum += e; sleep 1}; echo(/sum: $sum/)", true));
+                story.j.assertLogContains("sum: 6", story.j.buildAndAssertSuccess(p));
             }
         });
     }
