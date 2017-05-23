@@ -6,7 +6,6 @@ import hudson.slaves.DumbSlave;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
-import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
@@ -146,106 +145,6 @@ public class SerializationTest extends SingleJobTestBase {
                 assertThatWorkflowIsSuspended();
                 SemaphoreStep.success("wait/1", null);
                 story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
-            }
-        });
-    }
-
-    @Issue("JENKINS-27421")
-    @Test public void listIterator() {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                ScriptApproval.get().approveSignature("staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods plus java.util.List java.lang.Object"); // TODO pending https://github.com/jenkinsci/script-security-plugin/pull/96
-                p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(
-                    "def arr = []; arr += 'one'; arr += 'two'\n" +
-                    "for (int i = 0; i < arr.size(); i++) {def elt = arr[i]; echo \"running C-style loop on ${elt}\"; semaphore \"C-${elt}\"}\n" +
-                    "for (def elt : arr) {echo \"running new-style loop on ${elt}\"; semaphore \"new-${elt}\"}"
-                    , true));
-                startBuilding();
-                SemaphoreStep.waitForStart("C-one/1", b);
-                story.j.waitForMessage("running C-style loop on one", b);
-            }
-        });
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                rebuildContext(story.j);
-                SemaphoreStep.success("C-one/1", null);
-                SemaphoreStep.success("C-two/1", null);
-                story.j.waitForMessage("running C-style loop on two", b);
-                SemaphoreStep.waitForStart("new-one/1", b);
-                story.j.waitForMessage("running new-style loop on one", b);
-            }
-        });
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                rebuildContext(story.j);
-                SemaphoreStep.success("new-one/1", null);
-                SemaphoreStep.success("new-two/1", null);
-                story.j.waitForCompletion(b);
-                story.j.assertBuildStatusSuccess(b);
-                story.j.assertLogContains("running new-style loop on two", b);
-            }
-        });
-    }
-
-    @Issue("JENKINS-27421")
-    @Test public void mapIterator() {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(
-                    "def map = [one: 1, two: 2]\n" +
-                    "@NonCPS def entrySet(m) {m.collect {k, v -> [key: k, value: v]}}; for (def e in entrySet(map)) {echo \"running flattened loop on ${e.key} -> ${e.value}\"; semaphore \"C-${e.key}\"}\n" +
-                    "for (def e : map.entrySet()) {echo \"running new-style loop on ${e.key} -> ${e.value}\"; semaphore \"new-${e.key}\"}"
-                    , true));
-                startBuilding();
-                SemaphoreStep.waitForStart("C-one/1", b);
-                story.j.waitForMessage("running flattened loop on one -> 1", b);
-            }
-        });
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                rebuildContext(story.j);
-                SemaphoreStep.success("C-one/1", null);
-                SemaphoreStep.success("C-two/1", null);
-                story.j.waitForMessage("running flattened loop on two -> 2", b);
-                SemaphoreStep.waitForStart("new-one/1", b);
-                story.j.waitForMessage("running new-style loop on one -> 1", b);
-            }
-        });
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                rebuildContext(story.j);
-                SemaphoreStep.success("new-one/1", null);
-                SemaphoreStep.success("new-two/1", null);
-                story.j.waitForCompletion(b);
-                story.j.assertBuildStatusSuccess(b);
-                story.j.assertLogContains("running new-style loop on two -> 2", b);
-            }
-        });
-    }
-
-    @Issue("JENKINS-27421")
-    @Test public void otherIterators() {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                p = jenkins().createProject(WorkflowJob.class, "p");
-                // Map.keySet/values:
-                p.setDefinition(new CpsFlowDefinition(
-                    "def map = [one: 1, two: 2]\n" +
-                    "def append(c) {def t = ''; sleep 1; for (def e : c) {t += e; sleep 1}; t}\n" +
-                    "echo(/keys: ${append(map.keySet())} values: ${append(map.values())}/)"
-                    , true));
-                WorkflowRun b = story.j.buildAndAssertSuccess(p);
-                story.j.assertLogContains("keys: onetwo values: 12", b);
-                // List.listIterator:
-                ScriptApproval.get().approveSignature("method java.util.List listIterator"); // TODO add to generic-whitelist
-                ScriptApproval.get().approveSignature("method java.util.ListIterator set java.lang.Object"); // ditto
-                p.setDefinition(new CpsFlowDefinition("def list = [1, 2, 3]; def itr = list.listIterator(); while (itr.hasNext()) {itr.set(itr.next() + 1); sleep 1}; echo(/new list: $list/)", true));
-                story.j.assertLogContains("new list: [2, 3, 4]", story.j.buildAndAssertSuccess(p));
-                // Set.iterator:
-                p.setDefinition(new CpsFlowDefinition("def set = [1, 2, 3] as Set; def sum = 0; for (def e : set) {sum += e; sleep 1}; echo(/sum: $sum/)", true));
-                story.j.assertLogContains("sum: 6", story.j.buildAndAssertSuccess(p));
             }
         });
     }
