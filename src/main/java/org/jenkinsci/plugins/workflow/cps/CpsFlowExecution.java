@@ -1048,6 +1048,10 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     private static void cleanUpLoader(ClassLoader loader, Set<ClassLoader> encounteredLoaders, Set<Class<?>> encounteredClasses) throws Exception {
+        if (loader instanceof CpsGroovyShell.TimingLoader) {
+            cleanUpLoader(loader.getParent(), encounteredLoaders, encounteredClasses);
+            return;
+        }
         if (!(loader instanceof GroovyClassLoader)) {
             return;
         }
