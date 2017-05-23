@@ -5,7 +5,7 @@ import hudson.Extension;
 import hudson.model.TaskListener;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.structs.SymbolLookup;
-import org.jenkinsci.plugins.workflow.DSLTest;
+import org.jenkinsci.plugins.workflow.cps.DSLTest;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousNonBlockingStepExecution;

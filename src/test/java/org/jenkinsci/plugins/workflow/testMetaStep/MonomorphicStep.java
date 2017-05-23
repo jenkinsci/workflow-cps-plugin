@@ -3,12 +3,15 @@ package org.jenkinsci.plugins.workflow.testMetaStep;
 import com.google.inject.Inject;
 import hudson.Extension;
 import hudson.model.TaskListener;
-import org.jenkinsci.plugins.workflow.DSLTest;
+import org.jenkinsci.plugins.workflow.cps.DSLTest;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousNonBlockingStepExecution;
 import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
 import org.kohsuke.stapler.DataBoundConstructor;
+
+import javax.annotation.CheckForNull;
+import java.util.Map;
 
 /**
  * @author Andrew Bayer
@@ -39,7 +42,7 @@ public class MonomorphicStep extends AbstractStepImpl {
     }
 
     @Extension
-    public static final class DescriptorImpl extends AbstractStepDescriptorImpl {
+    public static final class DescriptorImpl extends AbstractStepDescriptorImpl  {
         public DescriptorImpl() {
             super(Execution.class);
         }
@@ -50,6 +53,16 @@ public class MonomorphicStep extends AbstractStepImpl {
 
         @Override public String getDisplayName() {
             return "Testing monomorphic single parameter.";
+        }
+
+
+        @Override
+        public String argumentsToString(@CheckForNull Map<String, Object> map) {
+            if (map.get("data") instanceof Map) {
+                Map<String,String> data = (Map<String,String>)(map.get("data"));
+                return data.get("firstArg")+","+data.get("secondArg");
+            }
+            return null;
         }
     }
 

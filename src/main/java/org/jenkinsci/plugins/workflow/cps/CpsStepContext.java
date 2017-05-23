@@ -383,7 +383,12 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
             final List<FlowNode> parents = new ArrayList<FlowNode>();
             for (int head : bodyHeads) {
-                parents.add(flow.getFlowHead(head).get());
+                FlowHead flowHead = flow.getFlowHead(head);
+                if (flowHead != null) {
+                    parents.add(flowHead.get());
+                } else {
+                    LOGGER.log(Level.WARNING, "Could not find flow head #{0}", head);
+                }
             }
 
             flow.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
