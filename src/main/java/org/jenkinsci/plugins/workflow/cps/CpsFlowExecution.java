@@ -1048,6 +1048,10 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     private static void cleanUpLoader(ClassLoader loader, Set<ClassLoader> encounteredLoaders, Set<Class<?>> encounteredClasses) throws Exception {
+        if (loader instanceof CpsGroovyShell.TimingLoader) {
+            cleanUpLoader(loader.getParent(), encounteredLoaders, encounteredClasses);
+            return;
+        }
         if (!(loader instanceof GroovyClassLoader)) {
             return;
         }
@@ -1331,7 +1335,9 @@ public class CpsFlowExecution extends FlowExecution {
             writeChild(w, context, "script", e.script, String.class);
             writeChild(w, context, "loadedScripts", e.loadedScripts, Map.class);
             synchronized (e) {
-                writeChild(w, context, "timings", e.timings, Map.class);
+                if (e.timings != null) {
+                    writeChild(w, context, "timings", e.timings, Map.class);
+                }
             }
             writeChild(w, context, "sandbox", e.sandbox, Boolean.class);
             if (e.user != null) {
@@ -1348,7 +1354,7 @@ public class CpsFlowExecution extends FlowExecution {
             }
         }
 
-        private <T> void writeChild(HierarchicalStreamWriter w, MarshallingContext context, String name, T v, Class<T> staticType) {
+        private <T> void writeChild(HierarchicalStreamWriter w, MarshallingContext context, String name, @Nonnull T v, Class<T> staticType) {
             if (!mapper.shouldSerializeMember(CpsFlowExecution.class,name))
                 return;
             startNode(w, name, staticType);
