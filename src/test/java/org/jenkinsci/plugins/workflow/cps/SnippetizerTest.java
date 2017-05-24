@@ -67,6 +67,8 @@ import org.jvnet.hudson.test.MockFolder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.logging.Level;
 
 import static org.hamcrest.CoreMatchers.*;
@@ -75,6 +77,7 @@ import org.jenkinsci.plugins.workflow.testMetaStep.CurveMetaStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Polygon;
 import static org.junit.Assert.*;
 import org.jvnet.hudson.test.LoggerRule;
+import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
 
 // TODO these tests would better be moved to the respective plugins
@@ -340,8 +343,9 @@ public class SnippetizerTest {
         SnippetizerTester.assertDocGeneration(ParallelStep.class);
     }
 
+    @Issue("JENKINS-31967")
     @Test
-    public void testStandardJavaObject2Groovy() {
+    public void testStandardJavaObject2Groovy() throws Exception {
         StringBuilder builder = new StringBuilder();
 
         Snippetizer.object2Groovy(builder, new Boolean(true), false);
@@ -359,5 +363,116 @@ public class SnippetizerTest {
         Snippetizer.object2Groovy(builder, new Double(1213455.2), false);
 
         assertEquals("true,123,1213,121312,1213121213,121312.2,1213455.2", builder.toString());
+
+        Map<String, Object> expectedMaxValues = map(
+                "booleanValue1", Boolean.TRUE,
+                "byteValue1", Byte.MAX_VALUE,
+                "shortValue1", Short.MAX_VALUE,
+                "intValue1", Integer.MAX_VALUE,
+                "longValue1", Long.MAX_VALUE,
+                "floatValue1", Float.MAX_VALUE,
+                "doubleValue1", Double.MAX_VALUE
+        );
+        assertEquals(expectedMaxValues, roundTrip(AllJavaStandardTypesClass.class, expectedMaxValues));
+
+        // check with default values
+        Map<String, Object> expectedDefaultValues = map(
+                "booleanValue1", false,
+                "byteValue1", (byte) 0,
+                "shortValue1", (short) 0,
+                "intValue1", 0,
+                "longValue1", (long) 0,
+                "floatValue1", (float) 0.0,
+                "doubleValue1", 0.0
+        );
+        assertEquals(expectedDefaultValues, roundTrip(AllJavaStandardTypesClass.class, expectedDefaultValues));
+
+        // check with null values
+        Map<String, Object> nullValues =  map(
+                "booleanValue1", null,
+                "byteValue1", null,
+                "shortValue1", null,
+                "intValue1", null,
+                "longValue1", null,
+                "floatValue1", null,
+                "doubleValue1", null
+        );
+        // null values must be changed to default values
+        assertEquals(expectedDefaultValues, roundTrip(AllJavaStandardTypesClass.class, nullValues));
+    }
+
+    private static Map<String,Object> map(Object... keysAndValues) {
+        if (keysAndValues.length % 2 != 0) {
+            throw new IllegalArgumentException();
+        }
+        Map<String,Object> m = new TreeMap<String,Object>();
+        for (int i = 0; i < keysAndValues.length; i += 2) {
+            m.put((String) keysAndValues[i], keysAndValues[i + 1]);
+        }
+        return m;
+    }
+
+    private Map<String,Object> roundTrip(Class<?> c, Map<String,Object> m) throws Exception {
+        Object o = new DescribableModel<>(c).instantiate(m);
+        return DescribableModel.uninstantiate_(o);
+    }
+
+    public static final class AllJavaStandardTypesClass {
+        // final values (set in constructor)
+        private final boolean booleanValue1;
+        private final byte byteValue1;
+        private final short shortValue1;
+        private final int intValue1;
+        private final long longValue1;
+        private final float floatValue1;
+        private final double doubleValue1;
+
+
+        @DataBoundConstructor
+        public AllJavaStandardTypesClass(boolean booleanValue1, byte byteValue1, short shortValue1,
+                                         int intValue1, long longValue1, float floatValue1, double doubleValue1) {
+            this.booleanValue1 = booleanValue1;
+            this.byteValue1 = byteValue1;
+            this.shortValue1 = shortValue1;
+            this.intValue1 = intValue1;
+            this.longValue1 = longValue1;
+            this.floatValue1 = floatValue1;
+            this.doubleValue1 = doubleValue1;
+        }
+
+        public boolean isBooleanValue1() {
+            return booleanValue1;
+        }
+        public byte getByteValue1() {
+            return byteValue1;
+        }
+        public short getShortValue1() {
+            return shortValue1;
+        }
+        public int getIntValue1() {
+            return intValue1;
+        }
+        public long getLongValue1() {
+            return longValue1;
+        }
+        public float getFloatValue1() {
+            return floatValue1;
+        }
+        public double getDoubleValue1() {
+            return doubleValue1;
+        }
+
+        @Override
+        public String toString() {
+            return "AllJavaStandardTypesClass{" +
+                    "" + booleanValue1 +
+                    "," + byteValue1 +
+                    "," + shortValue1 +
+                    "," + intValue1 +
+                    "," + longValue1 +
+                    "," + floatValue1 +
+                    "," + doubleValue1 +
+                    '}';
+        }
     }
 }
