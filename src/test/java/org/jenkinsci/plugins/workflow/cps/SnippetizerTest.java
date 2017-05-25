@@ -29,6 +29,7 @@ import hudson.model.BooleanParameterDefinition;
 import hudson.model.BooleanParameterValue;
 import hudson.model.FreeStyleProject;
 import hudson.model.ParametersDefinitionProperty;
+import hudson.model.Result;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.tasks.ArtifactArchiver;
@@ -45,6 +46,7 @@ import org.jenkinsci.plugins.workflow.support.steps.WorkspaceStep;
 import org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Colorado;
+import org.jenkinsci.plugins.workflow.testMetaStep.EchoResultStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Hawaii;
 import org.jenkinsci.plugins.workflow.testMetaStep.Island;
 import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicData;
@@ -305,6 +307,12 @@ public class SnippetizerTest {
         dataList.add(new MonomorphicDataWithSymbol("three", "four"));
         MonomorphicListWithSymbolStep monomorphicStep = new MonomorphicListWithSymbolStep(dataList);
         st.assertRoundTrip(monomorphicStep, "monomorphListSymbolStep([monomorphSymbol(firstArg: 'one', secondArg: 'two'), monomorphSymbol(firstArg: 'three', secondArg: 'four')])");
+    }
+
+    @Issue("JENKINS-34464")
+    @Test
+    public void resultRoundTrips() throws Exception {
+        st.assertRoundTrip(new EchoResultStep(Result.UNSTABLE), "echoResult 'UNSTABLE'");
     }
 
     @Test
