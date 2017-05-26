@@ -49,6 +49,7 @@ import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 import com.thoughtworks.xstream.mapper.Mapper;
 import groovy.lang.GroovyShell;
+import hudson.ExtensionList;
 import hudson.model.Action;
 import hudson.model.Result;
 import hudson.util.Iterators;
@@ -1048,6 +1049,10 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     private static void cleanUpLoader(ClassLoader loader, Set<ClassLoader> encounteredLoaders, Set<Class<?>> encounteredClasses) throws Exception {
+        if (loader instanceof CpsGroovyShell.TimingLoader) {
+            cleanUpLoader(loader.getParent(), encounteredLoaders, encounteredClasses);
+            return;
+        }
         if (!(loader instanceof GroovyClassLoader)) {
             return;
         }
@@ -1184,8 +1189,21 @@ public class CpsFlowExecution extends FlowExecution {
         return heads.firstEntry().getValue();
     }
 
-    void notifyListeners(List<FlowNode> nodes, boolean synchronous) {
+    List<GraphListener> getListenersToRun() {
+        List<GraphListener> l = new ArrayList<>();
+
         if (listeners != null) {
+            l.addAll(listeners);
+        }
+        l.addAll(ExtensionList.lookup(GraphListener.class));
+
+        return l;
+    }
+
+    void notifyListeners(List<FlowNode> nodes, boolean synchronous) {
+        List<GraphListener> toRun = getListenersToRun();
+
+        if (!toRun.isEmpty()) {
             Saveable s = Saveable.NOOP;
             try {
                 Queue.Executable exec = owner.getExecutable();
@@ -1198,7 +1216,7 @@ public class CpsFlowExecution extends FlowExecution {
             BulkChange bc = new BulkChange(s);
             try {
                 for (FlowNode node : nodes) {
-                    for (GraphListener listener : listeners) {
+                    for (GraphListener listener : toRun) {
                         if (listener instanceof GraphListener.Synchronous == synchronous) {
                             listener.onNewHead(node);
                         }
@@ -1331,7 +1349,9 @@ public class CpsFlowExecution extends FlowExecution {
             writeChild(w, context, "script", e.script, String.class);
             writeChild(w, context, "loadedScripts", e.loadedScripts, Map.class);
             synchronized (e) {
-                writeChild(w, context, "timings", e.timings, Map.class);
+                if (e.timings != null) {
+                    writeChild(w, context, "timings", e.timings, Map.class);
+                }
             }
             writeChild(w, context, "sandbox", e.sandbox, Boolean.class);
             if (e.user != null) {
@@ -1348,7 +1368,7 @@ public class CpsFlowExecution extends FlowExecution {
             }
         }
 
-        private <T> void writeChild(HierarchicalStreamWriter w, MarshallingContext context, String name, T v, Class<T> staticType) {
+        private <T> void writeChild(HierarchicalStreamWriter w, MarshallingContext context, String name, @Nonnull T v, Class<T> staticType) {
             if (!mapper.shouldSerializeMember(CpsFlowExecution.class,name))
                 return;
             startNode(w, name, staticType);
