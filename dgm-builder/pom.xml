@@ -27,6 +27,7 @@
                     <skip>true</skip>
                 </configuration>
             </plugin>
+            <!-- TODO as per https://stackoverflow.com/a/27557285/12916 I am afraid of hitting NEXUS-9138; cannot see follow-up NEXUS-12365
             <plugin>
                 <groupId>org.sonatype.plugins</groupId>
                 <artifactId>nexus-staging-maven-plugin</artifactId>
@@ -34,6 +35,7 @@
                     <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
                 </configuration>
             </plugin>
+            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
