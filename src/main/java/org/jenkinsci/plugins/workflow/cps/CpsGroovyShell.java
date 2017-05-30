@@ -145,7 +145,7 @@ class CpsGroovyShell extends GroovyShell {
             return super.generateScriptName();
     }
 
-    private static class TimingLoader extends ClassLoader {
+    static class TimingLoader extends ClassLoader {
         private final @Nonnull CpsFlowExecution execution;
         TimingLoader(ClassLoader parent, @Nonnull CpsFlowExecution execution) {
             super(parent);

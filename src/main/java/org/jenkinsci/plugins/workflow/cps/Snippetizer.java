@@ -102,7 +102,9 @@ import org.kohsuke.stapler.StaplerRequest;
             return b;
         }
 
-        if (clazz == Boolean.class || clazz == Integer.class || clazz == Long.class) {
+        if (clazz == Boolean.class || clazz == Integer.class || clazz == Long.class ||
+                clazz == Float.class || clazz == Double.class ||
+                clazz == Byte.class || clazz == Short.class) {
             return b.append(o);
         }
 
