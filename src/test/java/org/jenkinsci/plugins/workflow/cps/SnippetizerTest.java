@@ -33,6 +33,7 @@ import hudson.model.Result;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.tasks.ArtifactArchiver;
+import hudson.tasks.junit.JUnitResultArchiver;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
@@ -346,5 +347,14 @@ public class SnippetizerTest {
     @Test(expected = NoStaplerConstructorException.class)
     public void parallelStepDocs() throws Exception {
         SnippetizerTester.assertDocGeneration(ParallelStep.class);
+    }
+
+
+    @Issue("JENKINS-31967")
+    @Test public void testStandardJavaTypes() throws Exception {
+        JUnitResultArchiver a = new JUnitResultArchiver("*.xml");
+        st.assertRoundTrip(new CoreStep(a), "junit '*.xml'");
+        a.setHealthScaleFactor(0.5);
+        st.assertRoundTrip(new CoreStep(a), "junit healthScaleFactor: 0.5, testResults: '*.xml'");
     }
 }
