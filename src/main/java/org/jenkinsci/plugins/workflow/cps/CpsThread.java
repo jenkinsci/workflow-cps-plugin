@@ -24,25 +24,24 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static java.util.logging.Level.FINE;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
+
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.SettableFuture;
-import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-import org.jenkinsci.plugins.workflow.steps.StepExecution;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-
-import static java.util.logging.Level.*;
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
 import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
 
@@ -54,6 +53,8 @@ import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
  */
 @PersistIn(PROGRAM)
 public final class CpsThread implements Serializable {
+
+    public static String CPS_TIMEOUT_MINUTES_CONFIG = "org.jenkinsci.plugins.workflow.cps.CpsThread.runTimeoutMinutes";
     /**
      * Owner object. A thread always belong to a {@link CpsThreadGroup}
      */
@@ -158,7 +159,7 @@ public final class CpsThread implements Serializable {
         final CpsThread old = CURRENT.get();
         CURRENT.set(this);
 
-        try (Timeout timeout = Timeout.limit(5, TimeUnit.MINUTES)) {
+        try (Timeout timeout = Timeout.limit(getRunTimeoutMinutes(), TimeUnit.MINUTES)) {
             LOGGER.log(FINE, "runNextChunk on {0}", resumeValue);
             Outcome o = resumeValue;
             resumeValue = null;
@@ -313,5 +314,14 @@ public final class CpsThread implements Serializable {
     @Override public String toString() {
         // getExecution().getOwner() would be useful but seems problematic.
         return "Thread #" + id + String.format(" @%h", this);
+    }
+
+    /**
+     * Gets a the timeout collect from a System property or default value.
+     * Use -Dorg.jenkinsci.plugins.workflow.cps.CpsThread.runTimeoutMinutes
+     * @return
+     */
+    public long getRunTimeoutMinutes() {
+        return Long.getLong(CPS_TIMEOUT_MINUTES_CONFIG, 5L);
     }
 }
