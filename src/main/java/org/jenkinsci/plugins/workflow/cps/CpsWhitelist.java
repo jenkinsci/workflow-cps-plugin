@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import com.cloudbees.groovy.cps.Continuable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.model.Run;
 import java.io.IOException;
@@ -11,6 +12,7 @@ import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.ProxyWhitelist;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.logging.Level;
@@ -87,9 +89,41 @@ class CpsWhitelist extends AbstractWhitelist {
 
     @Override
     public boolean permitsStaticMethod(Method method, Object[] args) {
+        Class<?> c = method.getDeclaringClass();
+        String n = method.getName();
         // type coercive cast. In particular, this is used to build GString. See com.cloudbees.groovy.cps.Builder.gstring
-        if (method.getDeclaringClass()==ScriptBytecodeAdapter.class && method.getName().equals("asType"))
+        if (c == ScriptBytecodeAdapter.class && n.equals("asType")) {
             return true;
+        }
+
+        if (Continuable.categories.contains(c)) {
+            // Delegate permission checks to the original *GroovyMethods.
+            String cn = c.getName();
+            String driverFrom = "com.cloudbees.groovy.cps.Cps"; // cf. Driver
+            String driverTo = "org.codehaus.groovy.runtime.";
+            if (cn.startsWith(driverFrom)) {
+                try {
+                    Class<?> orig = Class.forName(driverTo + cn.substring(driverFrom.length()));
+                    Class<?>[] expectedParameterTypes = method.getParameterTypes();
+                    String expectedName;
+                    if (n.startsWith("$")) {
+                        // E.g., CpsDefaultGroovyMethods.$each__java_util_List__groovy_lang_Closure
+                        expectedName = n.substring(1).replaceFirst("__.+$", "");
+                    } else {
+                        expectedName = n;
+                    }
+                    for (Method m2 : orig.getMethods()) {
+                        if (m2.getName().equals(expectedName) && Arrays.equals(m2.getParameterTypes(), expectedParameterTypes)) {
+                            return Whitelist.all().permitsStaticMethod(m2, args);
+                        }
+                    }
+                } catch (ClassNotFoundException x) {
+                    LOGGER.log(Level.WARNING, null, x); // this would be unexpected
+                }
+            } else {
+                LOGGER.log(Level.WARNING, "Unexpected category name {0}", cn); // as would this
+            }
+        }
 
         return false;
     }

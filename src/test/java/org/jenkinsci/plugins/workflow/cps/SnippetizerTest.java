@@ -238,8 +238,8 @@ public class SnippetizerTest {
         JenkinsRule.WebClient wc = r.createWebClient();
         String html = wc.goTo(Snippetizer.ACTION_URL + "/html").getWebResponse().getContentAsString();
         assertThat("text from LoadStep/help-path.html is included", html, containsString("the Groovy file to load"));
-        assertThat("SubversionSCM.workspaceUpdater is mentioned as an attribute of a value of GenericSCMStep.delegate", html, containsString("workspaceUpdater"));
-        assertThat("CheckoutUpdater is mentioned as an option", html, containsString("CheckoutUpdater"));
+        assertThat("GitSCM.submoduleCfg is mentioned as an attribute of a value of GenericSCMStep.scm", html, containsString("submoduleCfg"));
+        assertThat("CleanBeforeCheckout is mentioned as an option", html, containsString("CleanBeforeCheckout"));
         assertThat("content is written to the end", html, containsString("</body></html>"));
     }
 
