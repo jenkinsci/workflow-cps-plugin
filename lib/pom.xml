@@ -85,6 +85,17 @@
           <trimStackTrace>false</trimStackTrace> <!-- SUREFIRE-1226 workaround -->
         </configuration>
       </plugin>
+        <plugin>
+            <artifactId>maven-jar-plugin</artifactId>
+            <executions>
+                <execution>
+                    <id>test-jar</id>
+                    <goals>
+                        <goal>test-jar</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
     </plugins>
     <extensions>
       <extension>
@@ -160,4 +171,24 @@
     </plugins>
   </reporting>
 
+    <profiles>
+        <profile>
+            <id>cloudbees-oss-release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-test-sources</id>
+                                <goals>
+                                    <goal>test-jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
