@@ -1023,8 +1023,20 @@ public class CpsFlowExecution extends FlowExecution {
      */
     synchronized void onProgramEnd(Outcome outcome) {
         FlowNode head = new FlowEndNode(this, iotaStr(), (FlowStartNode)startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
-        if (outcome.isFailure())
-            head.addAction(new ErrorAction(outcome.getAbnormal()));
+        if (outcome.isFailure()) {
+            try {
+                head.addAction(new ErrorAction(outcome.getAbnormal()));
+            } catch (Exception e) {
+                // considered caused for failed to serialize the error.
+                // retry without the original error.
+                LOGGER.log(Level.SEVERE, "Failed to save ErrorAction", e);
+                try {
+                    head.replaceAction(new ErrorAction(new ErrorActionException("Failed to add error action", e)));
+                } catch (Exception e2) {
+                    LOGGER.log(Level.SEVERE, "Failed to save ErrorAction again: Give up!", e2);
+                }
+            }
+        }
 
         // shrink everything into a single new head
         done = true;

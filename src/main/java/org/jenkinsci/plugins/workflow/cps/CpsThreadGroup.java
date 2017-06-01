@@ -338,7 +338,19 @@ public final class CpsThreadGroup implements Serializable {
                         result = ((FlowInterruptedException) error).getResult();
                     }
                     execution.setResult(result);
-                    t.head.get().addAction(new ErrorAction(error));
+
+                    try {
+                        t.head.get().addAction(new ErrorAction(error));
+                    } catch (Exception e) {
+                        // considered caused for failed to serialize the error.
+                        // retry without the original error.
+                        LOGGER.log(Level.SEVERE, "Failed to save ErrorAction", e);
+                        try {
+                            t.head.get().replaceAction(new ErrorAction(new ErrorActionException("Failed to add error action", e)));
+                        } catch (Exception e2) {
+                            LOGGER.log(Level.SEVERE, "Failed to save ErrorAction again: Give up!", e2);
+                        }
+                    }
                 }
 
                 if (!t.isAlive()) {
