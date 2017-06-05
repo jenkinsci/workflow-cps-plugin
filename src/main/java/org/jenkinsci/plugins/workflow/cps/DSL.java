@@ -30,6 +30,7 @@ import groovy.lang.Closure;
 import groovy.lang.GString;
 import groovy.lang.GroovyObject;
 import groovy.lang.GroovyObjectSupport;
+import groovy.lang.GroovyRuntimeException;
 import hudson.EnvVars;
 import hudson.model.Computer;
 import hudson.model.Describable;
@@ -37,27 +38,6 @@ import hudson.model.Descriptor;
 import hudson.model.Queue;
 import hudson.model.Run;
 import hudson.model.TaskListener;
-import org.apache.commons.lang.StringUtils;
-import org.jenkinsci.plugins.structs.describable.DescribableModel;
-import org.jenkinsci.plugins.structs.describable.DescribableParameter;
-import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
-import org.jenkinsci.plugins.workflow.cps.actions.ArgumentsActionImpl;
-import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
-import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
-import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
-import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
-import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
-import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
-import org.jenkinsci.plugins.workflow.graph.FlowNode;
-import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
-import org.jenkinsci.plugins.workflow.steps.MissingContextVariableException;
-import org.jenkinsci.plugins.workflow.steps.Step;
-import org.jenkinsci.plugins.workflow.steps.StepContext;
-import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
-import org.jenkinsci.plugins.workflow.steps.StepExecution;
-import org.jenkinsci.plugins.structs.SymbolLookup;
-
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Serializable;
@@ -75,23 +55,37 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
+import org.apache.commons.lang.StringUtils;
 import org.codehaus.groovy.reflection.CachedClass;
 import org.codehaus.groovy.reflection.ReflectionCache;
 import org.jenkinsci.Symbol;
-
+import org.jenkinsci.plugins.structs.SymbolLookup;
+import org.jenkinsci.plugins.structs.describable.DescribableModel;
+import org.jenkinsci.plugins.structs.describable.DescribableParameter;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.*;
+import org.jenkinsci.plugins.workflow.cps.actions.ArgumentsActionImpl;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
+import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
+import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
+import org.jenkinsci.plugins.workflow.steps.MissingContextVariableException;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jvnet.hudson.annotation_indexer.Index;
-
 import org.kohsuke.stapler.ClassDescriptor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
 
-import javax.annotation.Nonnull;
-
 /**
- * Scaffolding to experiment with the call into {@link Step}.
- *
- * @author Kohsuke Kawaguchi
+ * Calls {@link Step}s and other DSL objects.
  */
 @PersistIn(PROGRAM)
 public class DSL extends GroovyObjectSupport implements Serializable {
@@ -134,11 +128,19 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             if (exec==null)
                 exec = (CpsFlowExecution) handle.get();
         } catch (IOException e) {
-            throw new Error(e); // TODO
+            throw new GroovyRuntimeException(e);
         }
 
         if (functions == null) {
             functions = new TreeMap<>();
+            while (StepDescriptor.all().isEmpty()) {
+                LOGGER.warning("Jenkins does not seem to be fully started yet, waiting…");
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException x) {
+                    throw new GroovyRuntimeException(x);
+                }
+            }
             for (StepDescriptor d : StepDescriptor.all()) {
                 functions.put(d.getFunctionName(), d);
             }
