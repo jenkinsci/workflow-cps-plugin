@@ -8,12 +8,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @RunWith(Parameterized.class)
+@Issue("JENKINS-26481")
 public class CpsDefaultGroovyMethodsTest {
     @ClassRule
     public static JenkinsRule r = new JenkinsRule();
@@ -22,12 +24,10 @@ public class CpsDefaultGroovyMethodsTest {
 
     private String testName;
     private String testCode;
-    private Object testResult; // Unused
 
-    public CpsDefaultGroovyMethodsTest(String testName, String testCode, Object testResult) {
+    public CpsDefaultGroovyMethodsTest(String testName, String testCode) {
         this.testName = testName;
         this.testCode = testCode;
-        this.testResult = testResult;
     }
 
     @Parameterized.Parameters(name = "{0}")
@@ -37,7 +37,7 @@ public class CpsDefaultGroovyMethodsTest {
             String n = (String)p[0];
             // sum methods require invokeMethod, so blocked.
             if (!n.startsWith("sum")) {
-                params.add(p);
+                params.add(new Object[]{p[0], p[1]});
             }
         }
         return params;
