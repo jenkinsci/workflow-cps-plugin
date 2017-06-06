@@ -12,6 +12,7 @@ import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.ProxyWhitelist;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -103,6 +104,9 @@ class CpsWhitelist extends AbstractWhitelist {
             String driverTo = "org.codehaus.groovy.runtime.";
             if (cn.startsWith(driverFrom)) {
                 try {
+                    if (Modifier.isPrivate(method.getModifiers())) {
+                        return true;
+                    }
                     Class<?> orig = Class.forName(driverTo + cn.substring(driverFrom.length()));
                     Class<?>[] expectedParameterTypes = method.getParameterTypes();
                     String expectedName;
