@@ -48,8 +48,6 @@ public class CpsDefaultGroovyMethodsTest {
         WorkflowJob j = r.createProject(WorkflowJob.class, testName);
         j.setDefinition(new CpsFlowDefinition(testCode, true));
 
-        WorkflowRun b = j.scheduleBuild2(0).waitForStart();
-
-        r.assertBuildStatusSuccess(r.waitForCompletion(b));
+        r.buildAndAssertSuccess(j);
     }
 }
