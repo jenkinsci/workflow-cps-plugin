@@ -110,16 +110,16 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                     String script;
                     try {
                         script = fs.child(scriptPath).contentAsString();
-                        listener.getLogger().println("Obtained " + scriptPath + " from " + scm.getKey());
                     } catch (java.io.FileNotFoundException e) {
                         if (isIgnoreMissingScript()) {
-                            // Set script to am empty string to mimic an empty scriptFile
+                            // Set script to an empty string to mimic an empty scriptFile
                             script = "";
                             listener.getLogger().println("The file " + scriptPath + " from " + scm.getKey() + " was not found, ignoring");
                         } else {
                             throw e;
                         }
                     }
+                    listener.getLogger().println("Obtained " + scriptPath + " from " + scm.getKey());
                     return new CpsFlowExecution(script, true, owner);
                 } else {
                     listener.getLogger().println("Lightweight checkout support not available, falling back to full checkout.");
@@ -154,7 +154,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             }
             if (!scriptFile.exists()) {
                 if (isIgnoreMissingScript()) {
-                    // Set script to am empty string to mimic an empty scriptFile
+                    // Set script to an empty string to mimic an empty scriptFile
                     script = "";
                     listener.getLogger().println("The file " + scriptPath + " from " + scm.getKey() + " was not found, ignoring");
                 } else {
