@@ -41,10 +41,10 @@ class ClosureCallEnv extends CallEnv {
     }
 
     public void setLocalVariable(@Nonnull String name, Object value) {
-        if (!locals.containsKey(name) && captured.getLocalVariableType(name) != null) {
-            captured.setLocalVariable(name, value);
-        } else {
+        if (locals.containsKey(name) || captured.getLocalVariableType(name) == null) {
             locals.put(name, value);
+        } else {
+            captured.setLocalVariable(name, value);
         }
     }
 
