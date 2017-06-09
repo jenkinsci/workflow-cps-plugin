@@ -24,8 +24,10 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import hudson.model.Result;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.junit.Assert.*;
 import org.junit.Test;
@@ -65,4 +67,16 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         jenkins.configRoundtrip(job);
     }
 
+    @Test
+    public void sandboxInvokerUsed() throws Exception {
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("[a: 1, b: 2].collectEntries { k, v ->\n" +
+                "  Jenkins.getInstance()\n" +
+                "  [(v): k]\n" +
+                "}\n", true));
+
+        WorkflowRun r = job.scheduleBuild2(0).waitForStart();
+        jenkins.assertBuildStatus(Result.FAILURE, jenkins.waitForCompletion(r));
+        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", r);
+    }
 }

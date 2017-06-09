@@ -104,9 +104,6 @@ class CpsWhitelist extends AbstractWhitelist {
             String driverTo = "org.codehaus.groovy.runtime.";
             if (cn.startsWith(driverFrom)) {
                 try {
-                    if (Modifier.isPrivate(method.getModifiers())) {
-                        return true;
-                    }
                     Class<?> orig = Class.forName(driverTo + cn.substring(driverFrom.length()));
                     Class<?>[] expectedParameterTypes = method.getParameterTypes();
                     String expectedName;
