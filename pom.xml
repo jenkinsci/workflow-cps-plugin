@@ -174,7 +174,7 @@
         <dependency>
             <groupId>com.cloudbees</groupId>
             <artifactId>groovy-cps</artifactId>
-            <version>1.15-20170613.134927-2</version> <!-- switch to release once https://github.com/cloudbees/groovy-cps/pull/61 is merged and released -->
+            <version>1.15</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.ui</groupId>
