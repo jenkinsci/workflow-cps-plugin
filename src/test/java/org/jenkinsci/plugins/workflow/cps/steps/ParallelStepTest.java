@@ -466,4 +466,25 @@ public class ParallelStepTest extends SingleJobTestBase {
         });
     }
 
+    @Issue("JENKINS-38268")
+    @Test
+    public void parallelLexicalScope() throws Exception {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                p = jenkins().createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition("def fn = { arg ->\n" +
+                        "    arg.count = arg.count + 1;\n" +
+                        "}\n" +
+                        "def a = [ id: 'a', count : 0 ];\n" +
+                        "def b = [ id: 'b', count : 0 ];\n" +
+                        "parallel(\n" +
+                        "    StepA : { fn(a); },\n" +
+                        "    StepB : { fn(b); },\n" +
+                        ");\n" +
+                        "assert a.count == 1;\n" +
+                        "assert b.count == 1;\n", true));
+                story.j.buildAndAssertSuccess(p);
+            }
+        });
+    }
 }
