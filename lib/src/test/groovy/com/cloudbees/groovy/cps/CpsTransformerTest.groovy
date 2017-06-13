@@ -777,4 +777,18 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         ''') == 'FOO';
     }
 
+    @Issue("JENKINS-38268")
+    @Test
+    void lexicalScope() {
+        assert evalCPS('''
+def a = [id: 'a', count: 0]
+def b = [id: 'b', count: 0]
+
+def toRun = [a, b].collect { thing -> return { thing.count = thing.count + 1 } }
+
+toRun.each { arg -> arg() }
+
+return [a.count, b.count]
+''') == [1, 1]
+    }
 }

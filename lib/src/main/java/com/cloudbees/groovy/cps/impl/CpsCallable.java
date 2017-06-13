@@ -45,6 +45,7 @@ public abstract class CpsCallable implements Serializable {
     protected final void assignArguments(List<?> args, Env e) {
         // TODO: var args
         for (int i=0; i< Math.min(args.size(),parameters.size()); i++) {
+            e.declareVariable(Object.class, parameters.get(i));
             e.setLocalVariable(parameters.get(i), args.get(i));
         }
     }
