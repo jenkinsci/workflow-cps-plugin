@@ -27,6 +27,26 @@ whether the code is trusted or not, wherever it calls methods or access properti
 is that this will designate whether or not this invocation should be checked for security (untrusted),
 or the invocation should be always allowed to happen (trusted.)
 
+The implication of this is that, if you compile a function with the trusted tag, the function is
+now responsible for making sure that it will never get tricked into allowing untrusted caller to
+invoke something on its behalf that it's not supposed to. This is the same basic rule of thumb
+for writing a code in `PrivilegedAction`. For example, the following code is not OK because
+it allows untrusted code to access any environment variable:
+
+```
+def foo(name) {// imagine this function compiled with a trusted tag
+  return System.getenv(name)
+}
+```
+
+The following code is OK because arguments from the untrusted code cannot control where a file gets written:
+
+```
+def foo(value) {// imagine this function compiled with a trusted tag
+  File.createTempFile("foo","tmp").text = value
+}
+```
+
 The call site tagging mechanism itself is more general, so it can be used for other purposes,
 for example to record where it came from, etc.
 
