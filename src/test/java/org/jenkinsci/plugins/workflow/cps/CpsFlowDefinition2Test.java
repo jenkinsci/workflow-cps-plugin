@@ -75,8 +75,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
                 "  [(v): k]\n" +
                 "}\n", true));
 
-        WorkflowRun r = job.scheduleBuild2(0).waitForStart();
-        jenkins.assertBuildStatus(Result.FAILURE, jenkins.waitForCompletion(r));
+        jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
         jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", r);
     }
 }
