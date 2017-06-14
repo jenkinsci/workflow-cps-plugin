@@ -67,7 +67,7 @@
         <git-plugin.version>3.1.0</git-plugin.version>
         <workflow-support-plugin.version>2.14</workflow-support-plugin.version>
         <scm-api-plugin.version>2.0.8</scm-api-plugin.version>
-        <groovy-cps.version>1.16-20170614.172949-1</groovy-cps.version> <!-- TODO: Switch to release once https://github.com/cloudbees/groovy-cps/pull/60 is merged and released -->
+        <groovy-cps.version>1.16-20170614.193138-2</groovy-cps.version> <!-- TODO: Switch to release once https://github.com/cloudbees/groovy-cps/pull/62 is merged and released -->
     </properties>
     <dependencies>
         <dependency>
