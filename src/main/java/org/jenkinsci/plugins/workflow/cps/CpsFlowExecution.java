@@ -70,6 +70,7 @@ import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
+import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.PickleResolver;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverReader;
 import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
@@ -132,7 +133,6 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
-import jenkins.security.NotReallyRoleSensitiveCallable;
 
 import org.acegisecurity.Authentication;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
@@ -1305,24 +1305,24 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     @Restricted(DoNotUse.class)
-    @Terminator public static void suspendAll() throws Exception {
-        ACL.impersonate(ACL.SYSTEM, new NotReallyRoleSensitiveCallable<Void,Exception>() { // TODO Jenkins 2.1+ remove JENKINS-34281 workaround
-            @Override public Void call() throws Exception {
-                LOGGER.fine("starting to suspend all executions");
-                for (FlowExecution execution : FlowExecutionList.get()) {
-                    if (execution instanceof CpsFlowExecution) {
-                        LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
-                        CpsFlowExecution exec = (CpsFlowExecution) execution;
-                        // Like waitForSuspension but with a timeout:
-                        if (exec.programPromise != null) {
-                            exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
-                        }
+    @Terminator public static void suspendAll() {
+        CpsFlowExecution exec = null;
+        try (Timeout t = Timeout.limit(3, TimeUnit.MINUTES)) { // TODO some complicated sequence of calls to Futures could allow all of them to run in parallel
+            LOGGER.fine("starting to suspend all executions");
+            for (FlowExecution execution : FlowExecutionList.get()) {
+                if (execution instanceof CpsFlowExecution) {
+                    LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
+                    exec = (CpsFlowExecution) execution;
+                    // Like waitForSuspension but with a timeout:
+                    if (exec.programPromise != null) {
+                        exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
                     }
                 }
-                LOGGER.fine("finished suspending all executions");
-                return null;
             }
-        });
+            LOGGER.fine("finished suspending all executions");
+        } catch (Exception x) {
+            LOGGER.log(Level.WARNING, "problem suspending " + exec, x);
+        }
     }
 
     // TODO: write a custom XStream Converter so that while we are writing CpsFlowExecution, it holds that lock
