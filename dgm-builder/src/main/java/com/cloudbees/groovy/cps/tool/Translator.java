@@ -294,7 +294,8 @@ public class Translator {
         }
         delegatingParams.forEach(p -> delegateCall.arg(p));
 
-        JVar $b = m.body().decl($Builder, "b", JExpr._new($Builder).arg(JExpr.invoke("loc").arg(methodName)));
+        JVar $b = m.body().decl($Builder, "b", JExpr._new($Builder).arg(JExpr.invoke("loc").arg(methodName)).
+            invoke("contextualize").arg(codeModel.ref("com.cloudbees.groovy.cps.sandbox.Trusted").staticRef("INSTANCE")));
         JInvocation f = JExpr._new($CpsFunction);
 
         // parameter names
