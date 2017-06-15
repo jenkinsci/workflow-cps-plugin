@@ -4,7 +4,7 @@
   <parent>
     <groupId>com.cloudbees</groupId>
     <artifactId>groovy-cps-parent</artifactId>
-    <version>1.16-SNAPSHOT</version>
+    <version>1.16</version>
   </parent>
 
   <artifactId>groovy-cps</artifactId>
