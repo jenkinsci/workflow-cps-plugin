@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
+import hudson.model.Result;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.plugins.git.BranchSpec;
@@ -64,11 +65,13 @@ public class CpsScmFlowDefinitionTest {
         sampleRepo.init();
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         CpsScmFlowDefinition def = new CpsScmFlowDefinition(new GitStep(sampleRepo.toString()).createSCM(), "Jenkinsfile");
+        def.setIgnoreMissingScript(false);
         def.setLightweight(true);
         p.setDefinition(def);
         r.configRoundtrip(p);
         def = (CpsScmFlowDefinition) p.getDefinition();
         assertEquals("Jenkinsfile", def.getScriptPath());
+        assertFalse(def.isIgnoreMissingScript());
         assertTrue(def.isLightweight());
         assertEquals(GitSCM.class, def.getScm().getClass());
     }
@@ -181,4 +184,56 @@ public class CpsScmFlowDefinitionTest {
         r.assertLogContains("version one", r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("VERSION", "one")))));
     }
 
+    @Test public void missingScriptOnLightweightCheckout() throws Exception {
+        sampleRepo.init();
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        GitStep step = new GitStep(sampleRepo.toString());
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(step.createSCM(), "flow.groovy");
+        def.setIgnoreMissingScript(false);
+        def.setLightweight(true);
+        p.setDefinition(def);
+        r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+    }
+
+    @Test public void ignoreMissingScriptOnLightweightCheckout() throws Exception {
+        sampleRepo.init();
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        GitStep step = new GitStep(sampleRepo.toString());
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(step.createSCM(), "flow.groovy");
+        def.setIgnoreMissingScript(true);
+        def.setLightweight(true);
+        p.setDefinition(def);
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogNotContains("Cloning the remote Git repository", b);
+        r.assertLogContains("The file flow.groovy from git " + sampleRepo + " was not found, ignoring", b);
+    }
+
+    @Test public void missingScriptOnFullCheckout() throws Exception
+    {
+        sampleRepo.init();
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        GitStep step = new GitStep(sampleRepo.toString());
+        CpsScmFlowDefinition def =
+                new CpsScmFlowDefinition(step.createSCM(), "flow.groovy");
+        def.setIgnoreMissingScript(false);
+        def.setLightweight(false);
+        p.setDefinition(def);
+        r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+    }
+
+    @Test public void ignoreMissingScriptOnFullCheckout() throws Exception
+    {
+        sampleRepo.init();
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        GitStep step = new GitStep(sampleRepo.toString());
+        CpsScmFlowDefinition def =
+                new CpsScmFlowDefinition(step.createSCM(), "flow.groovy");
+        def.setIgnoreMissingScript(true);
+        def.setLightweight(false);
+        p.setDefinition(def);
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("Cloning the remote Git repository", b);
+        r.assertLogContains("The file flow.groovy from git " + sampleRepo +
+                " was not found, ignoring", b);
+    }
 }

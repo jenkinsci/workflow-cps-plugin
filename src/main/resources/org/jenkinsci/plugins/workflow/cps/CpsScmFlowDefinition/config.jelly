@@ -29,6 +29,9 @@ THE SOFTWARE.
     <f:entry field="scriptPath" title="${%Script Path}">
         <f:textbox default="Jenkinsfile"/>
     </f:entry>
+    <f:entry field="ignoreMissingScript" title="${%Ignore missing script}">
+        <f:checkbox default="false"/>
+    </f:entry>
     <f:entry field="lightweight" title="${%Lightweight checkout}">
         <f:checkbox default="true"/>
     </f:entry>
