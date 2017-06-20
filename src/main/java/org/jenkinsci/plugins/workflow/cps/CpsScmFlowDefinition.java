@@ -27,18 +27,21 @@ package org.jenkinsci.plugins.workflow.cps;
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.FilePath;
+import hudson.Functions;
 import hudson.model.Action;
 import hudson.model.Computer;
 import hudson.model.Job;
 import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.Run;
+import hudson.model.Run.RunnerAbortedException;
 import hudson.model.TaskListener;
 import hudson.model.TopLevelItem;
 import hudson.scm.SCM;
 import hudson.scm.SCMDescriptor;
 import hudson.slaves.WorkspaceList;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.util.Collection;
 import java.util.List;
 import jenkins.model.Jenkins;
@@ -79,6 +82,10 @@ public class CpsScmFlowDefinition extends FlowDefinition {
     public boolean isLightweight() {
         return lightweight;
     }
+    
+    public int getScmCheckoutRetryCount() {
+        return Jenkins.getInstance().getScmCheckoutRetryCount();
+    }
 
     @DataBoundSetter public void setLightweight(boolean lightweight) {
         this.lightweight = lightweight;
@@ -118,7 +125,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         } else { // should not happen, but just in case:
             dir = new FilePath(owner.getRootDir());
         }
-        String script;
+        String script = null;
         Computer computer = node.toComputer();
         if (computer == null) {
             throw new IOException(node.getDisplayName() + " may be offline");
@@ -127,15 +134,38 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         delegate.setPoll(true);
         delegate.setChangelog(true);
         try (WorkspaceList.Lease lease = computer.getWorkspaceList().acquire(dir)) {
-            delegate.checkout(build, dir, listener, node.createLauncher(listener));
-            FilePath scriptFile = dir.child(scriptPath);
-            if (!scriptFile.absolutize().getRemote().replace('\\', '/').startsWith(dir.absolutize().getRemote().replace('\\', '/') + '/')) { // TODO JENKINS-26838
-                throw new IOException(scriptFile + " is not inside " + dir);
+            for (int retryCount = getScmCheckoutRetryCount(); retryCount >= 0; retryCount--) {
+                try {
+                    delegate.checkout(build, dir, listener, node.createLauncher(listener));
+
+                    FilePath scriptFile = dir.child(scriptPath);
+                    if (!scriptFile.absolutize().getRemote().replace('\\', '/').startsWith(dir.absolutize().getRemote().replace('\\', '/') + '/')) { // TODO JENKINS-26838
+                        throw new IOException(scriptFile + " is not inside " + dir);
+                    }
+                    if (!scriptFile.exists()) {
+                        throw new AbortException(scriptFile + " not found");
+                    }
+                    script = scriptFile.readToString();
+                    break;
+                } catch (AbortException e) {
+                    // abort exception might have a null message.
+                    // If so, just skip echoing it.
+                    if (e.getMessage() != null) {
+                        listener.error(e.getMessage());
+                    }
+                } catch (InterruptedIOException e) {
+                    throw (InterruptedException)new InterruptedException().initCause(e);
+                } catch (IOException e) {
+                    // checkout error not yet reported
+                    listener.error(e.toString());
+                }
+                
+                if (retryCount == 0)   // all attempts failed
+                    throw new RunnerAbortedException();
+
+                listener.getLogger().println("Retrying after 10 seconds");
+                Thread.sleep(10000);
             }
-            if (!scriptFile.exists()) {
-                throw new AbortException(scriptFile + " not found");
-            }
-            script = scriptFile.readToString();
         }
         CpsFlowExecution exec = new CpsFlowExecution(script, true, owner);
         exec.flowStartNodeActions.add(new WorkspaceActionImpl(dir, null));
