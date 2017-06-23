@@ -176,11 +176,7 @@ public class CpsScmFlowDefinitionTest {
         CpsScmFlowDefinition def = new CpsScmFlowDefinition(step.createSCM(), "flow.groovy");
         def.setLightweight(false);
         p.setDefinition(def);
-        // Initially check for the global Jenkins retry count
-        assertEquals(r.jenkins.getScmCheckoutRetryCount(), def.getScmCheckoutRetryCount());
-        // Set the jenkins global retry count to 1 and ensure that they are still equal
         r.jenkins.setScmCheckoutRetryCount(1);
-        assertEquals(r.jenkins.getScmCheckoutRetryCount(), def.getScmCheckoutRetryCount());
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogContains("Could not read from remote repository", b);
         r.assertLogContains("Retrying after 10 seconds", b);
