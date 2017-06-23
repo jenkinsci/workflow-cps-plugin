@@ -178,7 +178,7 @@ public class CpsScmFlowDefinitionTest {
         p.setDefinition(def);
         // Initially check for the global Jenkins retry count
         assertEquals(r.jenkins.getScmCheckoutRetryCount(), def.getScmCheckoutRetryCount());
-        // Set the jenkins global retry count to 3 and ensure that they are still equal
+        // Set the jenkins global retry count to 1 and ensure that they are still equal
         r.jenkins.setScmCheckoutRetryCount(1);
         assertEquals(r.jenkins.getScmCheckoutRetryCount(), def.getScmCheckoutRetryCount());
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
