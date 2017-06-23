@@ -82,15 +82,11 @@ public class CpsScmFlowDefinition extends FlowDefinition {
     public boolean isLightweight() {
         return lightweight;
     }
-    
-    public int getScmCheckoutRetryCount() {
-        return Jenkins.getInstance().getScmCheckoutRetryCount();
-    }
 
     @DataBoundSetter public void setLightweight(boolean lightweight) {
         this.lightweight = lightweight;
     }
-
+    
     @Override public CpsFlowExecution create(FlowExecutionOwner owner, TaskListener listener, List<? extends Action> actions) throws Exception {
         for (Action a : actions) {
             if (a instanceof CpsFlowFactoryAction2) {
@@ -134,7 +130,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         delegate.setPoll(true);
         delegate.setChangelog(true);
         try (WorkspaceList.Lease lease = computer.getWorkspaceList().acquire(dir)) {
-            for (int retryCount = getScmCheckoutRetryCount(); retryCount >= 0; retryCount--) {
+            for (int retryCount = Jenkins.getInstance().getScmCheckoutRetryCount(); retryCount >= 0; retryCount--) {
                 try {
                     delegate.checkout(build, dir, listener, node.createLauncher(listener));
 
@@ -161,7 +157,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                 }
                 
                 if (retryCount == 0)   // all attempts failed
-                    throw new RunnerAbortedException();
+                    throw new AbortException();
 
                 listener.getLogger().println("Retrying after 10 seconds");
                 Thread.sleep(10000);
