@@ -33,12 +33,19 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
 import java.io.ObjectStreamException;
 import java.util.Collections;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import org.jenkinsci.plugins.structs.describable.DescribableModel;
+import org.jenkinsci.plugins.structs.describable.DescribableParameter;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
+import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 
 /**
  * {@link AtomNode} for executing {@link Step} without body closure.
  *
  * @author Kohsuke Kawaguchi
  */
+@SuppressWarnings("deprecation")
 public class StepAtomNode extends AtomNode implements StepNode {
 
     private String descriptorId;
@@ -76,9 +83,29 @@ public class StepAtomNode extends AtomNode implements StepNode {
         return d!=null ? d.getDisplayName() : descriptorId;
     }
 
+    static @CheckForNull String effectiveFunctionName(@Nonnull org.jenkinsci.plugins.workflow.graph.StepNode node) {
+        StepDescriptor d = node.getDescriptor();
+        if (d == null) {
+            return null;
+        }
+        if (d.isMetaStep()) {
+            DescribableParameter p = new DescribableModel<>(d.clazz).getFirstRequiredParameter();
+            if (p != null) {
+                Object arg = ArgumentsAction.getArguments((FlowNode) node).get(p.getName());
+                if (arg instanceof UninstantiatedDescribable) {
+                    String symbol = ((UninstantiatedDescribable) arg).getSymbol();
+                    if (symbol != null) {
+                        return symbol;
+                    }
+                }
+            }
+        }
+        return d.getFunctionName();
+    }
+
     @Override
     protected String getTypeFunctionName() {
-        StepDescriptor d = getDescriptor();
-        return d != null ? d.getFunctionName() : descriptorId;
+        String fn = effectiveFunctionName(this);
+        return fn != null ? fn : descriptorId;
     }
 }
