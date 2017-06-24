@@ -27,8 +27,10 @@ package org.jenkinsci.plugins.workflow.cps.nodes;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import hudson.model.Result;
+import hudson.tasks.junit.JUnitResultArchiver;
 import java.util.List;
 import static org.hamcrest.Matchers.*;
+import org.jenkinsci.plugins.configfiles.buildwrapper.ConfigFileBuildWrapper;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
@@ -62,6 +64,7 @@ public class StepNodeTest {
         List<FlowNode> coreStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), new NodeStepTypePredicate("step"));
         assertThat(coreStepNodes, hasSize(1));
         assertEquals("junit", coreStepNodes.get(0).getDisplayFunctionName());
+        assertEquals(r.jenkins.getDescriptor(JUnitResultArchiver.class).getDisplayName(), coreStepNodes.get(0).getDisplayName());
         List<FlowNode> coreWrapperStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), Predicates.and(new NodeStepTypePredicate("wrap"), new Predicate<FlowNode>() {
             @Override public boolean apply(FlowNode n) {
                 return n instanceof StepStartNode && !((StepStartNode) n).isBody();
@@ -69,6 +72,7 @@ public class StepNodeTest {
         }));
         assertThat(coreWrapperStepNodes, hasSize(1));
         assertEquals("configFileProvider", coreWrapperStepNodes.get(0).getDisplayFunctionName());
+        assertEquals(r.jenkins.getDescriptor(ConfigFileBuildWrapper.class).getDisplayName() + " : Start", coreWrapperStepNodes.get(0).getDisplayName());
         r.assertLogContains("[Pipeline] junit", b);
         r.assertLogContains("[Pipeline] configFileProvider", b);
         r.assertLogContains("[Pipeline] // configFileProvider", b);

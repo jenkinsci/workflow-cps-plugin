@@ -66,7 +66,7 @@ public class StepStartNode extends BlockStartNode implements StepNode {
     }
 
     public String getStepName() {
-        StepDescriptor d = getDescriptor();
-        return d!=null ? d.getDisplayName() : descriptorId;
+        String n = StepAtomNode.effectiveDisplayName(this);
+        return n != null ? n : descriptorId;
     }
 }
