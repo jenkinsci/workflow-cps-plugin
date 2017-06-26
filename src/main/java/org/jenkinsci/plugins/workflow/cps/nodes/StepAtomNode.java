@@ -25,6 +25,7 @@
 package org.jenkinsci.plugins.workflow.cps.nodes;
 
 import hudson.model.Action;
+import hudson.model.Descriptor;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.graph.AtomNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -35,6 +36,7 @@ import java.io.ObjectStreamException;
 import java.util.Collections;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import org.jenkinsci.plugins.structs.SymbolLookup;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
@@ -77,10 +79,33 @@ public class StepAtomNode extends AtomNode implements StepNode {
         return super.readResolve();
     }
 
+    static @CheckForNull String effectiveDisplayName(@Nonnull org.jenkinsci.plugins.workflow.graph.StepNode node) {
+        StepDescriptor d = node.getDescriptor();
+        if (d == null) {
+            return null;
+        }
+        if (d.isMetaStep()) {
+            DescribableParameter p = new DescribableModel<>(d.clazz).getFirstRequiredParameter();
+            if (p != null) {
+                Object arg = ArgumentsAction.getArguments((FlowNode) node).get(p.getName());
+                if (arg instanceof UninstantiatedDescribable) {
+                    String symbol = ((UninstantiatedDescribable) arg).getSymbol();
+                    if (symbol != null) {
+                        Descriptor<?> descriptor = SymbolLookup.get().findDescriptor(p.getErasedType(), symbol);
+                        if (descriptor != null) {
+                            return descriptor.getDisplayName();
+                        }
+                    } // TODO to support $class it might be better to go through DescribableModel.resolveClass, if it were public; cf. discussion in JENKINS-31582
+                }
+            }
+        }
+        return d.getDisplayName();
+    }
+
     @Override
     protected String getTypeDisplayName() {
-        StepDescriptor d = getDescriptor();
-        return d!=null ? d.getDisplayName() : descriptorId;
+        String n = effectiveDisplayName(this);
+        return n != null ? n : descriptorId;
     }
 
     static @CheckForNull String effectiveFunctionName(@Nonnull org.jenkinsci.plugins.workflow.graph.StepNode node) {
