@@ -54,6 +54,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 
 /**
  * Tests the input sanitization and step persistence here
@@ -171,12 +172,12 @@ public class ArgumentsActionImplTest {
 
         // Test explosion of Step & UninstantiatedDescribable objects
         Step mystep = new EchoStep("I have a "+secretUsername);
-        Map<String, Object> singleSanitization = (Map<String,Object>)(impl.sanitizeObjectAndRecordMutation(mystep, env));
+        Map<String, ?> singleSanitization = (Map<String,Object>)(impl.sanitizeObjectAndRecordMutation(mystep, env));
         Assert.assertEquals(1, singleSanitization.size());
         Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, singleSanitization.get("message"));
         Assert.assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
-        singleSanitization = (Map<String,Object>)(impl.sanitizeObjectAndRecordMutation(mystep.getDescriptor().uninstantiate(mystep), env));
+        singleSanitization = ((UninstantiatedDescribable) (impl.sanitizeObjectAndRecordMutation(mystep.getDescriptor().uninstantiate(mystep), env))).getArguments();
         Assert.assertEquals(1, singleSanitization.size());
         Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, singleSanitization.get("message"));
         Assert.assertFalse(impl.isUnmodifiedArguments());
