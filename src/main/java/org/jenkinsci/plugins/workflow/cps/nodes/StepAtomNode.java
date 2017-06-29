@@ -25,6 +25,7 @@
 package org.jenkinsci.plugins.workflow.cps.nodes;
 
 import hudson.model.Action;
+import hudson.model.Describable;
 import hudson.model.Descriptor;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.graph.AtomNode;
@@ -34,8 +35,10 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
 import java.io.ObjectStreamException;
 import java.util.Collections;
+import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.structs.SymbolLookup;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
@@ -84,19 +87,11 @@ public class StepAtomNode extends AtomNode implements StepNode {
         if (d == null) {
             return null;
         }
-        if (d.isMetaStep()) {
-            DescribableParameter p = new DescribableModel<>(d.clazz).getFirstRequiredParameter();
-            if (p != null) {
-                Object arg = ArgumentsAction.getArguments((FlowNode) node).get(p.getName());
-                if (arg instanceof UninstantiatedDescribable) {
-                    String symbol = ((UninstantiatedDescribable) arg).getSymbol();
-                    if (symbol != null) {
-                        Descriptor<?> descriptor = SymbolLookup.get().findDescriptor(p.getErasedType(), symbol);
-                        if (descriptor != null) {
-                            return descriptor.getDisplayName();
-                        }
-                    } // TODO to support $class it might be better to go through DescribableModel.resolveClass, if it were public; cf. discussion in JENKINS-31582
-                }
+        Class<?> delegateType = getDelegateType((FlowNode) node, d);
+        if (delegateType != null && Describable.class.isAssignableFrom(delegateType)) {
+            Descriptor<?> descriptor = Jenkins.getInstance().getDescriptor(delegateType.asSubclass(Describable.class));
+            if (descriptor != null) {
+                return descriptor.getDisplayName();
             }
         }
         return d.getDisplayName();
@@ -113,16 +108,11 @@ public class StepAtomNode extends AtomNode implements StepNode {
         if (d == null) {
             return null;
         }
-        if (d.isMetaStep()) {
-            DescribableParameter p = new DescribableModel<>(d.clazz).getFirstRequiredParameter();
-            if (p != null) {
-                Object arg = ArgumentsAction.getArguments((FlowNode) node).get(p.getName());
-                if (arg instanceof UninstantiatedDescribable) {
-                    String symbol = ((UninstantiatedDescribable) arg).getSymbol();
-                    if (symbol != null) {
-                        return symbol;
-                    }
-                }
+        Class<?> delegateType = getDelegateType((FlowNode) node, d);
+        if (delegateType != null) {
+            Set<String> symbols = SymbolLookup.getSymbolValue(delegateType);
+            if (!symbols.isEmpty()) {
+                return symbols.iterator().next();
             }
         }
         return d.getFunctionName();
@@ -133,4 +123,24 @@ public class StepAtomNode extends AtomNode implements StepNode {
         String fn = effectiveFunctionName(this);
         return fn != null ? fn : descriptorId;
     }
+
+    /**
+     * @return for example {@code JUnitResultArchiver} given {@code junit '…'}
+     */
+    private static @CheckForNull Class<?> getDelegateType(@Nonnull FlowNode node, @Nonnull StepDescriptor d) {
+        if (d.isMetaStep()) {
+            DescribableParameter p = new DescribableModel<>(d.clazz).getFirstRequiredParameter();
+            if (p != null) {
+                Object arg = ArgumentsAction.getResolvedArguments(node).get(p.getName());
+                if (arg instanceof UninstantiatedDescribable) {
+                    DescribableModel<?> delegateModel = ((UninstantiatedDescribable) arg).getModel();
+                    if (delegateModel != null) {
+                        return delegateModel.getType();
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
 }
