@@ -78,7 +78,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <version>2.18-20170629.143731-7</version> <!-- TODO https://github.com/jenkinsci/workflow-api-plugin/pull/44 -->
+            <version>2.18</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
