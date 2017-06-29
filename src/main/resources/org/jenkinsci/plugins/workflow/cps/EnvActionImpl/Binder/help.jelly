@@ -23,8 +23,7 @@ node {
     </p>
     <p>
         A set of environment variables are made available to all Jenkins projects, including Pipelines.
-        The following is a general list of variables (by name) that are available;
-        see the notes below the list for Pipeline-specific details.
+        The following is a general list of variable names that are available.
     </p>
     <!-- Cf.  EnvironmentContributor/EnvVarsHtml/index.groovy -->
     <dl class="env-vars">
@@ -33,12 +32,9 @@ node {
       </j:forEach>
     </dl>
     <p>
-        The following variables are currently unavailable inside a Pipeline script:
+        SCM-specific variables such as <code>GIT_COMMIT</code> are not automatically defined as environment variables;
+        rather you can use the return value of the <code>checkout</code> step.
     </p>
-    <ul>
-        <!-- TODO when JENKINS-24141 fixed: SCM.all().each { e -> st.include(class:e.clazz, page:"buildEnv", optional:true) } -->
-        <li>SCM-specific variables such as <code>SVN_REVISION</code></li>
-    </ul>
     <p>
         As an example of loading variable values from Groovy:
     </p>
