@@ -57,7 +57,7 @@ public class MonomorphicStep extends AbstractStepImpl {
 
 
         @Override
-        public String argumentsToString(@CheckForNull Map<String, Object> map) {
+        public String argumentsToString(Map<String, Object> map) {
             if (map.get("data") instanceof Map) {
                 Map<String,String> data = (Map<String,String>)(map.get("data"));
                 return data.get("firstArg")+","+data.get("secondArg");
