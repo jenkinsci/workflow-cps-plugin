@@ -2,7 +2,9 @@ package com.cloudbees.groovy.cps.sandbox
 
 import com.cloudbees.groovy.cps.*
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv
+import org.junit.Before
 import org.junit.Test
+import org.jvnet.hudson.test.Issue;
 import org.kohsuke.groovy.sandbox.ClassRecorder
 
 import java.awt.Point
@@ -16,6 +18,10 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
     @Override
     protected CpsTransformer createCpsTransformer() {
         new SandboxCpsTransformer()
+    }
+
+    @Before public void zeroIota() {
+        CpsTransformer.iota.set(0)
     }
 
     /**
@@ -39,6 +45,9 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
         """)
 
         assertIntercept("""
+Script1:___cps___0()
+Script1:___cps___1()
+Script1.super(Script1).setBinding(Binding)
 new Point(Integer,Integer)
 Point.equals(Point)
 Point.x
@@ -68,7 +77,13 @@ ScriptBytecodeAdapter:compareEqual(Integer,Integer)
 
     return length("foo")
 """)
-        assertIntercept('Script1.length(String)','String.length()')
+        assertIntercept('''
+Script1:___cps___0()
+Script1:___cps___1()
+Script1.super(Script1).setBinding(Binding)
+Script1.length(String)
+String.length()
+''')
     }
 
 
@@ -106,6 +121,9 @@ ScriptBytecodeAdapter:compareEqual(Integer,Integer)
 
         assert [new Point(1,4),new File("foo")]==evalCpsSandbox("trusted.foo(4)");
         assertIntercept("""
+Script2:___cps___6()
+Script2:___cps___7()
+Script2.super(Script2).setBinding(Binding)
 Script2.trusted
 Script1.foo(Integer)
 new File(String)
@@ -132,10 +150,86 @@ new File(String)
         ''')=="xbase"
 
         assertIntercept("""
+Script1:___cps___0()
+Script1:___cps___1()
+Script1.super(Script1).setBinding(Binding)
 new Bar()
+Foo:___cps___2()
 Bar.toString()
 Bar.super(Foo).toString()
 String.plus(String)
 """)
     }
+
+    @Issue("SECURITY-551")
+    @Test public void constructors() {
+        evalCpsSandbox('''
+            import java.awt.Point;
+            class C {
+                Point p
+                C() {
+                    p = new Point(1, 3)
+                }
+            }
+            assert new C().p.y == 3
+        ''')
+        assertIntercept('''
+Script1:___cps___0()
+Script1:___cps___1()
+Script1.super(Script1).setBinding(Binding)
+new C()
+new Point(Integer,Integer)
+C.p=Point
+C.p
+Point.y
+ScriptBytecodeAdapter:compareEqual(Double,Integer)
+''')
+    }
+
+    @Issue("SECURITY-551")
+    @Test public void fields() {
+        evalCpsSandbox('''
+            import java.awt.Point;
+            class C {
+                Point p = new Point(1, 3)
+            }
+            assert new C().p.y == 3
+        ''')
+        assertIntercept('''
+Script1:___cps___0()
+Script1:___cps___1()
+Script1.super(Script1).setBinding(Binding)
+new C()
+new Point(Integer,Integer)
+C.p
+Point.y
+ScriptBytecodeAdapter:compareEqual(Double,Integer)
+''')
+    }
+
+    @Issue("SECURITY-551")
+    @Test public void initializers() {
+        evalCpsSandbox('''
+            import java.awt.Point;
+            class C {
+                Point p
+                {
+                    p = new Point(1, 3)
+                }
+            }
+            assert new C().p.y == 3
+        ''')
+        assertIntercept('''
+Script1:___cps___0()
+Script1:___cps___1()
+Script1.super(Script1).setBinding(Binding)
+new C()
+new Point(Integer,Integer)
+C.p=Point
+C.p
+Point.y
+ScriptBytecodeAdapter:compareEqual(Double,Integer)
+''')
+    }
+
 }

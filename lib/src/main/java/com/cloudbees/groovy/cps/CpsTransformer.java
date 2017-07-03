@@ -4,6 +4,7 @@ import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.CpsFunction;
 import com.cloudbees.groovy.cps.sandbox.Trusted;
 import com.cloudbees.groovy.cps.sandbox.Untrusted;
+import com.google.common.annotations.VisibleForTesting;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -95,7 +96,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     private static final Logger LOGGER = Logger.getLogger(CpsTransformer.class.getName());
 
-    private static final AtomicLong iota = new AtomicLong();
+    @VisibleForTesting
+    public static final AtomicLong iota = new AtomicLong();
 
     private SourceUnit sourceUnit;
 
@@ -120,15 +122,18 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         this.classNode = classNode;
         try {
 
-//        copy(source.ast.methods)?.each { visitMethod(it) }
-//        classNode?.declaredConstructors?.each { visitMethod(it) } // can't transform constructor
-            if (classNode != null) {
-                for (MethodNode method : new ArrayList<>(classNode.getMethods())) {
-                    visitMethod(method);
-                }
+            for (MethodNode method : new ArrayList<>(classNode.getMethods())) {
+                visitMethod(method);
             }
-//        classNode?.objectInitializerStatements?.each { it.visit(visitor) }
-//        classNode?.fields?.each { visitor.visitField(it) }
+            for (ConstructorNode constructor : new ArrayList<>(classNode.getDeclaredConstructors())) {
+                visitNontransformedMethod(constructor);
+            }
+            for (FieldNode field : new ArrayList<>(classNode.getFields())) {
+                visitNontransformedField(field);
+            }
+            for (Statement statement : new ArrayList<>(classNode.getObjectInitializerStatements())) {
+                visitNontransformedStatement(statement);
+            }
 
             // groovy puts timestamp of compilation into a class file, causing serialVersionUID to change.
             // this tends to be undesirable for CPS involving persistence.
@@ -288,6 +293,12 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
      * For methods that are not CPS-transformed.
      */
     protected void visitNontransformedMethod(MethodNode m) {
+    }
+
+    protected void visitNontransformedField(FieldNode f) {
+    }
+
+    protected void visitNontransformedStatement(Statement s) {
     }
 
     // TODO Java 8 @FunctionalInterface, or switch to Consumer<Expression>
@@ -1099,7 +1110,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                 }
             });
         } else {
-            throw new UnsupportedOperationException();
+            throw new UnsupportedOperationException(exp.getText());
         }
     }
 
