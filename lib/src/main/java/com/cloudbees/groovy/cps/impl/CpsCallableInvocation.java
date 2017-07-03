@@ -49,4 +49,10 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
             }
         };
     }
+
+    @Override
+    public synchronized Throwable fillInStackTrace() {
+        return this;
+    }
+
 }
