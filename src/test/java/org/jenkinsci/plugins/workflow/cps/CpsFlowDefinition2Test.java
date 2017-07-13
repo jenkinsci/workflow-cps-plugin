@@ -24,15 +24,25 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import com.cloudbees.groovy.cps.CpsTransformer;
 import hudson.model.Result;
+import java.util.logging.Level;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.junit.Assert.*;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.Issue;
+import org.jvnet.hudson.test.LoggerRule;
 
 public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
+
+    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
+    @Rule public LoggerRule logging = new LoggerRule();
 
     /**
      * I should be able to have DSL call into async step and then bring it to the completion.
@@ -78,4 +88,70 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         WorkflowRun r = jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
         jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", r);
     }
+
+    @Issue("SECURITY-551")
+    @Test
+    public void constructorSandbox() throws Exception {
+        logging.record(CpsTransformer.class, Level.FINEST);
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("class X {X() {Jenkins.instance.systemMessage = 'pwned'}}; new X()", true));
+        WorkflowRun b = job.scheduleBuild2(0).get();
+        assertNull(jenkins.jenkins.getSystemMessage());
+        jenkins.assertBuildStatus(Result.FAILURE, b);
+        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
+    }
+
+    @Issue("SECURITY-551")
+    @Test
+    public void fieldInitializerSandbox() throws Exception {
+        logging.record(CpsTransformer.class, Level.FINEST);
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("class X {def x = {Jenkins.instance.systemMessage = 'pwned'}()}; new X()", true));
+        WorkflowRun b = job.scheduleBuild2(0).get();
+        assertNull(jenkins.jenkins.getSystemMessage());
+        jenkins.assertBuildStatus(Result.FAILURE, b);
+        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
+    }
+
+    @Issue("SECURITY-551")
+    @Test
+    public void initializerSandbox() throws Exception {
+        logging.record(CpsTransformer.class, Level.FINEST);
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("class X {{Jenkins.instance.systemMessage = 'pwned'}}; new X()", true));
+        WorkflowRun b = job.scheduleBuild2(0).get();
+        assertNull(jenkins.jenkins.getSystemMessage());
+        jenkins.assertBuildStatus(Result.FAILURE, b);
+        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
+    }
+
+    @Test
+    public void staticInitializerSandbox() throws Exception {
+        logging.record(CpsTransformer.class, Level.FINEST);
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("class X {static {Jenkins.instance.systemMessage = 'pwned'}}; new X()", true));
+        WorkflowRun b = job.scheduleBuild2(0).get();
+        assertNull(jenkins.jenkins.getSystemMessage());
+        jenkins.assertBuildStatus(Result.FAILURE, b);
+        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
+    }
+
+    @Test
+    public void traitsSandbox() throws Exception {
+        logging.record(CpsTransformer.class, Level.FINEST);
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("trait T {void m() {Jenkins.instance.systemMessage = 'pwned'}}; class X implements T {}; new X().m()", true));
+        WorkflowRun b = job.scheduleBuild2(0).get();
+        assertNull(jenkins.jenkins.getSystemMessage());
+        jenkins.assertBuildStatus(Result.FAILURE, b);
+        /* TODO instead it fails in some cryptic spot while trying to translate the body of the trait
+        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
+        */
+        job.setDefinition(new CpsFlowDefinition("trait T {void m() {Jenkins.instance.systemMessage = 'pwned'}}; T t = new TreeSet() as T; t.m()", true));
+        b = job.scheduleBuild2(0).get();
+        assertNull(jenkins.jenkins.getSystemMessage());
+        jenkins.assertBuildStatus(Result.FAILURE, b);
+        // TODO this one fails with a NullPointerException
+    }
+
 }
