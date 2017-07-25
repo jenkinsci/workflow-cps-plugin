@@ -77,10 +77,12 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         jenkins.configRoundtrip(job);
     }
 
-    @Issue("JENKINS-34599")
-    @Test public void finalFields() throws Exception {
+    @Issue({"JENKINS-34599", "JENKINS-45629"})
+    @Test public void fieldInitializers() throws Exception {
         WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("class X {final String val; X(String _val) {val = _val}}; echo(/hello ${new X('world').val}/)", true));
+        jenkins.assertLogContains("hello world", jenkins.buildAndAssertSuccess(p));
+        p.setDefinition(new CpsFlowDefinition("class X {String world = 'world'; String message = 'hello ' + world}; echo(new X().message)", true));
         jenkins.assertLogContains("hello world", jenkins.buildAndAssertSuccess(p));
     }
 
