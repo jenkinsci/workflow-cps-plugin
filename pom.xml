@@ -93,7 +93,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1.30-20170711.212448-1</version> <!-- TODO -->
+            <version>1.30</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>

@@ -77,6 +77,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         jenkins.configRoundtrip(job);
     }
 
+    @Issue("JENKINS-42563")
     @Test
     public void superCallsSandboxed() throws Exception {
         WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
