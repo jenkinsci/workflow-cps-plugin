@@ -94,13 +94,15 @@ final class FlowHead implements Serializable {
     }
 
     void newStartNode(FlowStartNode n) throws IOException {
-        for (Action a : execution.flowStartNodeActions) {
-            if (a instanceof FlowNodeAction) {
-                ((FlowNodeAction) a).onLoad(n);
+        if (execution.flowStartNodeActions != null) {
+            for (Action a : execution.flowStartNodeActions) {
+                if (a instanceof FlowNodeAction) {
+                    ((FlowNodeAction) a).onLoad(n);
+                }
+                n.addAction(a);
             }
-            n.addAction(a);
-        }
-        execution.flowStartNodeActions.clear();
+            execution.flowStartNodeActions.clear();
+        } // may be unset from loadProgramFailed
         synchronized (execution) {
             this.head = execution.startNodes.push(n);
         }
