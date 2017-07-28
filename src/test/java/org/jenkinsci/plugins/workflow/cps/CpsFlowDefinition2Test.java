@@ -86,9 +86,10 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         jenkins.assertLogContains("hello world", jenkins.buildAndAssertSuccess(p));
     }
 
-    @Issue("JENKINS-42563")
+    @Issue({"JENKINS-42563", "SECURITY-582"})
     @Test
     public void superCallsSandboxed() throws Exception {
+        logging.record(CpsTransformer.class, Level.FINEST);
         WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
         job.setDefinition(new CpsFlowDefinition("class X extends groovy.json.JsonSlurper {def parse(url) {super.parse(new URL(url))}}; echo(/got ${new X().parse(\"${JENKINS_URL}api/json\")}/)", true));
         WorkflowRun r = jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
@@ -96,6 +97,9 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         job.setDefinition(new CpsFlowDefinition("class X extends groovy.json.JsonSlurper {def m(url) {super.parse(new URL(url))}}; echo(/got ${new X().m(\"${JENKINS_URL}api/json\")}/)", true));
         r = jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
         jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use method groovy.json.JsonSlurper parse java.net.URL", r);
+        job.setDefinition(new CpsFlowDefinition("class X extends File {X(String f) {super(f)}}; echo(/got ${new X('x')}/)", true));
+        r = jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
+        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use new java.io.File java.lang.String", r);
     }
 
     @Test
@@ -173,6 +177,51 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         assertNull(jenkins.jenkins.getSystemMessage());
         jenkins.assertBuildStatus(Result.FAILURE, b);
         // TODO this one fails with a NullPointerException
+    }
+
+    @Issue("SECURITY-566")
+    @Test public void typeCoercion() throws Exception {
+        logging.record(CpsTransformer.class, Level.FINEST);
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("interface I {Object getInstance()}; println((Jenkins as I).instance)", true));
+        WorkflowRun b = job.scheduleBuild2(0).get();
+        assertNull(jenkins.jenkins.getSystemMessage());
+        jenkins.assertBuildStatus(Result.FAILURE, b);
+        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
+        // Not really the same but just checking:
+        job.setDefinition(new CpsFlowDefinition("interface I {Object getInstance()}; I i = {Jenkins.instance}; println(i.instance)", true));
+        b = job.scheduleBuild2(0).get();
+        assertNull(jenkins.jenkins.getSystemMessage());
+        jenkins.assertBuildStatus(Result.FAILURE, b);
+        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
+    }
+
+    @Issue("SECURITY-580")
+    @Test public void positionalConstructors() throws Exception {
+        logging.record(CpsTransformer.class, Level.FINEST);
+        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        // Control cases:
+        p.setDefinition(new CpsFlowDefinition("def u = ['http://nowhere.net/'] as URL; echo(/$u/)", true));
+        jenkins.buildAndAssertSuccess(p);
+        p.setDefinition(new CpsFlowDefinition("URL u = ['http://nowhere.net/']; echo(/$u/)", true));
+        jenkins.buildAndAssertSuccess(p);
+        p.setDefinition(new CpsFlowDefinition("def f = new File('/tmp'); echo(/$f/)", true));
+        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use new java.io.File java.lang.String", jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)));
+        // Test cases:
+        p.setDefinition(new CpsFlowDefinition("def f = ['/tmp'] as File; echo(/$f/)", true));
+        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use new java.io.File java.lang.String", jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)));
+        p.setDefinition(new CpsFlowDefinition("File f = ['/tmp']; echo(/$f/)", true));
+        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use new java.io.File java.lang.String", jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)));
+    }
+
+    @Issue("SECURITY-567")
+    @Test public void methodPointers() throws Exception {
+        logging.record(CpsTransformer.class, Level.FINEST);
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("println((Jenkins.&getInstance)())", true));
+        WorkflowRun b = job.scheduleBuild2(0).get();
+        jenkins.assertBuildStatus(Result.FAILURE, b);
+        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
     }
 
 }
