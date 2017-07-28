@@ -2,9 +2,10 @@ package com.cloudbees.groovy.cps.sandbox
 
 import com.cloudbees.groovy.cps.*
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv
+import org.codehaus.groovy.runtime.ProxyGeneratorAdapter
 import org.junit.Before
 import org.junit.Test
-import org.jvnet.hudson.test.Issue;
+import org.jvnet.hudson.test.Issue
 import org.kohsuke.groovy.sandbox.ClassRecorder
 
 import java.awt.Point
@@ -136,6 +137,30 @@ new File(String)
         String toString() {
             return "base";
         }
+
+        String multipleArgs(String first, String second) {
+            return "Hello, " + first + " " + second;
+        }
+
+        String noArg() {
+            return "No argument"
+        }
+
+        String oneArg(String first) {
+            return "Just one arg: " + first
+        }
+
+        public static String staticMultipleArgs(String first, String second) {
+            return "Hello, " + first + " " + second;
+        }
+
+        public static String staticNoArg() {
+            return "No argument"
+        }
+
+        public static String staticOneArg(String first) {
+            return "Just one arg: " + first
+        }
     }
     @Test
     void superClass() {
@@ -149,16 +174,18 @@ new File(String)
             new Bar().toString();
         ''')=="xbase"
 
-        assertIntercept("""
+        assertIntercept('''
 Script1:___cps___0()
 Script1:___cps___1()
 Script1.super(Script1).setBinding(Binding)
 new Bar()
 Foo:___cps___2()
+new Foo()
+new SandboxInvokerTest$Base()
 Bar.toString()
 Bar.super(Foo).toString()
 String.plus(String)
-""")
+''')
     }
 
     @Issue("SECURITY-551")
@@ -179,7 +206,6 @@ Script1:___cps___1()
 Script1.super(Script1).setBinding(Binding)
 new C()
 new Point(Integer,Integer)
-C.p=Point
 C.p
 Point.y
 ScriptBytecodeAdapter:compareEqual(Double,Integer)
@@ -225,10 +251,131 @@ Script1:___cps___1()
 Script1.super(Script1).setBinding(Binding)
 new C()
 new Point(Integer,Integer)
-C.p=Point
 C.p
 Point.y
 ScriptBytecodeAdapter:compareEqual(Double,Integer)
+''')
+    }
+
+    @Issue("SECURITY-566")
+    @Test public void typeCoercion() {
+        ProxyGeneratorAdapter.pxyCounter.set(0); // make sure *_groovyProxy names are predictable
+        evalCpsSandbox('''
+            interface Static {
+                Locale[] getAvailableLocales()
+            }
+            interface Instance {
+                String getCountry()
+            }
+            assert (Locale as Static).getAvailableLocales() != null
+            assert (Locale as Static).availableLocales != null
+            assert Locale.getAvailableLocales() != null
+            assert (Locale.getDefault() as Instance).getCountry() != null
+            assert (Locale.getDefault() as Instance).country != null
+            assert Locale.getDefault().getCountry() != null
+        ''')
+        // TODO recording Checker.checkedCast is undesirable, but how to avoid it?
+        assertIntercept('''
+Script1:___cps___0()
+Script1:___cps___1()
+Script1.super(Script1).setBinding(Binding)
+Checker:checkedCast(Class,Class,Boolean,Boolean,Boolean)
+Locale:getAvailableLocales()
+Class1_groovyProxy.getAvailableLocales()
+ScriptBytecodeAdapter:compareNotEqual(Locale[],null)
+Checker:checkedCast(Class,Class,Boolean,Boolean,Boolean)
+Locale:getAvailableLocales()
+Class1_groovyProxy.availableLocales
+ScriptBytecodeAdapter:compareNotEqual(Locale[],null)
+Locale:getAvailableLocales()
+ScriptBytecodeAdapter:compareNotEqual(Locale[],null)
+Locale:getDefault()
+Checker:checkedCast(Class,Locale,Boolean,Boolean,Boolean)
+Locale.getCountry()
+Locale2_groovyProxy.getCountry()
+ScriptBytecodeAdapter:compareNotEqual(String,null)
+Locale:getDefault()
+Checker:checkedCast(Class,Locale,Boolean,Boolean,Boolean)
+Locale.getCountry()
+Locale2_groovyProxy.country
+ScriptBytecodeAdapter:compareNotEqual(String,null)
+Locale:getDefault()
+Locale.getCountry()
+ScriptBytecodeAdapter:compareNotEqual(String,null)
+''')
+    }
+
+    @Issue("SECURITY-567")
+    @Test
+    void methodPointers() {
+        evalCpsSandbox('''
+import java.util.concurrent.Callable
+def b = new SandboxInvokerTest.Base()
+(b.&noArg)() 
+(b.&multipleArgs)('Kohsuke', 'Kawaguchi') 
+(b.&oneArg)('Something')
+['Something'].each(b.&oneArg)
+Callable c = b.&noArg
+c()
+def runit(Callable c) {c()}
+runit({-> b.noArg()})
+runit(b.&noArg)
+runit({-> b.noArg()} as Callable)
+runit(b.&noArg as Callable)
+''')
+        assertIntercept('''
+Script1:___cps___0()
+Script1:___cps___1()
+Script1:___cps___2()
+Script1.super(Script1).setBinding(Binding)
+new SandboxInvokerTest$Base()
+SandboxedMethodClosure.call()
+SandboxInvokerTest$Base.noArg()
+SandboxedMethodClosure.call(String,String)
+SandboxInvokerTest$Base.multipleArgs(String,String)
+SandboxedMethodClosure.call(String)
+SandboxInvokerTest$Base.oneArg(String)
+ArrayList.each(SandboxedMethodClosure)
+SandboxInvokerTest$Base.oneArg(String)
+SandboxedMethodClosure.call()
+SandboxInvokerTest$Base.noArg()
+Script1.runit(CpsClosure)
+CpsClosure.call()
+SandboxInvokerTest$Base.noArg()
+Script1.runit(SandboxedMethodClosure)
+SandboxedMethodClosure.call()
+SandboxInvokerTest$Base.noArg()
+Checker:checkedCast(Class,CpsClosure,Boolean,Boolean,Boolean)
+CpsClosure.call()
+Script1.runit(CpsClosure)
+CpsClosure.call()
+SandboxInvokerTest$Base.noArg()
+Checker:checkedCast(Class,SandboxedMethodClosure,Boolean,Boolean,Boolean)
+SandboxedMethodClosure.call()
+Script1.runit(SandboxedMethodClosure)
+SandboxedMethodClosure.call()
+SandboxInvokerTest$Base.noArg()
+''')
+    }
+
+    @Issue("SECURITY-567")
+    @Test
+    void methodPointersStatic() {
+        evalCpsSandbox('''
+(SandboxInvokerTest.Base.&staticMultipleArgs)('Kohsuke', 'Kawaguchi') 
+(SandboxInvokerTest.Base.&staticNoArg)() 
+(SandboxInvokerTest.Base.&staticOneArg)('Something') 
+''')
+        assertIntercept('''
+Script1:___cps___0()
+Script1:___cps___1()
+Script1.super(Script1).setBinding(Binding)
+SandboxedMethodClosure.call(String,String)
+SandboxInvokerTest$Base:staticMultipleArgs(String,String)
+SandboxedMethodClosure.call()
+SandboxInvokerTest$Base:staticNoArg()
+SandboxedMethodClosure.call(String)
+SandboxInvokerTest$Base:staticOneArg(String)
 ''')
     }
 

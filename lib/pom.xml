@@ -71,8 +71,6 @@
         <executions>
           <execution>
             <goals>
-              <goal>generateStubs</goal>
-              <goal>compile</goal>
               <goal>testGenerateStubs</goal>
               <goal>testCompile</goal>
             </goals>
@@ -113,6 +111,9 @@
     </extensions>
   </build>
 
+  <properties>
+    <groovy-sandbox.version>1.13</groovy-sandbox.version>
+  </properties>
   <dependencies>
     <dependency>
       <groupId>com.cloudbees</groupId>
@@ -125,13 +126,13 @@
     <dependency>
       <groupId>org.kohsuke</groupId>
       <artifactId>groovy-sandbox</artifactId>
-      <version>1.11</version>
+      <version>${groovy-sandbox.version}</version>
       <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>org.kohsuke</groupId>
       <artifactId>groovy-sandbox</artifactId>
-      <version>1.11</version>
+      <version>${groovy-sandbox.version}</version>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
@@ -169,14 +170,6 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-
-  <reporting>
-    <plugins>
-      <plugin>
-        <artifactId>maven-javadoc-plugin</artifactId>
-      </plugin>
-    </plugins>
-  </reporting>
 
     <profiles>
         <profile>
