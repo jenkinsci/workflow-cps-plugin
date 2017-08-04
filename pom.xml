@@ -68,17 +68,27 @@
         <workflow-support-plugin.version>2.14</workflow-support-plugin.version>
         <scm-api-plugin.version>2.0.8</scm-api-plugin.version>
         <groovy-cps.version>1.17</groovy-cps.version>
+        <workflow-step-api.version>2.10</workflow-step-api.version>
+        <workflow-api.version>2.18</workflow-api.version>
+        <workflow-scm-step.version>2.4</workflow-scm-step.version>
+        <script-security.version>1.30</script-security.version>
+        <structs.version>1.7</structs.version>
+        <workflow-basic-steps.version>2.4</workflow-basic-steps.version>
+        <workflow-job.version>2.10</workflow-job.version>
+        <workflow-durable-task-step.version>2.9</workflow-durable-task-step.version>
+        <pipeline-build-step.version>2.4</pipeline-build-step.version>
+        <pipeline-input-step.version>2.5</pipeline-input-step.version>
     </properties>
     <dependencies>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
-            <version>2.10</version>
+            <version>${workflow-step-api.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <version>2.18</version>
+            <version>${workflow-api.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -88,12 +98,12 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-scm-step</artifactId>
-            <version>2.4</version>
+            <version>${workflow-scm-step.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1.30</version>
+            <version>${script-security.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -103,7 +113,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>structs</artifactId>
-            <version>1.7</version>
+            <version>${structs.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -127,7 +137,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-basic-steps</artifactId>
-            <version>2.4</version>
+            <version>${workflow-basic-steps.version}</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -139,19 +149,19 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-job</artifactId>
-            <version>2.10</version>
+            <version>${workflow-job.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-durable-task-step</artifactId>
-            <version>2.9</version>
+            <version>${workflow-durable-task-step.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>pipeline-build-step</artifactId>
-            <version>2.4</version>
+            <version>${pipeline-build-step.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -163,7 +173,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>pipeline-input-step</artifactId>
-            <version>2.5</version>
+            <version>${pipeline-input-step.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
