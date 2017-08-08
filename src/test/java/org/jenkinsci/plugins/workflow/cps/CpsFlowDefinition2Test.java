@@ -280,12 +280,12 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Test
     public void whitelistedMethodPointer() throws Exception {
         WorkflowJob job = jenkins.createProject(WorkflowJob.class, "p");
-        job.setDefinition(new CpsFlowDefinition("def foo = 'original'\n" +
+        job.setDefinition(new CpsFlowDefinition("def foo = 'lowercase'\n" +
                 "def bar = foo.&toUpperCase\n" +
                 "echo bar.call()\n", true));
 
         WorkflowRun b = jenkins.buildAndAssertSuccess(job);
 
-        jenkins.assertLogContains("ORIGINAL", b);
+        jenkins.assertLogContains("LOWERCASE", b);
     }
 }
