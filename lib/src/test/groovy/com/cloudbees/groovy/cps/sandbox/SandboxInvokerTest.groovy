@@ -2,6 +2,7 @@ package com.cloudbees.groovy.cps.sandbox
 
 import com.cloudbees.groovy.cps.*
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv
+import groovy.transform.NotYetImplemented
 import org.codehaus.groovy.runtime.ProxyGeneratorAdapter
 import org.junit.Before
 import org.junit.Test
@@ -208,6 +209,27 @@ Bar.toString()
 Bar.super(Foo).toString()
 String.plus(String)
 ''')
+    }
+
+    @NotYetImplemented
+    @Issue("JENKINS-45982")
+    @Test
+    void transformedSuperClass() {
+        assert evalCpsSandbox('''
+            class Foo extends SandboxInvokerTest.Base {
+                public String other() {
+                    return "base"
+                }
+            }
+            class Bar extends Foo {
+                public String other() {
+                    return "y"+super.other()
+                }
+            }
+            new Bar().other();
+        ''')=="ybase"
+
+        // TODO: add assertIntercept once this can actually work and we know the call tree.
     }
 
     @Issue("SECURITY-551")

@@ -750,14 +750,10 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     void transformedSuperClass() {
         assert evalCPS('''
             class Foo extends CpsTransformerTest.Base {
-                public String toString() {
-                    return "x"+super.toString();
-                }
                 public String other() {
                     return "base"
                 }
             }
-            new Foo().toString()
             class Bar extends Foo {
                 public String other() {
                     return "y"+super.other()
