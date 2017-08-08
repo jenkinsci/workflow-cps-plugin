@@ -4,6 +4,7 @@ import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.CpsFunction;
 import com.cloudbees.groovy.cps.sandbox.Trusted;
 import com.cloudbees.groovy.cps.sandbox.Untrusted;
+import com.google.common.annotations.VisibleForTesting;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -95,7 +96,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     private static final Logger LOGGER = Logger.getLogger(CpsTransformer.class.getName());
 
-    private static final AtomicLong iota = new AtomicLong();
+    @VisibleForTesting
+    public static final AtomicLong iota = new AtomicLong();
 
     private SourceUnit sourceUnit;
 
@@ -120,15 +122,16 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         this.classNode = classNode;
         try {
 
-//        copy(source.ast.methods)?.each { visitMethod(it) }
-//        classNode?.declaredConstructors?.each { visitMethod(it) } // can't transform constructor
-            if (classNode != null) {
-                for (MethodNode method : new ArrayList<>(classNode.getMethods())) {
-                    visitMethod(method);
-                }
+            for (MethodNode method : new ArrayList<>(classNode.getMethods())) {
+                visitMethod(method);
             }
-//        classNode?.objectInitializerStatements?.each { it.visit(visitor) }
-//        classNode?.fields?.each { visitor.visitField(it) }
+            processConstructors(classNode);
+            for (FieldNode field : new ArrayList<>(classNode.getFields())) {
+                visitNontransformedField(field);
+            }
+            for (Statement statement : new ArrayList<>(classNode.getObjectInitializerStatements())) {
+                visitNontransformedStatement(statement);
+            }
 
             // groovy puts timestamp of compilation into a class file, causing serialVersionUID to change.
             // this tends to be undesirable for CPS involving persistence.
@@ -146,6 +149,12 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
             this.sourceUnit = null;
             this.classNode = null;
             this.parent = null;
+        }
+    }
+
+    protected void processConstructors(ClassNode classNode) {
+        for (ConstructorNode constructor : new ArrayList<>(classNode.getDeclaredConstructors())) {
+            visitNontransformedMethod(constructor);
         }
     }
 
@@ -198,9 +207,6 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
             @Override
             public void call(Expression e) {
                 body.set(e);
-                if (LOGGER.isLoggable(Level.FINEST)) {
-                    LOGGER.log(Level.FINEST, "in {0} transformed {1} to {2}", new Object[] {classNode.getName(), m.getTypeDescriptor(), e.getText()});
-                }
             }
         };
         visitWithSafepoint(m.getCode());
@@ -218,11 +224,10 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
          */
         String cpsName = "___cps___" + iota.getAndIncrement();
 
+        DeclarationExpression builderDeclaration = new DeclarationExpression(BUILDER, new Token(ASSIGN, "=", -1, -1), makeBuilder(m));
+        ReturnStatement returnStatement = new ReturnStatement(new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body.get())));
         MethodNode builderMethod = m.getDeclaringClass().addMethod(cpsName, PRIVATE_STATIC_FINAL, FUNCTION_TYPE, new Parameter[0], new ClassNode[0],
-                new BlockStatement(Arrays.asList(
-                        new ExpressionStatement(new DeclarationExpression(BUILDER, new Token(ASSIGN, "=", -1, -1), makeBuilder(m))),
-                        new ReturnStatement(new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body.get())))
-                ), new VariableScope())
+                new BlockStatement(Arrays.asList(new ExpressionStatement(builderDeclaration), returnStatement), new VariableScope())
         );
         builderMethod.addAnnotation(new AnnotationNode(WORKFLOW_TRANSFORMED_TYPE));
 
@@ -237,9 +242,20 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         ArrayExpression paramArray = new ArrayExpression(ClassHelper.OBJECT_TYPE, paramExpressions);
         TupleExpression args = new TupleExpression(new VariableExpression(f), THIS, paramArray);
 
-        m.setCode(new ThrowStatement(new ConstructorCallExpression(CPSCALLINVK_TYPE, args)));
+        ConstructorCallExpression cce = new ConstructorCallExpression(CPSCALLINVK_TYPE, args);
+        m.setCode(new ThrowStatement(cce));
 
         m.addAnnotation(new AnnotationNode(WORKFLOW_TRANSFORMED_TYPE));
+
+        if (LOGGER.isLoggable(Level.FINEST)) {
+            LOGGER.log(Level.FINEST, "in {0} transformed {1} to {2}: throw {3} plus {4}: {5}; {6}", new Object[] {
+                classNode.getName(), m.getTypeDescriptor(),
+                // TODO https://github.com/apache/groovy/pull/574 m.getCode().getText() does not work well
+                m.getText(), cce.getText(),
+                // TODO ditto for builderMethod.getCode().getText()
+                builderMethod.getText(), builderDeclaration.getText(), returnStatement.getText()
+            });
+        }
     }
 
     /**
@@ -288,6 +304,12 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
      * For methods that are not CPS-transformed.
      */
     protected void visitNontransformedMethod(MethodNode m) {
+    }
+
+    protected void visitNontransformedField(FieldNode f) {
+    }
+
+    protected void visitNontransformedStatement(Statement s) {
     }
 
     // TODO Java 8 @FunctionalInterface, or switch to Consumer<Expression>
@@ -1099,7 +1121,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                 }
             });
         } else {
-            throw new UnsupportedOperationException();
+            throw new UnsupportedOperationException(exp.getText());
         }
     }
 
@@ -1166,6 +1188,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                 visit(exp.getExpression());
                 literal(exp.getType());
                 literal(exp.isCoerce());
+                // TODO what about ignoreAutoboxing & strict?
             }
         });
     }

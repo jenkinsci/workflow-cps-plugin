@@ -3,6 +3,7 @@ package com.cloudbees.groovy.cps.sandbox;
 import com.cloudbees.groovy.cps.impl.CallSiteBlock;
 import groovy.lang.MetaClass;
 import org.codehaus.groovy.runtime.InvokerHelper;
+import org.codehaus.groovy.runtime.MethodClosure;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
@@ -53,6 +54,10 @@ public class DefaultInvoker implements Invoker {
 
     public void setArray(Object lhs, Object index, Object value) throws Throwable {
         fakeCallSite("putAt").call(lhs,index,value);
+    }
+
+    public Object methodPointer(Object lhs, String name) {
+        return new MethodClosure(lhs, name);
     }
 
     public Invoker contextualize(CallSiteBlock tags) {

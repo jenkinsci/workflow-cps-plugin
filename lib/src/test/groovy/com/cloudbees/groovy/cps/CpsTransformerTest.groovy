@@ -155,6 +155,19 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         """)==55
     }
 
+    @Test void typeCoercion() {
+        assert evalCPS('''
+            interface I {
+                Locale[] getAvailableLocales()
+            }
+            try {
+                (Locale as I).getAvailableLocales()
+            } catch (e) {
+                e.toString()
+            }
+''') == Locale.availableLocales
+    }
+
     /**
      *
      */
@@ -790,5 +803,15 @@ toRun.each { arg -> arg() }
 
 return [a.count, b.count]
 ''') == [1, 1]
+    }
+
+    @Issue("SECURITY-567")
+    @Test
+    void methodPointer() {
+        assert evalCPS('''
+def b = new CpsTransformerTest.Base()
+
+return (b.&toString)() + (String.getClass().&getSimpleName)()
+''') == "baseClass"
     }
 }

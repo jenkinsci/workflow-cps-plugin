@@ -49,6 +49,8 @@ import java.util.*;
 
 import static com.cloudbees.groovy.cps.Block.*;
 import static java.util.Arrays.*;
+import org.codehaus.groovy.ast.expr.CastExpression;
+import org.kohsuke.groovy.sandbox.impl.Checker;
 
 /**
  * Builder pattern for constructing {@link Block}s into a tree.
@@ -125,7 +127,7 @@ public class Builder {
     }
 
     public Block methodPointer(int line, Block lhs, Block methodName) {
-        return new MethodPointerBlock(loc(line),lhs,methodName);
+        return new MethodPointerBlock(loc(line),lhs,methodName, tags);
     }
 
     public Block zero() {
@@ -585,6 +587,17 @@ public class Builder {
         return staticCall(line,ScriptBytecodeAdapter.class,
                 coerce ? "asType" : "castToType",
                 block,constant(type));
+    }
+
+    /**
+     * Cast to type when {@link CastExpression#isCoerce} from {@link SandboxCpsTransformer}.
+     */
+    // TODO should ideally be defined in some sandbox-specific subtype of Builder
+    public Block sandboxCast(int line, Block block, Class<?> type, boolean ignoreAutoboxing, boolean strict) {
+        return staticCall(line, Checker.class,
+                "checkedCast",
+                constant(type), block,
+                constant(ignoreAutoboxing), constant(true), constant(strict));
     }
 
     public Block instanceOf(int line, Block value, Block type) {
