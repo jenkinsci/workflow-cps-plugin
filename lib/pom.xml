@@ -11,6 +11,10 @@
 
   <name>Groovy CPS Execution</name>
 
+  <properties>
+    <groovy-sandbox.version>1.11</groovy-sandbox.version>
+  </properties>
+
   <build>
     <plugins>
         <plugin>
