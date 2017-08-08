@@ -4,6 +4,7 @@ import com.cloudbees.groovy.cps.impl.CallSiteBlock;
 import org.codehaus.groovy.syntax.Types;
 import org.kohsuke.groovy.sandbox.GroovyInterceptor;
 import org.kohsuke.groovy.sandbox.impl.Checker;
+import org.kohsuke.groovy.sandbox.impl.SandboxedMethodClosure;
 
 /**
  * {@link Invoker} that goes through the groovy-sandbox {@link GroovyInterceptor},
@@ -47,6 +48,11 @@ public class SandboxInvoker implements Invoker {
     public void setArray(Object lhs, Object index, Object value) throws Throwable {
         Checker.checkedSetArray(lhs,index,Types.ASSIGN,value);
     }
+
+    public Object methodPointer(Object lhs, String name) {
+        return new SandboxedMethodClosure(lhs, name);
+    }
+
 
     public Invoker contextualize(CallSiteBlock tags) {
         if (tags.getTags().contains(Untrusted.INSTANCE))

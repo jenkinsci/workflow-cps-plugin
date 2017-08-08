@@ -54,6 +54,8 @@ public interface Invoker extends Serializable {
 
     void setArray(Object lhs, Object index, Object value) throws Throwable;
 
+    Object methodPointer(Object lhs, String name);
+
     /**
      * Returns a child {@link Invoker} used to make a call on behalf of the given {@link CallSiteBlock}.
      */

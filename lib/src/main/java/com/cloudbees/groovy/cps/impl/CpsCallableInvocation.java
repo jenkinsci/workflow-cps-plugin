@@ -8,6 +8,7 @@ import com.cloudbees.groovy.cps.Next;
 import java.util.List;
 
 import static java.util.Arrays.*;
+import java.util.Collections;
 
 /**
  * When an CPS-interpreted method is invoked, it immediately throws this error
@@ -32,7 +33,7 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
     public CpsCallableInvocation(CpsCallable call, Object receiver, Object... arguments) {
         this.call = call;
         this.receiver = receiver;
-        this.arguments = asList(arguments);
+        this.arguments = arguments != null ? asList(arguments) : Collections.emptyList();
     }
 
     public Next invoke(Env caller, SourceLocation loc, Continuation k) {
