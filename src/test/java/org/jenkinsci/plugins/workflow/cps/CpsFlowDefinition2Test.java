@@ -237,4 +237,21 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         jenkins.assertLogContains("[spam] spam", b);
         jenkins.assertLogContains("[eggs] eggs", b);
     }
+
+    @Issue("JENKINS-27916")
+    @Test
+    public void gStringInMapKey() throws Exception {
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("def s1 = \"first-${env.BUILD_NUMBER}\"\n" +
+                "def s2 = \"second-${env.BUILD_NUMBER}\"\n" +
+                "def m = [(s1): 'first-key',\n" +
+                "  \"${s2}\": 'second-key',\n" +
+                "  \"third-${env.BUILD_NUMBER}\": 'third-key']\n" +
+                "m.each { k, v -> echo \"${k}:${v}\" }\n", true));
+
+        WorkflowRun b = jenkins.buildAndAssertSuccess(job);
+        jenkins.assertLogContains("first-1:first-key", b);
+        jenkins.assertLogContains("second-1:second-key", b);
+        jenkins.assertLogContains("third-1:third-key", b);
+    }
 }
