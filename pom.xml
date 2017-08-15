@@ -67,7 +67,7 @@
         <git-plugin.version>3.1.0</git-plugin.version>
         <workflow-support-plugin.version>2.14</workflow-support-plugin.version>
         <scm-api-plugin.version>2.0.8</scm-api-plugin.version>
-        <groovy-cps.version>1.18</groovy-cps.version>
+        <groovy-cps.version>1.19-20170815.195847-1</groovy-cps.version> <!-- TODO: Update to release once https://github.com/cloudbees/groovy-cps/pull/69 is merged/released -->
     </properties>
     <dependencies>
         <dependency>
@@ -93,7 +93,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1.31</version>
+            <version>1.32-20170815.195404-1</version> <!-- TODO: Update to release once https://github.com/jenkinsci/script-security-plugin/pull/139 is merged/released -->
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
