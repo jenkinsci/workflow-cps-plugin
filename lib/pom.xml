@@ -112,7 +112,7 @@
   </build>
 
   <properties>
-    <groovy-sandbox.version>1.13</groovy-sandbox.version>
+      <groovy-sandbox.version>1.14-20170815.195233-3</groovy-sandbox.version><!-- TODO: Update to release when https://github.com/jenkinsci/groovy-sandbox/pull/37 is merged/released -->
   </properties>
   <dependencies>
     <dependency>
