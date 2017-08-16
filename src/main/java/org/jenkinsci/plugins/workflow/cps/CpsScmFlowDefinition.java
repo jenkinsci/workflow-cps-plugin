@@ -121,7 +121,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             dir = new FilePath(owner.getRootDir());
         }
         listener.getLogger().println("Checking out " + scm.getKey() + " into " + dir + " to read " + scriptPath);
-        String script;
+        String script = null;
         Computer computer = node.toComputer();
         if (computer == null) {
             throw new IOException(node.getDisplayName() + " may be offline");
