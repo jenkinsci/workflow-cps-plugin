@@ -137,6 +137,7 @@ import javax.annotation.concurrent.GuardedBy;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.apache.commons.io.Charsets;
+import org.codehaus.groovy.GroovyBugError;
 import org.jboss.marshalling.reflect.SerializableClassRegistry;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
@@ -656,7 +657,7 @@ public class CpsFlowExecution extends FlowExecution {
                         }
                     });
 
-        } catch (IOException e) {
+        } catch (Exception | GroovyBugError e) {
             loadProgramFailed(e, result);
         }
     }
