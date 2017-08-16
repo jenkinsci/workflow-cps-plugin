@@ -244,4 +244,30 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         jenkins.buildAndAssertSuccess(p);
     }
 
+    @Issue("JENKINS-46088")
+    @Test
+    public void rhsOfDeclarationTransformedInNonCPS() throws Exception {
+        logging.record(CpsTransformer.class, Level.FINEST);
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("@NonCPS\n" +
+                "def willFail() {\n" +
+                "  jenkins.model.Jenkins x = jenkins.model.Jenkins.getInstance()\n" +
+                "}\n" +
+                "willFail()\n", true));
+        WorkflowRun b = job.scheduleBuild2(0).get();
+        jenkins.assertBuildStatus(Result.FAILURE, b);
+        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
+    }
+
+    @Issue("JENKINS-46088")
+    @Test
+    public void rhsOfDeclarationSandboxedInCPS() throws Exception {
+        logging.record(CpsTransformer.class, Level.FINEST);
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("jenkins.model.Jenkins x = jenkins.model.Jenkins.getInstance()\n", true));
+        WorkflowRun b = job.scheduleBuild2(0).get();
+        jenkins.assertBuildStatus(Result.FAILURE, b);
+        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
+
+    }
 }
