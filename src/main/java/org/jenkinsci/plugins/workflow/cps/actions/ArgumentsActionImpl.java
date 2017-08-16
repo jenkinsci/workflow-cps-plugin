@@ -225,6 +225,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
      *   (including the Step or UninstantiatedDescribable)
      */
     @CheckForNull
+    @SuppressWarnings("unchecked")
     Object sanitizeObjectAndRecordMutation(@CheckForNull Object o, @CheckForNull EnvVars vars) {
         // Package scoped so we can test it directly
         Object tempVal = o;
@@ -254,7 +255,13 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         if (modded != tempVal) {
             // Sanitization stripped out some values, so we need to record that and return modified version
             this.isUnmodifiedBySanitization = false;
-            return modded;
+            if (o instanceof UninstantiatedDescribable) {
+                // Need to retain the symbol.
+                UninstantiatedDescribable ud = (UninstantiatedDescribable) o;
+                return new UninstantiatedDescribable(ud.getSymbol(), ud.getKlass(), (Map<String, ?>) modded);
+            } else {
+                return modded;
+            }
         } else {  // Any mutation was just from exploding step/uninstantiated describable, and we can just use the original
             return o;
         }

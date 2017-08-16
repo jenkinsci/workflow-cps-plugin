@@ -13,6 +13,7 @@ import hudson.EnvVars;
 import hudson.Functions;
 import hudson.XmlFile;
 import hudson.model.Action;
+import hudson.tasks.ArtifactArchiver;
 import org.apache.commons.lang.RandomStringUtils;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
@@ -40,10 +41,10 @@ import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import static org.hamcrest.Matchers.*;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
 
-import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -53,6 +54,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 
 /**
  * Tests the input sanitization and step persistence here
@@ -170,12 +172,12 @@ public class ArgumentsActionImplTest {
 
         // Test explosion of Step & UninstantiatedDescribable objects
         Step mystep = new EchoStep("I have a "+secretUsername);
-        Map<String, Object> singleSanitization = (Map<String,Object>)(impl.sanitizeObjectAndRecordMutation(mystep, env));
+        Map<String, ?> singleSanitization = (Map<String,Object>)(impl.sanitizeObjectAndRecordMutation(mystep, env));
         Assert.assertEquals(1, singleSanitization.size());
         Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, singleSanitization.get("message"));
         Assert.assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
-        singleSanitization = (Map<String,Object>)(impl.sanitizeObjectAndRecordMutation(mystep.getDescriptor().uninstantiate(mystep), env));
+        singleSanitization = ((UninstantiatedDescribable) (impl.sanitizeObjectAndRecordMutation(mystep.getDescriptor().uninstantiate(mystep), env))).getArguments();
         Assert.assertEquals(1, singleSanitization.size());
         Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, singleSanitization.get("message"));
         Assert.assertFalse(impl.isUnmodifiedArguments());
@@ -394,7 +396,7 @@ public class ArgumentsActionImplTest {
                 " node('master') { \n" +
                 "   writeFile text: 'hello world', file: 'msg.out'\n" +
                 "   step([$class: 'ArtifactArchiver', artifacts: 'msg.out', fingerprint: false])\n "+
-                "   withEnv(['CUSTOM=val']) {\n"+  //Symbol-based, because withEnv is a metastep
+                "   withEnv(['CUSTOM=val']) {\n"+  //Symbol-based, because withEnv is a metastep; TODO huh? no it is not
                 "     echo env.CUSTOM\n"+
                 "   }\n"+
                 "}"
@@ -423,4 +425,25 @@ public class ArgumentsActionImplTest {
         Assert.assertEquals("CUSTOM=val", (String)((ArrayList) ob).get(0));
         testDeserialize(run.getExecution());
     }
+
+    @Test
+    public void testReallyUnusualStepInstantiations() throws Exception {
+        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "unusualInstantiation");
+        job.setDefinition(new CpsFlowDefinition(
+                " node() {\n" +
+                "   writeFile text: 'hello world', file: 'msg.out'\n" +
+                "   step(new hudson.tasks.ArtifactArchiver('msg.out'))\n" + // note, not whitelisted
+                "}", false));
+        WorkflowRun run = r.buildAndAssertSuccess(job);
+        LinearScanner scan = new LinearScanner();
+
+        FlowNode testNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("step"));
+        ArgumentsAction act = testNode.getPersistentAction(ArgumentsAction.class);
+        Assert.assertNotNull(act);
+        Object delegate = act.getArgumentValue("delegate");
+        Assert.assertThat(delegate, instanceOf(ArtifactArchiver.class));
+        Assert.assertEquals("msg.out", ((ArtifactArchiver) delegate).getArtifacts());
+        Assert.assertFalse(((ArtifactArchiver) delegate).isFingerprint());
+    }
+
 }

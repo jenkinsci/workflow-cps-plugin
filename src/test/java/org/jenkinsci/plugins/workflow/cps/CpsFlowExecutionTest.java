@@ -107,16 +107,6 @@ public class CpsFlowExecutionTest {
                 WorkflowRun b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
                 assertFalse(((CpsFlowExecution) b.getExecution()).getProgramDataFile().exists());
                 assertFalse(LOADERS.isEmpty());
-                try {
-                    // In Groovy 1.8.9 this keeps static state, but only for the last script (as also noted in JENKINS-23762).
-                    // The fix of GROOVY-5025 (62bfb68) in 1.9 addresses this, which we get in Jenkins 2.
-                    // Could do this in cleanUpHeap but it is probably not thread-safe.
-                    Field f = ASTTransformationVisitor.class.getDeclaredField("compUnit");
-                    f.setAccessible(true);
-                    f.set(null, null);
-                } catch (NoSuchFieldException e) {
-                    // assuming that Groovy version is newer
-                }
                 { // TODO it seems that the call to CpsFlowExecutionTest.register(Object) on a Script1 parameter creates a MetaMethodIndex.Entry.cachedStaticMethod.
                   // In other words any call to a foundational API might leak classes. Why does Groovy need to do this?
                   // Unclear whether this is a problem in a realistic environment; for the moment, suppressing it so the test can run with no SoftReference.

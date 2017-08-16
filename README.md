@@ -37,7 +37,6 @@ your project’s own build logic should be run from external programs on a build
 ## Known limitations
 
 The [Pipeline Groovy epic](https://issues.jenkins-ci.org/browse/JENKINS-35390) in JIRA covers some known limitations in the Groovy interpreter.
-Most notable is that not all `for`-loops work, due to non-`Serializable` intermediate values; and some Groovy idioms involving closures such as `list.each {it -> …}` do not work.
 These issues stem from the fact that Pipeline cannot run Groovy directly, but must intercept each operation to save the program state.
 
 The [Pipeline Sandbox epic](https://issues.jenkins-ci.org/browse/JENKINS-35391) covers issues with the *Groovy sandbox* used to prevent malicious Pipeline scripts from taking control of Jenkins.

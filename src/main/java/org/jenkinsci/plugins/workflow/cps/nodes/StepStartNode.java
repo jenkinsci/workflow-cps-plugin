@@ -56,8 +56,8 @@ public class StepStartNode extends BlockStartNode implements StepNode {
         if (isBody()) {
             return "{";
         } else {
-            StepDescriptor d = getDescriptor();
-            return (d != null ? d.getFunctionName() : descriptorId);
+            String fn = StepAtomNode.effectiveFunctionName(this);
+            return fn != null ? fn : descriptorId;
         }
     }
 
@@ -66,7 +66,7 @@ public class StepStartNode extends BlockStartNode implements StepNode {
     }
 
     public String getStepName() {
-        StepDescriptor d = getDescriptor();
-        return d!=null ? d.getDisplayName() : descriptorId;
+        String n = StepAtomNode.effectiveDisplayName(this);
+        return n != null ? n : descriptorId;
     }
 }
