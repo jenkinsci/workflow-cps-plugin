@@ -79,6 +79,17 @@ public class IteratorHackTest {
         });
     }
 
+    @Issue("JENKINS-34645")
+    @Test public void stringSplit() {
+        rr.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = rr.j.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition("for (x in 'a;b'.split(';')) {sleep 1; echo(/running in $x/)}", true));
+                rr.j.assertLogContains("running in b", rr.j.buildAndAssertSuccess(p));
+            }
+        });
+    }
+
     @Issue("JENKINS-27421")
     @Test public void mapIterator() {
         rr.addStep(new Statement() {
