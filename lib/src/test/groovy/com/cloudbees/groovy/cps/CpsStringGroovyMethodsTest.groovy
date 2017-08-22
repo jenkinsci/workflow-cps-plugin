@@ -83,8 +83,8 @@ return "Groovy".takeWhile{ it != 'v' }
 ''', "Groo")
 
         evalCPSAndSync('''
-def vStr = 'v'
-return "Groovy".takeWhile{ it != "${vStr}" }
+def ovyStr = 'ovy'
+return "Gro${ovyStr}".takeWhile{ it != "v" }
 ''', "Groo")
     }
 
