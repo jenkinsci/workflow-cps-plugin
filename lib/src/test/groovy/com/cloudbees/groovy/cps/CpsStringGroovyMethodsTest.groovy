@@ -81,6 +81,11 @@ mno|pqr
         evalCPSAndSync('''
 return "Groovy".takeWhile{ it != 'v' }
 ''', "Groo")
+
+        evalCPSAndSync('''
+def vStr = 'v'
+return "Groovy".takeWhile{ it != "${vStr}" }
+''', "Groo")
     }
 
     private void evalCPSAndSync(String script, Object value) {
