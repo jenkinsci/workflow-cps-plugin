@@ -336,7 +336,10 @@ public class Translator {
 
                 if (ms instanceof MemberSelectTree) {
                     MemberSelectTree mst = (MemberSelectTree) ms;
-                    // Make sure we translate any method calls to a transformed class too.
+                    // If this is a call to a static method on another class, it may be an already-translated method,
+                    // in which case, we need to use that translated method, not the original. So check if the expression
+                    // is an identifier, that it's not the class we're in the process of translating, and if it's one
+                    // of the other known translated classes.
                     if (mst.getExpression() instanceof JCIdent &&
                             !((JCIdent)mst.getExpression()).sym.toString().equals(fqcn) &&
                             otherTranslated.containsKey(((JCIdent)mst.getExpression()).sym.toString())) {
@@ -560,6 +563,9 @@ public class Translator {
                         .arg(visit(at.getExpression()));
             }
 
+            /**
+             * This is needed to handle cases like {@code Object[].class}.
+             */
             @Override
             public JExpression visitArrayType(ArrayTypeTree at, Void __) {
                 if (at.getType() instanceof IdentifierTree) {
