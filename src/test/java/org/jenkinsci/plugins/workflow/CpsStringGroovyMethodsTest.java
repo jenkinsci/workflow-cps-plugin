@@ -5,8 +5,10 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
+@Issue("JENKINS-46358")
 public class CpsStringGroovyMethodsTest {
     @ClassRule
     public static JenkinsRule r = new JenkinsRule();
