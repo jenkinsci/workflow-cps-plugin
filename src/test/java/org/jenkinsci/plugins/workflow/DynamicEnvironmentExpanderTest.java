@@ -25,6 +25,9 @@
 package org.jenkinsci.plugins.workflow;
 
 import hudson.EnvVars;
+import hudson.model.EnvironmentContributor;
+import hudson.model.Run;
+import hudson.model.TaskListener;
 import java.io.IOException;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -109,6 +112,29 @@ public class DynamicEnvironmentExpanderTest {
             @Override public String getFunctionName() {return "dynamicEnv";}
             @Override public String getDisplayName() {return getFunctionName();}
             @Override public boolean takesImplicitBlockArgument() {return true;}
+        }
+    }
+
+    @Issue("JENKINS-42499")
+    @Test public void changingEnvironment() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition("echo(/before VAR=$VAR/); " + EnvAdder.class.getCanonicalName() + ".value = 'after'; echo(/after VAR=$VAR/)", false));
+                WorkflowRun b = story.j.buildAndAssertSuccess(p);
+                story.j.assertLogContains("buildEnvironmentFor #1", b);
+                story.j.assertLogContains("before VAR=before", b);
+                story.j.assertLogContains("buildEnvironmentFor #2", b);
+                story.j.assertLogContains("after VAR=after", b);
+            }
+        });
+    }
+    @TestExtension("changingEnvironment") public static class EnvAdder extends EnvironmentContributor {
+        public static String value = "before";
+        private int count;
+        @Override public void buildEnvironmentFor(Run r, EnvVars envs, TaskListener listener) throws IOException, InterruptedException {
+            listener.getLogger().println("buildEnvironmentFor #" + count++);
+            envs.put("VAR", value);
         }
     }
 
