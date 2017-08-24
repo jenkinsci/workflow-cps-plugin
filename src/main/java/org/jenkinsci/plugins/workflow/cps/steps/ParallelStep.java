@@ -46,7 +46,7 @@ public class ParallelStep extends Step {
     /**
      * All the sub-workflows as {@link Closure}s, keyed by their names.
      */
-    /*package*/ final Map<String,Closure> closures;
+    /*package*/ final transient Map<String,Closure> closures;
 
     public ParallelStep(Map<String,Closure> closures, boolean failFast) {
         this.closures = closures;

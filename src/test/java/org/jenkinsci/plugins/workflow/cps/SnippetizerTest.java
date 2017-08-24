@@ -29,9 +29,11 @@ import hudson.model.BooleanParameterDefinition;
 import hudson.model.BooleanParameterValue;
 import hudson.model.FreeStyleProject;
 import hudson.model.ParametersDefinitionProperty;
+import hudson.model.Result;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.tasks.ArtifactArchiver;
+import hudson.tasks.junit.JUnitResultArchiver;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
@@ -45,6 +47,7 @@ import org.jenkinsci.plugins.workflow.support.steps.WorkspaceStep;
 import org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Colorado;
+import org.jenkinsci.plugins.workflow.testMetaStep.EchoResultStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Hawaii;
 import org.jenkinsci.plugins.workflow.testMetaStep.Island;
 import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicData;
@@ -106,7 +109,7 @@ public class SnippetizerTest {
         ArtifactArchiver aa = new ArtifactArchiver("x.jar");
         aa.setAllowEmptyArchive(true);
         if (ArtifactArchiver.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
-            st.assertRoundTrip(new CoreStep(aa), "step archiveArtifacts(allowEmptyArchive: true, artifacts: 'x.jar')");
+            st.assertRoundTrip(new CoreStep(aa), "archiveArtifacts allowEmptyArchive: true, artifacts: 'x.jar'");
         } else { // TODO 2.x delete
             st.assertRoundTrip(new CoreStep(aa), "step([$class: 'ArtifactArchiver', allowEmptyArchive: true, artifacts: 'x.jar'])");
         }
@@ -114,7 +117,7 @@ public class SnippetizerTest {
 
     @Test public void coreStep2() throws Exception {
         if (ArtifactArchiver.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
-            st.assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "step archiveArtifacts('x.jar')");
+            st.assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "archiveArtifacts 'x.jar'");
         } else { // TODO 2.x delete
             st.assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "step([$class: 'ArtifactArchiver', artifacts: 'x.jar'])");
         }
@@ -235,8 +238,8 @@ public class SnippetizerTest {
         JenkinsRule.WebClient wc = r.createWebClient();
         String html = wc.goTo(Snippetizer.ACTION_URL + "/html").getWebResponse().getContentAsString();
         assertThat("text from LoadStep/help-path.html is included", html, containsString("the Groovy file to load"));
-        assertThat("SubversionSCM.workspaceUpdater is mentioned as an attribute of a value of GenericSCMStep.delegate", html, containsString("workspaceUpdater"));
-        assertThat("CheckoutUpdater is mentioned as an option", html, containsString("CheckoutUpdater"));
+        assertThat("GitSCM.submoduleCfg is mentioned as an attribute of a value of GenericSCMStep.scm", html, containsString("submoduleCfg"));
+        assertThat("CleanBeforeCheckout is mentioned as an option", html, containsString("CleanBeforeCheckout"));
         assertThat("content is written to the end", html, containsString("</body></html>"));
     }
 
@@ -307,6 +310,12 @@ public class SnippetizerTest {
         st.assertRoundTrip(monomorphicStep, "monomorphListSymbolStep([monomorphSymbol(firstArg: 'one', secondArg: 'two'), monomorphSymbol(firstArg: 'three', secondArg: 'four')])");
     }
 
+    @Issue("JENKINS-34464")
+    @Test
+    public void resultRoundTrips() throws Exception {
+        st.assertRoundTrip(new EchoResultStep(Result.UNSTABLE), "echoResult 'UNSTABLE'");
+    }
+
     @Test
     public void noArgStepDocs() throws Exception {
         SnippetizerTester.assertDocGeneration(PwdStep.class);
@@ -338,5 +347,14 @@ public class SnippetizerTest {
     @Test(expected = NoStaplerConstructorException.class)
     public void parallelStepDocs() throws Exception {
         SnippetizerTester.assertDocGeneration(ParallelStep.class);
+    }
+
+
+    @Issue("JENKINS-31967")
+    @Test public void testStandardJavaTypes() throws Exception {
+        JUnitResultArchiver a = new JUnitResultArchiver("*.xml");
+        st.assertRoundTrip(new CoreStep(a), "junit '*.xml'");
+        a.setHealthScaleFactor(0.5);
+        st.assertRoundTrip(new CoreStep(a), "junit healthScaleFactor: 0.5, testResults: '*.xml'");
     }
 }

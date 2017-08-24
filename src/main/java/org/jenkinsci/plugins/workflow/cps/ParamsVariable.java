@@ -82,7 +82,7 @@ import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
 
     private static void addValue(Map<String, Object> values, ParameterValue parameterValue) {
         Object value = parameterValue.getValue();
-        if (!(value instanceof Serializable)) {
+        if (value != null && !(value instanceof Serializable)) {
             boolean canPickle = false;
             for (PickleFactory pf : PickleFactory.all()) {
                 if (pf.writeReplace(value) != null) {

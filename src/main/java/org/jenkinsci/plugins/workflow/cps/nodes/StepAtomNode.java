@@ -25,6 +25,8 @@
 package org.jenkinsci.plugins.workflow.cps.nodes;
 
 import hudson.model.Action;
+import hudson.model.Describable;
+import hudson.model.Descriptor;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.graph.AtomNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -33,12 +35,22 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
 import java.io.ObjectStreamException;
 import java.util.Collections;
+import java.util.Set;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jenkins.model.Jenkins;
+import org.jenkinsci.plugins.structs.SymbolLookup;
+import org.jenkinsci.plugins.structs.describable.DescribableModel;
+import org.jenkinsci.plugins.structs.describable.DescribableParameter;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
+import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 
 /**
  * {@link AtomNode} for executing {@link Step} without body closure.
  *
  * @author Kohsuke Kawaguchi
  */
+@SuppressWarnings("deprecation")
 public class StepAtomNode extends AtomNode implements StepNode {
 
     private String descriptorId;
@@ -70,15 +82,65 @@ public class StepAtomNode extends AtomNode implements StepNode {
         return super.readResolve();
     }
 
+    static @CheckForNull String effectiveDisplayName(@Nonnull org.jenkinsci.plugins.workflow.graph.StepNode node) {
+        StepDescriptor d = node.getDescriptor();
+        if (d == null) {
+            return null;
+        }
+        Class<?> delegateType = getDelegateType((FlowNode) node, d);
+        if (delegateType != null && Describable.class.isAssignableFrom(delegateType)) {
+            Descriptor<?> descriptor = Jenkins.getInstance().getDescriptor(delegateType.asSubclass(Describable.class));
+            if (descriptor != null) {
+                return descriptor.getDisplayName();
+            }
+        }
+        return d.getDisplayName();
+    }
+
     @Override
     protected String getTypeDisplayName() {
-        StepDescriptor d = getDescriptor();
-        return d!=null ? d.getDisplayName() : descriptorId;
+        String n = effectiveDisplayName(this);
+        return n != null ? n : descriptorId;
+    }
+
+    static @CheckForNull String effectiveFunctionName(@Nonnull org.jenkinsci.plugins.workflow.graph.StepNode node) {
+        StepDescriptor d = node.getDescriptor();
+        if (d == null) {
+            return null;
+        }
+        Class<?> delegateType = getDelegateType((FlowNode) node, d);
+        if (delegateType != null) {
+            Set<String> symbols = SymbolLookup.getSymbolValue(delegateType);
+            if (!symbols.isEmpty()) {
+                return symbols.iterator().next();
+            }
+        }
+        return d.getFunctionName();
     }
 
     @Override
     protected String getTypeFunctionName() {
-        StepDescriptor d = getDescriptor();
-        return d != null ? d.getFunctionName() : descriptorId;
+        String fn = effectiveFunctionName(this);
+        return fn != null ? fn : descriptorId;
     }
+
+    /**
+     * @return for example {@code JUnitResultArchiver} given {@code junit '…'}
+     */
+    private static @CheckForNull Class<?> getDelegateType(@Nonnull FlowNode node, @Nonnull StepDescriptor d) {
+        if (d.isMetaStep()) {
+            DescribableParameter p = new DescribableModel<>(d.clazz).getFirstRequiredParameter();
+            if (p != null) {
+                Object arg = ArgumentsAction.getResolvedArguments(node).get(p.getName());
+                if (arg instanceof UninstantiatedDescribable) {
+                    DescribableModel<?> delegateModel = ((UninstantiatedDescribable) arg).getModel();
+                    if (delegateModel != null) {
+                        return delegateModel.getType();
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
 }

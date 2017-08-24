@@ -38,11 +38,14 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
+import org.jenkinsci.plugins.workflow.cps.persistence.IteratorHack;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
+import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
 
 /**
  * Represents a {@link Continuable} that is either runnable or suspended (that waits for an
@@ -144,10 +147,18 @@ public final class CpsThread implements Serializable {
         this.step = step;
     }
 
+    private static final List<Class> categories;
+    static {
+        categories = new ArrayList<>();
+        categories.addAll(Continuable.categories);
+        categories.add(IteratorHack.class);
+    }
+
     /**
      * Executes CPS code synchronously a little bit more, until it hits
      * the point the workflow needs to be dehydrated.
      */
+    @SuppressWarnings("rawtypes")
     @Nonnull Outcome runNextChunk() {
         assert program!=null;
 
@@ -156,11 +167,11 @@ public final class CpsThread implements Serializable {
         final CpsThread old = CURRENT.get();
         CURRENT.set(this);
 
-        try {
+        try (Timeout timeout = Timeout.limit(5, TimeUnit.MINUTES)) {
             LOGGER.log(FINE, "runNextChunk on {0}", resumeValue);
-            Outcome o = resumeValue;
+            final Outcome o = resumeValue;
             resumeValue = null;
-            outcome = program.run0(o);
+            outcome = program.run0(o, categories);
             if (outcome.getAbnormal() != null) {
                 LOGGER.log(FINE, "ran and produced error", outcome.getAbnormal());
             } else {
@@ -281,7 +292,7 @@ public final class CpsThread implements Serializable {
             return;
         }
 
-        try {
+        try (Timeout timeout = Timeout.limit(30, TimeUnit.SECONDS)) {
             s.stop(t);
         } catch (Exception e) {
             t.addSuppressed(e);

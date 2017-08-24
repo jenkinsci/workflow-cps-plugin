@@ -2,6 +2,7 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
+import java.util.List;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.GroovySandbox;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ApprovalContext;
@@ -23,14 +24,15 @@ class SandboxContinuable extends Continuable {
         this.thread = thread;
     }
 
+    @SuppressWarnings("rawtypes")
     @Override
-    public Outcome run0(final Outcome cn) {
+    public Outcome run0(final Outcome cn, final List<Class> categories) {
         try {
             CpsFlowExecution e = thread.group.getExecution();
             return GroovySandbox.runInSandbox(new Callable<Outcome>() {
                 @Override
                 public Outcome call() {
-                    Outcome outcome = SandboxContinuable.super.run0(cn);
+                    Outcome outcome = SandboxContinuable.super.run0(cn, categories);
                     RejectedAccessException x = findRejectedAccessException(outcome.getAbnormal());
                     if (x != null) {
                         ScriptApproval.get().accessRejected(x, ApprovalContext.create());

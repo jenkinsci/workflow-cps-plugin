@@ -60,4 +60,12 @@ public class ParamsVariableTest {
         r.assertLogContains("PASS=s3cr3t", b);
     }
 
+    @Issue("JENKINS-42367")
+    @Test public void nullValue() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("echo(/TEXT=${params.TEXT}/)",true));
+        p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("TEXT", "")));
+        r.assertLogContains("TEXT=null", r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("TEXT", /* not possible via UI, but to simulate other ParameterValue impls */null)))));
+    }
+
 }

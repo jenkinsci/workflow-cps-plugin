@@ -1,23 +1,34 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Binding;
+import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyCodeSource;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
-import org.codehaus.groovy.control.CompilationFailedException;
-import org.codehaus.groovy.control.CompilerConfiguration;
-
-import javax.annotation.CheckForNull;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.net.URL;
+import java.util.Enumeration;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import org.codehaus.groovy.control.CompilationFailedException;
+import org.codehaus.groovy.control.CompilationUnit;
+import org.codehaus.groovy.control.CompilerConfiguration;
+import org.codehaus.groovy.control.SourceUnit;
 
 /**
  * {@link GroovyShell} with additional tweaks necessary to run {@link CpsScript}
- *
- * @author Kohsuke Kawaguchi
- * @see "doc/clasloader.md"
+ * @see "doc/classloader.md"
  * @see CpsGroovyShellFactory
  */
+@SuppressFBWarnings(value="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED", justification="irrelevant")
 class CpsGroovyShell extends GroovyShell {
+
+    private static final Logger LOGGER = Logger.getLogger(CpsGroovyShell.class.getName());
+
     /**
      * {@link CpsFlowExecution} for which this shell is created.
      *
@@ -29,8 +40,53 @@ class CpsGroovyShell extends GroovyShell {
      * Use {@link CpsGroovyShellFactory} to instantiate it.
      */
     CpsGroovyShell(ClassLoader parent, @CheckForNull CpsFlowExecution execution, CompilerConfiguration cc) {
-        super(parent,new Binding(),cc);
+        this(execution, cc, execution != null ? new TimingLoader(parent, execution) : parent);
+    }
+
+    private CpsGroovyShell(@CheckForNull CpsFlowExecution execution, CompilerConfiguration cc, ClassLoader usuallyTimingLoader) {
+        super(usuallyTimingLoader, new Binding(), cc);
         this.execution = execution;
+        try {
+            // Apparently there is no supported way to initialize a GroovyShell with a specified GroovyClassLoader.
+            Field loaderF = GroovyShell.class.getDeclaredField("loader");
+            loaderF.setAccessible(true);
+            loaderF.set(this, new CleanGroovyClassLoader(usuallyTimingLoader, cc));
+        } catch (Exception x) {
+            LOGGER.log(Level.WARNING, "failed to install CleanGroovyClassLoader", x);
+        }
+    }
+
+    /**
+     * Disables the weird and unreliable {@link groovy.lang.GroovyClassLoader.InnerLoader}.
+     * This is apparently only necessary when you are using class recompilation, which we are not.
+     * We want the {@linkplain Class#getClassLoader defining loader} of {@code *.groovy} to be this one.
+     * Otherwise the defining loader will be an {@code InnerLoader}, and not necessarily the same instance from load to load.
+     * @see GroovyClassLoader#getTimeStamp
+     */
+    private static final class CleanGroovyClassLoader extends GroovyClassLoader {
+
+        CleanGroovyClassLoader(ClassLoader loader, CompilerConfiguration config) {
+            super(loader, config);
+        }
+
+        @Override protected ClassCollector createCollector(CompilationUnit unit, SourceUnit su) {
+            // Super implementation is what creates the InnerLoader.
+            return new CleanClassCollector(unit, su);
+        }
+
+        private final class CleanClassCollector extends ClassCollector {
+
+            CleanClassCollector(CompilationUnit unit, SourceUnit su) {
+                // Cannot override {@code final cl} field so have to do it this way.
+                super(null, unit, su);
+            }
+
+            @Override public GroovyClassLoader getDefiningClassLoader() {
+                return CleanGroovyClassLoader.this;
+            }
+
+        }
+
     }
 
     public void prepareScript(Script script) {
@@ -52,7 +108,7 @@ class CpsGroovyShell extends GroovyShell {
      */
     @Override
     public Script parse(GroovyCodeSource codeSource) throws CompilationFailedException {
-        Script s = super.parse(codeSource);
+        Script s = doParse(codeSource);
         if (execution!=null)
             execution.loadedScripts.put(s.getClass().getName(), codeSource.getScriptText());
         prepareScript(s);
@@ -64,7 +120,17 @@ class CpsGroovyShell extends GroovyShell {
      * (therefore we don't want to record this.)
      */
     /*package*/ Script reparse(String className, String text) throws CompilationFailedException {
-        return super.parse(new GroovyCodeSource(text,className,DEFAULT_CODE_BASE));
+        return doParse(new GroovyCodeSource(text,className,DEFAULT_CODE_BASE));
+    }
+
+    private Script doParse(GroovyCodeSource codeSource) throws CompilationFailedException {
+        if (execution != null) {
+            try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.parse)) {
+                return super.parse(codeSource);
+            }
+        } else {
+            return super.parse(codeSource);
+        }
     }
 
     /**
@@ -78,4 +144,28 @@ class CpsGroovyShell extends GroovyShell {
         else
             return super.generateScriptName();
     }
+
+    static class TimingLoader extends ClassLoader {
+        private final @Nonnull CpsFlowExecution execution;
+        TimingLoader(ClassLoader parent, @Nonnull CpsFlowExecution execution) {
+            super(parent);
+            this.execution = execution;
+        }
+        @Override protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.classLoad)) {
+                return super.loadClass(name, resolve);
+            }
+        }
+        @Override public URL getResource(String name) {
+            try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.classLoad)) {
+                return super.getResource(name);
+            }
+        }
+        @Override public Enumeration<URL> getResources(String name) throws IOException {
+            try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.classLoad)) {
+                return super.getResources(name);
+            }
+        }
+    }
+
 }

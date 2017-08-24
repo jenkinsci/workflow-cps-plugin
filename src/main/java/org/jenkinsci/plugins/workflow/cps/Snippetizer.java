@@ -102,7 +102,9 @@ import org.kohsuke.stapler.StaplerRequest;
             return b;
         }
 
-        if (clazz == Boolean.class || clazz == Integer.class || clazz == Long.class) {
+        if (clazz == Boolean.class || clazz == Integer.class || clazz == Long.class ||
+                clazz == Float.class || clazz == Double.class ||
+                clazz == Byte.class || clazz == Short.class) {
             return b.append(o);
         }
 
@@ -466,6 +468,9 @@ import org.kohsuke.stapler.StaplerRequest;
         Jenkins j = Jenkins.getActiveInstance();
         Class<?> c = j.getPluginManager().uberClassLoader.loadClass(jsonO.getString("stapler-class"));
         Descriptor descriptor = j.getDescriptor(c.asSubclass(Describable.class));
+        if (descriptor == null) {
+            return HttpResponses.plainText("<could not find " + c.getName() + ">");
+        }
         Object o;
         try {
             o = descriptor.newInstance(req, jsonO);

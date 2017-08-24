@@ -32,6 +32,9 @@ import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import com.cloudbees.groovy.cps.sandbox.DefaultInvoker;
 import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
+import com.cloudbees.jenkins.support.api.Component;
+import com.cloudbees.jenkins.support.api.Container;
+import com.cloudbees.jenkins.support.api.Content;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.FutureCallback;
@@ -46,6 +49,7 @@ import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 import com.thoughtworks.xstream.mapper.Mapper;
 import groovy.lang.GroovyShell;
+import hudson.ExtensionList;
 import hudson.model.Action;
 import hudson.model.Result;
 import hudson.util.Iterators;
@@ -66,6 +70,7 @@ import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
+import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.PickleResolver;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverReader;
 import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
@@ -98,15 +103,23 @@ import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyCodeSource;
 import hudson.AbortException;
 import hudson.BulkChange;
+import hudson.Extension;
 import hudson.init.Terminator;
 import hudson.model.Item;
+import hudson.model.Job;
 import hudson.model.Queue;
+import hudson.model.Run;
 import hudson.model.Saveable;
 import hudson.model.User;
 import hudson.security.ACL;
 import hudson.security.AccessControlled;
+import hudson.security.Permission;
 import java.beans.Introspector;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.lang.ref.Reference;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -120,10 +133,11 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
-import jenkins.security.NotReallyRoleSensitiveCallable;
 
 import org.acegisecurity.Authentication;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
+import org.apache.commons.io.Charsets;
+import org.codehaus.groovy.GroovyBugError;
 import org.jboss.marshalling.reflect.SerializableClassRegistry;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
@@ -241,7 +255,7 @@ public class CpsFlowExecution extends FlowExecution {
     /**
      * Recreated from {@link #owner}
      */
-    /*package*/ transient /*almos final*/ FlowNodeStorage storage;
+    /*package*/ transient /*almost final*/ TimingFlowNodeStorage storage;
 
     /** User ID associated with this build, or null if none specific. */
     private final @CheckForNull String user;
@@ -310,6 +324,38 @@ public class CpsFlowExecution extends FlowExecution {
     /** Actions to add to the {@link FlowStartNode}. */
     transient final List<Action> flowStartNodeActions = new ArrayList<Action>();
 
+    enum TimingKind {
+        /**
+         * Parsing Groovy sources; includes {@link #classLoad}.
+         * @see CpsGroovyShell#parse(GroovyCodeSource)
+         */
+        parse,
+        /**
+         * Loading classes needed during {@link #parse}.
+         * @see ClassLoader#loadClass(String, boolean)
+         * @see ClassLoader#getResource
+         */
+        classLoad,
+        /**
+         * Running inside {@link CpsVmExecutorService}, which includes many other things.
+         */
+        run,
+        /**
+         * Saving the program state.
+         * @see CpsThreadGroup#saveProgram(File)
+         */
+        saveProgram,
+        /**
+         * Loading or saving flow nodes.
+         * @see FlowNodeStorage
+         */
+        flowNode
+    }
+
+    /** accumulated time in ns of a given {@link TimingKind#name}; {@link String} key for pretty XStream form */
+    @GuardedBy("this")
+    @CheckForNull Map<String, Long> timings;
+
     @Deprecated
     public CpsFlowExecution(String script, FlowExecutionOwner owner) throws IOException {
         this(script, false, owner);
@@ -331,6 +377,48 @@ public class CpsFlowExecution extends FlowExecution {
         if (loadedScripts==null)
             loadedScripts = new HashMap<String,String>();   // field added later
         return this;
+    }
+
+    class Timing implements AutoCloseable {
+        private final TimingKind kind;
+        private final long start;
+        private Timing(TimingKind kind) {
+            this.kind = kind;
+            start = System.nanoTime();
+        }
+        @Override public void close() {
+            synchronized (CpsFlowExecution.this) {
+                if (timings == null) {
+                    timings = new HashMap<>();
+                }
+                Long orig = timings.get(kind.name());
+                if (orig == null) {
+                    orig = 0L;
+                }
+                timings.put(kind.name(), orig + System.nanoTime() - start);
+            }
+        }
+    }
+
+    /**
+     * Record time taken during a certain class of operation in this build.
+     * @param kind what sort of operation is being done
+     * @return something to {@link Timing#close} when finished
+     */
+    Timing time(TimingKind kind) {
+        return new Timing(kind);
+    }
+
+    static final Logger TIMING_LOGGER = Logger.getLogger(CpsFlowExecution.class.getName() + ".timing");
+
+    synchronized void logTimings() {
+        if (timings != null && TIMING_LOGGER.isLoggable(Level.FINE)) {
+            Map<String, String> formatted = new TreeMap<>();
+            for (Map.Entry<String, Long> entry : timings.entrySet()) {
+                formatted.put(entry.getKey(), entry.getValue() / 1000 / 1000 + "ms");
+            }
+            TIMING_LOGGER.log(Level.FINE, "timings for {0}: {1}", new Object[] {owner, formatted});
+        }
     }
 
     /**
@@ -376,8 +464,8 @@ public class CpsFlowExecution extends FlowExecution {
         return owner;
     }
 
-    private SimpleXStreamFlowNodeStorage createStorage() throws IOException {
-        return new SimpleXStreamFlowNodeStorage(this, getStorageDir());
+    private TimingFlowNodeStorage createStorage() throws IOException {
+        return new TimingFlowNodeStorage(new SimpleXStreamFlowNodeStorage(this, getStorageDir()));
     }
 
     /**
@@ -452,7 +540,7 @@ public class CpsFlowExecution extends FlowExecution {
         if ( iotaVal > 0 && iotaVal < ID_LOOKUP_TABLE_SIZE) {
             return ID_LOOKUP_TABLE[iotaVal];
         } else {
-            return String.valueOf(iota()).intern();
+            return String.valueOf(iotaVal).intern();
         }
     }
 
@@ -569,7 +657,7 @@ public class CpsFlowExecution extends FlowExecution {
                         }
                     });
 
-        } catch (IOException e) {
+        } catch (Exception | GroovyBugError e) {
             loadProgramFailed(e, result);
         }
     }
@@ -693,7 +781,11 @@ public class CpsFlowExecution extends FlowExecution {
         g.scheduleRun().get();
     }
 
-    public synchronized FlowHead getFlowHead(int id) {
+    public synchronized @CheckForNull FlowHead getFlowHead(int id) {
+        if (heads == null) {
+            LOGGER.log(Level.WARNING, null, new IllegalStateException("List of flow heads unset for " + this));
+            return null;
+        }
         return heads.get(id);
     }
 
@@ -701,7 +793,7 @@ public class CpsFlowExecution extends FlowExecution {
     public synchronized List<FlowNode> getCurrentHeads() {
         List<FlowNode> r = new ArrayList<FlowNode>();
         if (heads == null) {
-            LOGGER.log(Level.WARNING, "List of flow heads unset for {0}, perhaps due to broken storage", this);
+            LOGGER.log(Level.WARNING, null, new IllegalStateException("List of flow heads unset for " + this));
             return r;
         }
         for (FlowHead h : heads.values()) {
@@ -794,6 +886,10 @@ public class CpsFlowExecution extends FlowExecution {
 
     @Override
     public synchronized boolean isCurrentHead(FlowNode n) {
+        if (heads == null) {
+            LOGGER.log(Level.WARNING, null, new IllegalStateException("List of flow heads unset for " + this));
+            return false;
+        }
         for (FlowHead h : heads.values()) {
             if (h.get().equals(n))
                 return true;
@@ -954,6 +1050,10 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     private static void cleanUpLoader(ClassLoader loader, Set<ClassLoader> encounteredLoaders, Set<Class<?>> encounteredClasses) throws Exception {
+        if (loader instanceof CpsGroovyShell.TimingLoader) {
+            cleanUpLoader(loader.getParent(), encounteredLoaders, encounteredClasses);
+            return;
+        }
         if (!(loader instanceof GroovyClassLoader)) {
             return;
         }
@@ -979,12 +1079,8 @@ public class CpsFlowExecution extends FlowExecution {
 
     private static void cleanUpGlobalClassValue(@Nonnull ClassLoader loader) throws Exception {
         Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
-        Field globalClassValueF;
-        try {
-            globalClassValueF = classInfoC.getDeclaredField("globalClassValue");
-        } catch (NoSuchFieldException x) {
-            return; // Groovy 1, fine
-        }
+        // TODO switch to MethodHandle for speed
+        Field globalClassValueF = classInfoC.getDeclaredField("globalClassValue");
         globalClassValueF.setAccessible(true);
         Object globalClassValue = globalClassValueF.get(null);
         Class<?> groovyClassValuePreJava7C = Class.forName("org.codehaus.groovy.reflection.GroovyClassValuePreJava7");
@@ -996,19 +1092,31 @@ public class CpsFlowExecution extends FlowExecution {
         Object map = mapF.get(globalClassValue);
         Class<?> groovyClassValuePreJava7Map = Class.forName("org.codehaus.groovy.reflection.GroovyClassValuePreJava7$GroovyClassValuePreJava7Map");
         Collection entries = (Collection) groovyClassValuePreJava7Map.getMethod("values").invoke(map);
-        Field klazzF = classInfoC.getDeclaredField("klazz");
-        klazzF.setAccessible(true);
         Method removeM = groovyClassValuePreJava7Map.getMethod("remove", Object.class);
         Class<?> entryC = Class.forName("org.codehaus.groovy.util.AbstractConcurrentMapBase$Entry");
         Method getValueM = entryC.getMethod("getValue");
         List<Class<?>> toRemove = new ArrayList<>(); // not sure if it is safe against ConcurrentModificationException or not
-        for (Object entry : entries) {
-            Object value = getValueM.invoke(entry);
-            Class<?> klazz = (Class) klazzF.get(value);
+        try {
+            Field classRefF = classInfoC.getDeclaredField("classRef"); // 2.4.8+
+            classRefF.setAccessible(true);
+            for (Object entry : entries) {
+                Object value = getValueM.invoke(entry);
+                toRemove.add(((WeakReference<Class<?>>) classRefF.get(value)).get());
+            }
+        } catch (NoSuchFieldException x) {
+            Field klazzF = classInfoC.getDeclaredField("klazz"); // 2.4.7-
+            klazzF.setAccessible(true);
+            for (Object entry : entries) {
+                Object value = getValueM.invoke(entry);
+                toRemove.add((Class) klazzF.get(value));
+            }
+        }
+        Iterator<Class<?>> it = toRemove.iterator();
+        while (it.hasNext()) {
+            Class<?> klazz = it.next();
             ClassLoader encounteredLoader = klazz.getClassLoader();
-            if (encounteredLoader == loader) {
-                toRemove.add(klazz);
-            } else {
+            if (encounteredLoader != loader) {
+                it.remove();
                 LOGGER.log(Level.FINEST, "ignoring {0} with loader {1}", new Object[] {klazz, /* do not hold from LogRecord */String.valueOf(encounteredLoader)});
             }
         }
@@ -1019,28 +1127,32 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     private static void cleanUpGlobalClassSet(@Nonnull Class<?> clazz) throws Exception {
-        Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
+        Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo"); // or just ClassInfo.class, but unclear whether this will always be there
         Field globalClassSetF = classInfoC.getDeclaredField("globalClassSet");
         globalClassSetF.setAccessible(true);
         Object globalClassSet = globalClassSetF.get(null);
-        try { // Groovy 1
-            globalClassSet.getClass().getMethod("remove", Object.class).invoke(globalClassSet, clazz); // like Map but not
-            LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
-        } catch (NoSuchMethodException x) { // Groovy 2
-            Field itemsF = globalClassSet.getClass().getDeclaredField("items");
-            itemsF.setAccessible(true);
-            Object items = itemsF.get(globalClassSet);
-            Method iteratorM = items.getClass().getMethod("iterator");
-            Field klazzF = classInfoC.getDeclaredField("klazz");
-            klazzF.setAccessible(true);
-            synchronized (items) {
-                Iterator<?> iterator = (Iterator) iteratorM.invoke(items);
-                while (iterator.hasNext()) {
-                    Object classInfo = iterator.next();
-                    if (klazzF.get(classInfo) == clazz) {
-                        iterator.remove();
-                        LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
-                    }
+        try {
+            classInfoC.getDeclaredField("classRef");
+            return; // 2.4.8+, nothing to do here (classRef is weak anyway)
+        } catch (NoSuchFieldException x2) {} // 2.4.7-
+        // Cannot just call .values() since that returns a copy.
+        Field itemsF = globalClassSet.getClass().getDeclaredField("items");
+        itemsF.setAccessible(true);
+        Object items = itemsF.get(globalClassSet);
+        Method iteratorM = items.getClass().getMethod("iterator");
+        Field klazzF = classInfoC.getDeclaredField("klazz");
+        klazzF.setAccessible(true);
+        synchronized (items) {
+            Iterator<?> iterator = (Iterator) iteratorM.invoke(items);
+            while (iterator.hasNext()) {
+                Object classInfo = iterator.next();
+                if (classInfo == null) {
+                    LOGGER.finer("JENKINS-41945: ignoring null ClassInfo from ManagedLinkedList.Iter.next");
+                    continue;
+                }
+                if (klazzF.get(classInfo) == clazz) {
+                    iterator.remove();
+                    LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
                 }
             }
         }
@@ -1068,8 +1180,21 @@ public class CpsFlowExecution extends FlowExecution {
         return heads.firstEntry().getValue();
     }
 
-    void notifyListeners(List<FlowNode> nodes, boolean synchronous) {
+    List<GraphListener> getListenersToRun() {
+        List<GraphListener> l = new ArrayList<>();
+
         if (listeners != null) {
+            l.addAll(listeners);
+        }
+        l.addAll(ExtensionList.lookup(GraphListener.class));
+
+        return l;
+    }
+
+    void notifyListeners(List<FlowNode> nodes, boolean synchronous) {
+        List<GraphListener> toRun = getListenersToRun();
+
+        if (!toRun.isEmpty()) {
             Saveable s = Saveable.NOOP;
             try {
                 Queue.Executable exec = owner.getExecutable();
@@ -1082,7 +1207,7 @@ public class CpsFlowExecution extends FlowExecution {
             BulkChange bc = new BulkChange(s);
             try {
                 for (FlowNode node : nodes) {
-                    for (GraphListener listener : listeners) {
+                    for (GraphListener listener : toRun) {
                         if (listener instanceof GraphListener.Synchronous == synchronous) {
                             listener.onNewHead(node);
                         }
@@ -1171,24 +1296,24 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     @Restricted(DoNotUse.class)
-    @Terminator public static void suspendAll() throws Exception {
-        ACL.impersonate(ACL.SYSTEM, new NotReallyRoleSensitiveCallable<Void,Exception>() { // TODO Jenkins 2.1+ remove JENKINS-34281 workaround
-            @Override public Void call() throws Exception {
-                LOGGER.fine("starting to suspend all executions");
-                for (FlowExecution execution : FlowExecutionList.get()) {
-                    if (execution instanceof CpsFlowExecution) {
-                        LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
-                        CpsFlowExecution exec = (CpsFlowExecution) execution;
-                        // Like waitForSuspension but with a timeout:
-                        if (exec.programPromise != null) {
-                            exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
-                        }
+    @Terminator public static void suspendAll() {
+        CpsFlowExecution exec = null;
+        try (Timeout t = Timeout.limit(3, TimeUnit.MINUTES)) { // TODO some complicated sequence of calls to Futures could allow all of them to run in parallel
+            LOGGER.fine("starting to suspend all executions");
+            for (FlowExecution execution : FlowExecutionList.get()) {
+                if (execution instanceof CpsFlowExecution) {
+                    LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
+                    exec = (CpsFlowExecution) execution;
+                    // Like waitForSuspension but with a timeout:
+                    if (exec.programPromise != null) {
+                        exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
                     }
                 }
-                LOGGER.fine("finished suspending all executions");
-                return null;
             }
-        });
+            LOGGER.fine("finished suspending all executions");
+        } catch (Exception x) {
+            LOGGER.log(Level.WARNING, "problem suspending " + exec, x);
+        }
     }
 
     // TODO: write a custom XStream Converter so that while we are writing CpsFlowExecution, it holds that lock
@@ -1214,6 +1339,11 @@ public class CpsFlowExecution extends FlowExecution {
             writeChild(w, context, "result", e.result, Result.class);
             writeChild(w, context, "script", e.script, String.class);
             writeChild(w, context, "loadedScripts", e.loadedScripts, Map.class);
+            synchronized (e) {
+                if (e.timings != null) {
+                    writeChild(w, context, "timings", e.timings, Map.class);
+                }
+            }
             writeChild(w, context, "sandbox", e.sandbox, Boolean.class);
             if (e.user != null) {
                 writeChild(w, context, "user", e.user, String.class);
@@ -1229,7 +1359,7 @@ public class CpsFlowExecution extends FlowExecution {
             }
         }
 
-        private <T> void writeChild(HierarchicalStreamWriter w, MarshallingContext context, String name, T v, Class<T> staticType) {
+        private <T> void writeChild(HierarchicalStreamWriter w, MarshallingContext context, String name, @Nonnull T v, Class<T> staticType) {
             if (!mapper.shouldSerializeMember(CpsFlowExecution.class,name))
                 return;
             startNode(w, name, staticType);
@@ -1267,6 +1397,10 @@ public class CpsFlowExecution extends FlowExecution {
                     if (nodeName.equals("loadedScripts")) {
                         Map loadedScripts = readChild(reader, context, Map.class, result);
                         setField(result, "loadedScripts", loadedScripts);
+                    } else
+                    if (nodeName.equals("timings")) {
+                        Map timings = readChild(reader, context, Map.class, result);
+                        setField(result, "timings", timings);
                     } else
                     if (nodeName.equals("sandbox")) {
                         boolean sandbox = readChild(reader, context, Boolean.class, result);
@@ -1322,4 +1456,76 @@ public class CpsFlowExecution extends FlowExecution {
      * this field is set to {@link CpsFlowExecution} that will own it.
      */
     static final ThreadLocal<CpsFlowExecution> PROGRAM_STATE_SERIALIZATION = new ThreadLocal<CpsFlowExecution>();
+
+    class TimingFlowNodeStorage extends FlowNodeStorage {
+        private final FlowNodeStorage delegate;
+        TimingFlowNodeStorage(FlowNodeStorage delegate) {
+            this.delegate = delegate;
+        }
+        @Override public FlowNode getNode(String string) throws IOException {
+            try (Timing t = time(TimingKind.flowNode)) {
+                return delegate.getNode(string);
+            }
+        }
+        @Override public void storeNode(FlowNode fn) throws IOException {
+            try (Timing t = time(TimingKind.flowNode)) {
+                delegate.storeNode(fn);
+            }
+        }
+        @Override public List<Action> loadActions(FlowNode node) throws IOException {
+            try (Timing t = time(TimingKind.flowNode)) {
+                return delegate.loadActions(node);
+            }
+        }
+        @Override public void saveActions(FlowNode node, List<Action> actions) throws IOException {
+            try (Timing t = time(TimingKind.flowNode)) {
+                delegate.saveActions(node, actions);
+            }
+        }
+    }
+
+    // If we wanted to expose via REST and/or floatingBox, could add a TransientActionFactory to show similar information.
+    @Extension(optional=true) public static class PipelineTimings extends Component {
+
+        @Override public Set<Permission> getRequiredPermissions() {
+            return Collections.singleton(Jenkins.ADMINISTER);
+        }
+
+        @Override public String getDisplayName() {
+            return "Timing data about recently completed Pipeline builds";
+        }
+
+        @Override public void addContents(Container container) {
+            container.add(new Content("nodes/master/pipeline-timings.txt") {
+                @Override public void writeTo(OutputStream outputStream) throws IOException {
+                    PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, Charsets.UTF_8));
+                    for (Job<?, ?> job : Jenkins.getActiveInstance().getAllItems(Job.class)) {
+                        // TODO no clear way to tell if this might have Run instanceof FlowExecutionOwner.Executable, so for now just check for FlyweightTask which should exclude AbstractProject
+                        if (job instanceof Queue.FlyweightTask) {
+                            Run<?, ?> run = job.getLastCompletedBuild();
+                            if (run instanceof FlowExecutionOwner.Executable) {
+                                FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
+                                if (owner != null) {
+                                    FlowExecution exec = owner.getOrNull();
+                                    if (exec instanceof CpsFlowExecution) {
+                                        Map<String, Long> timings = ((CpsFlowExecution) exec).timings;
+                                        if (timings != null) {
+                                            pw.println("Timings for " + run + ":");
+                                            for (Map.Entry<String, Long> entry : new TreeMap<>(timings).entrySet()) {
+                                                pw.println("  " + entry.getKey() + "\t" + entry.getValue() / 1000 / 1000 + "ms");
+                                            }
+                                            pw.println();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    pw.flush();
+                }
+            });
+        }
+
+    }
+
 }

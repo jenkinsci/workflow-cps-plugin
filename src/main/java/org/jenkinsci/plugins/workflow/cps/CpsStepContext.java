@@ -193,6 +193,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      *      This method returns null if the step descriptor used is not recoverable in the current VM session,
      *      such as when the plugin that implements this was removed. So the caller should defend against null.
      */
+    @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")
     public @CheckForNull StepDescriptor getStepDescriptor() {
         Jenkins j = Jenkins.getInstance();
         if (j == null) {
@@ -290,6 +291,10 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     @Override
     protected <T> T doGet(Class<T> key) throws IOException, InterruptedException {
+        if (FlowNode.class.isAssignableFrom(key)) {
+            return key.cast(getNode());
+        }
+
         CpsThread t = getThreadSynchronously();
         if (t == null) {
             throw new IOException("cannot find current thread");
@@ -298,9 +303,6 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         T v = t.getContextVariable(key);
         if (v!=null)        return v;
 
-        if (FlowNode.class.isAssignableFrom(key)) {
-            return key.cast(getNode());
-        }
         if (key == CpsThread.class) {
             return key.cast(t);
         }
@@ -382,7 +384,12 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
             final List<FlowNode> parents = new ArrayList<FlowNode>();
             for (int head : bodyHeads) {
-                parents.add(flow.getFlowHead(head).get());
+                FlowHead flowHead = flow.getFlowHead(head);
+                if (flowHead != null) {
+                    parents.add(flowHead.get());
+                } else {
+                    LOGGER.log(Level.WARNING, "Could not find flow head #{0}", head);
+                }
             }
 
             flow.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
