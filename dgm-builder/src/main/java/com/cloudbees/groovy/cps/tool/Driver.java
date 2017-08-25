@@ -40,7 +40,9 @@ public class Driver {
 
             // classes to translate
             // TODO include other classes mentioned in DgmConverter if they have any applicable methods; and certainly StringGroovyMethods which has some Closure-based methods
-            List<String> fileNames = asList("DefaultGroovyMethods", "DefaultGroovyStaticMethods");
+            List<String> fileNames = asList("DefaultGroovyMethods",
+                    "DefaultGroovyStaticMethods",
+                    "StringGroovyMethods");
 
             List<JavaFileObject> src = new ArrayList<>();
             ZipArchive a = new ZipArchive((JavacFileManager) fileManager, new ZipFile(groovySrcJar));

@@ -95,7 +95,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import javax.annotation.Generated;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
@@ -129,6 +128,7 @@ public class Translator {
     private final JClass $Builder;
     private final JClass $CatchExpression;
     private final DeclaredType closureType;
+    private final Map<String,JClass> otherTranslated = new HashMap<>();
     
     /**
      * To allow sibling calls to overloads to be resolved properly at runtime, write the actual implementation to an overload-proof private method.
@@ -214,6 +214,9 @@ public class Translator {
             JVar $methodName = m.param(String.class, "methodName");
             m.body()._return(JExpr._new($MethodLocation).arg($output.dotclass()).arg($methodName));
         });
+
+        // Record the fqcn we've already translated for possible use later.
+        otherTranslated.put(fqcn, $output);
     }
 
     /**
@@ -333,20 +336,43 @@ public class Translator {
 
                 if (ms instanceof MemberSelectTree) {
                     MemberSelectTree mst = (MemberSelectTree) ms;
-                    inv = $b.invoke("functionCall")
-                        .arg(loc(mt))
-                        .arg(visit(mst.getExpression()))
-                        .arg(n(mst.getIdentifier()));
+                    // If this is a call to a static method on another class, it may be an already-translated method,
+                    // in which case, we need to use that translated method, not the original. So check if the expression
+                    // is an identifier, that it's not the class we're in the process of translating, and if it's one
+                    // of the other known translated classes.
+                    if (mst.getExpression() instanceof JCIdent &&
+                            !((JCIdent)mst.getExpression()).sym.toString().equals(fqcn) &&
+                            otherTranslated.containsKey(((JCIdent)mst.getExpression()).sym.toString())) {
+                        inv = $b.invoke("functionCall")
+                                .arg(loc(mt))
+                                .arg($b.invoke("constant").arg(
+                                        otherTranslated.get(((JCIdent)mst.getExpression()).sym.toString()).dotclass()))
+                                .arg(n(mst.getIdentifier()));
+
+                    } else {
+                        inv = $b.invoke("functionCall")
+                                .arg(loc(mt))
+                                .arg(visit(mst.getExpression()))
+                                .arg(n(mst.getIdentifier()));
+                    }
                 } else
                 if (ms instanceof JCIdent) {
                     // invocation without object selection, like  foo(bar,zot)
                     JCIdent it = (JCIdent) ms;
                     if (!it.sym.owner.toString().equals(fqcn)) {
-                        // static import
-                        inv = $b.invoke("functionCall")
-                            .arg(loc(mt))
-                            .arg($b.invoke("constant").arg(t(it.sym.owner.type).dotclass()))
-                            .arg(n(it));
+                        if (otherTranslated.containsKey(it.sym.owner.toString())) {
+                            // static import from transformed class
+                            inv = $b.invoke("functionCall")
+                                    .arg(loc(mt))
+                                    .arg($b.invoke("constant").arg(otherTranslated.get(it.sym.owner.toString()).dotclass()))
+                                    .arg(n(it));
+                        } else {
+                            // static import from non-transformed class
+                            inv = $b.invoke("functionCall")
+                                    .arg(loc(mt))
+                                    .arg($b.invoke("constant").arg(t(it.sym.owner.type).dotclass()))
+                                    .arg(n(it));
+                        }
                     } else {
                         // invocation on this class
                         String overloadResolved = mangledName((Symbol.MethodSymbol) it.sym);
@@ -535,6 +561,18 @@ public class Translator {
                         .arg(loc(at))
                         .arg(visit(at.getVariable()))
                         .arg(visit(at.getExpression()));
+            }
+
+            /**
+             * This is needed to handle cases like {@code Object[].class}.
+             */
+            @Override
+            public JExpression visitArrayType(ArrayTypeTree at, Void __) {
+                if (at.getType() instanceof IdentifierTree) {
+                    return visitIdentifier((IdentifierTree) at.getType(), __);
+                } else {
+                    return defaultAction(at, __);
+                }
             }
 
             @Override
