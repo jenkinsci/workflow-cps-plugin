@@ -25,7 +25,7 @@ public class StepStartNode extends BlockStartNode implements StepNode {
         super(exec, exec.iotaStr(), parent);
         this.descriptor = d;
         if (d.deferWritingState()) {
-            this.perssistent = false;
+            this.persistent = false;
         }
         this.descriptorId = d!=null ? d.getId().intern() : null;
 
