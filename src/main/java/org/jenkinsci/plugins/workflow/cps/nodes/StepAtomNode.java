@@ -60,6 +60,9 @@ public class StepAtomNode extends AtomNode implements StepNode {
 
     public StepAtomNode(CpsFlowExecution exec, StepDescriptor d, FlowNode parent) {
         super(exec, exec.iotaStr(), parent);
+        if (d.deferWritingState()) {
+            this.persistent = false;
+        }
         this.descriptorId = d!=null ? d.getId().intern() : null;
 
         // we use SimpleXStreamFlowNodeStorage, which uses XStream, so

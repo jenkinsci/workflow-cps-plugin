@@ -24,6 +24,9 @@ public class StepStartNode extends BlockStartNode implements StepNode {
     public StepStartNode(CpsFlowExecution exec, StepDescriptor d, FlowNode parent) {
         super(exec, exec.iotaStr(), parent);
         this.descriptor = d;
+        if (d.deferWritingState()) {
+            this.perssistent = false;
+        }
         this.descriptorId = d!=null ? d.getId().intern() : null;
 
         // we use SimpleXStreamFlowNodeStorage, which uses XStream, so

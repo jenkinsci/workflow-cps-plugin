@@ -377,7 +377,7 @@ class CpsBodyExecution extends BodyExecution {
         StepStartNode start = new StepStartNode(head.getExecution(),
                 context.getStepDescriptor(), head.get());
         this.startNodeId = start.getId();
-        start.addAction(new BodyInvocationAction());
+        start.addActionWithoutPersist(new BodyInvocationAction());
         head.setNewHead(start);
         return start;
     }
@@ -393,7 +393,7 @@ class CpsBodyExecution extends BodyExecution {
 
             StepEndNode end = new StepEndNode(head.getExecution(),
                     getBodyStartNode(), head.get());
-            end.addAction(new BodyInvocationAction());
+            end.addActionWithoutPersist(new BodyInvocationAction());
             head.setNewHead(end);
 
             return end;
