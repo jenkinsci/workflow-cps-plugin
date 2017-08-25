@@ -87,6 +87,40 @@ String.length()
 ''')
     }
 
+    @Issue("JENKINS-46088")
+    @Test
+    void matcherTypeAssignment() {
+        assert "falsefalse" == evalCpsSandbox('''
+    @NonCPS
+    def nonCPSMatcherMethod(String x) {
+       java.util.regex.Matcher m = x =~ /bla/
+       return m.matches()
+    }
+    
+    def cpsMatcherMethod(String x) {
+        java.util.regex.Matcher m = x =~ /bla/
+        return m.matches()
+    }
+
+    return "${nonCPSMatcherMethod('foo')}${cpsMatcherMethod('foo')}"
+''')
+        assertIntercept(''' 
+Script1:___cps___0()
+Script1:___cps___1()
+Script1:___cps___2()
+Script1.super(Script1).setBinding(Binding)
+Script1.nonCPSMatcherMethod(String)
+ScriptBytecodeAdapter:findRegex(String,String)
+Matcher.matches()
+Script1.cpsMatcherMethod(String)
+ScriptBytecodeAdapter:findRegex(String,String)
+Checker:checkedCast(Class,Matcher,Boolean,Boolean,Boolean)
+Matcher.matches()
+ScriptBytecodeAdapter:asType(ArrayList,Class)
+ScriptBytecodeAdapter:asType(ArrayList,Class)
+new GStringImpl(Object[],String[])
+''')
+    }
 
     private Object evalCpsSandbox(String script) {
         FunctionCallEnv e = Envs.empty();
