@@ -27,7 +27,7 @@ public class StepStartNode extends BlockStartNode implements StepNode {
         if (d.deferWritingState()) {
             this.persistent = false;
         }
-        this.descriptorId = d!=null ? d.getId().intern() : null;
+        this.descriptorId = d.getId().intern();
 
         // we use SimpleXStreamFlowNodeStorage, which uses XStream, so
         // constructor call is always for brand-new FlowNode that has not existed anywhere.
