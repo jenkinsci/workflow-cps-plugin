@@ -29,6 +29,7 @@ import java.io.Serializable;
 import java.util.AbstractList;
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
@@ -95,6 +96,11 @@ public class IteratorHack {
     public static <E> Iterator<E> iterator(Set<E> set) {
         // TODO as above
         return new Itr<>(new ArrayList<>(set));
+    }
+
+    public static <E> Iterator<E> iterator(E[] array) {
+        // TODO as above
+        return new Itr<>(Arrays.asList(array));
     }
 
     private static final class ListItr<E> extends Itr<E> implements ListIterator<E> {
