@@ -60,7 +60,7 @@ public class StepAtomNode extends AtomNode implements StepNode {
 
     public StepAtomNode(CpsFlowExecution exec, @Nonnull StepDescriptor d, FlowNode parent) {
         super(exec, exec.iotaStr(), parent);
-        if (d.deferWritingState()) {
+        if (d.delayWritingFlownodeActions()) {
             this.persistent = false;
         }
         this.descriptorId = d.getId().intern();

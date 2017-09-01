@@ -24,7 +24,7 @@ public class StepStartNode extends BlockStartNode implements StepNode {
     public StepStartNode(CpsFlowExecution exec, StepDescriptor d, FlowNode parent) {
         super(exec, exec.iotaStr(), parent);
         this.descriptor = d;
-        if (d.deferWritingState()) {
+        if (d.delayWritingFlownodeActions()) {
             this.persistent = false;
         }
         this.descriptorId = d.getId().intern();
