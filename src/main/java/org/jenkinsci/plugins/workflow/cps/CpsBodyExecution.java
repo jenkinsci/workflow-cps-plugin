@@ -122,10 +122,9 @@ class CpsBodyExecution extends BodyExecution {
                 sn.addActionWithoutPersist((PersistentAction)a);
             }
         }
-        if (!sn.isPersistent()) {
+        if (sn.isPersistent()) {
             sn.persistSafe();
         }
-        sn.persistSafe();
 
         StepContext sc = new CpsBodySubContext(context, sn);
         for (BodyExecutionCallback c : callbacks) {
