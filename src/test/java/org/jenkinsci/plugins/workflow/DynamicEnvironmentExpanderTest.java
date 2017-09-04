@@ -89,7 +89,6 @@ public class DynamicEnvironmentExpanderTest {
                 super.onResume();
                 value = "two";
             }
-            @Override public void stop(Throwable cause) throws Exception {}
         }
         private static class ExpanderImpl extends EnvironmentExpander {
             private static final long serialVersionUID = 1;

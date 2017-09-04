@@ -55,8 +55,6 @@ public class CurveMetaStep extends AbstractStepImpl {
             return false;
         }
 
-        @Override public void stop(Throwable cause) {}
-
     }
 
     @Extension public static class DescriptorImpl extends AbstractStepDescriptorImpl {

@@ -61,10 +61,6 @@ public class EchoResultStep extends Step implements Serializable {
 
             return true;
         }
-
-        @Override
-        public void stop(Throwable cause) throws Exception {
-        }
     }
 
     private static final long serialVersionUID = 1L;

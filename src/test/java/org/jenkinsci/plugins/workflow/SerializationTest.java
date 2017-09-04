@@ -103,10 +103,6 @@ public class SerializationTest extends SingleJobTestBase {
             public boolean start() throws Exception {
                 return false;
             }
-            @Override
-            public void stop(Throwable cause) throws Exception {
-                // nothing to do here
-            }
         }
     }
 
