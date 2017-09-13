@@ -814,4 +814,10 @@ def b = new CpsTransformerTest.Base()
 return (b.&toString)() + (String.getClass().&getSimpleName)()
 ''') == "baseClass"
     }
+
+    @Issue("JENKINS-32213")
+    @Test
+    void allClassesSerializable() {
+        evalCPSonly('class C {}; def c = new C(); assert c instanceof Serializable')
+    }
 }
