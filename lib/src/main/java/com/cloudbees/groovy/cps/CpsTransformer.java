@@ -135,8 +135,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                 visitNontransformedStatement(statement);
             }
 
-            if (!classNode.declaresInterface(SERIAIZABLE_TYPE)) {
-                classNode.addInterface(SERIAIZABLE_TYPE);
+            if (!classNode.declaresInterface(SERIALIZABLE_TYPE)) {
+                classNode.addInterface(SERIALIZABLE_TYPE);
             }
 
             // groovy puts timestamp of compilation into a class file, causing serialVersionUID to change.
@@ -1230,7 +1230,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     private static final ClassNode METHOD_LOCATION_TYPE = ClassHelper.makeCached(MethodLocation.class);
 
-    private static final ClassNode SERIAIZABLE_TYPE = ClassHelper.makeCached(Serializable.class);
+    private static final ClassNode SERIALIZABLE_TYPE = ClassHelper.makeCached(Serializable.class);
 
     private static final VariableExpression BUILDER = new VariableExpression("b", BUILDER_TYPE); // new PropertyExpression(new ClassExpression(BUILDER_TYPE), "INSTANCE")
 
