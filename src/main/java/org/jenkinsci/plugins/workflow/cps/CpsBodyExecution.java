@@ -200,9 +200,9 @@ class CpsBodyExecution extends BodyExecution {
                     for (CpsThread t : g.threads.values()) {
                         m.put(t.head, t);
                     }
+                    LinearBlockHoppingScanner scanner = new LinearBlockHoppingScanner();
                     for (CpsThread t : m.values()) {
                         // TODO seems cumbersome to have to go through the flow graph to find out whether a head is a descendant of ours, yet FlowHead does not seem to retain a parent field
-                        LinearBlockHoppingScanner scanner = new LinearBlockHoppingScanner();
                         scanner.setup(t.head.get());
                         for (FlowNode node : scanner) {
                             if (node.getId().equals(startNodeId)) {
