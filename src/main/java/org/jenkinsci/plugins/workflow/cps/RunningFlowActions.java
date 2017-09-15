@@ -26,9 +26,12 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import hudson.Extension;
 import hudson.model.Action;
-import java.util.Arrays;
+import hudson.model.Item;
+import hudson.security.AccessControlled;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import jenkins.model.TransientActionFactory;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
@@ -48,7 +51,13 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
             FlowExecution exec = owner.getOrNull();
             if (exec instanceof CpsFlowExecution && !exec.isComplete()) {
                 CpsFlowExecution e = (CpsFlowExecution) exec;
-                return Arrays.asList(new CpsThreadDumpAction(e), new PauseUnpauseAction(e));
+                List<Action> actions = new ArrayList<>();
+                actions.add(new CpsThreadDumpAction(e));
+                // TODO cf. comment in CpsFlowExecution#pause
+                if (!(executable instanceof AccessControlled) || ((AccessControlled) executable).hasPermission(Item.CANCEL)) {
+                    actions.add(new PauseUnpauseAction(e));
+                }
+                return actions;
             }
         }
         return Collections.emptySet();
