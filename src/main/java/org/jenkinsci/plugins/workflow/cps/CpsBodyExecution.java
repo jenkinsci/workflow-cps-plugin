@@ -11,15 +11,18 @@ import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.SettableFuture;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.model.Action;
 import hudson.model.Result;
 import hudson.util.Iterators;
 import jenkins.model.CauseOfInterruption;
 import org.jenkinsci.plugins.workflow.actions.BodyInvocationAction;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
+import org.jenkinsci.plugins.workflow.actions.PersistentAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
@@ -115,8 +118,12 @@ class CpsBodyExecution extends BodyExecution {
 
         StepStartNode sn = addBodyStartFlowNode(head);
         for (Action a : params.startNodeActions) {
-            if (a!=null)
-                sn.addAction(a);
+            if (a!=null) {
+                sn.addActionWithoutPersist((PersistentAction)a);
+            }
+        }
+        if (sn.isPersistent()) {
+            sn.persistSafe();
         }
 
         StepContext sc = new CpsBodySubContext(context, sn);
@@ -373,11 +380,13 @@ class CpsBodyExecution extends BodyExecution {
      *
      * @see #addBodyEndFlowNode()
      */
+    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE", justification = "temporary")
     private @Nonnull StepStartNode addBodyStartFlowNode(FlowHead head) {
-        StepStartNode start = new StepStartNode(head.getExecution(),
+        CpsFlowExecution exec = head.getExecution();
+        StepStartNode start = new StepStartNode(exec,
                 context.getStepDescriptor(), head.get());
         this.startNodeId = start.getId();
-        start.addAction(new BodyInvocationAction());
+        start.addActionWithoutPersist(new BodyInvocationAction());
         head.setNewHead(start);
         return start;
     }
@@ -393,7 +402,7 @@ class CpsBodyExecution extends BodyExecution {
 
             StepEndNode end = new StepEndNode(head.getExecution(),
                     getBodyStartNode(), head.get());
-            end.addAction(new BodyInvocationAction());
+            end.addActionWithoutPersist(new BodyInvocationAction());
             head.setNewHead(end);
 
             return end;

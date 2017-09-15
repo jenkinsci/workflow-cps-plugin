@@ -58,9 +58,12 @@ public class StepAtomNode extends AtomNode implements StepNode {
     // once we successfully convert descriptorId to a real instance, cache that
     private transient StepDescriptor descriptor;
 
-    public StepAtomNode(CpsFlowExecution exec, StepDescriptor d, FlowNode parent) {
+    public StepAtomNode(CpsFlowExecution exec, @Nonnull StepDescriptor d, FlowNode parent) {
         super(exec, exec.iotaStr(), parent);
-        this.descriptorId = d!=null ? d.getId().intern() : null;
+        if (d.delayWritingFlownodeActions()) {
+            this.persistent = false;
+        }
+        this.descriptorId = d.getId().intern();
 
         // we use SimpleXStreamFlowNodeStorage, which uses XStream, so
         // constructor call is always for brand-new FlowNode that has not existed anywhere.

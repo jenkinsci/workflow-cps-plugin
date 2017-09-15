@@ -24,7 +24,10 @@ public class StepStartNode extends BlockStartNode implements StepNode {
     public StepStartNode(CpsFlowExecution exec, StepDescriptor d, FlowNode parent) {
         super(exec, exec.iotaStr(), parent);
         this.descriptor = d;
-        this.descriptorId = d!=null ? d.getId().intern() : null;
+        if (d.delayWritingFlownodeActions()) {
+            this.persistent = false;
+        }
+        this.descriptorId = d.getId().intern();
 
         // we use SimpleXStreamFlowNodeStorage, which uses XStream, so
         // constructor call is always for brand-new FlowNode that has not existed anywhere.

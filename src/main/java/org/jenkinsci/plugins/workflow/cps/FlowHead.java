@@ -111,8 +111,8 @@ final class FlowHead implements Serializable {
 
     void setNewHead(FlowNode v) {
         try {
+            this.getExecution().getStorage().persistAll(); // Ensures we're actually persisting old nodes before starting a new one
             this.head = v;
-            execution.storage.storeNode(head);
 
             CpsThreadGroup c = CpsThreadGroup.current();
             if (c !=null) {
@@ -125,6 +125,11 @@ final class FlowHead implements Serializable {
                 // TODO can CpsThreadGroup.notifyNewHead be used instead to notify both kinds of listeners?
                 execution.notifyListeners(Collections.singletonList(v), true);
                 execution.notifyListeners(Collections.singletonList(v), false);
+
+                // Persist at the very end now, once we have all actions not attached in the Execution itself
+                if (v.isPersistent()) {
+                    v.save();
+                }
             }
         } catch (IOException e) {
             LOGGER.log(Level.FINE, "Failed to record new head: " + v, e);

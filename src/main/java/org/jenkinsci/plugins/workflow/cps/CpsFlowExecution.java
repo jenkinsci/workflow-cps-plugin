@@ -1027,6 +1027,12 @@ public class CpsFlowExecution extends FlowExecution {
         if (outcome.isFailure())
             head.addAction(new ErrorAction(outcome.getAbnormal()));
 
+        try {
+            this.getStorage().persistAll();
+        } catch (IOException ioe) {
+            LOGGER.log(Level.WARNING, "Failed to persist the final FlowNodes upon program completion");
+        }
+
         // shrink everything into a single new head
         done = true;
         FlowHead first = getFirstHead();
@@ -1480,6 +1486,11 @@ public class CpsFlowExecution extends FlowExecution {
         @Override public void saveActions(FlowNode node, List<Action> actions) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
                 delegate.saveActions(node, actions);
+            }
+        }
+        @Override public void persistAll() throws IOException {
+            try (Timing t = time(TimingKind.flowNode)) {
+                delegate.persistAll();
             }
         }
     }
