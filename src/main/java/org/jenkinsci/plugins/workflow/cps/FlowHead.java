@@ -111,6 +111,7 @@ final class FlowHead implements Serializable {
 
     void setNewHead(FlowNode v) {
         try {
+            this.getExecution().getStorage().persistAll(); // Ensures we're actually persisting old nodes before starting a new one
             this.head = v;
 
             CpsThreadGroup c = CpsThreadGroup.current();
