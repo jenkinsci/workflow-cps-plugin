@@ -561,6 +561,7 @@ public class CpsFlowExecution extends FlowExecution {
 
     protected void initializeStorage() throws IOException {
         storage = createStorage();
+        this.internalGraphLookup = super.getInternalGraphLookup();
         synchronized (this) {
             // heads could not be restored in unmarshal, so doing that now:
             heads = new TreeMap<Integer,FlowHead>();
