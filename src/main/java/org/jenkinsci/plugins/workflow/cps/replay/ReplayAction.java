@@ -115,6 +115,11 @@ public class ReplayAction implements Action {
         if (!run.hasPermission(REPLAY)) {
             return false;
         }
+
+        if (!run.getParent().isBuildable()) {
+            return false;
+        }
+
         CpsFlowExecution exec = getExecution();
         if (exec == null) {
             return false;
