@@ -763,6 +763,29 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         BINARY_OP_TO_BUILDER_METHOD.put(KEYWORD_IN, "isCase");
     }
 
+    private void multipleAssignment(final Expression parentExpression,
+                                    TupleExpression tuple,
+                                    ListExpression list) {
+        List<Expression> listExpressions = list.getExpressions();
+        List<Expression> tupleExpressions = tuple.getExpressions();
+        if (listExpressions.size() < tupleExpressions.size()) {
+            // TODO: Better error handling.
+            throw new UnsupportedOperationException();
+        }
+        for (int i = 0, tupleExpressionsSize = tupleExpressions.size(); i < tupleExpressionsSize; i++) {
+            final Expression tupleExpression = tupleExpressions.get(i);
+            final Expression listExpression = listExpressions.get(i);
+            makeNode("assign", new Runnable() {
+                @Override
+                public void run() {
+                    loc(parentExpression);
+                    visit(tupleExpression);
+                    visit(listExpression);
+                }
+            });
+        }
+    }
+
     /**
      * @see
      * org.codehaus.groovy.classgen.asm.BinaryExpressionHelper#eval(BinaryExpression)
@@ -771,14 +794,22 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
     public void visitBinaryExpression(final BinaryExpression exp) {
         String name = BINARY_OP_TO_BUILDER_METHOD.get(exp.getOperation().getType());
         if (name != null) {
-            makeNode(name, new Runnable() {
-                @Override
-                public void run() {
-                    loc(exp);
-                    visit(exp.getLeftExpression());
-                    visit(exp.getRightExpression());
-                }
-            });
+            if (name.equals("assign") &&
+                    exp.getLeftExpression() instanceof TupleExpression &&
+                    exp.getRightExpression() instanceof ListExpression) {
+                multipleAssignment(exp,
+                        (TupleExpression)exp.getLeftExpression(),
+                        (ListExpression)exp.getRightExpression());
+            } else {
+                makeNode(name, new Runnable() {
+                    @Override
+                    public void run() {
+                        loc(exp);
+                        visit(exp.getLeftExpression());
+                        visit(exp.getRightExpression());
+                    }
+                });
+            }
             return;
         }
 
@@ -1050,25 +1081,23 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
             makeNode("sequence", new Runnable() {
                 @Override
                 public void run() {
+                    // TODO: Possibly move this logic into multipleAssignment(...) or replace that with more specific
+                    // logic.
                     for (Expression e : exp.getTupleExpression().getExpressions()) {
                         final VariableExpression v = (VariableExpression) e;
                         makeNode("declareVariable", new Runnable() {
                             @Override
                             public void run() {
-                                loc(exp);
                                 literal(v.getType());
                                 literal(v.getName());
                             }
                         });
                     }
-                    makeNode("assign", new Runnable() {
-                        @Override
-                        public void run() {
-                            loc(exp);
-                            visit(exp.getLeftExpression());
-                            visit(exp.getRightExpression());
-                        }
-                    });
+                    if (exp.getRightExpression() instanceof ListExpression) {
+                        multipleAssignment(exp,
+                                exp.getTupleExpression(),
+                                (ListExpression)exp.getRightExpression());
+                    }
                 }
             });
         } else {

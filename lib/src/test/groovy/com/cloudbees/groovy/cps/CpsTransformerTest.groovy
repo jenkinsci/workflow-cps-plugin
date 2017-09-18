@@ -814,4 +814,16 @@ def b = new CpsTransformerTest.Base()
 return (b.&toString)() + (String.getClass().&getSimpleName)()
 ''') == "baseClass"
     }
+
+    @Issue("JENKINS-44027")
+    @Test
+    void multipleAssignment() {
+        assert evalCPS('''
+def (a, b) = ['first', 'second']
+def c, d
+(c, d) = ['third', 'fourth']
+
+return a + b + c + d
+''') == 'firstsecondthirdfourth'
+    }
 }
