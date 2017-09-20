@@ -135,9 +135,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                 visitNontransformedStatement(statement);
             }
 
-            if (!classNode.declaresInterface(SERIALIZABLE_TYPE)) {
-                classNode.addInterface(SERIALIZABLE_TYPE);
-            }
+            classNode.addInterface(SERIALIZABLE_TYPE);
 
             // groovy puts timestamp of compilation into a class file, causing serialVersionUID to change.
             // this tends to be undesirable for CPS involving persistence.

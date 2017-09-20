@@ -819,5 +819,18 @@ return (b.&toString)() + (String.getClass().&getSimpleName)()
     @Test
     void allClassesSerializable() {
         evalCPSonly('class C {}; def c = new C(); assert c instanceof Serializable')
+        evalCPSonly('class C implements Serializable {}; def c = new C(); assert c instanceof Serializable')
+        evalCPSonly('''
+@NonCPS
+def notSerializable() {
+  def r = new Runnable() {
+    @Override
+    public void run() {}
+  }
+  return r instanceof Serializable
+}
+
+return notSerializable()
+''') == false
     }
 }
