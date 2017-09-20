@@ -764,23 +764,35 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
     }
 
     private void multipleAssignment(final Expression parentExpression,
-                                    TupleExpression tuple,
-                                    ListExpression list) {
-        List<Expression> listExpressions = list.getExpressions();
+                                    final TupleExpression tuple,
+                                    final Expression rhs) {
         List<Expression> tupleExpressions = tuple.getExpressions();
-        if (listExpressions.size() < tupleExpressions.size()) {
-            // TODO: Better error handling.
-            throw new UnsupportedOperationException();
-        }
+
         for (int i = 0, tupleExpressionsSize = tupleExpressions.size(); i < tupleExpressionsSize; i++) {
             final Expression tupleExpression = tupleExpressions.get(i);
-            final Expression listExpression = listExpressions.get(i);
+            final int index = i;
+            // def (a, b, c) = [1, 2] is allowed - c will just be null in that scenario.
+            // def (a, b) = [1, 2, 3] is allowed as well - 3 is just discarded.
+            // def (a, b) = 4 will error due to Integer.getAt(int) not being a thing
+            // def (a, b) = "what" is allowed - a will equal 'w', and b will equal 'h'
             makeNode("assign", new Runnable() {
                 @Override
                 public void run() {
                     loc(parentExpression);
                     visit(tupleExpression);
-                    visit(listExpression);
+                    makeNode("array", new Runnable() {
+                        @Override
+                        public void run() {
+                            loc(rhs);
+                            visit(rhs);
+                            makeNode("constant", new Runnable() {
+                                @Override
+                                public void run() {
+                                    literal(index);
+                                }
+                            });
+                        }
+                    });
                 }
             });
         }
@@ -795,11 +807,10 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         String name = BINARY_OP_TO_BUILDER_METHOD.get(exp.getOperation().getType());
         if (name != null) {
             if (name.equals("assign") &&
-                    exp.getLeftExpression() instanceof TupleExpression &&
-                    exp.getRightExpression() instanceof ListExpression) {
+                    exp.getLeftExpression() instanceof TupleExpression) {
                 multipleAssignment(exp,
                         (TupleExpression)exp.getLeftExpression(),
-                        (ListExpression)exp.getRightExpression());
+                        exp.getRightExpression());
             } else {
                 makeNode(name, new Runnable() {
                     @Override
@@ -1081,8 +1092,6 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
             makeNode("sequence", new Runnable() {
                 @Override
                 public void run() {
-                    // TODO: Possibly move this logic into multipleAssignment(...) or replace that with more specific
-                    // logic.
                     for (Expression e : exp.getTupleExpression().getExpressions()) {
                         final VariableExpression v = (VariableExpression) e;
                         makeNode("declareVariable", new Runnable() {
@@ -1093,11 +1102,10 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                             }
                         });
                     }
-                    if (exp.getRightExpression() instanceof ListExpression) {
-                        multipleAssignment(exp,
-                                exp.getTupleExpression(),
-                                (ListExpression)exp.getRightExpression());
-                    }
+                    multipleAssignment(exp,
+                            exp.getTupleExpression(),
+                            exp.getRightExpression());
+
                 }
             });
         } else {

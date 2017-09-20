@@ -826,4 +826,36 @@ def c, d
 return a + b + c + d
 ''') == 'firstsecondthirdfourth'
     }
+
+    @Issue("JENKINS-44027")
+    @Test
+    void nonArrayLikeMultipleAssignment() {
+        assert evalCPS('''
+try {
+  def (a,b) = 4
+  return false
+} catch (Exception e) {
+  return e instanceof MissingMethodException
+}
+''') == true
+    }
+
+    @Issue("JENKINS-44027")
+    @Test
+    void arrayLikeMultipleAssignment() {
+        assert evalCPS('''
+def (a,b) = "what"
+return a + b
+''') == "wh"
+    }
+
+    @Issue("JENKINS-44027")
+    @Test
+    void mismatchedSizeMultipleAssignment() {
+        assert evalCPS('''
+def (a, b) = ['first', 'second', 'third']
+def (c, d) = ['fourth']
+return [a, b, c, d].join(' ')
+''') == "first second fourth null"
+    }
 }
