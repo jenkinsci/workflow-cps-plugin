@@ -49,13 +49,25 @@ import java.util.Map;
         this.callSiteLoc = loc;
         this.invoker = caller==null ? Invoker.INSTANCE : caller.getInvoker();
         assert returnAddress!=null;
-        types = new HashMap<String,Class>(localsCount);
+        if (localsCount <= 0) {
+            types = Collections.EMPTY_MAP;
+        } else {
+            types = new HashMap<String,Class>(localsCount);
+        }
     }
 
     /** Because might deserialize old version of class with null value for field */
     protected Map<String, Class> getTypes() {
         if (types == null) {
-            this.types = new HashMap<String, Class>();
+            this.types = Collections.emptyMap();
+        }
+        return this.types;
+    }
+
+    /** Used when we are actually going to mutate the types info */
+    protected Map<String,Class> getTypesForMutation() {
+        if (types == null || types == Collections.EMPTY_MAP) {
+            this.types = new HashMap<String, Class>(1);
         }
         return this.types;
     }

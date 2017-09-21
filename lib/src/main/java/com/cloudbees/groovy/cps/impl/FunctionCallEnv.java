@@ -19,13 +19,13 @@ public class FunctionCallEnv extends CallEnv {
      *      The environment of the call site. Can be null but only if the caller is outside CPS execution.
      */
     public FunctionCallEnv(Env caller, Continuation returnAddress, SourceLocation loc, Object _this) {
-        this(caller, returnAddress, loc, _this, 1);
+        this(caller, returnAddress, loc, _this, 0);
     }
 
     public FunctionCallEnv(Env caller, Continuation returnAddress, SourceLocation loc, Object _this, int localsCount) {
         super(caller,returnAddress,loc, localsCount);
         locals = new HashMap<String, Object>(localsCount+1);
-        locals.put("this",_this);
+        locals.put("this", _this);
     }
 
     public void declareVariable(Class type, String name) {
