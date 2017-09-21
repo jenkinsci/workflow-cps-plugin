@@ -34,11 +34,7 @@ public class FunctionCallEnv extends CallEnv {
     }
 
     public Object getLocalVariable(String name) {
-        if (name.equals("this")) {
-            return closureOwner();
-        } else {
-            return locals.get(name);
-        }
+        return locals.get(name);
     }
 
     public void setLocalVariable(String name, Object value) {
