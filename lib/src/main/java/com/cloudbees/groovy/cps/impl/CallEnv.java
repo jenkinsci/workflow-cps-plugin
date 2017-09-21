@@ -6,6 +6,7 @@ import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +18,7 @@ import java.util.Map;
  */
 /*package*/ abstract class CallEnv implements Env {
     private final Continuation returnAddress;
-    private Map<String, Class> types = new HashMap<String, Class>();
+    private Map<String, Class> types;
 
     /**
      * Caller environment, used for throwing an exception.
@@ -39,11 +40,16 @@ import java.util.Map;
      *      The environment of the call site. Can be null but only if the caller is outside CPS execution.
      */
     public CallEnv(Env caller, Continuation returnAddress, SourceLocation loc) {
+        this(caller, returnAddress, loc, 1);
+    }
+
+    public CallEnv(Env caller, Continuation returnAddress, SourceLocation loc, int localsCount) {
         this.caller = caller;
         this.returnAddress = returnAddress;
         this.callSiteLoc = loc;
         this.invoker = caller==null ? Invoker.INSTANCE : caller.getInvoker();
         assert returnAddress!=null;
+        types = new HashMap<String,Class>(localsCount);
     }
 
     /** Because might deserialize old version of class with null value for field */

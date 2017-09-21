@@ -12,7 +12,7 @@ import java.util.Map;
  * @author Kohsuke Kawaguchi
  */
 class ClosureCallEnv extends CallEnv {
-    final Map<String,Object> locals = new HashMap<String, Object>();
+    final Map<String,Object> locals;
 
     final CpsClosure closure;
 
@@ -22,9 +22,14 @@ class ClosureCallEnv extends CallEnv {
     final Env captured;
 
     public ClosureCallEnv(Env caller, Continuation returnAddress, SourceLocation loc, Env captured, CpsClosure closure) {
-        super(caller,returnAddress,loc);
+        this(caller, returnAddress, loc, captured, closure, 1);
+    }
+
+    public ClosureCallEnv(Env caller, Continuation returnAddress, SourceLocation loc, Env captured, CpsClosure closure, int localsSize) {
+        super(caller,returnAddress,loc, localsSize);
         this.closure = closure;
         this.captured = captured;
+        locals = new HashMap<String, Object>(localsSize);
     }
 
     public void declareVariable(Class type, String name) {

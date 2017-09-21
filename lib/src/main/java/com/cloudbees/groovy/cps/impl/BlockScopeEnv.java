@@ -16,6 +16,10 @@ public class BlockScopeEnv extends ProxyEnv {
     private Map<String, Class> types = new HashMap<String, Class>();
 
     public BlockScopeEnv(Env parent) {
+        this(parent, 1);
+    }
+
+    public BlockScopeEnv(Env parent, int size) {
         super(parent);
     }
 

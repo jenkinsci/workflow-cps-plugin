@@ -12,14 +12,19 @@ import java.util.Map;
 // TODO: should be package local once all the impls move into this class
 public class FunctionCallEnv extends CallEnv {
     // TODO: delegate?
-    final Map<String,Object> locals = new HashMap<String, Object>();
+    Map<String,Object> locals;
 
     /**
      * @param caller
      *      The environment of the call site. Can be null but only if the caller is outside CPS execution.
      */
     public FunctionCallEnv(Env caller, Continuation returnAddress, SourceLocation loc, Object _this) {
-        super(caller,returnAddress,loc);
+        this(caller, returnAddress, loc, _this, 1);
+    }
+
+    public FunctionCallEnv(Env caller, Continuation returnAddress, SourceLocation loc, Object _this, int localsCount) {
+        super(caller,returnAddress,loc, localsCount);
+        locals = new HashMap<String, Object>(localsCount+1);
         locals.put("this",_this);
     }
 
@@ -29,7 +34,11 @@ public class FunctionCallEnv extends CallEnv {
     }
 
     public Object getLocalVariable(String name) {
-        return locals.get(name);
+        if (name.equals("this")) {
+            return closureOwner();
+        } else {
+            return locals.get(name);
+        }
     }
 
     public void setLocalVariable(String name, Object value) {
