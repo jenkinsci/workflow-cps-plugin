@@ -2,6 +2,7 @@ package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
+import com.google.common.collect.Maps;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,13 +34,13 @@ class ClosureCallEnv extends CallEnv {
         if (localsSize <= 0) {
             locals = Collections.emptyMap();
         } else {
-            locals = new HashMap<String, Object>(localsSize);
+            locals = Maps.newHashMapWithExpectedSize(localsSize);
         }
     }
 
     public void declareVariable(Class type, String name) {
         if (locals == Collections.EMPTY_MAP) {
-            locals = new HashMap<String, Object>(1);
+            locals = new HashMap<String, Object>(2);
         }
         locals.put(name, null);
         getTypesForMutation().put(name, type);

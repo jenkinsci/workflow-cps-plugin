@@ -1,6 +1,7 @@
 package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.Env;
+import com.google.common.collect.Maps;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -26,19 +27,19 @@ public class BlockScopeEnv extends ProxyEnv {
             locals = Collections.emptyMap();
             types = Collections.emptyMap();
         } else {
-            locals = new HashMap<String, Object>(localsSize);
-            types = new HashMap<String, Class>(localsSize);
+            locals = Maps.newHashMapWithExpectedSize(localsSize);
+            types = Maps.newHashMapWithExpectedSize(localsSize);
         }
     }
 
     public void declareVariable(Class type, String name) {
         if (locals == Collections.EMPTY_MAP) {
-            this.locals = new HashMap<String, Object>(1);
+            this.locals = new HashMap<String, Object>(2);
         }
         locals.put(name, null);
 
         if (types == null || types == Collections.EMPTY_MAP) {
-            types = new HashMap<String, Class>(1);
+            types = new HashMap<String, Class>(2);
         }
         types.put(name, type);
     }
