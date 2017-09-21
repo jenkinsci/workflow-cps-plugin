@@ -24,7 +24,7 @@ public class FunctionCallEnv extends CallEnv {
 
     public FunctionCallEnv(Env caller, Continuation returnAddress, SourceLocation loc, Object _this, int localsCount) {
         super(caller,returnAddress,loc, localsCount);
-        locals = new HashMap<String, Object>(localsCount+1);
+        locals = new HashMap<String, Object>( (localsCount <= 0) ? 1 : localsCount+1);
         locals.put("this", _this);
     }
 

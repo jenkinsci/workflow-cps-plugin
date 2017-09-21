@@ -16,14 +16,14 @@ public class Envs {
      * regular Java program.
      */
     public static Env empty() {
-        return new FunctionCallEnv(null,Continuation.HALT,null,null);
+        return new FunctionCallEnv(null,Continuation.HALT,null,null, 0);
     }
 
     /**
      * Works like {@link #empty()} except it allows a custom {@link Invoker}.
      */
     public static Env empty(Invoker inv) {
-        FunctionCallEnv e = new FunctionCallEnv(null, Continuation.HALT, null, null);
+        FunctionCallEnv e = new FunctionCallEnv(null, Continuation.HALT, null, null, 0);
         e.setInvoker(inv);
         return e;
     }
