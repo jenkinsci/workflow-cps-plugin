@@ -413,7 +413,7 @@ public class Translator {
             public JExpression visitVariable(VariableTree vt, Void __) {
                 return $b.invoke("declareVariable")
                         .arg(loc(vt))
-                        .arg(erasure(vt).dotclass())
+                        .arg(cpsTypeTranslation(erasure(vt)))
                         .arg(n(vt))
                         .arg(visit(vt.getInitializer()));
             }
@@ -490,7 +490,7 @@ public class Translator {
 
                 return $b.invoke("new_").tap(inv -> {
                     inv.arg(loc(nt));
-                    inv.arg(t(((JCTree) nt).type).dotclass());
+                    inv.arg(cpsTypeTranslation(t(((JCTree) nt).type)));
                     nt.getArguments().forEach( et -> inv.arg(visit(et)) );
                 });
             }
@@ -843,6 +843,20 @@ public class Translator {
         case VOID:      return codeModel.VOID;
         }
         throw new UnsupportedOperationException(src.toString());
+    }
+
+    /**
+     * Replaces non-serializable types with CPS-specific variants.
+     *
+     * @param original a {@link JType} to inspect
+     * @return The {@link JType#dotclass()} for either the original {@link JType} or for the CPS equivalent.
+     */
+    private JExpression cpsTypeTranslation(JType original) {
+        if (original.fullName().equals("org.codehaus.groovy.runtime.callsite.BooleanClosureWrapper")) {
+            return codeModel.ref("com.cloudbees.groovy.cps.impl.CpsBooleanClosureWrapper").dotclass();
+        } else {
+            return original.dotclass();
+        }
     }
 
     /**
