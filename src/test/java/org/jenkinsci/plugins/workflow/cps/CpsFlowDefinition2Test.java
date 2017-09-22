@@ -282,7 +282,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Test
     public void booleanClosureWrapperFromDGM() throws Exception {
         WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
-        job.setDefinition(new CpsFlowDefinition("['a', 'b'].every { sleep 1; return it != null }\n", true));
+        job.setDefinition(new CpsFlowDefinition("assert ['a', 'b'].every { sleep 1; return it != null }\n", true));
         jenkins.buildAndAssertSuccess(job);
     }
 }
