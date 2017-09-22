@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import com.gargoylesoftware.htmlunit.ElementNotFoundException;
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.WebRequest;
@@ -243,11 +244,12 @@ public class CpsFlowExecutionTest {
                 final CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
                 assertFalse(e.isPaused());
                 JenkinsRule.WebClient wc = story.j.createWebClient();
-                WebRequest wrs = new WebRequest(wc.createCrumbedUrl(b.getUrl() + PauseUnpauseAction.URL + "/toggle"), HttpMethod.POST);
+                String toggleUrlRel = b.getUrl() + PauseUnpauseAction.URL + "/toggle";
+                WebRequest wrs = new WebRequest(wc.createCrumbedUrl(toggleUrlRel), HttpMethod.POST);
                 try { // like JenkinsRule.assertFails but taking a WebRequest:
                     fail("should have been rejected but produced: " + wc.getPage(wrs).getWebResponse().getContentAsString());
                 } catch (FailingHttpStatusCodeException x) {
-                    assertEquals(HttpURLConnection.HTTP_FORBIDDEN, x.getStatusCode());
+                    assertEquals(HttpURLConnection.HTTP_NOT_FOUND, x.getStatusCode()); // link not even offered
                 }
                 wc.login("admin").getPage(wrs);
                 assertTrue(e.isPaused());
@@ -258,6 +260,16 @@ public class CpsFlowExecutionTest {
                 Thread.sleep(1000);
                 assertTrue(b.isBuilding());
                 assertTrue(e.isPaused());
+
+                // link should only be displayed conditionally:
+                String toggleUrlAbs = story.j.contextPath + "/" + toggleUrlRel;
+                story.j.createWebClient().login("admin").getPage(b).getAnchorByHref(toggleUrlAbs);
+                try {
+                    story.j.createWebClient().getPage(b).getAnchorByHref(toggleUrlAbs);
+                    fail("link should not be present for anonymous user without CANCEL");
+                } catch (ElementNotFoundException x) {
+                    // good
+                }
             }
         });
         story.addStep(new Statement() {
