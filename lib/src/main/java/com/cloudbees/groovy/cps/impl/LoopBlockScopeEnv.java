@@ -13,7 +13,11 @@ class LoopBlockScopeEnv extends BlockScopeEnv {
     private final Continuation break_, continue_;
 
     LoopBlockScopeEnv(Env parent, String label, Continuation break_, Continuation continue_) {
-        super(parent);
+        this (parent, label, break_, continue_, 0);
+    }
+
+    LoopBlockScopeEnv(Env parent, String label, Continuation break_, Continuation continue_, int localsCount) {
+        super(parent, localsCount);
         this.label = label;
         this.break_ = break_;
         this.continue_ = continue_;

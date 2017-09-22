@@ -30,7 +30,7 @@ public class TryCatchBlock implements Block {
         for (final CatchExpression c : catches) {
             f.addHandler(c.type, new Continuation() {
                 public Next receive(Object t) {
-                    BlockScopeEnv b = new BlockScopeEnv(e);
+                    BlockScopeEnv b = new BlockScopeEnv(e, 1);
                     b.declareVariable(c.type, c.name);
                     b.setLocalVariable(c.name, t);
 

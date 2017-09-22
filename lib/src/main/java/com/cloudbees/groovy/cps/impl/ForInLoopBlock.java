@@ -42,7 +42,7 @@ public class ForInLoopBlock implements Block {
         Iterator itr;
 
         ContinuationImpl(Env _e, Continuation loopEnd) {
-            this.e = new LoopBlockScopeEnv(_e,label,loopEnd,increment.bind(this));
+            this.e = new LoopBlockScopeEnv(_e,label,loopEnd,increment.bind(this),1);
             this.e.declareVariable(type,variable);
             this.loopEnd = loopEnd;
         }

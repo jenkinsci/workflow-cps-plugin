@@ -1,7 +1,9 @@
 package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.Env;
+import com.google.common.collect.Maps;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -12,16 +14,38 @@ import java.util.Map;
  */
 // TODO: should be package local once all the impls move into this class
 public class BlockScopeEnv extends ProxyEnv {
-    private final Map<String,Object> locals = new HashMap<String, Object>();
-    private Map<String, Class> types = new HashMap<String, Class>();
+    /** To conserve memory, lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} */
+    private Map<String,Object> locals;
+
+    /** To conserve memory, lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} */
+    private Map<String, Class> types;
 
     public BlockScopeEnv(Env parent) {
+        this(parent, 0);
+    }
+
+    public BlockScopeEnv(Env parent, int localsSize) {
         super(parent);
+        if (localsSize <= 0) {
+            // Lazily declare using EMPTY_MAP to conserve memory until we actually declare some variables
+            locals = Collections.EMPTY_MAP;
+            types = Collections.EMPTY_MAP;
+        } else {
+            locals = Maps.newHashMapWithExpectedSize(localsSize);
+            types = Maps.newHashMapWithExpectedSize(localsSize);
+        }
     }
 
     public void declareVariable(Class type, String name) {
+        if (locals == Collections.EMPTY_MAP) {
+            this.locals = new HashMap<String, Object>(2);
+        }
         locals.put(name, null);
-        getTypes().put(name, type);
+
+        if (types == null || types == Collections.EMPTY_MAP) {
+            types = new HashMap<String, Class>(2);
+        }
+        types.put(name, type);
     }
 
     public Object getLocalVariable(String name) {
@@ -34,7 +58,7 @@ public class BlockScopeEnv extends ProxyEnv {
     /** Because might deserialize old version of class with null value for field */
     private Map<String, Class> getTypes() {
         if (types == null) {
-            this.types = new HashMap<String, Class>();
+            this.types = Collections.EMPTY_MAP;
         }
         return this.types;
     }
