@@ -28,7 +28,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>2.33</version>
+        <version>2.35</version>
         <relativePath />
     </parent>
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -67,7 +67,7 @@
         <git-plugin.version>3.1.0</git-plugin.version>
         <workflow-support-plugin.version>2.14</workflow-support-plugin.version>
         <scm-api-plugin.version>2.0.8</scm-api-plugin.version>
-        <groovy-cps.version>1.19</groovy-cps.version>
+        <groovy-cps.version>1.20-20170922.203635-3</groovy-cps.version> <!-- TODO: Replace with release once https://github.com/cloudbees/groovy-cps/pull/75 is merged and released -->
     </properties>
     <dependencies>
         <dependency>
