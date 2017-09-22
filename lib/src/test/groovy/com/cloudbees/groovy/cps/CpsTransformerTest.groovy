@@ -815,6 +815,25 @@ return (b.&toString)() + (String.getClass().&getSimpleName)()
 ''') == "baseClass"
     }
 
+    @Issue("JENKINS-32213")
+    @Test
+    void allClassesSerializable() {
+        evalCPSonly('class C {}; def c = new C(); assert c instanceof Serializable')
+        evalCPSonly('class C implements Serializable {}; def c = new C(); assert c instanceof Serializable')
+        evalCPSonly('''
+@NonCPS
+def notSerializable() {
+  def r = new Runnable() {
+    @Override
+    public void run() {}
+  }
+  return r instanceof Serializable
+}
+
+return notSerializable()
+''') == false
+    }
+
     @Issue("JENKINS-44027")
     @Test
     void multipleAssignment() {

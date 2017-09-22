@@ -5,6 +5,8 @@ import com.cloudbees.groovy.cps.impl.CpsFunction;
 import com.cloudbees.groovy.cps.sandbox.Trusted;
 import com.cloudbees.groovy.cps.sandbox.Untrusted;
 import com.google.common.annotations.VisibleForTesting;
+
+import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -132,6 +134,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
             for (Statement statement : new ArrayList<>(classNode.getObjectInitializerStatements())) {
                 visitNontransformedStatement(statement);
             }
+
+            classNode.addInterface(SERIALIZABLE_TYPE);
 
             // groovy puts timestamp of compilation into a class file, causing serialVersionUID to change.
             // this tends to be undesirable for CPS involving persistence.
@@ -1255,6 +1259,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
     private static final ClassNode BUIDER_TYPE = ClassHelper.makeCached(Builder.class);
 
     private static final ClassNode METHOD_LOCATION_TYPE = ClassHelper.makeCached(MethodLocation.class);
+
+    private static final ClassNode SERIALIZABLE_TYPE = ClassHelper.makeCached(Serializable.class);
 
     private static final VariableExpression BUILDER = new VariableExpression("b", BUILDER_TYPE); // new PropertyExpression(new ClassExpression(BUILDER_TYPE), "INSTANCE")
 
