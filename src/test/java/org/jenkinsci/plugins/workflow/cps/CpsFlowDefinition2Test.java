@@ -224,6 +224,14 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
     }
 
+    @Issue("JENKINS-46391")
+    @Test
+    public void tildePattern() throws Exception {
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("def f = ~/f.*/; f.matcher('foo').matches()", true));
+        jenkins.buildAndAssertSuccess(job);
+    }
+
     @Issue("JENKINS-46088")
     @Test
     public void matcherTypeAssignment() throws Exception {
@@ -268,6 +276,5 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         WorkflowRun b = job.scheduleBuild2(0).get();
         jenkins.assertBuildStatus(Result.FAILURE, b);
         jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
-
     }
 }
