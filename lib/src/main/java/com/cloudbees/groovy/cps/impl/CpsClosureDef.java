@@ -28,7 +28,7 @@ class CpsClosureDef extends CpsCallable {
 
     @Override
     Next invoke(Env caller, SourceLocation loc, Object receiver, List<?> args, Continuation k) {
-        Env e = new ClosureCallEnv(caller, k, loc, capture, self);
+        Env e = new ClosureCallEnv(caller, k, loc, capture, self, args.size());
 
         assignArguments(args, e);
 

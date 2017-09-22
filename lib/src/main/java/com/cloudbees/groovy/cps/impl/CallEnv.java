@@ -4,8 +4,10 @@ import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
+import com.google.common.collect.Maps;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +19,9 @@ import java.util.Map;
  */
 /*package*/ abstract class CallEnv implements Env {
     private final Continuation returnAddress;
-    private Map<String, Class> types = new HashMap<String, Class>();
+
+    /** To conserve memory, lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} */
+    private Map<String, Class> types;
 
     /**
      * Caller environment, used for throwing an exception.
@@ -39,17 +43,34 @@ import java.util.Map;
      *      The environment of the call site. Can be null but only if the caller is outside CPS execution.
      */
     public CallEnv(Env caller, Continuation returnAddress, SourceLocation loc) {
+        this(caller, returnAddress, loc, 1);
+    }
+
+    public CallEnv(Env caller, Continuation returnAddress, SourceLocation loc, int localsCount) {
         this.caller = caller;
         this.returnAddress = returnAddress;
         this.callSiteLoc = loc;
         this.invoker = caller==null ? Invoker.INSTANCE : caller.getInvoker();
         assert returnAddress!=null;
+        if (localsCount <= 0) {
+            types = Collections.EMPTY_MAP;
+        } else {
+            types = Maps.newHashMapWithExpectedSize(localsCount);
+        }
     }
 
     /** Because might deserialize old version of class with null value for field */
     protected Map<String, Class> getTypes() {
         if (types == null) {
-            this.types = new HashMap<String, Class>();
+            this.types = Collections.EMPTY_MAP;
+        }
+        return this.types;
+    }
+
+    /** Used when we are actually going to mutate the types info */
+    protected Map<String,Class> getTypesForMutation() {
+        if (types == null || types == Collections.EMPTY_MAP) {
+            this.types = new HashMap<String, Class>(2);
         }
         return this.types;
     }
