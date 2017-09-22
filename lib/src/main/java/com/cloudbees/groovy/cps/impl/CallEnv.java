@@ -19,6 +19,8 @@ import java.util.Map;
  */
 /*package*/ abstract class CallEnv implements Env {
     private final Continuation returnAddress;
+
+    /** To conserve memory, lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} */
     private Map<String, Class> types;
 
     /**
@@ -60,7 +62,7 @@ import java.util.Map;
     /** Because might deserialize old version of class with null value for field */
     protected Map<String, Class> getTypes() {
         if (types == null) {
-            this.types = Collections.emptyMap();
+            this.types = Collections.EMPTY_MAP;
         }
         return this.types;
     }

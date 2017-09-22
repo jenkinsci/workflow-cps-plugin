@@ -14,7 +14,10 @@ import java.util.Map;
  */
 // TODO: should be package local once all the impls move into this class
 public class BlockScopeEnv extends ProxyEnv {
+    /** To conserve memory, lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} */
     private Map<String,Object> locals;
+
+    /** To conserve memory, lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} */
     private Map<String, Class> types;
 
     public BlockScopeEnv(Env parent) {
@@ -24,8 +27,9 @@ public class BlockScopeEnv extends ProxyEnv {
     public BlockScopeEnv(Env parent, int localsSize) {
         super(parent);
         if (localsSize <= 0) {
-            locals = Collections.emptyMap();
-            types = Collections.emptyMap();
+            // Lazily declare using EMPTY_MAP to conserve memory until we actually declare some variables
+            locals = Collections.EMPTY_MAP;
+            types = Collections.EMPTY_MAP;
         } else {
             locals = Maps.newHashMapWithExpectedSize(localsSize);
             types = Maps.newHashMapWithExpectedSize(localsSize);
@@ -54,7 +58,7 @@ public class BlockScopeEnv extends ProxyEnv {
     /** Because might deserialize old version of class with null value for field */
     private Map<String, Class> getTypes() {
         if (types == null) {
-            this.types = Collections.emptyMap();
+            this.types = Collections.EMPTY_MAP;
         }
         return this.types;
     }

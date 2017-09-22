@@ -4,6 +4,7 @@ import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.google.common.collect.Maps;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -12,7 +13,7 @@ import java.util.Map;
  */
 // TODO: should be package local once all the impls move into this class
 public class FunctionCallEnv extends CallEnv {
-    // TODO: delegate?
+    /** To conserve memory, lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} */
     Map<String,Object> locals;
 
     /**

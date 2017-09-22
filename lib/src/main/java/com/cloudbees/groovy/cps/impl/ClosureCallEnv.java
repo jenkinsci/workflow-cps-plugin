@@ -14,6 +14,7 @@ import java.util.Map;
  * @author Kohsuke Kawaguchi
  */
 class ClosureCallEnv extends CallEnv {
+    /** Lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} *//** To conserve memory, lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} */
     Map<String,Object> locals;
 
     final CpsClosure closure;
@@ -32,7 +33,7 @@ class ClosureCallEnv extends CallEnv {
         this.closure = closure;
         this.captured = captured;
         if (localsSize <= 0) {
-            locals = Collections.emptyMap();
+            locals = Collections.EMPTY_MAP;
         } else {
             locals = Maps.newHashMapWithExpectedSize(localsSize);
         }
