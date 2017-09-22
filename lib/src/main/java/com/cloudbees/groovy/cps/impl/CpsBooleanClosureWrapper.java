@@ -1,6 +1,7 @@
 package com.cloudbees.groovy.cps.impl;
 
 import groovy.lang.Closure;
+import org.codehaus.groovy.runtime.callsite.BooleanClosureWrapper;
 import org.codehaus.groovy.runtime.callsite.BooleanReturningMethodInvoker;
 
 import java.io.Serializable;
@@ -13,19 +14,16 @@ import java.util.Map;
  */
 public class CpsBooleanClosureWrapper implements Serializable {
     private final Closure wrapped;
-    private final int numberOfArguments;
 
     public CpsBooleanClosureWrapper(Closure wrapped) {
         this.wrapped = wrapped;
-        numberOfArguments = wrapped.getMaximumNumberOfParameters();
     }
 
     /**
      * normal closure call
      */
     public boolean call(Object... args) {
-        BooleanReturningMethodInvoker bmi = new BooleanReturningMethodInvoker("call");
-        return bmi.invoke(wrapped, args);
+        return new BooleanClosureWrapper(wrapped).call(args);
     }
 
     /**
@@ -34,10 +32,6 @@ public class CpsBooleanClosureWrapper implements Serializable {
      * give in the key and value.
      */
     public <K,V> boolean callForMap(Map.Entry<K, V> entry) {
-        if (numberOfArguments==2) {
-            return call(entry.getKey(), entry.getValue());
-        } else {
-            return call(entry);
-        }
+        return new BooleanClosureWrapper(wrapped).callForMap(entry);
     }
 }
