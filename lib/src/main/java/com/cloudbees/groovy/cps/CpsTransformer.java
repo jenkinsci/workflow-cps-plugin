@@ -763,6 +763,36 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         BINARY_OP_TO_BUILDER_METHOD.put(KEYWORD_IN, "isCase");
     }
 
+    private void multipleAssignment(final Expression parentExpression,
+                                    final TupleExpression tuple,
+                                    final Expression rhs) {
+        List<Expression> tupleExpressions = tuple.getExpressions();
+
+        for (int i = 0, tupleExpressionsSize = tupleExpressions.size(); i < tupleExpressionsSize; i++) {
+            final Expression tupleExpression = tupleExpressions.get(i);
+            final Expression index = new ConstantExpression(i, true);
+            // def (a, b, c) = [1, 2] is allowed - c will just be null in that scenario.
+            // def (a, b) = [1, 2, 3] is allowed as well - 3 is just discarded.
+            // def (a, b) = 4 will error due to Integer.getAt(int) not being a thing
+            // def (a, b) = "what" is allowed - a will equal 'w', and b will equal 'h'
+            makeNode("assign", new Runnable() {
+                @Override
+                public void run() {
+                    loc(parentExpression);
+                    visit(tupleExpression);
+                    makeNode("array", new Runnable() {
+                        @Override
+                        public void run() {
+                            loc(rhs);
+                            visit(rhs);
+                            makeNode("constant", index);
+                        }
+                    });
+                }
+            });
+        }
+    }
+
     /**
      * @see
      * org.codehaus.groovy.classgen.asm.BinaryExpressionHelper#eval(BinaryExpression)
@@ -771,14 +801,21 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
     public void visitBinaryExpression(final BinaryExpression exp) {
         String name = BINARY_OP_TO_BUILDER_METHOD.get(exp.getOperation().getType());
         if (name != null) {
-            makeNode(name, new Runnable() {
-                @Override
-                public void run() {
-                    loc(exp);
-                    visit(exp.getLeftExpression());
-                    visit(exp.getRightExpression());
-                }
-            });
+            if (name.equals("assign") &&
+                    exp.getLeftExpression() instanceof TupleExpression) {
+                multipleAssignment(exp,
+                        (TupleExpression)exp.getLeftExpression(),
+                        exp.getRightExpression());
+            } else {
+                makeNode(name, new Runnable() {
+                    @Override
+                    public void run() {
+                        loc(exp);
+                        visit(exp.getLeftExpression());
+                        visit(exp.getRightExpression());
+                    }
+                });
+            }
             return;
         }
 
@@ -1055,20 +1092,15 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                         makeNode("declareVariable", new Runnable() {
                             @Override
                             public void run() {
-                                loc(exp);
                                 literal(v.getType());
                                 literal(v.getName());
                             }
                         });
                     }
-                    makeNode("assign", new Runnable() {
-                        @Override
-                        public void run() {
-                            loc(exp);
-                            visit(exp.getLeftExpression());
-                            visit(exp.getRightExpression());
-                        }
-                    });
+                    multipleAssignment(exp,
+                            exp.getTupleExpression(),
+                            exp.getRightExpression());
+
                 }
             });
         } else {
