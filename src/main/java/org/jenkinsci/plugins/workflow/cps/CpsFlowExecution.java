@@ -1013,6 +1013,19 @@ public class CpsFlowExecution extends FlowExecution {
         storage.saveActions(node, actions);
     }
 
+    /** Invoke me to toggle autopersist back on for steps that delay it. */
+    public static void autopersistNode(@Nonnull FlowNode node) {
+        try {
+            FlowExecution exec = node.getExecution();
+            if (exec instanceof CpsFlowExecution) {
+                ((CpsFlowExecution) exec).getStorage().autopersist(node);
+            }
+        } catch (IOException ioe) {
+            LOGGER.log(Level.WARNING, "Attempt to persist triggered IOException for node "+node.getId(), ioe);
+        }
+
+    }
+
     @Override
     public boolean isComplete() {
         return done || super.isComplete();
@@ -1462,16 +1475,48 @@ public class CpsFlowExecution extends FlowExecution {
         TimingFlowNodeStorage(FlowNodeStorage delegate) {
             this.delegate = delegate;
         }
-        @Override public FlowNode getNode(String string) throws IOException {
+        @Override
+        public FlowNode getNode(String string) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
                 return delegate.getNode(string);
             }
         }
-        @Override public void storeNode(FlowNode fn) throws IOException {
+
+        @Override
+        public void storeNode(@Nonnull FlowNode n) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                delegate.storeNode(fn);
+                delegate.storeNode(n);
             }
         }
+
+        @Override
+        public void storeNode(@Nonnull FlowNode n, boolean delayWritingActions) throws IOException {
+            try (Timing t = time(TimingKind.flowNode)) {
+                delegate.storeNode(n, delayWritingActions);
+            }
+        }
+
+        @Override
+        public void flush() throws IOException {
+            try (Timing t = time(TimingKind.flowNode)) {
+                delegate.flush();
+            }
+        }
+
+        @Override
+        public void flushNode(FlowNode node) throws IOException {
+            try (Timing t = time(TimingKind.flowNode)) {
+                delegate.flushNode(node);
+            }
+        }
+
+        @Override
+        public void autopersist(@Nonnull FlowNode n) throws IOException {
+            try (Timing t = time(TimingKind.flowNode)) {
+                delegate.autopersist(n);
+            }
+        }
+
         @Override public List<Action> loadActions(FlowNode node) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
                 return delegate.loadActions(node);

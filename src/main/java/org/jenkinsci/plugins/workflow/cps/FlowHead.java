@@ -37,8 +37,11 @@ import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.actions.FlowNodeAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
+
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
+import org.jenkinsci.plugins.workflow.graph.StepNode;
 
 /**
  * Growing tip of the node graph.
@@ -106,13 +109,13 @@ final class FlowHead implements Serializable {
         synchronized (execution) {
             this.head = execution.startNodes.push(n);
         }
-        execution.storage.storeNode(head);
+        execution.storage.storeNode(head, true);
     }
 
     void setNewHead(FlowNode v) {
         try {
             this.head = v;
-            execution.storage.storeNode(head);
+            execution.storage.storeNode(head, true);
 
             CpsThreadGroup c = CpsThreadGroup.current();
             if (c !=null) {
@@ -126,6 +129,16 @@ final class FlowHead implements Serializable {
                 execution.notifyListeners(Collections.singletonList(v), true);
                 execution.notifyListeners(Collections.singletonList(v), false);
             }
+
+            // Persist the node unless it's registered that it needs to wait a bit to write actions.
+            // FIXME we need to be more clever about when we trigger invocation for steps that take a block
+            if (!(v instanceof StepNode && ((StepNode) v).getDescriptor().delayWritingFlownodeActions())) {
+                FlowExecution exec = v.getExecution();
+                if (exec instanceof CpsFlowExecution) {
+                    ((CpsFlowExecution)exec).getStorage().autopersist(v);
+                }
+            }
+
         } catch (IOException e) {
             LOGGER.log(Level.FINE, "Failed to record new head: " + v, e);
         }
