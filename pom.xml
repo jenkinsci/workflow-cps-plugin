@@ -64,6 +64,7 @@
     <properties>
         <test>CpsFlowExecutionTest</test> <!-- TODO -->
         <jenkins.version>2.7.3</jenkins.version>
+        <jenkins-test-harness.version>2.28-20170925.184800-1</jenkins-test-harness.version> <!-- TODO https://github.com/jenkinsci/jenkins-test-harness/pull/74 -->
         <no-test-jar>false</no-test-jar>
         <git-plugin.version>3.1.0</git-plugin.version>
         <workflow-support-plugin.version>2.14</workflow-support-plugin.version>
