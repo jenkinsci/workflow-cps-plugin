@@ -72,6 +72,7 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
@@ -85,7 +86,14 @@ import org.jvnet.hudson.test.TestExtension;
 public class CpsFlowExecutionTest {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-    @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
+    @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule() {
+        @Override protected JenkinsRule createJenkinsRule(Description description) {
+            JenkinsRule r = super.createJenkinsRule(description);
+            // TODO seems that Timeout induces a leak in loaderReleased (which assertGC cannot find)
+            r.timeout = 0;
+            return r;
+        }
+    };
     @Rule public LoggerRule logger = new LoggerRule();
 
     @After public void clearLoaders() {
