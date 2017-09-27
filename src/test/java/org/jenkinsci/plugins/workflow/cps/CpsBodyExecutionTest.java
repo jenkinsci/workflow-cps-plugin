@@ -125,11 +125,6 @@ public class CpsBodyExecutionTest {
                         .start();
                 return false;
             }
-
-            @Override
-            public void stop(@Nonnull Throwable cause) throws Exception {
-                throw new UnsupportedOperationException();
-            }
         }
 
     }
