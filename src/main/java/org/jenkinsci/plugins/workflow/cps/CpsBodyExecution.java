@@ -337,9 +337,9 @@ class CpsBodyExecution extends BodyExecution {
             }
 
             StepEndNode en = addBodyEndFlowNode();
-
             Throwable t = (Throwable)o;
             en.addAction(new ErrorAction(t));
+            CpsFlowExecution.autopersistNode(en);
 
             setOutcome(new Outcome(null,t));
             StepContext sc = new CpsBodySubContext(context, en);
@@ -357,7 +357,7 @@ class CpsBodyExecution extends BodyExecution {
         @Override
         public Next receive(Object o) {
             StepEndNode en = addBodyEndFlowNode();
-
+            CpsFlowExecution.autopersistNode(en);
             setOutcome(new Outcome(o,null));
             StepContext sc = new CpsBodySubContext(context, en);
             for (BodyExecutionCallback c : callbacks) {
@@ -381,6 +381,7 @@ class CpsBodyExecution extends BodyExecution {
         this.startNodeId = start.getId();
         start.addAction(new BodyInvocationAction());
         head.setNewHead(start);
+        CpsFlowExecution.autopersistNode(start);
         return start;
     }
 
