@@ -1573,4 +1573,16 @@ public class CpsFlowExecution extends FlowExecution {
 
     }
 
+    @Override
+    public void notifyShutdown() {
+        FlowNodeStorage storage = getStorage();
+        if (storage != null) {
+            try {
+                storage.flush();
+            } catch (IOException ioe) {
+                LOGGER.log(Level.WARNING, "Error persisting storage before shutdown", ioe);
+            }
+        }
+    }
+
 }
