@@ -47,6 +47,7 @@ import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.JOB;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinitionDescriptor;
+import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.steps.scm.GenericSCMStep;
 import org.jenkinsci.plugins.workflow.steps.scm.SCMStep;
@@ -66,6 +67,11 @@ public class CpsScmFlowDefinition extends FlowDefinition {
     @DataBoundConstructor public CpsScmFlowDefinition(SCM scm, String scriptPath) {
         this.scm = scm;
         this.scriptPath = scriptPath;
+    }
+
+    @DataBoundSetter
+    public void setDurabilityHint(FlowDurabilityHint durabilityHint) {
+        super.setDurabilityHint(durabilityHint);
     }
 
     public SCM getScm() {
@@ -100,7 +106,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                 if (fs != null) {
                     String script = fs.child(scriptPath).contentAsString();
                     listener.getLogger().println("Obtained " + scriptPath + " from " + scm.getKey());
-                    return new CpsFlowExecution(script, true, owner);
+                    return new CpsFlowExecution(script, true, owner, this.getDurabilityHint());
                 } else {
                     listener.getLogger().println("Lightweight checkout support not available, falling back to full checkout.");
                 }
@@ -137,7 +143,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             }
             script = scriptFile.readToString();
         }
-        CpsFlowExecution exec = new CpsFlowExecution(script, true, owner);
+        CpsFlowExecution exec = new CpsFlowExecution(script, true, owner, this.getDurabilityHint());
         exec.flowStartNodeActions.add(new WorkspaceActionImpl(dir, null));
         return exec;
     }

@@ -58,6 +58,7 @@ import jenkins.model.Jenkins;
 import org.jboss.marshalling.Unmarshaller;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.flow.GraphListener;
@@ -361,13 +362,18 @@ public class CpsFlowExecution extends FlowExecution {
         this(script, false, owner);
     }
 
-    public CpsFlowExecution(String script, boolean sandbox, FlowExecutionOwner owner) throws IOException {
+    public CpsFlowExecution(@Nonnull String script, boolean sandbox, @Nonnull  FlowExecutionOwner owner, @CheckForNull FlowDurabilityHint durabilityHint) throws IOException {
         this.owner = owner;
         this.script = script;
         this.sandbox = sandbox;
         this.storage = createStorage();
         Authentication auth = Jenkins.getAuthentication();
         this.user = auth.equals(ACL.SYSTEM) ? null : auth.getName();
+        this.durabilityHint = durabilityHint;
+    }
+
+    public CpsFlowExecution(String script, boolean sandbox, FlowExecutionOwner owner) throws IOException {
+        this(script, sandbox, owner, null);
     }
 
     /**

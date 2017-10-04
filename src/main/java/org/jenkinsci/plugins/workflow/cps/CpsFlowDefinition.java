@@ -33,6 +33,7 @@ import hudson.util.StreamTaskListener;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinitionDescriptor;
+import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.kohsuke.stapler.DataBoundConstructor;
 
@@ -48,6 +49,7 @@ import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
@@ -73,6 +75,11 @@ public class CpsFlowDefinition extends FlowDefinition {
         StaplerRequest req = Stapler.getCurrentRequest();
         this.script = sandbox ? script : ScriptApproval.get().configuring(script, GroovyLanguage.get(), ApprovalContext.create().withCurrentUser().withItemAsKey(req != null ? req.findAncestorObject(Item.class) : null));
         this.sandbox = sandbox;
+    }
+
+    @DataBoundSetter
+    public void setDurabilityHint(FlowDurabilityHint durabilityHint) {
+        super.setDurabilityHint(durabilityHint);
     }
 
     private Object readResolve() {
@@ -106,7 +113,7 @@ public class CpsFlowDefinition extends FlowDefinition {
                 return ((CpsFlowFactoryAction2) a).create(this, owner, actions);
             }
         }
-        return new CpsFlowExecution(sandbox ? script : ScriptApproval.get().using(script, GroovyLanguage.get()), sandbox, owner);
+        return new CpsFlowExecution(sandbox ? script : ScriptApproval.get().using(script, GroovyLanguage.get()), sandbox, owner, getDurabilityHint());
     }
 
     @Extension
