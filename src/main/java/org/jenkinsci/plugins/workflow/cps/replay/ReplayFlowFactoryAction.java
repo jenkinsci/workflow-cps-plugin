@@ -59,7 +59,7 @@ class ReplayFlowFactoryAction extends InvisibleAction implements CpsFlowFactoryA
     @Override public CpsFlowExecution create(FlowDefinition def, FlowExecutionOwner owner, List<? extends Action> actions) throws IOException {
         String script = replacementMainScript;
         replacementMainScript = null; // minimize build.xml size
-        return new CpsFlowExecution(script, sandbox, owner);
+        return new CpsFlowExecution(script, sandbox, owner, def.getDurabilityHint());
     }
 
     @Override public boolean shouldSchedule(List<Action> actions) {
