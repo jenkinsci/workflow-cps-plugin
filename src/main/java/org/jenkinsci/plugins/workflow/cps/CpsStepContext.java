@@ -522,7 +522,13 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     @Override public ListenableFuture<Void> saveState() {
         try {
             final SettableFuture<Void> f = SettableFuture.create();
-            getFlowExecution().runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+            CpsFlowExecution exec = getFlowExecution();
+            if (!exec.getDurabilityHint().isAllowPersistPartially()) {
+                f.set(null);
+                return f;
+            }
+
+            exec.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
                 @Override public void onSuccess(CpsThreadGroup result) {
                     try {
                         // TODO keep track of whether the program was saved anyway after saveState was called but before now, and do not bother resaving it in that case

@@ -418,10 +418,12 @@ public final class CpsThreadGroup implements Serializable {
      */
     @CpsVmThreadOnly
     void saveProgramIfPossible() {
-        try {
-            saveProgram();
-        } catch (IOException x) {
-            LOGGER.log(WARNING, "program state save failed", x);
+        if (this.getExecution() != null && this.getExecution().getDurabilityHint().isAllowPersistPartially()) {
+            try {
+                saveProgram();
+            } catch (IOException x) {
+                LOGGER.log(WARNING, "program state save failed", x);
+            }
         }
     }
 
