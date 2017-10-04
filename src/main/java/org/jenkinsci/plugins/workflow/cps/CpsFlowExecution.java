@@ -1574,7 +1574,7 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     @Override
-    public void notifyShutdown() {
+    protected void notifyShutdown() {
         FlowNodeStorage storage = getStorage();
         if (storage != null) {
             try {
