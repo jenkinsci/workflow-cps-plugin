@@ -75,6 +75,7 @@ import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.PickleResolver;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverReader;
 import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
+import org.jenkinsci.plugins.workflow.support.storage.LumpFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStorage;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -471,7 +472,18 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     private TimingFlowNodeStorage createStorage() throws IOException {
-        return new TimingFlowNodeStorage(new SimpleXStreamFlowNodeStorage(this, getStorageDir()));
+        FlowNodeStorage wrappedStorage;
+
+        switch (getDurabilityHint()) {
+            case NO_PROMISES:
+            case SURVIVE_CLEAN_RESTART:
+                wrappedStorage = new LumpFlowNodeStorage(this, getStorageDir());
+                break;
+            default:
+                wrappedStorage = new SimpleXStreamFlowNodeStorage(this, getStorageDir());
+        }
+
+        return new TimingFlowNodeStorage(wrappedStorage);
     }
 
     /**
