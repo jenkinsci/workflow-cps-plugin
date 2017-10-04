@@ -1036,7 +1036,9 @@ public class CpsFlowExecution extends FlowExecution {
         try {
             FlowExecution exec = node.getExecution();
             if (exec instanceof CpsFlowExecution) {
-                ((CpsFlowExecution) exec).getStorage().autopersist(node);
+                if (exec.getDurabilityHint().isAllowPersistPartially()) {
+                    ((CpsFlowExecution) exec).getStorage().autopersist(node);
+                }
             }
         } catch (IOException ioe) {
             LOGGER.log(Level.WARNING, "Attempt to persist triggered IOException for node "+node.getId(), ioe);
@@ -1057,6 +1059,12 @@ public class CpsFlowExecution extends FlowExecution {
         FlowNode head = new FlowEndNode(this, iotaStr(), (FlowStartNode)startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
         if (outcome.isFailure())
             head.addAction(new ErrorAction(outcome.getAbnormal()));
+        try {
+            this.getStorage().flush();
+        } catch (IOException ioe) {
+            LOGGER.log(Level.WARNING, "Error flushing FlowNodeStorage to disk at end of run", ioe);
+        }
+
 
         // shrink everything into a single new head
         done = true;
