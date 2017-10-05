@@ -58,6 +58,8 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
+
+import hudson.util.HttpResponses;
 import jenkins.model.Jenkins;
 import jenkins.model.ParameterizedJobMixIn;
 import jenkins.model.TransientActionFactory;
@@ -75,6 +77,8 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
+
+import static javax.servlet.http.HttpServletResponse.SC_CONFLICT;
 
 /**
  * Attached to a {@link Run} when it could be replayed with script edits.
@@ -168,7 +172,10 @@ public class ReplayAction implements Action {
             // optString since you might be replaying a running build, which might have loaded a script after the page load but before submission.
             replacementLoadedScripts.put(entry.getKey(), form.optString(entry.getKey().replace('.', '_'), entry.getValue()));
         }
-        run(form.getString("mainScript"), replacementLoadedScripts);
+        if (run(form.getString("mainScript"), replacementLoadedScripts) == null) {
+            throw HttpResponses.error(SC_CONFLICT, new IOException(run.getParent().getFullName() + " is not buildable"));
+
+        }
         rsp.sendRedirect("../.."); // back to WorkflowJob; new build might not start instantly so cannot redirect to it
     }
 
