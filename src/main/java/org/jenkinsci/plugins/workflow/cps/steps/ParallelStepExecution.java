@@ -62,6 +62,7 @@ class ParallelStepExecution extends StepExecution {
 
     @Override
     public void stop(Throwable cause) throws Exception {
+        // Despite suggestion in JENKINS-26148, super.stop does not work here, even accounting for the direct call from checkAllDone.
         for (BodyExecution body : bodies) {
             body.cancel(cause);
         }
