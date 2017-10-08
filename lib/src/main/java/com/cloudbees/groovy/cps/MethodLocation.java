@@ -1,6 +1,7 @@
 package com.cloudbees.groovy.cps;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * Triplet of source file / declaring class / method name.
@@ -47,4 +48,23 @@ public final class MethodLocation implements Serializable {
     public static final MethodLocation UNKNOWN = new MethodLocation("Unknown", "Unknown", "Unknown");
 
     private static final long serialVersionUID = 1L;
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(declaringClass, methodName, fileName);
+    }
+
+    @Override
+    public boolean equals(Object o){
+        if (o == this) {
+            return  true;
+        } else if (!(o instanceof MethodLocation)) {
+            return false;
+        } else {
+            MethodLocation ob = (MethodLocation)o;
+            return this.methodName.equals(ob.methodName)
+                    && this.fileName.equals(ob.fileName)
+                    && this.declaringClass.equals(ob.declaringClass);
+        }
+    }
 }
