@@ -60,13 +60,13 @@ import java.util.Map;
         } else {
             types = Maps.newHashMapWithExpectedSize(localsCount);
         }
-        depth = (caller instanceof  DepthTrackingEnv) ? depth = ((DepthTrackingEnv) caller).getDepth() + 1 : 1;
+        depth = (caller instanceof  DepthTrackingEnv) ? ((DepthTrackingEnv) caller).getDepth() + 1 : 1;
 
         if (depth > DepthTrackingEnv.MAX_LEGAL_DEPTH) {
             if (loc != null) {
-                throw new StackOverflowError("Excessively nested closures/functions at "+loc.toString()+" - look for unbounded recursion - call depth: "+depth);
+                throw new StackOverflowError("Excessively nested closures/functions at "+loc+" - look for unbounded recursion - call depth: "+depth);
             } else {
-                throw new StackOverflowError("Excessively nested blocks/function - look for unbounded recursion - call depth: "+depth);
+                throw new StackOverflowError("Excessively nested closures/functions - look for unbounded recursion - call depth: "+depth);
             }
         }
     }

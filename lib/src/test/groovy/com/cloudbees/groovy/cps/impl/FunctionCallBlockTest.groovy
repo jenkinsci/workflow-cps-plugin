@@ -22,11 +22,6 @@ class FunctionCallBlockTest extends AbstractGroovyCpsTest {
             throw new NamingException();
     }
 
-    /** Need to run more steps so we can hit the recursion limit */
-    Object evalCPSonly(String script, int numSteps) {
-        return parseCps(script).invoke(null, null, Continuation.HALT).run(numSteps).replay()
-    }
-
     @Test
     void infiniteRecursion() {
         try {
@@ -36,12 +31,11 @@ class FunctionCallBlockTest extends AbstractGroovyCpsTest {
                     return thing == null;
                 }
                 def stuff = getThing();
-            """, 25000) == "cheese";
+            """) == "cheese";  // Fails if we don't throw an exception, also fails if we run more than 10k steps.
         } catch (StackOverflowError soe) {
             println "PASSED: expected exception thrown for endlessly recursive function, see trace below";
-            soe.printStackTrace()
-
-        } // Test passed
+            soe.printStackTrace();
+        }
     }
 
     @Test
