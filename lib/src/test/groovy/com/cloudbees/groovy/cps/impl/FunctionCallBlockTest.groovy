@@ -22,6 +22,21 @@ class FunctionCallBlockTest extends AbstractGroovyCpsTest {
     }
 
     @Test
+    void infiniteRecursion() {
+        try {
+            assert evalCPSonly("""
+                def thing = null;
+                def getThing() { 
+                    return (thing == null) ? "bob" : thing;
+                }
+                def stuff = getThing();
+            """) == "cheese";
+        } catch (StackOverflowError soe) {
+            println "Expected exception thrown for endlessly recursive function";
+        } // Test passed
+    }
+
+    @Test
     void stackTraceFixup() {
         List elements = evalCPSonly("""
 
