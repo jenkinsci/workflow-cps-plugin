@@ -22,10 +22,6 @@ public class ProxyEnv implements DepthTrackingEnv {
     public ProxyEnv(Env parent) {
         this.parent = parent;
         depth = (parent instanceof DepthTrackingEnv) ? ((DepthTrackingEnv) parent).getDepth() + 1 : 1;
-
-        if (depth > DepthTrackingEnv.MAX_LEGAL_DEPTH) {
-            throw new StackOverflowError("Excessively nested blocks/function calls exceed limit of"+DepthTrackingEnv.MAX_LEGAL_DEPTH+":"+depth);
-        }
     }
 
     public void declareVariable(Class type, String name) {

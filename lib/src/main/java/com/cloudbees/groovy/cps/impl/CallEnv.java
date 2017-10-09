@@ -63,7 +63,11 @@ import java.util.Map;
         depth = (caller instanceof  DepthTrackingEnv) ? depth = ((DepthTrackingEnv) caller).getDepth() + 1 : 1;
 
         if (depth > DepthTrackingEnv.MAX_LEGAL_DEPTH) {
-            throw new StackOverflowError("Excessively nested blocks/function calls exceed limit of"+DepthTrackingEnv.MAX_LEGAL_DEPTH+":"+depth);
+            if (loc != null) {
+                throw new StackOverflowError("Excessively nested blocks/function at "+loc.toString()+" - look for unbounded recursion - call depth "+depth);
+            } else {
+                throw new StackOverflowError("Excessively nested blocks/function - look for unbounded recursion - call depth "+depth);
+            }
         }
     }
 
