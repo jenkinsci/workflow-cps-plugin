@@ -1,6 +1,7 @@
 package com.cloudbees.groovy.cps.impl
 
 import com.cloudbees.groovy.cps.AbstractGroovyCpsTest
+import com.cloudbees.groovy.cps.Continuation
 import org.junit.Test
 
 import javax.naming.NamingException
@@ -21,18 +22,25 @@ class FunctionCallBlockTest extends AbstractGroovyCpsTest {
             throw new NamingException();
     }
 
+    /** Need to run more steps so we can hit the recursion limit */
+    Object evalCPSonly(String script, int numSteps) {
+        return parseCps(script).invoke(null, null, Continuation.HALT).run(numSteps).replay()
+    }
+
     @Test
     void infiniteRecursion() {
         try {
             assert evalCPSonly("""
                 def thing = null;
                 def getThing() { 
-                    return (thing == null) ? "bob" : thing;
+                    return thing == null;
                 }
                 def stuff = getThing();
-            """) == "cheese";
+            """, 25000) == "cheese";
         } catch (StackOverflowError soe) {
-            println "Expected exception thrown for endlessly recursive function";
+            println "PASSED: expected exception thrown for endlessly recursive function, see trace below";
+            soe.printStackTrace()
+
         } // Test passed
     }
 

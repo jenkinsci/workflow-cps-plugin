@@ -64,9 +64,9 @@ import java.util.Map;
 
         if (depth > DepthTrackingEnv.MAX_LEGAL_DEPTH) {
             if (loc != null) {
-                throw new StackOverflowError("Excessively nested blocks/function at "+loc.toString()+" - look for unbounded recursion - call depth "+depth);
+                throw new StackOverflowError("Excessively nested closures/functions at "+loc.toString()+" - look for unbounded recursion - call depth: "+depth);
             } else {
-                throw new StackOverflowError("Excessively nested blocks/function - look for unbounded recursion - call depth "+depth);
+                throw new StackOverflowError("Excessively nested blocks/function - look for unbounded recursion - call depth: "+depth);
             }
         }
     }

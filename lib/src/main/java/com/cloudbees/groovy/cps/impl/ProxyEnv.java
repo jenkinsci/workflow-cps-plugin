@@ -21,7 +21,7 @@ public class ProxyEnv implements DepthTrackingEnv {
 
     public ProxyEnv(Env parent) {
         this.parent = parent;
-        depth = (parent instanceof DepthTrackingEnv) ? ((DepthTrackingEnv) parent).getDepth() + 1 : 1;
+        depth = (parent instanceof DepthTrackingEnv) ? ((DepthTrackingEnv) parent).getDepth(): 0;
     }
 
     public void declareVariable(Class type, String name) {

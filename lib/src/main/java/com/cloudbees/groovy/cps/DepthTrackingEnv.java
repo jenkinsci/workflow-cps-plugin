@@ -6,7 +6,7 @@ package com.cloudbees.groovy.cps;
 public interface DepthTrackingEnv extends Env {
 
     /** Limit on how deeply environments can recurse */
-    int MAX_LEGAL_DEPTH = 4000;
+    int MAX_LEGAL_DEPTH = 3000;
 
     public int getDepth();
 }
