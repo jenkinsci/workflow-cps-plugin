@@ -13,10 +13,6 @@ public final class SourceLocation implements Serializable {
     private final MethodLocation method;
     private final int lineNumber;
 
-    MethodLocation getMethod() {
-        return method;
-    }
-
     public SourceLocation(MethodLocation method, int lineNumber) {
         this.method = method;
         this.lineNumber = lineNumber;
