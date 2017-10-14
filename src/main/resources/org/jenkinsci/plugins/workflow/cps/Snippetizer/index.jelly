@@ -29,7 +29,7 @@ THE SOFTWARE.
         <st:include page="sidepanel"/>
         <l:main-panel>
             <f:form name="config">
-                <f:section title="Overview"/>
+                <f:section title="${%Overview}"/>
                 <f:block>
                     This <b>Snippet Generator</b> will help you learn the Pipeline Script code which can be used to
                     define various steps. Pick a step you are interested in from the list, configure it,
@@ -38,7 +38,7 @@ THE SOFTWARE.
                     script, or pick up just the options you care about. (Most parameters are optional
                     and can be omitted in your script, leaving them at default values.)
                 </f:block>
-                <f:section title="Steps"/>
+                <f:section title="${%Steps}"/>
                 <!-- Similar to f:dropdownDescriptorSelector, but adds fallback content to block, and JENKINS-25130 adds per-selection help: -->
                 <j:set var="item" value="${it.getItem(request)}"/>
                 <d:taglib uri="local">
@@ -67,14 +67,14 @@ THE SOFTWARE.
                         </j:forEach>
                     </d:tag>
                 </d:taglib>
-                <f:dropdownList name="prototype" title="Sample Step">
+                <f:dropdownList name="prototype" title="${%Sample Step}">
                     <local:listSteps quasiDescriptors="${it.getQuasiDescriptors(false)}"/>
                     <f:dropdownListBlock title="${%— Advanced/Deprecated —}"/>
                     <local:listSteps quasiDescriptors="${it.getQuasiDescriptors(true)}"/>
                 </f:dropdownList>
                 <j:set var="id" value="${h.generateId()}"/>
                 <f:block>
-                    <input type="button" value="Generate Pipeline Script" onclick="handlePrototype_${id}(); return false" class="submit-button primary"/>
+                    <input type="button" value="${%Generate Pipeline Script}" onclick="handlePrototype_${id}(); return false" class="submit-button primary"/>
                     <f:textarea id="prototypeText_${id}" readonly="true" style="margin-top: 10px" />
                     <script>
                         function handlePrototype_${id}() {
@@ -94,7 +94,7 @@ THE SOFTWARE.
                         }
                     </script>
                 </f:block>
-                <f:section title="Global Variables"/>
+                <f:section title="${%Global Variables}"/>
                 <f:block>
                     There are many features of the Pipeline that are not steps. These are often exposed
                     via global variables, which are not supported by the snippet generator. See the
