@@ -25,6 +25,8 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.CpsTransformer;
+import hudson.model.Computer;
+import hudson.model.Executor;
 import hudson.model.Result;
 import java.util.logging.Level;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
@@ -32,6 +34,8 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.junit.Assert.*;
+
+import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -69,6 +73,55 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
         exec.waitForSuspension();
         assertTrue(exec.isComplete());
+    }
+
+    /**
+     * Verify that we kill endlessly recursive CPS code cleanly.
+     */
+    @Test
+    public void endlessRecursion() throws Exception {
+        String script = "def getThing(){return thing == null}; \n" +
+                "node { echo getThing(); } ";
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "recursion");
+        job.setDefinition(new CpsFlowDefinition(script, true));
+
+        // Should have failed with error about excessive recursion depth
+        WorkflowRun r = jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
+        jenkins.assertLogContains("look for unbounded recursion", r);
+
+        Assert.assertTrue("No queued FlyWeightTask for job should remain after failure", jenkins.jenkins.getQueue().isEmpty());
+
+        for (Computer c : jenkins.jenkins.getComputers()) {
+            for (Executor ex : c.getExecutors()) {
+                if (ex.isBusy()) {
+                    fail(ex.getCurrentExecutable().toString());
+                }
+            }
+        }
+    }
+
+    /**
+     * Verify that we kill endlessly recursive NonCPS code cleanly and don't leave remnants.
+     */
+    @Test
+    public void endlessRecursionNonCPS() throws Exception {
+        String script = "@NonCPS def getThing(){return thing == null}; \n" +
+                "node { echo getThing(); } ";
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "recursion");
+        job.setDefinition(new CpsFlowDefinition(script, true));
+
+        // Should have failed with error about excessive recursion depth
+        WorkflowRun r = jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
+
+        Assert.assertTrue("No queued FlyWeightTask for job should remain after failure", jenkins.jenkins.getQueue().isEmpty());
+
+        for (Computer c : jenkins.jenkins.getComputers()) {
+            for (Executor ex : c.getExecutors()) {
+                if (ex.isBusy()) {
+                    fail(ex.getCurrentExecutable().toString());
+                }
+            }
+        }
     }
 
     @Test public void configRoundTrip() throws Exception {
