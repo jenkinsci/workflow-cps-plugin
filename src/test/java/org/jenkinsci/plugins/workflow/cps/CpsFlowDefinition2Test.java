@@ -79,6 +79,29 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
      * Verify that we kill endlessly recursive CPS code cleanly.
      */
     @Test
+    public void failureInNode() throws Exception {
+        String script = "node { assert 1 == 2; } ";
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "failInNode");
+        job.setDefinition(new CpsFlowDefinition(script, true));
+
+        // Should have failed with error about excessive recursion depth
+        WorkflowRun r = jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
+
+        Assert.assertTrue("No queued FlyWeightTask for job should remain after failure", jenkins.jenkins.getQueue().isEmpty());
+
+        for (Computer c : jenkins.jenkins.getComputers()) {
+            for (Executor ex : c.getExecutors()) {
+                if (ex.isBusy()) {
+                    fail(ex.getCurrentExecutable().toString());
+                }
+            }
+        }
+    }
+
+    /**
+     * Verify that we kill endlessly recursive CPS code cleanly.
+     */
+    @Test
     public void endlessRecursion() throws Exception {
         String script = "def getThing(){return thing == null}; \n" +
                 "node { echo getThing(); } ";
