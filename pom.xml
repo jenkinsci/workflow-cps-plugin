@@ -9,8 +9,7 @@
     </parent>
 
     <artifactId>groovy-cps-parent</artifactId>
-    <!-- Temp version for downstream testing -->
-    <version>1.21-stop-recursion2-SNAPSHOT</version>
+    <version>1.21-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Groovy CPS Execution Parent</name>
