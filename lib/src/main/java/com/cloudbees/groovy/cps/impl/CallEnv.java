@@ -60,15 +60,7 @@ import java.util.Map;
         } else {
             types = Maps.newHashMapWithExpectedSize(localsCount);
         }
-        depth = (caller instanceof  DepthTrackingEnv) ? ((DepthTrackingEnv) caller).getDepth() + 1 : 1;
-
-        if (depth > DepthTrackingEnv.MAX_LEGAL_DEPTH) {
-            if (loc != null) {
-                throw new StackOverflowError("Excessively nested closures/functions at "+loc+" - look for unbounded recursion - call depth: "+depth);
-            } else {
-                throw new StackOverflowError("Excessively nested closures/functions - look for unbounded recursion - call depth: "+depth);
-            }
-        }
+        depth = (caller instanceof DepthTrackingEnv) ? ((DepthTrackingEnv) caller).getDepth() + 1 : 1;
     }
 
     /** Because might deserialize old version of class with null value for field */
