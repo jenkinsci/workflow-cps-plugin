@@ -672,10 +672,11 @@ public class CpsFlowExecution extends FlowExecution {
         FlowHead head;
 
         synchronized(this) {
-            if (heads.isEmpty())
+            if (heads == null || heads.isEmpty()) {
                 head = null;
-            else
+            } else {
                 head = getFirstHead();
+            }
         }
 
         if (head==null) {
@@ -1029,10 +1030,13 @@ public class CpsFlowExecution extends FlowExecution {
 
         // shrink everything into a single new head
         done = true;
-        FlowHead first = getFirstHead();
-        first.setNewHead(head);
-        heads.clear();
-        heads.put(first.getId(),first);
+        if (heads != null) {
+            FlowHead first = getFirstHead();
+            first.setNewHead(head);
+            heads.clear();
+            heads.put(first.getId(),first);
+        }
+
     }
 
     void cleanUpHeap() {
