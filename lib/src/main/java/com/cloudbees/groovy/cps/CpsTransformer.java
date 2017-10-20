@@ -901,15 +901,20 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void visitMapExpression(final MapExpression exp) {
-        makeNode("map", new Runnable() {
-            @Override
-            public void run() {
-                for (MapEntryExpression e : exp.getMapEntryExpressions()) {
-                    visit(e.getKeyExpression());
-                    visit(e.getValueExpression());
+        if (exp.getMapEntryExpressions().size() > 125) {
+            sourceUnit.addError(new SyntaxException("Map expressions can only contain up to 125 entries",
+                    exp.getLineNumber(), exp.getColumnNumber()));
+        } else {
+            makeNode("map", new Runnable() {
+                @Override
+                public void run() {
+                    for (MapEntryExpression e : exp.getMapEntryExpressions()) {
+                        visit(e.getKeyExpression());
+                        visit(e.getValueExpression());
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     @Override
@@ -919,12 +924,17 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void visitListExpression(final ListExpression exp) {
-        makeNode("list", new Runnable() {
-            @Override
-            public void run() {
-                visit(exp.getExpressions());
-            }
-        });
+        if (exp.getExpressions().size() > 250) {
+            sourceUnit.addError(new SyntaxException("List expressions can only contain up to 250 elements",
+                    exp.getLineNumber(), exp.getColumnNumber()));
+        } else {
+            makeNode("list", new Runnable() {
+                @Override
+                public void run() {
+                    visit(exp.getExpressions());
+                }
+            });
+        }
     }
 
     @Override

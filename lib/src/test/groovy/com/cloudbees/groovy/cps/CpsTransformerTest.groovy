@@ -2,6 +2,7 @@ package com.cloudbees.groovy.cps
 
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import groovy.transform.NotYetImplemented
+import org.codehaus.groovy.control.MultipleCompilationErrorsException
 import org.junit.Test
 import org.jvnet.hudson.test.Issue
 
@@ -877,4 +878,35 @@ def (c, d) = ['fourth']
 return [a, b, c, d].join(' ')
 ''') == "first second fourth null"
     }
-}
+
+    @Issue("JENKINS-47363")
+    @Test
+    void excessiveListElements() {
+        def l = 0..250
+        def s = l.join(",\n")
+        try {
+            assert evalCPS("""
+def b = [${s}]
+return b.size()
+""") == 251
+        } catch (Exception e) {
+            assert e instanceof MultipleCompilationErrorsException
+            assert e.message.contains('List expressions can only contain up to 250 elements')
+        }
+    }
+
+    @Issue("JENKINS-47363")
+    @Test
+    void excessiveMapElements() {
+        def l = 0..250
+        def s = l.collect { "${it}:${it}" }.join(",\n")
+        try {
+            assert evalCPS("""
+def b = [${s}]
+return b.size()
+""") == 251
+        } catch (Exception e) {
+            assert e instanceof MultipleCompilationErrorsException
+            assert e.message.contains('Map expressions can only contain up to 125 entries')
+        }
+    }}
