@@ -25,6 +25,7 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.CpsTransformer;
+import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Result;
@@ -36,6 +37,7 @@ import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -80,6 +82,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
      */
     @Test
     public void endlessRecursion() throws Exception {
+        Assume.assumeTrue(!Functions.isWindows());  // Sidestep false failures specific to a few Windows build environments.
         String script = "def getThing(){return thing == null}; \n" +
                 "node { echo getThing(); } ";
         WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "recursion");
@@ -107,6 +110,8 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
      */
     @Test
     public void endlessRecursionNonCPS() throws Exception {
+        Assume.assumeTrue(!Functions.isWindows());  // Sidestep false failures specific to a few Windows build environments.
+
         String script = "@NonCPS def getThing(){return thing == null}; \n" +
                 "node { echo getThing(); } ";
         WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "recursion");
