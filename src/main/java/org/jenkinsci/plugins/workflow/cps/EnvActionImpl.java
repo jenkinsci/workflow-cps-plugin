@@ -42,6 +42,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import jenkins.model.RunAction2;
 import org.jenkinsci.plugins.workflow.flow.FlowCopier;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.steps.EnvironmentExpander;
 import org.jenkinsci.plugins.workflow.support.actions.EnvironmentAction;
 import org.kohsuke.accmod.Restricted;
@@ -56,7 +57,6 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
     private static final long serialVersionUID = 1;
 
     private final Map<String,String> env;
-    private transient EnvVars ownerEnvironment; // cache
     private transient Run<?,?> owner;
 
     private EnvActionImpl() {
@@ -64,11 +64,18 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
     }
 
     @Override public EnvVars getEnvironment() throws IOException, InterruptedException {
-        if (ownerEnvironment == null) {
-            // TODO call FlowExecutionOwner.getListener
-            ownerEnvironment = owner.getEnvironment(new LogTaskListener(LOGGER, Level.INFO));
+        TaskListener listener;
+        if (owner instanceof FlowExecutionOwner.Executable) {
+            FlowExecutionOwner executionOwner = ((FlowExecutionOwner.Executable) owner).asFlowExecutionOwner();
+            if (executionOwner != null) {
+                listener = executionOwner.getListener();
+            } else {
+                listener = new LogTaskListener(LOGGER, Level.INFO);
+            }
+        } else {
+            listener = new LogTaskListener(LOGGER, Level.INFO);
         }
-        EnvVars e = new EnvVars(ownerEnvironment);
+        EnvVars e = owner.getEnvironment(listener);
         e.putAll(env);
         return e;
     }

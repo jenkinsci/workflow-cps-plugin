@@ -137,6 +137,7 @@ import javax.annotation.concurrent.GuardedBy;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.apache.commons.io.Charsets;
+import org.codehaus.groovy.GroovyBugError;
 import org.jboss.marshalling.reflect.SerializableClassRegistry;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
@@ -656,7 +657,7 @@ public class CpsFlowExecution extends FlowExecution {
                         }
                     });
 
-        } catch (IOException e) {
+        } catch (Exception | GroovyBugError e) {
             loadProgramFailed(e, result);
         }
     }
@@ -1035,6 +1036,7 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     void cleanUpHeap() {
+        LOGGER.log(Level.FINE, "cleanUpHeap on {0}", owner);
         shell = null;
         trusted = null;
         if (scriptClass != null) {
@@ -1044,6 +1046,8 @@ public class CpsFlowExecution extends FlowExecution {
                 LOGGER.log(Level.WARNING, "failed to clean up memory from " + owner, x);
             }
             scriptClass = null;
+        } else {
+            LOGGER.fine("no scriptClass");
         }
         // perhaps also set programPromise to null or a precompleted failure?
     }
@@ -1054,6 +1058,7 @@ public class CpsFlowExecution extends FlowExecution {
             return;
         }
         if (!(loader instanceof GroovyClassLoader)) {
+            LOGGER.log(Level.FINER, "ignoring {0}", loader);
             return;
         }
         if (!encounteredLoaders.add(loader)) {
@@ -1079,12 +1084,7 @@ public class CpsFlowExecution extends FlowExecution {
     private static void cleanUpGlobalClassValue(@Nonnull ClassLoader loader) throws Exception {
         Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
         // TODO switch to MethodHandle for speed
-        Field globalClassValueF;
-        try {
-            globalClassValueF = classInfoC.getDeclaredField("globalClassValue");
-        } catch (NoSuchFieldException x) {
-            return; // Groovy 1, fine
-        }
+        Field globalClassValueF = classInfoC.getDeclaredField("globalClassValue");
         globalClassValueF.setAccessible(true);
         Object globalClassValue = globalClassValueF.get(null);
         Class<?> groovyClassValuePreJava7C = Class.forName("org.codehaus.groovy.reflection.GroovyClassValuePreJava7");
@@ -1135,33 +1135,28 @@ public class CpsFlowExecution extends FlowExecution {
         Field globalClassSetF = classInfoC.getDeclaredField("globalClassSet");
         globalClassSetF.setAccessible(true);
         Object globalClassSet = globalClassSetF.get(null);
-        try { // Groovy 1
-            globalClassSet.getClass().getMethod("remove", Object.class).invoke(globalClassSet, clazz); // like Map but not
-            LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
-        } catch (NoSuchMethodException x) { // Groovy 2
-            try {
-                classInfoC.getDeclaredField("classRef");
-                return; // 2.4.8+, nothing to do here (classRef is weak anyway)
-            } catch (NoSuchFieldException x2) {} // 2.4.7-
-            // Cannot just call .values() since that returns a copy.
-            Field itemsF = globalClassSet.getClass().getDeclaredField("items");
-            itemsF.setAccessible(true);
-            Object items = itemsF.get(globalClassSet);
-            Method iteratorM = items.getClass().getMethod("iterator");
-            Field klazzF = classInfoC.getDeclaredField("klazz");
-            klazzF.setAccessible(true);
-            synchronized (items) {
-                Iterator<?> iterator = (Iterator) iteratorM.invoke(items);
-                while (iterator.hasNext()) {
-                    Object classInfo = iterator.next();
-                    if (classInfo == null) {
-                        LOGGER.finer("JENKINS-41945: ignoring null ClassInfo from ManagedLinkedList.Iter.next");
-                        continue;
-                    }
-                    if (klazzF.get(classInfo) == clazz) {
-                        iterator.remove();
-                        LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
-                    }
+        try {
+            classInfoC.getDeclaredField("classRef");
+            return; // 2.4.8+, nothing to do here (classRef is weak anyway)
+        } catch (NoSuchFieldException x2) {} // 2.4.7-
+        // Cannot just call .values() since that returns a copy.
+        Field itemsF = globalClassSet.getClass().getDeclaredField("items");
+        itemsF.setAccessible(true);
+        Object items = itemsF.get(globalClassSet);
+        Method iteratorM = items.getClass().getMethod("iterator");
+        Field klazzF = classInfoC.getDeclaredField("klazz");
+        klazzF.setAccessible(true);
+        synchronized (items) {
+            Iterator<?> iterator = (Iterator) iteratorM.invoke(items);
+            while (iterator.hasNext()) {
+                Object classInfo = iterator.next();
+                if (classInfo == null) {
+                    LOGGER.finer("JENKINS-41945: ignoring null ClassInfo from ManagedLinkedList.Iter.next");
+                    continue;
+                }
+                if (klazzF.get(classInfo) == clazz) {
+                    iterator.remove();
+                    LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
                 }
             }
         }

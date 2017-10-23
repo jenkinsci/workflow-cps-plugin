@@ -6,7 +6,6 @@ import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousStepExecution;
 import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
 
@@ -38,10 +37,5 @@ public class SubtypeInjectingStepExecution extends AbstractSynchronousStepExecut
         if (r==null || n==null || f==null)  throw new AssertionError("Bzzzt");
         if (r!=r2 || n!=n2 || f!=f2)        throw new AssertionError("What!?");
         return null;
-    }
-
-    @Override
-    public void stop(Throwable cause) throws Exception {
-        // nothing to do here
     }
 }

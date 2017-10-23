@@ -24,19 +24,16 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import com.gargoylesoftware.htmlunit.ElementNotFoundException;
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.WebRequest;
 import com.google.common.util.concurrent.ListenableFuture;
 import groovy.lang.GroovyShell;
-import groovy.lang.MetaClass;
 import hudson.AbortException;
 import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.TaskListener;
-import java.lang.ref.WeakReference;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -50,8 +47,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import jenkins.model.Jenkins;
-import org.codehaus.groovy.reflection.ClassInfo;
-import org.codehaus.groovy.transform.ASTTransformationVisitor;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
@@ -65,10 +60,8 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
 import org.jenkinsci.plugins.workflow.support.pickles.TryRepeatedly;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
-import org.junit.After;
 import static org.junit.Assert.*;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runners.model.Statement;
@@ -76,7 +69,6 @@ import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
-import org.jvnet.hudson.test.MemoryAssert;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
@@ -86,78 +78,6 @@ public class CpsFlowExecutionTest {
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
     @Rule public LoggerRule logger = new LoggerRule();
-
-    @After public void clearLoaders() {
-        LOADERS.clear();
-    }
-    private static final List<WeakReference<ClassLoader>> LOADERS = new ArrayList<>();
-    public static void register(Object o) {
-        ClassLoader loader = o.getClass().getClassLoader();
-        System.err.println("registering " + o + " from " + loader);
-        LOADERS.add(new WeakReference<>(loader));
-    }
-
-    @Test public void loaderReleased() {
-        logger.record(CpsFlowExecution.class, Level.FINER);
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
-                story.j.jenkins.getWorkspaceFor(p).child("lib.groovy").write(CpsFlowExecutionTest.class.getName() + ".register(this)", null);
-                p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionTest.class.getName() + ".register(this); node {load 'lib.groovy'; evaluate(readFile('lib.groovy'))}", false));
-                WorkflowRun b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
-                assertFalse(((CpsFlowExecution) b.getExecution()).getProgramDataFile().exists());
-                assertFalse(LOADERS.isEmpty());
-                try {
-                    // In Groovy 1.8.9 this keeps static state, but only for the last script (as also noted in JENKINS-23762).
-                    // The fix of GROOVY-5025 (62bfb68) in 1.9 addresses this, which we get in Jenkins 2.
-                    // Could do this in cleanUpHeap but it is probably not thread-safe.
-                    Field f = ASTTransformationVisitor.class.getDeclaredField("compUnit");
-                    f.setAccessible(true);
-                    f.set(null, null);
-                } catch (NoSuchFieldException e) {
-                    // assuming that Groovy version is newer
-                }
-                { // TODO it seems that the call to CpsFlowExecutionTest.register(Object) on a Script1 parameter creates a MetaMethodIndex.Entry.cachedStaticMethod.
-                  // In other words any call to a foundational API might leak classes. Why does Groovy need to do this?
-                  // Unclear whether this is a problem in a realistic environment; for the moment, suppressing it so the test can run with no SoftReference.
-                    MetaClass metaClass = ClassInfo.getClassInfo(CpsFlowExecutionTest.class).getMetaClass();
-                    Method clearInvocationCaches = metaClass.getClass().getDeclaredMethod("clearInvocationCaches");
-                    clearInvocationCaches.setAccessible(true);
-                    clearInvocationCaches.invoke(metaClass);
-                }
-                for (WeakReference<ClassLoader> loaderRef : LOADERS) {
-                    MemoryAssert.assertGC(loaderRef, false);
-                }
-            }
-        });
-    }
-
-    @Ignore("creates classes such as script1493642504440203321963 in a new GroovyClassLoader.InnerLoader delegating to CleanGroovyClassLoader which are invisible to cleanUpHeap")
-    @Test public void doNotUseConfigSlurper() throws Exception {
-        logger.record(CpsFlowExecution.class, Level.FINER);
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
-                p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionTest.class.getName() + ".register(this); echo(/parsed ${new ConfigSlurper().parse('foo.bar.baz = 99')}/)", false));
-                WorkflowRun b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
-                assertFalse(LOADERS.isEmpty());
-                try { // as above
-                    Field f = ASTTransformationVisitor.class.getDeclaredField("compUnit");
-                    f.setAccessible(true);
-                    f.set(null, null);
-                } catch (NoSuchFieldException e) {}
-                { // TODO as above
-                    MetaClass metaClass = ClassInfo.getClassInfo(CpsFlowExecutionTest.class).getMetaClass();
-                    Method clearInvocationCaches = metaClass.getClass().getDeclaredMethod("clearInvocationCaches");
-                    clearInvocationCaches.setAccessible(true);
-                    clearInvocationCaches.invoke(metaClass);
-                }
-                for (WeakReference<ClassLoader> loaderRef : LOADERS) {
-                    MemoryAssert.assertGC(loaderRef, true);
-                }
-            }
-        });
-    }
 
     @Test public void getCurrentExecutions() {
         story.addStep(new Statement() {
@@ -253,11 +173,12 @@ public class CpsFlowExecutionTest {
                 final CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
                 assertFalse(e.isPaused());
                 JenkinsRule.WebClient wc = story.j.createWebClient();
-                WebRequest wrs = new WebRequest(wc.createCrumbedUrl(b.getUrl() + PauseUnpauseAction.URL + "/toggle"), HttpMethod.POST);
+                String toggleUrlRel = b.getUrl() + PauseUnpauseAction.URL + "/toggle";
+                WebRequest wrs = new WebRequest(wc.createCrumbedUrl(toggleUrlRel), HttpMethod.POST);
                 try { // like JenkinsRule.assertFails but taking a WebRequest:
                     fail("should have been rejected but produced: " + wc.getPage(wrs).getWebResponse().getContentAsString());
                 } catch (FailingHttpStatusCodeException x) {
-                    assertEquals(HttpURLConnection.HTTP_FORBIDDEN, x.getStatusCode());
+                    assertEquals(HttpURLConnection.HTTP_NOT_FOUND, x.getStatusCode()); // link not even offered
                 }
                 wc.login("admin").getPage(wrs);
                 assertTrue(e.isPaused());
@@ -268,6 +189,16 @@ public class CpsFlowExecutionTest {
                 Thread.sleep(1000);
                 assertTrue(b.isBuilding());
                 assertTrue(e.isPaused());
+
+                // link should only be displayed conditionally:
+                String toggleUrlAbs = story.j.contextPath + "/" + toggleUrlRel;
+                story.j.createWebClient().login("admin").getPage(b).getAnchorByHref(toggleUrlAbs);
+                try {
+                    story.j.createWebClient().getPage(b).getAnchorByHref(toggleUrlAbs);
+                    fail("link should not be present for anonymous user without CANCEL");
+                } catch (ElementNotFoundException x) {
+                    // good
+                }
             }
         });
         story.addStep(new Statement() {

@@ -201,7 +201,6 @@ public class WorkflowTest extends SingleJobTestBase {
                 listener.getLogger().println("running as " + Jenkins.getAuthentication().getName() + " from " + Thread.currentThread().getName());
                 return false;
             }
-            @Override public void stop(Throwable cause) throws Exception {}
             @Override public void onResume() {
                 super.onResume();
                 try {
