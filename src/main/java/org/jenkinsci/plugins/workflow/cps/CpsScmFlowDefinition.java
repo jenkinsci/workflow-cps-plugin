@@ -35,14 +35,19 @@ import hudson.model.Queue;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.TopLevelItem;
+import hudson.scm.ChangeLogSet;
 import hudson.scm.SCM;
 import hudson.scm.SCMDescriptor;
 import hudson.slaves.WorkspaceList;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import jenkins.model.Jenkins;
 import jenkins.scm.api.SCMFileSystem;
+import jenkins.scm.api.SCMRevision;
+import jenkins.scm.api.SCMRevisionAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.JOB;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
@@ -96,10 +101,26 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         }
         Run<?,?> build = (Run<?,?>) _build;
         if (isLightweight()) {
-            try (SCMFileSystem fs = SCMFileSystem.of(build.getParent(), scm)) {
+            try (SCMFileSystem fs = SCMFileSystem.of(build.getParent(), scm, SCMRevisionAction.getRevision(build))) {
                 if (fs != null) {
                     String script = fs.child(scriptPath).contentAsString();
                     listener.getLogger().println("Obtained " + scriptPath + " from " + scm.getKey());
+                    // a heavyweight checkout will populate the changelog only if there is a previous build
+                    // to compare with
+                    Run<?, ?> prev = build.getPreviousBuild();
+                    if (prev != null) {
+                        // this will only work for SCMSource based SCMs as those follow the contract that the
+                        // revision being built must be attached as a SCMRevisionAction, we'd need to
+                        // store our own SCMRevisionAction if we want changelog support for standalone pipelines
+                        SCMRevision baseline = SCMRevisionAction.getRevision(prev);
+                        if (baseline != null) {
+                            File changelogFile = nextChangelogFile(build);
+                            try (FileOutputStream fos = new FileOutputStream(changelogFile)) {
+                                fs.changesSince(baseline, fos);
+                            }
+                        }
+                    }
+
                     return new CpsFlowExecution(script, true, owner);
                 } else {
                     listener.getLogger().println("Lightweight checkout support not available, falling back to full checkout.");
@@ -140,6 +161,25 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         CpsFlowExecution exec = new CpsFlowExecution(script, true, owner);
         exec.flowStartNodeActions.add(new WorkspaceActionImpl(dir, null));
         return exec;
+    }
+
+    /**
+     * Finds the next available changelog file for the specified build. Assumes (reasonably) invoked from the single
+     * executor thread, otherwise we could have race conditions. Given that there is no other threads working on
+     * the Cps until we return the Cps, this is likely a reasonable assumption.
+     *
+     * @param build the build.
+     * @return the next available changelog file.
+     */
+    private File nextChangelogFile(Run<?, ?> build) {
+        int i = 0;
+        while (true) {
+            File changelogFile = new File(build.getRootDir(), "changelog" + i + ".xml");
+            if (!changelogFile.exists()) {
+                return changelogFile;
+            }
+            ++i;
+        }
     }
 
     private FilePath getFilePathWithSuffix(FilePath baseWorkspace) {

@@ -29,6 +29,8 @@ import hudson.model.ParametersDefinitionProperty;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.plugins.git.BranchSpec;
+import hudson.plugins.git.GitChangeSet;
+import hudson.plugins.git.GitChangeSetList;
 import hudson.plugins.git.GitSCM;
 import hudson.plugins.git.SubmoduleConfig;
 import hudson.plugins.git.UserRemoteConfig;
@@ -38,8 +40,11 @@ import hudson.triggers.SCMTrigger;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import jenkins.plugins.git.AbstractGitSCMSource;
 import jenkins.plugins.git.GitSampleRepoRule;
 import jenkins.plugins.git.GitStep;
+import jenkins.scm.api.SCMHead;
+import jenkins.scm.api.SCMRevisionAction;
 import org.jenkinsci.plugins.workflow.actions.WorkspaceAction;
 import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -47,6 +52,7 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import static org.junit.Assert.*;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
@@ -159,6 +165,44 @@ public class CpsScmFlowDefinitionTest {
         r.assertLogNotContains("Cloning the remote Git repository", b);
         r.assertLogContains("Obtained flow.groovy from git " + sampleRepo, b);
         r.assertLogContains("version one", b);
+    }
+
+    @Ignore("Requires way to signal changeset to WorkflowRun")
+    @Test public void lightweightChangelog() throws Exception {
+        sampleRepo.init();
+        sampleRepo.write("flow.groovy", "echo 'version one'");
+        sampleRepo.git("add", "flow.groovy");
+        sampleRepo.git("commit", "--message=init");
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        GitStep step = new GitStep(sampleRepo.toString());
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(step.createSCM(), "flow.groovy");
+        def.setLightweight(true);
+        p.setDefinition(def);
+        // we add the SCMRevisionAction because we are hijacking a plain SCM as a proxy for a SCMSource backed SCM
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0,
+                new SCMRevisionAction(new AbstractGitSCMSource.SCMRevisionImpl(
+                        new SCMHead("master"), sampleRepo.head()
+                ))
+        ));
+        r.assertLogNotContains("Cloning the remote Git repository", b);
+        r.assertLogContains("Obtained flow.groovy from git " + sampleRepo, b);
+        r.assertLogContains("version one", b);
+        List<ChangeLogSet<? extends ChangeLogSet.Entry>> changeSets = b.getChangeSets();
+        assertEquals("First build traditionally has empty changes", Collections.emptyList(), changeSets);
+        sampleRepo.write("flow.groovy", "echo 'version two'");
+        sampleRepo.git("add", "flow.groovy");
+        sampleRepo.git("commit", "--message=update");
+        // we add the SCMRevisionAction because we are hijacking a plain SCM as a proxy for a SCMSource backed SCM
+        b = r.assertBuildStatusSuccess(p.scheduleBuild2(0,
+                new SCMRevisionAction(new AbstractGitSCMSource
+                .SCMRevisionImpl(new SCMHead("master"), sampleRepo.head()
+                ))
+        ));
+        changeSets = b.getChangeSets();
+        assertEquals(1, changeSets.size());
+        ChangeLogSet<? extends ChangeLogSet.Entry> entry = changeSets.get(0);
+        assertEquals(GitChangeSet.class, entry.getItems()[0].getClass());
+        assertEquals("update", ((GitChangeSet)entry.getItems()[0]).getMsg());
     }
 
     @Issue("JENKINS-28447")
