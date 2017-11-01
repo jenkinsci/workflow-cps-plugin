@@ -882,11 +882,18 @@ return [a, b, c, d].join(' ')
     @Issue("JENKINS-47363")
     @Test
     void excessiveListElements() {
-        def l = 0..250
-        def s = l.join(",\n")
+        def l1 = 0..249
+        def s1 = l1.join(",\n")
+        assert evalCPS("""
+def b = [${s1}]
+return b.size()
+""") == 250
+
+        def l2 = 0..250
+        def s2 = l2.join(",\n")
         try {
             assert evalCPS("""
-def b = [${s}]
+def b = [${s2}]
 return b.size()
 """) == 251
         } catch (Exception e) {
@@ -898,15 +905,22 @@ return b.size()
     @Issue("JENKINS-47363")
     @Test
     void excessiveMapElements() {
-        def l = 0..250
-        def s = l.collect { "${it}:${it}" }.join(",\n")
+        def l1 = 0..124
+        def s1 = l1.collect { "${it}:${it}" }.join(",\n")
+        assert evalCPS("""
+def b = [${s1}]
+return b.size()
+""") == 125
+        def l2 = 0..125
+        def s2 = l2.collect { "${it}:${it}" }.join(",\n")
         try {
             assert evalCPS("""
-def b = [${s}]
+def b = [${s2}]
 return b.size()
-""") == 251
+""") == 126
         } catch (Exception e) {
             assert e instanceof MultipleCompilationErrorsException
             assert e.message.contains('Map expressions can only contain up to 125 entries')
         }
-    }}
+    }
+}
