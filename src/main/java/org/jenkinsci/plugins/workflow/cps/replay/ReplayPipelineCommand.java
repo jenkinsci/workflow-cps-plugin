@@ -40,7 +40,7 @@ import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.OptionDef;
 import org.kohsuke.args4j.spi.Setter;
 
-@Extension public class ReplayCommand extends CLICommand {
+@Extension public class ReplayPipelineCommand extends CLICommand {
 
     @Argument(required=true, index=0, metaVar="JOB", usage="Name of the job to replay.", handler=JobHandler.class)
     public Job<?,?> job;
@@ -50,10 +50,6 @@ import org.kohsuke.args4j.spi.Setter;
 
     @Option(name="-s", aliases="--script", metaVar="SCRIPT", usage="Name of script to edit, such as Script3, if not the main Jenkinsfile.")
     public String script;
-
-    @Override public String getName() {
-        return "replay-pipeline";
-    }
 
     @Override public String getShortDescription() {
         return Messages.ReplayCommand_shortDescription();
@@ -90,7 +86,7 @@ import org.kohsuke.args4j.spi.Setter;
 
     @SuppressWarnings("rawtypes")
     public static class JobHandler extends GenericItemOptionHandler<Job> {
-        
+
         public JobHandler(CmdLineParser parser, OptionDef option, Setter<Job> setter) {
             super(parser, option, setter);
         }
