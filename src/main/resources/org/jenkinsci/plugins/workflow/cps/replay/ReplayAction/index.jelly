@@ -4,27 +4,38 @@
     <l:layout title="Replay ${it.owner.displayName}" norefresh="true">
         <st:include page="sidepanel.jelly" it="${it.owner}"/>
         <l:main-panel>
-            <j:if test="${it.enabled}">
+            <j:if test="${it.enabled or it.rebuildEnabled}">
                 <h1>Replay ${it.owner.displayName}</h1>
                 <p>
                     <j:out value="${%blurb}"/>
                 </p>
-                <f:form action="run" method="POST" name="config">
-                    <f:entry field="mainScript" title="Main Script">
-                      <wfe:workflow-editor script="${it.originalScript}" checkUrl="${rootURL}/${it.owner.url}${it.urlName}/checkScript" checkDependsOn=""/>
-                    </f:entry>
-                    <j:forEach var="loadedScript" items="${it.originalLoadedScripts.entrySet()}">
-                        <f:entry field="${loadedScript.key.replace('.', '_')}" title="${loadedScript.key}">
-                            <wfe:workflow-editor script="${loadedScript.value}" checkUrl="${rootURL}/${it.owner.url}${it.urlName}/checkScript" checkDependsOn=""/>
-                        </f:entry>
-                    </j:forEach>
-                    <f:block>
-                        <a href="${rootURL}/${it.owner.parent.url}/pipeline-syntax" target="_blank">${%Pipeline Syntax}</a>
-                    </f:block>
-                    <f:bottomButtonBar>
-                        <f:submit value="Run"/>
-                    </f:bottomButtonBar>
-                </f:form>
+                <j:choose>
+                    <j:when test="${it.enabled}">
+                        <f:form action="run" method="POST" name="config">
+                            <f:entry field="mainScript" title="Main Script">
+                                <wfe:workflow-editor script="${it.originalScript}" checkUrl="${rootURL}/${it.owner.url}${it.urlName}/checkScript" checkDependsOn=""/>
+                            </f:entry>
+                            <j:forEach var="loadedScript" items="${it.originalLoadedScripts.entrySet()}">
+                                <f:entry field="${loadedScript.key.replace('.', '_')}" title="${loadedScript.key}">
+                                    <wfe:workflow-editor script="${loadedScript.value}" checkUrl="${rootURL}/${it.owner.url}${it.urlName}/checkScript" checkDependsOn=""/>
+                                </f:entry>
+                            </j:forEach>
+                            <f:block>
+                                <a href="${rootURL}/${it.owner.parent.url}/pipeline-syntax" target="_blank">${%Pipeline Syntax}</a>
+                            </f:block>
+                            <f:bottomButtonBar>
+                                <f:submit value="Run"/>
+                            </f:bottomButtonBar>
+                        </f:form>
+                    </j:when>
+                    <j:otherwise>
+                        <f:form action="rebuild" method="POST" name="rebuild">
+                            <f:bottomButtonBar>
+                                <f:submit value="Run"/>
+                            </f:bottomButtonBar>
+                        </f:form>
+                    </j:otherwise>
+                </j:choose>
             </j:if>
         </l:main-panel>
     </l:layout>
