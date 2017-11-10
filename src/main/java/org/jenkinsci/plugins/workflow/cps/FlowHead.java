@@ -113,7 +113,7 @@ final class FlowHead implements Serializable {
         synchronized (execution) {
             this.head = execution.startNodes.push(n);
         }
-        execution.storage.storeNode(head, true);
+        execution.storage.storeNode(head, false);
     }
 
     void setNewHead(FlowNode v) {
