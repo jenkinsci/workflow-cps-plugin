@@ -2,7 +2,6 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import hudson.model.Action;
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Result;
@@ -24,7 +23,7 @@ import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepNamePredicate;
 import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepTypePredicate;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.jenkinsci.plugins.workflow.support.actions.LogActionImpl;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -69,7 +68,7 @@ public class FlowDurabilityTest {
         CpsFlowDefinition def = new CpsFlowDefinition("node {\n " +
                 "semaphore 'halt' \n" +
                 "} \n" +
-                "echo 'I like chese'", false);
+                "echo 'I like chese'\n", false);
         def.setDurabilityHint(durabilityHint);
         job.setDefinition(def);
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
@@ -94,8 +93,11 @@ public class FlowDurabilityTest {
         Assert.assertEquals(2, scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(StepStartNode.class))).size());
         Assert.assertEquals(2, scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(StepEndNode.class))).size());
         Assert.assertEquals(1, scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(FlowStartNode.class))).size());
-        Assert.assertEquals(1, scan.filteredNodes(endNode, new NodeStepTypePredicate("echo")).size());
-        Assert.assertEquals(1, scan.filteredNodes(endNode, new NodeStepTypePredicate("semaphore")).size());
+
+        // TODO fix the fact that echo step won't match descriptorImpl to descriptorImpl with NodeStepTypePredicate
+        // Because instances don't match.
+        Assert.assertEquals(1, scan.filteredNodes(endNode, new NodeStepNamePredicate(StepDescriptor.byFunctionName("semaphore").getId())).size());
+        Assert.assertEquals(1, scan.filteredNodes(endNode, new NodeStepNamePredicate(StepDescriptor.byFunctionName("echo").getId())).size());
 
         for (FlowNode node : (List<FlowNode>)(scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(StepNode.class))))) {
             Assert.assertNotNull("Node: "+node.toString()+" does not have a TimingAction", node.getAction(TimingAction.class));
@@ -123,6 +125,7 @@ public class FlowDurabilityTest {
     static void verifyFailedCleanly(Jenkins j, WorkflowRun run) throws Exception {
         assert !run.isBuilding();
         assert run.getResult() == Result.FAILURE || run.getResult() == Result.ABORTED;
+        // TODO verify all blocks cleanly closed out, so Block start and end nodes have same counts and FlowEndNode is last node
         verifyCompletedCleanly(j, run);
     }
 
@@ -133,7 +136,7 @@ public class FlowDurabilityTest {
         List<FlowNode> heads = exec.getCurrentHeads();
         Assert.assertEquals(1, heads.size());
         verifyNoTasksRunning(j);
-        Assert.assertEquals(0, exec.getCurrentExecutions(false).get().isEmpty());
+        Assert.assertEquals(0, exec.getCurrentExecutions(false).get().size());
 
         if (exec instanceof CpsFlowExecution) {
             CpsFlowExecution cpsFlow = (CpsFlowExecution)exec;
