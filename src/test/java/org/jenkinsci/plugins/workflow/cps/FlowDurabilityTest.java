@@ -17,6 +17,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
 import java.io.File;
@@ -27,9 +28,7 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Tests implementations designed to verify handling of the flow durability levels and persistence of pipeline state.
@@ -72,6 +71,20 @@ public class FlowDurabilityTest {
         Assert.assertEquals(1, exec.getCurrentHeads().size());
         Assert.assertEquals(FlowEndNode.class, exec.getCurrentHeads().get(0).getClass());
         assert allNodes.contains(exec.getCurrentHeads().get(0));
+    }
+
+    static void verifySafelyResumed(JenkinsRule rule, WorkflowRun run) throws Exception {
+        assert run.isBuilding();
+        FlowExecution exec = run.getExecution();
+
+        // Assert that we have the appropriate flow graph entries
+        List<FlowNode> heads = exec.getCurrentHeads();
+        Assert.assertEquals(1, heads.size());
+        Assert.assertEquals("semaphore", heads.get(0).getDisplayFunctionName());
+
+        SemaphoreStep.success("halt/1", Result.SUCCESS);
+        rule.waitForCompletion(run);
+        verifyCompletedCleanly(run);
     }
 
     /**
@@ -137,20 +150,8 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                Jenkins jenkins = story.j.jenkins;
-                WorkflowJob job = jenkins.getItemByFullName(jobName, WorkflowJob.class);
-                WorkflowRun run = job.getLastBuild();
-                assert run.isBuilding();
-                FlowExecution exec = run.getExecution();
-
-                // Assert that we have the appropriate flow graph entries
-                List<FlowNode> heads = exec.getCurrentHeads();
-                Assert.assertEquals(1, heads.size());
-                Assert.assertEquals("semaphore", heads.get(0).getDisplayFunctionName());
-
-                SemaphoreStep.success("halt/1", Result.SUCCESS);
-                story.j.waitForCompletion(run);
-                verifyCompletedCleanly(run);
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                verifySafelyResumed(story.j, run);
             }
         });
     }
@@ -171,8 +172,7 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                Jenkins jenkins = story.j.jenkins;
-                WorkflowJob job = jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class);
+                WorkflowJob job = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class);
                 WorkflowRun run = job.getLastBuild();
                 assert !run.isBuilding();
                 assert run.getResult() == Result.FAILURE || run.getResult() == Result.ABORTED;
@@ -189,7 +189,7 @@ public class FlowDurabilityTest {
     /** Verify that if the master dies messily and we're not durable against restarts, the build fails somewhat cleanly.
      */
     @Test
-    public void testNotDurableFailsOnDirtyRestart() throws Exception {
+    public void testNotDurableFailsOnDirtyShutdown() throws Exception {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
@@ -201,8 +201,7 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                Jenkins jenkins = story.j.jenkins;
-                WorkflowJob job = jenkins.getItemByFullName("nonDurable", WorkflowJob.class);
+                WorkflowJob job = story.j.jenkins.getItemByFullName("nonDurable", WorkflowJob.class);
                 WorkflowRun run = job.getLastBuild();
                 assert !run.isBuilding();
                 assert run.getResult() == Result.FAILURE || run.getResult() == Result.ABORTED;
@@ -219,7 +218,24 @@ public class FlowDurabilityTest {
     /** Sanity check that fully durable pipelines shutdown and restart cleanly */
     @Test
     public void testFullyDurableSurvivesCleanRestart() throws Exception {
+        final String jobName = "survivesEverything";
 
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                Jenkins jenkins = story.j.jenkins;
+                createAndRunBasicJob(story.j.jenkins, jobName, FlowDurabilityHint.FULLY_DURABLE);
+                simulateAbruptFailure(story);
+            }
+        });
+
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                verifySafelyResumed(story.j, run);
+            }
+        });
     }
 
     /**
@@ -227,7 +243,24 @@ public class FlowDurabilityTest {
      */
     @Test
     public void testFullyDurableSurvivesDirtyRestart() throws Exception {
+        final String jobName = "survivesEverything";
 
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                Jenkins jenkins = story.j.jenkins;
+                createAndRunBasicJob(story.j.jenkins, jobName, FlowDurabilityHint.FULLY_DURABLE);
+                simulateAbruptFailure(story);
+            }
+        });
+
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                verifySafelyResumed(story.j, run);
+            }
+        });
     }
 
     /** https://stackoverflow.com/questions/6214703/copy-entire-directory-contents-to-another-directory */
@@ -285,8 +318,6 @@ public class FlowDurabilityTest {
 
         // Copy efficiently
         Files.walkFileTree(homeDir.toPath(), Collections.EMPTY_SET, 99, new CopyFileVisitor(newHome.toPath()));
-
-
         rule.home = newHome;
     }
 }
