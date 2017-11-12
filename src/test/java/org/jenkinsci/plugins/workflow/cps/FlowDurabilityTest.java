@@ -17,6 +17,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
 import java.io.File;
@@ -131,7 +132,7 @@ public class FlowDurabilityTest {
     }
 
     /** https://stackoverflow.com/questions/6214703/copy-entire-directory-contents-to-another-directory */
-    public class CopyFileVisitor extends SimpleFileVisitor<Path> {
+    public static class CopyFileVisitor extends SimpleFileVisitor<Path> {
         private final Path targetPath;
         private Path sourcePath = null;
         public CopyFileVisitor(Path targetPath) {
@@ -165,6 +166,32 @@ public class FlowDurabilityTest {
         }
     }
 
+    /**
+     * Simulate an abrupt failure of Jenkins to see if it appropriately handles inconsistent states when
+     *  shutdown cleanup is not performed or data is not written fully to disk.
+     *
+     * Works by copying the JENKINS_HOME to a new directory and then setting the {@link RestartableJenkinsRule} to use
+     * that for the next restart. Thus we only have the data actually persisted to disk at that time to work with.
+     *
+     * Should be run as the last part of a {@link org.jvnet.hudson.test.RestartableJenkinsRule.Step}.
+     *
+     * @param rule Restartable JenkinsRule to use for simulating failure and restart
+     * @throws IOException
+     */
+    public static void simulateAbruptFailure(RestartableJenkinsRule rule) throws IOException {
+        File homeDir = rule.home;
+        TemporaryFolder temp = new TemporaryFolder();
+        temp.create();
+        File newHome = temp.newFolder();
+
+        // Copy efficiently
+        Files.walkFileTree(homeDir.toPath(), Collections.EMPTY_SET, 99, new CopyFileVisitor(newHome.toPath()));
+
+
+        rule.home = newHome;
+    }
+
+
 
     /** Verify that if the master dies messily and we're not durable against that, build fails cleanly.
      */
@@ -184,18 +211,7 @@ public class FlowDurabilityTest {
                 WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
                 SemaphoreStep.waitForStart("halt/1", run);
 
-                // Hack to simulate sudden of the Jenkins master, by copying everything written to the home directory to a new one
-                // And then setting the home to this new one before restart
-                File homeDir = story.home;
-                TemporaryFolder temp = new TemporaryFolder();
-                temp.create();
-                File newHome = temp.newFolder();
-
-                // Copy efficiently
-                Files.walkFileTree(homeDir.toPath(), Collections.EMPTY_SET, 99, new CopyFileVisitor(newHome.toPath()));
-
-//                Files.copy(homeDir.toPath(), newHome.toPath(), StandardCopyOption.COPY_ATTRIBUTES)
-                story.home = newHome;
+                simulateAbruptFailure(story);
             }
         });
 
