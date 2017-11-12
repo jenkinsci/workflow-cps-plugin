@@ -119,7 +119,7 @@ class CpsBodyExecution extends BodyExecution {
                 sn.addAction(a);
         }
 
-        CpsFlowExecution.autopersistNode(sn);  // Hacky but helpful
+        CpsFlowExecution.maybeAutoPersistNode(sn);  // Hacky but helpful
 
         StepContext sc = new CpsBodySubContext(context, sn);
         for (BodyExecutionCallback c : callbacks) {
@@ -339,7 +339,7 @@ class CpsBodyExecution extends BodyExecution {
             StepEndNode en = addBodyEndFlowNode();
             Throwable t = (Throwable)o;
             en.addAction(new ErrorAction(t));
-            CpsFlowExecution.autopersistNode(en);
+            CpsFlowExecution.maybeAutoPersistNode(en);
 
             setOutcome(new Outcome(null,t));
             StepContext sc = new CpsBodySubContext(context, en);
@@ -357,7 +357,7 @@ class CpsBodyExecution extends BodyExecution {
         @Override
         public Next receive(Object o) {
             StepEndNode en = addBodyEndFlowNode();
-            CpsFlowExecution.autopersistNode(en);
+            CpsFlowExecution.maybeAutoPersistNode(en);
             setOutcome(new Outcome(o,null));
             StepContext sc = new CpsBodySubContext(context, en);
             for (BodyExecutionCallback c : callbacks) {
@@ -376,12 +376,13 @@ class CpsBodyExecution extends BodyExecution {
      * @see #addBodyEndFlowNode()
      */
     private @Nonnull StepStartNode addBodyStartFlowNode(FlowHead head) {
+        CpsFlowExecution.maybeAutoPersistNode(head.get());
         StepStartNode start = new StepStartNode(head.getExecution(),
                 context.getStepDescriptor(), head.get());
         this.startNodeId = start.getId();
         start.addAction(new BodyInvocationAction());
         head.setNewHead(start);
-        CpsFlowExecution.autopersistNode(start);
+        CpsFlowExecution.maybeAutoPersistNode(start);
         return start;
     }
 

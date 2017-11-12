@@ -20,7 +20,6 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
 import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepNamePredicate;
-import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepTypePredicate;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -282,8 +281,11 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                createAndRunBasicJob(story.j.jenkins, jobName, FlowDurabilityHint.FULLY_DURABLE);
-                simulateAbruptFailure(story);
+                WorkflowRun run = createAndRunBasicJob(story.j.jenkins, jobName, FlowDurabilityHint.FULLY_DURABLE);
+                FlowExecution exec = run.getExecution();
+                if (exec instanceof CpsFlowExecution) {
+                    assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
+                }
             }
         });
 
@@ -307,7 +309,11 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                createAndRunBasicJob(story.j.jenkins, jobName, FlowDurabilityHint.FULLY_DURABLE);
+                WorkflowRun run = createAndRunBasicJob(story.j.jenkins, jobName, FlowDurabilityHint.FULLY_DURABLE);
+                FlowExecution exec = run.getExecution();
+                if (exec instanceof CpsFlowExecution) {
+                    assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
+                }
                 simulateAbruptFailure(story);
             }
         });

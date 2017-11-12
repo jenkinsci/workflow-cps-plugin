@@ -1032,7 +1032,7 @@ public class CpsFlowExecution extends FlowExecution {
     }
 
     /** Invoke me to toggle autopersist back on for steps that delay it. */
-    public static void autopersistNode(@Nonnull FlowNode node) {
+    public static void maybeAutoPersistNode(@Nonnull FlowNode node) {
         try {
             FlowExecution exec = node.getExecution();
             if (exec instanceof CpsFlowExecution) {

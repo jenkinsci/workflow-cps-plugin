@@ -34,18 +34,15 @@ import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.jenkinsci.plugins.workflow.actions.BodyInvocationAction;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.actions.FlowNodeAction;
-import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
 
-import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.graph.AtomNode;
+import org.jenkinsci.plugins.workflow.graph.BlockEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
-import org.jenkinsci.plugins.workflow.graph.StepNode;
 
 /**
  * Growing tip of the node graph.
@@ -134,9 +131,9 @@ final class FlowHead implements Serializable {
                 execution.notifyListeners(Collections.singletonList(v), false);
             }
 
-            // Persist the node
+            // Persist the node - block start and end nodes do their own persistence.
             if (v instanceof AtomNode) {
-                CpsFlowExecution.autopersistNode(v);
+                CpsFlowExecution.maybeAutoPersistNode(v);
             }
 
         } catch (IOException e) {
