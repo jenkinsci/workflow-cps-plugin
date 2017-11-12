@@ -75,6 +75,19 @@ public class FlowDurabilityTest {
         return run;
     }
 
+    static WorkflowRun createAndRunSleeperJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint) throws Exception {
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class, jobName);
+        CpsFlowDefinition def = new CpsFlowDefinition("node {\n " +
+                "sleep 30 \n" +
+                "} \n" +
+                "echo 'I like chese'\n", false);
+        def.setDurabilityHint(durabilityHint);
+        job.setDefinition(def);
+        WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
+        Thread.sleep(2000L);  // Hacky but we just need to ensure this can start up
+        return run;
+    }
+
     static void verifySucceededCleanly(Jenkins j, WorkflowRun run) throws Exception {
         Assert.assertEquals(Result.SUCCESS, run.getResult());
         FlowExecution exec = run.getExecution();
@@ -95,7 +108,11 @@ public class FlowDurabilityTest {
 
         // TODO fix the fact that echo step won't match descriptorImpl to descriptorImpl with NodeStepTypePredicate
         // Because instances don't match.
-        Assert.assertEquals(1, scan.filteredNodes(endNode, new NodeStepNamePredicate(StepDescriptor.byFunctionName("semaphore").getId())).size());
+        Predicate<FlowNode> sleepOrSemaphoreMatch = Predicates.or(
+                new NodeStepNamePredicate(StepDescriptor.byFunctionName("semaphore").getId()),
+                new NodeStepNamePredicate(StepDescriptor.byFunctionName("sleep").getId())
+        );
+        Assert.assertEquals(1, scan.filteredNodes(endNode, sleepOrSemaphoreMatch).size());
         Assert.assertEquals(1, scan.filteredNodes(endNode, new NodeStepNamePredicate(StepDescriptor.byFunctionName("echo").getId())).size());
 
         for (FlowNode node : (List<FlowNode>)(scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(StepNode.class))))) {
@@ -103,7 +120,8 @@ public class FlowDurabilityTest {
         }
     }
 
-    static void verifySafelyResumed(JenkinsRule rule, WorkflowRun run) throws Exception {
+    /** If it's a {@link SemaphoreStep} we test less rigorously because that blocks async GraphListeners. */
+    static void verifySafelyResumed(JenkinsRule rule, WorkflowRun run, boolean isSemaphore) throws Exception {
         assert run.isBuilding();
         FlowExecution exec = run.getExecution();
 
@@ -111,12 +129,16 @@ public class FlowDurabilityTest {
         List<FlowNode> heads = exec.getCurrentHeads();
         Assert.assertEquals(1, heads.size());
         FlowNode node = heads.get(0);
-        Assert.assertEquals("semaphore", node.getDisplayFunctionName());
-        Assert.assertNotNull(node.getPersistentAction(TimingAction.class));
-        Assert.assertNotNull(node.getPersistentAction(ArgumentsAction.class));
-        Assert.assertNotNull(node.getAction(LogAction.class));
+        String name = node.getDisplayFunctionName();
+        Assert.assertTrue("semaphore".equals(name) || "sleep".equals(name));
+        if (!isSemaphore) {
+            Assert.assertNotNull(node.getPersistentAction(TimingAction.class));
+            Assert.assertNotNull(node.getPersistentAction(ArgumentsAction.class));
+            Assert.assertNotNull(node.getAction(LogAction.class));
+        } else {
+            SemaphoreStep.success("halt/1", Result.SUCCESS);
+        }
 
-        SemaphoreStep.success("halt/1", Result.SUCCESS);
         rule.waitForCompletion(run);
         verifySucceededCleanly(rule.jenkins, run);
     }
@@ -224,7 +246,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                verifySafelyResumed(story.j, run);
+                verifySafelyResumed(story.j, run, true);
             }
         });
     }
@@ -237,7 +259,7 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                createAndRunBasicJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.SURVIVE_CLEAN_RESTART);
+                createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.SURVIVE_CLEAN_RESTART);
                 simulateAbruptFailure(story);
             }
         });
@@ -258,7 +280,7 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                createAndRunBasicJob(story.j.jenkins, "nonDurable", FlowDurabilityHint.NO_PROMISES);
+                createAndRunSleeperJob(story.j.jenkins, "nonDurable", FlowDurabilityHint.NO_PROMISES);
                 simulateAbruptFailure(story);
             }
         });
@@ -293,7 +315,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                verifySafelyResumed(story.j, run);
+                verifySafelyResumed(story.j, run, true);
             }
         });
     }
@@ -309,7 +331,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunBasicJob(story.j.jenkins, jobName, FlowDurabilityHint.FULLY_DURABLE);
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.FULLY_DURABLE);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
@@ -322,7 +344,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                verifySafelyResumed(story.j, run);
+                verifySafelyResumed(story.j, run, false);
             }
         });
     }
