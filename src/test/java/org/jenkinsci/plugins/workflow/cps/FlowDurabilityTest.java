@@ -1,14 +1,30 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
+import hudson.model.Action;
+import hudson.model.Computer;
+import hudson.model.Executor;
 import hudson.model.Result;
 import jenkins.model.Jenkins;
+import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
+import org.jenkinsci.plugins.workflow.actions.LogAction;
+import org.jenkinsci.plugins.workflow.actions.TimingAction;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepNode;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.graph.FlowEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
+import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepNamePredicate;
+import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepTypePredicate;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.support.actions.LogActionImpl;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -61,16 +77,29 @@ public class FlowDurabilityTest {
         return run;
     }
 
-    static void verifyCompletedCleanly(WorkflowRun run) throws Exception {
+    static void verifySucceededCleanly(Jenkins j, WorkflowRun run) throws Exception {
         Assert.assertEquals(Result.SUCCESS, run.getResult());
         FlowExecution exec = run.getExecution();
+        verifyCompletedCleanly(j, run);
 
-        // Confirm the flow graph is navigable and contains the heads with appropriate ending
+        // Confirm the flow graph is fully navigable and contains the heads with appropriate ending
         DepthFirstScanner scan = new DepthFirstScanner();
         List<FlowNode> allNodes = scan.allNodes(exec);
-        Assert.assertEquals(1, exec.getCurrentHeads().size());
-        Assert.assertEquals(FlowEndNode.class, exec.getCurrentHeads().get(0).getClass());
-        assert allNodes.contains(exec.getCurrentHeads().get(0));
+        FlowNode endNode = exec.getCurrentHeads().get(0);
+        Assert.assertEquals(FlowEndNode.class, endNode.getClass());
+        assert allNodes.contains(endNode);
+        Assert.assertEquals(8, allNodes.size());
+
+        // Graph structure assertions
+        Assert.assertEquals(2, scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(StepStartNode.class))).size());
+        Assert.assertEquals(2, scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(StepEndNode.class))).size());
+        Assert.assertEquals(1, scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(FlowStartNode.class))).size());
+        Assert.assertEquals(1, scan.filteredNodes(endNode, new NodeStepTypePredicate("echo")).size());
+        Assert.assertEquals(1, scan.filteredNodes(endNode, new NodeStepTypePredicate("semaphore")).size());
+
+        for (FlowNode node : (List<FlowNode>)(scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(StepNode.class))))) {
+            Assert.assertNotNull("Node: "+node.toString()+" does not have a TimingAction", node.getAction(TimingAction.class));
+        }
     }
 
     static void verifySafelyResumed(JenkinsRule rule, WorkflowRun run) throws Exception {
@@ -80,11 +109,53 @@ public class FlowDurabilityTest {
         // Assert that we have the appropriate flow graph entries
         List<FlowNode> heads = exec.getCurrentHeads();
         Assert.assertEquals(1, heads.size());
-        Assert.assertEquals("semaphore", heads.get(0).getDisplayFunctionName());
+        FlowNode node = heads.get(0);
+        Assert.assertEquals("semaphore", node.getDisplayFunctionName());
+        Assert.assertNotNull(node.getPersistentAction(TimingAction.class));
+        Assert.assertNotNull(node.getPersistentAction(ArgumentsAction.class));
+        Assert.assertNotNull(node.getAction(LogAction.class));
 
         SemaphoreStep.success("halt/1", Result.SUCCESS);
         rule.waitForCompletion(run);
-        verifyCompletedCleanly(run);
+        verifySucceededCleanly(rule.jenkins, run);
+    }
+
+    static void verifyFailedCleanly(Jenkins j, WorkflowRun run) throws Exception {
+        assert !run.isBuilding();
+        assert run.getResult() == Result.FAILURE || run.getResult() == Result.ABORTED;
+        verifyCompletedCleanly(j, run);
+    }
+
+    /** Verifies all the universal post-build cleanup was done, regardless of pass/fail state. */
+    static void verifyCompletedCleanly(Jenkins j, WorkflowRun run) throws Exception {
+        // Assert that we have the appropriate flow graph entries
+        FlowExecution exec = run.getExecution();
+        List<FlowNode> heads = exec.getCurrentHeads();
+        Assert.assertEquals(1, heads.size());
+        verifyNoTasksRunning(j);
+        Assert.assertEquals(0, exec.getCurrentExecutions(false).get().isEmpty());
+
+        if (exec instanceof CpsFlowExecution) {
+            CpsFlowExecution cpsFlow = (CpsFlowExecution)exec;
+            assert cpsFlow.getStorage() != null;
+            Assert.assertFalse("Should always be able to retrieve script", StringUtils.isEmpty(cpsFlow.getScript()));
+            Assert.assertNull("We should have no Groovy shell left or that's a memory leak", cpsFlow.getShell());
+            Assert.assertNull("We should have no Groovy shell left or that's a memory leak", cpsFlow.getTrustedShell());
+        }
+    }
+
+    /** Verifies we have nothing left that uses an executor for a given job. */
+    static void verifyNoTasksRunning(Jenkins j) {
+        assert j.getQueue().isEmpty();
+        Computer[] computerList = j.getComputers();
+        for (Computer c : computerList) {
+            List<Executor> executors = c.getExecutors();
+            for (Executor ex : executors) {
+                if (ex.isBusy()) {
+                    Assert.fail("Computer "+c+" has an Executor "+ex+" still running a task: "+ex.getCurrentWorkUnit());
+                }
+            }
+        }
     }
 
     /**
@@ -122,7 +193,7 @@ public class FlowDurabilityTest {
                 for (WorkflowJob j : jobs) {
                     try{
                         WorkflowRun run = j.getLastBuild();
-                        verifyCompletedCleanly(run);
+                        verifySucceededCleanly(story.j.jenkins, run);
                     } catch (AssertionError ae) {
                         System.out.println("Error with durability level: "+j.getDefinition().getDurabilityHint());
                         throw ae;
@@ -172,16 +243,8 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowJob job = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class);
-                WorkflowRun run = job.getLastBuild();
-                assert !run.isBuilding();
-                assert run.getResult() == Result.FAILURE || run.getResult() == Result.ABORTED;
-
-                FlowExecution exec = run.getExecution();
-
-                // Assert that we have the appropriate flow graph entries
-                List<FlowNode> heads = exec.getCurrentHeads();
-                Assert.assertEquals(1, heads.size());
+                WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
+                verifyFailedCleanly(story.j.jenkins, run);
             }
         });
     }
@@ -201,16 +264,8 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowJob job = story.j.jenkins.getItemByFullName("nonDurable", WorkflowJob.class);
-                WorkflowRun run = job.getLastBuild();
-                assert !run.isBuilding();
-                assert run.getResult() == Result.FAILURE || run.getResult() == Result.ABORTED;
-
-                FlowExecution exec = run.getExecution();
-
-                // Assert that we have the appropriate flow graph entries
-                List<FlowNode> heads = exec.getCurrentHeads();
-                Assert.assertEquals(1, heads.size());
+                WorkflowRun run = story.j.jenkins.getItemByFullName("nonDurable", WorkflowJob.class).getLastBuild();
+                verifyFailedCleanly(story.j.jenkins, run);
             }
         });
     }
