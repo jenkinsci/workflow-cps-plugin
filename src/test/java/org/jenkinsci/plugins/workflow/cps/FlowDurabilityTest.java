@@ -2,11 +2,11 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import hudson.model.Result;
 import jenkins.model.Jenkins;
-import org.apache.commons.io.FileUtils;
-import org.eclipse.jetty.server.Server;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.graph.FlowEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
@@ -17,22 +17,19 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
-import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.file.FileVisitResult;
-import java.nio.file.FileVisitor;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Tests implementations designed to verify handling of the flow durability levels and persistence of pipeline state.
@@ -52,20 +49,51 @@ public class FlowDurabilityTest {
     @Rule
     public RestartableJenkinsRule story = new RestartableJenkinsRule();
 
+    static WorkflowRun createAndRunBasicJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint) throws Exception {
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class, jobName);
+        CpsFlowDefinition def = new CpsFlowDefinition("node {\n " +
+                "semaphore 'halt' \n" +
+                "} \n" +
+                "echo 'I like chese'", false);
+        def.setDurabilityHint(durabilityHint);
+        job.setDefinition(def);
+        WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
+        SemaphoreStep.waitForStart("halt/1", run);
+        return run;
+    }
+
+    static void verifyCompletedCleanly(WorkflowRun run) throws Exception {
+        Assert.assertEquals(Result.SUCCESS, run.getResult());
+        FlowExecution exec = run.getExecution();
+
+        // Confirm the flow graph is navigable and contains the heads with appropriate ending
+        DepthFirstScanner scan = new DepthFirstScanner();
+        List<FlowNode> allNodes = scan.allNodes(exec);
+        Assert.assertEquals(1, exec.getCurrentHeads().size());
+        Assert.assertEquals(FlowEndNode.class, exec.getCurrentHeads().get(0).getClass());
+        assert allNodes.contains(exec.getCurrentHeads().get(0));
+    }
+
     /**
-     * Confirm that for ALL implementations, a run can complete and be loaded after completion.
+     * Confirm that for ALL implementations, a run can complete and be loaded if you restart after completion.
      */
     @Test
-    public void testCompletedBuilds() throws Exception {
+    public void testCompleteAndLoadBuilds() throws Exception {
         final FlowDurabilityHint[] durabilityHints = FlowDurabilityHint.values();
         final WorkflowJob[] jobs = new WorkflowJob[durabilityHints.length];
 
+        // Create and run jobs for each of the durability hints
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
+                int i = 1;
                 for (FlowDurabilityHint hint : durabilityHints) {
                     try{
-                        // Create and run job
+                        WorkflowRun run = createAndRunBasicJob(story.j.jenkins, "basicJob-"+hint.toString(), hint);
+                        jobs[i-1] = run.getParent();
+                        SemaphoreStep.success("halt/"+i++,Result.SUCCESS);
+                        story.j.waitForCompletion(run);
+                        story.j.assertBuildStatus(Result.SUCCESS, run);
                     } catch (AssertionError ae) {
                         System.out.println("Error with durability level: "+hint);
                         throw ae;
@@ -80,7 +108,8 @@ public class FlowDurabilityTest {
             public void evaluate() throws Throwable {
                 for (WorkflowJob j : jobs) {
                     try{
-                        // Verify job completed and we can load the execution and flownodes + logs.
+                        WorkflowRun run = j.getLastBuild();
+                        verifyCompletedCleanly(run);
                     } catch (AssertionError ae) {
                         System.out.println("Error with durability level: "+j.getDefinition().getDurabilityHint());
                         throw ae;
@@ -95,19 +124,13 @@ public class FlowDurabilityTest {
      */
     @Test
     public void testDurableAgainstCleanRestartSurvivesIt() throws Exception {
+        final String jobName = "durableAgainstClean";
+
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowJob job = jenkins.createProject(WorkflowJob.class, "durableAgainstClean");
-                CpsFlowDefinition def = new CpsFlowDefinition("node {\n " +
-                        "semaphore 'halt' \n" +
-                        "} \n" +
-                        "echo 'I like chese'", false);
-                def.setDurabilityHint(FlowDurabilityHint.SURVIVE_CLEAN_RESTART);
-                job.setDefinition(def);
-                WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
-                SemaphoreStep.waitForStart("halt/1", run);
+                createAndRunBasicJob(story.j.jenkins, jobName, FlowDurabilityHint.SURVIVE_CLEAN_RESTART);
             }
         });
 
@@ -115,7 +138,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowJob job = jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class);
+                WorkflowJob job = jenkins.getItemByFullName(jobName, WorkflowJob.class);
                 WorkflowRun run = job.getLastBuild();
                 assert run.isBuilding();
                 FlowExecution exec = run.getExecution();
@@ -127,8 +150,84 @@ public class FlowDurabilityTest {
 
                 SemaphoreStep.success("halt/1", Result.SUCCESS);
                 story.j.waitForCompletion(run);
+                verifyCompletedCleanly(run);
             }
         });
+    }
+
+
+    /** Verify that if the master dies messily and we're not durable against that, build fails cleanly.
+     */
+    @Test
+    public void testDurableAgainstCleanRestartFailsWithDirtyShutdown() throws Exception {
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                createAndRunBasicJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.SURVIVE_CLEAN_RESTART);
+                simulateAbruptFailure(story);
+            }
+        });
+
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                Jenkins jenkins = story.j.jenkins;
+                WorkflowJob job = jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class);
+                WorkflowRun run = job.getLastBuild();
+                assert !run.isBuilding();
+                assert run.getResult() == Result.FAILURE || run.getResult() == Result.ABORTED;
+
+                FlowExecution exec = run.getExecution();
+
+                // Assert that we have the appropriate flow graph entries
+                List<FlowNode> heads = exec.getCurrentHeads();
+                Assert.assertEquals(1, heads.size());
+            }
+        });
+    }
+
+    /** Verify that if the master dies messily and we're not durable against restarts, the build fails somewhat cleanly.
+     */
+    @Test
+    public void testNotDurableFailsOnDirtyRestart() throws Exception {
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                createAndRunBasicJob(story.j.jenkins, "nonDurable", FlowDurabilityHint.NO_PROMISES);
+                simulateAbruptFailure(story);
+            }
+        });
+
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                Jenkins jenkins = story.j.jenkins;
+                WorkflowJob job = jenkins.getItemByFullName("nonDurable", WorkflowJob.class);
+                WorkflowRun run = job.getLastBuild();
+                assert !run.isBuilding();
+                assert run.getResult() == Result.FAILURE || run.getResult() == Result.ABORTED;
+
+                FlowExecution exec = run.getExecution();
+
+                // Assert that we have the appropriate flow graph entries
+                List<FlowNode> heads = exec.getCurrentHeads();
+                Assert.assertEquals(1, heads.size());
+            }
+        });
+    }
+
+    /** Sanity check that fully durable pipelines shutdown and restart cleanly */
+    @Test
+    public void testFullyDurableSurvivesCleanRestart() throws Exception {
+
+    }
+
+    /**
+     * Sanity check that fully durable pipelines can survive hard kills.
+     */
+    @Test
+    public void testFullyDurableSurvivesDirtyRestart() throws Exception {
+
     }
 
     /** https://stackoverflow.com/questions/6214703/copy-entire-directory-contents-to-another-directory */
@@ -189,78 +288,5 @@ public class FlowDurabilityTest {
 
 
         rule.home = newHome;
-    }
-
-
-
-    /** Verify that if the master dies messily and we're not durable against that, build fails cleanly.
-     */
-    @Test
-    public void testDurableAgainstCleanRestartFailsWithDirtyShutdown() throws Exception {
-        story.addStep(new Statement() {
-            @Override
-            public void evaluate() throws Throwable {
-                Jenkins jenkins = story.j.jenkins;
-                WorkflowJob job = jenkins.createProject(WorkflowJob.class, "durableAgainstClean");
-                CpsFlowDefinition def = new CpsFlowDefinition("node {\n " +
-                        "semaphore 'halt' \n" +
-                        "} \n" +
-                        "echo 'I like chese'", false);
-                def.setDurabilityHint(FlowDurabilityHint.SURVIVE_CLEAN_RESTART);
-                job.setDefinition(def);
-                WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
-                SemaphoreStep.waitForStart("halt/1", run);
-
-                simulateAbruptFailure(story);
-            }
-        });
-
-        story.addStep(new Statement() {
-            @Override
-            public void evaluate() throws Throwable {
-                Jenkins jenkins = story.j.jenkins;
-                WorkflowJob job = jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class);
-                WorkflowRun run = job.getLastBuild();
-                assert run.isBuilding();
-                FlowExecution exec = run.getExecution();
-
-                // Assert that we have the appropriate flow graph entries
-                List<FlowNode> heads = exec.getCurrentHeads();
-                Assert.assertEquals(1, heads.size());
-                Assert.assertEquals("semaphore", heads.get(0).getDisplayFunctionName());
-
-                SemaphoreStep.success("halt/1", Result.SUCCESS);
-                story.j.waitForCompletion(run);
-            }
-        });
-    }
-
-    /** Verify that if we're not durable against restarts, the build fails cleanly on clean restart.
-     */
-    @Test
-    public void testNotDurableFailsOnCleanRestart() throws Exception {
-        // TODO Should we support pause/resume with builds not durable against restarts?  Probably not.
-
-    }
-
-    /** Verify that if the master dies messily and we're not durable against restarts, the build fails somewhat cleanly.
-     */
-    @Test
-    public void testNotDurableFailsOnDurableRestart() throws Exception {
-
-    }
-
-    /** Sanity check that fully durable pipelines shutdown and restart cleanly */
-    @Test
-    public void testFullyDurableSurvivesCleanRestart() throws Exception {
-
-    }
-
-    /**
-     * Sanity check that fully durable pipelines can survive hard kills.
-     */
-    @Test
-    public void testFullyDurableSurvivesDirtyRestart() throws Exception {
-
     }
 }
