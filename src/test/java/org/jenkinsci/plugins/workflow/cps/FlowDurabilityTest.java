@@ -23,6 +23,7 @@ import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepNamePredicate;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -43,6 +44,8 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Tests implementations designed to verify handling of the flow durability levels and persistence of pipeline state.
@@ -62,7 +65,13 @@ public class FlowDurabilityTest {
     @Rule
     public RestartableJenkinsRule story = new RestartableJenkinsRule();
 
+
     static WorkflowRun createAndRunBasicJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint) throws Exception {
+        return createAndRunBasicJob(jenkins, jobName, durabilityHint, 1);
+    }
+
+    /** Create and run a job with a semaphore and basic steps -- takes a semaphoreIndex in case you have multiple semaphores of the same name in one test.*/
+    static WorkflowRun createAndRunBasicJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint, int semaphoreIndex) throws Exception {
         WorkflowJob job = jenkins.createProject(WorkflowJob.class, jobName);
         CpsFlowDefinition def = new CpsFlowDefinition("node {\n " +
                 "semaphore 'halt' \n" +
@@ -71,7 +80,8 @@ public class FlowDurabilityTest {
         def.setDurabilityHint(durabilityHint);
         job.setDefinition(def);
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
-        SemaphoreStep.waitForStart("halt/1", run);
+        SemaphoreStep.waitForStart("halt/"+semaphoreIndex, run);
+        Assert.assertEquals(durabilityHint, run.getExecution().getDurabilityHint());
         return run;
     }
 
@@ -85,6 +95,7 @@ public class FlowDurabilityTest {
         job.setDefinition(def);
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
         Thread.sleep(2000L);  // Hacky but we just need to ensure this can start up
+        Assert.assertEquals(durabilityHint, run.getExecution().getDurabilityHint());
         return run;
     }
 
@@ -143,7 +154,31 @@ public class FlowDurabilityTest {
         verifySucceededCleanly(rule.jenkins, run);
     }
 
+    /** Waits until the build to resume or die. */
+    static void waitForBuildToResumeOrFail(CpsFlowExecution execution) throws TimeoutException {
+        long nanoStartTime = System.nanoTime();
+        while (true) {
+            if (execution.isComplete() || (execution.programPromise != null && execution.programPromise.isDone())) {
+                return;
+            }
+            long currentTime = System.nanoTime();
+            if (TimeUnit.SECONDS.convert(currentTime-nanoStartTime, TimeUnit.NANOSECONDS) > 5) {
+                throw new TimeoutException();
+            }
+        }
+    }
+
     static void verifyFailedCleanly(Jenkins j, WorkflowRun run) throws Exception {
+
+        if (run.isBuilding()) {  // Give the run a little bit of time to see if it can resume or not
+            FlowExecution exec = run.getExecution();
+            if (exec instanceof CpsFlowExecution) {
+                waitForBuildToResumeOrFail((CpsFlowExecution)exec);
+            } else {
+                Thread.sleep(2000L);
+            }
+        }
+
         assert !run.isBuilding();
         assert run.getResult() == Result.FAILURE || run.getResult() == Result.ABORTED;
         // TODO verify all blocks cleanly closed out, so Block start and end nodes have same counts and FlowEndNode is last node
@@ -197,7 +232,7 @@ public class FlowDurabilityTest {
                 int i = 1;
                 for (FlowDurabilityHint hint : durabilityHints) {
                     try{
-                        WorkflowRun run = createAndRunBasicJob(story.j.jenkins, "basicJob-"+hint.toString(), hint);
+                        WorkflowRun run = createAndRunBasicJob(story.j.jenkins, "basicJob-"+hint.toString(), hint, i);
                         jobs[i-1] = run.getParent();
                         SemaphoreStep.success("halt/"+i++,Result.SUCCESS);
                         story.j.waitForCompletion(run);
@@ -214,10 +249,12 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                for (WorkflowJob j : jobs) {
+                for (int i=0; i<durabilityHints.length; i++) {
+                    WorkflowJob j  = jobs[i];
                     try{
                         WorkflowRun run = j.getLastBuild();
                         verifySucceededCleanly(story.j.jenkins, run);
+                        Assert.assertEquals(durabilityHints[i], run.getExecution().getDurabilityHint());
                     } catch (AssertionError ae) {
                         System.out.println("Error with durability level: "+j.getDefinition().getDurabilityHint());
                         throw ae;
@@ -260,6 +297,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.SURVIVE_CLEAN_RESTART);
+                // DURABILITY HINT WAS RESET TO FULLY DURABLE SOMEHOW
                 simulateAbruptFailure(story);
             }
         });
