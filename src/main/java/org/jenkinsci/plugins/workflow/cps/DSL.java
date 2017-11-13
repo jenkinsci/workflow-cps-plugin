@@ -275,6 +275,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     /**
      * When {@link #invokeMethod(String, Object)} is calling a generic {@link Descriptor}
      */
+    @SuppressWarnings({"unchecked", "rawtypes"})
     protected Object invokeDescribable(String symbol, Object _args) {
         List<StepDescriptor> metaSteps = StepDescriptor.metaStepsOf(symbol);
         StepDescriptor metaStep = metaSteps.size()==1 ? metaSteps.get(0) : null;
@@ -305,7 +306,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             return ud;
         } else {
             Descriptor d = SymbolLookup.get().findDescriptor((Class)(metaStep.getMetaStepArgumentType()), symbol);
-
             try {
                 // execute this Describable through a meta-step
 
