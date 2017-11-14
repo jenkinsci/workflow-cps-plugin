@@ -171,6 +171,12 @@ public class ReplayActionTest {
                 assertTrue(canReplay(b2, "dev1"));
                 assertTrue(canReplay(b2, "dev2"));
                 assertFalse(canReplay(b2, "dev3"));
+                // Disable the job and verify that no one can replay it.
+                p.makeDisabled(true);
+                assertFalse(canReplay(b2, "admin"));
+                assertFalse(canReplay(b2, "dev1"));
+                assertFalse(canReplay(b2, "dev2"));
+                assertFalse(canReplay(b2, "dev3"));
             }
         });
     }
