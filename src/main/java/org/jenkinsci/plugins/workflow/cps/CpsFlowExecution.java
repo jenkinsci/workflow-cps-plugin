@@ -477,14 +477,10 @@ public class CpsFlowExecution extends FlowExecution {
     private TimingFlowNodeStorage createStorage() throws IOException {
         FlowNodeStorage wrappedStorage;
 
-        switch (getDurabilityHint()) {
-            case NO_PROMISES:
-            case SURVIVE_CLEAN_RESTART:
-                wrappedStorage = new LumpFlowNodeStorage(this, getStorageDir());
-                break;
-            default:
-                wrappedStorage = new SimpleXStreamFlowNodeStorage(this, getStorageDir());
-        }
+        FlowDurabilityHint hint = getDurabilityHint();
+        wrappedStorage = (hint == FlowDurabilityHint.NO_PROMISES || hint == FlowDurabilityHint.SURVIVE_CLEAN_RESTART)
+                ? new LumpFlowNodeStorage(this, getStorageDir())
+                :  new SimpleXStreamFlowNodeStorage(this, getStorageDir());
 
         return new TimingFlowNodeStorage(wrappedStorage);
     }
