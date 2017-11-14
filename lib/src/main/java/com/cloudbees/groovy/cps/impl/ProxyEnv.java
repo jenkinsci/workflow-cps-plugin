@@ -1,6 +1,7 @@
 package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.Continuation;
+import com.cloudbees.groovy.cps.DepthTrackingEnv;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 
@@ -13,11 +14,14 @@ import java.util.List;
  *
  * @author Kohsuke Kawaguchi
  */
-public class ProxyEnv implements Env {
+public class ProxyEnv implements DepthTrackingEnv {
     protected final Env parent;
+
+    int depth = 0;
 
     public ProxyEnv(Env parent) {
         this.parent = parent;
+        depth = (parent instanceof DepthTrackingEnv) ? ((DepthTrackingEnv) parent).getDepth(): 0;
     }
 
     public void declareVariable(Class type, String name) {
@@ -65,4 +69,9 @@ public class ProxyEnv implements Env {
     }
 
     private static final long serialVersionUID = 1L;
+
+    @Override
+    public int getDepth() {
+        return depth;
+    }
 }

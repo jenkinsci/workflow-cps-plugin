@@ -12,6 +12,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -239,8 +240,9 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                 new StaticMethodCallExpression(m.getDeclaringClass(), cpsName, new TupleExpression()));
 //                new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body)));
 
-        List<Expression> paramExpressions = new ArrayList<>();
-        for (Parameter p : m.getParameters()) {
+        Parameter[] pms = m.getParameters();
+        List<Expression> paramExpressions = new ArrayList<>(pms.length);
+        for (Parameter p : pms) {
             paramExpressions.add(new VariableExpression(p));
         }
         ArrayExpression paramArray = new ArrayExpression(ClassHelper.OBJECT_TYPE, paramExpressions);
@@ -871,21 +873,28 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
             public void run() {
                 loc(exp);
 
-                ListExpression types = new ListExpression();
-                ListExpression params = new ListExpression();
+                ListExpression types;
+                ListExpression params;
 
                 // the interpretation of the 'parameters' is messed up. According to ClosureWriter,
                 // when the user explicitly defines no parameter "{ -> foo() }" then this is null,
                 // when the user doesn't define any parameter explicitly { foo() }, then this is empty,
                 if (exp.getParameters() == null) {
+                    types = new ListExpression(Collections.EMPTY_LIST);
+                    params = new ListExpression(Collections.EMPTY_LIST);
                 } else if (exp.getParameters().length == 0) {
-                    types.addExpression(new ClassExpression(OBJECT_TYPE));
-                    params.addExpression(new ConstantExpression("it"));
+                    types = new ListExpression(Collections.<Expression>singletonList(new ClassExpression(OBJECT_TYPE)));
+                    params = new ListExpression(Collections.<Expression>singletonList(new ConstantExpression("it")));
                 } else {
-                    for (Parameter p : exp.getParameters()) {
-                        types.addExpression(new ClassExpression(p.getType()));
-                        params.addExpression(new ConstantExpression(p.getName()));
+                    Parameter[] paramArray = exp.getParameters();
+                    List<Expression> typesList = new ArrayList<Expression>(paramArray.length);
+                    List<Expression> paramsList = new ArrayList<Expression>(paramArray.length);
+                    for (Parameter p : paramArray) {
+                        typesList.add(new ClassExpression(p.getType()));
+                        paramsList.add(new ConstantExpression(p.getName()));
                     }
+                    types = new ListExpression(typesList);
+                    params = new ListExpression(paramsList);
                 }
                 parent.call(types);
                 parent.call(params);

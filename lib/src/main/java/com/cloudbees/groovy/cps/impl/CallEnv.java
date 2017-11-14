@@ -1,6 +1,7 @@
 package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.Continuation;
+import com.cloudbees.groovy.cps.DepthTrackingEnv;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
@@ -17,7 +18,7 @@ import java.util.Map;
  *
  * @author Kohsuke Kawaguchi
  */
-/*package*/ abstract class CallEnv implements Env {
+/*package*/ abstract class CallEnv implements DepthTrackingEnv {
     private final Continuation returnAddress;
 
     /** To conserve memory, lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} */
@@ -38,6 +39,8 @@ import java.util.Map;
 
     private Invoker invoker;
 
+    int depth;
+
     /**
      * @param caller
      *      The environment of the call site. Can be null but only if the caller is outside CPS execution.
@@ -57,6 +60,7 @@ import java.util.Map;
         } else {
             types = Maps.newHashMapWithExpectedSize(localsCount);
         }
+        depth = (caller instanceof DepthTrackingEnv) ? ((DepthTrackingEnv) caller).getDepth() + 1 : 1;
     }
 
     /** Because might deserialize old version of class with null value for field */
@@ -125,4 +129,8 @@ import java.util.Map;
     }
 
     private static final long serialVersionUID = 1L;
+
+    public int getDepth() {
+        return depth;
+    }
 }
