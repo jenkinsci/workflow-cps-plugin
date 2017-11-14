@@ -234,7 +234,7 @@ public final class CpsThreadGroup implements Serializable {
                     if (paused.get() || j == null || j.isQuietingDown()) {
                         // by doing the pause check inside, we make sure that scheduleRun() returns a
                         // future that waits for any previously scheduled tasks to be completed.
-                        saveProgramIfPossible();
+                        saveProgramIfPossible(true);
                         f.set(null);
                         return null;
                     }
@@ -359,7 +359,8 @@ public final class CpsThreadGroup implements Serializable {
         }
 
         if (changed && !stillRunnable) {
-            saveProgramIfPossible();
+            execution.persistedClean = null;
+            saveProgramIfPossible(false);
         }
         if (ending) {
             execution.cleanUpHeap();
@@ -415,10 +416,12 @@ public final class CpsThreadGroup implements Serializable {
 
     /**
      * Like {@link #saveProgram()} but will not fail.
+     * @param enteringQuietState True if we're moving to quiet state - pausing or quieting down and need to write the program.
      */
     @CpsVmThreadOnly
-    void saveProgramIfPossible() {
-        if (this.getExecution() != null && this.getExecution().getDurabilityHint().isAllowPersistPartially()) {
+    void saveProgramIfPossible(boolean enteringQuietState) {
+        if (this.getExecution() != null && (this.getExecution().getDurabilityHint().isAllowPersistPartially()
+                || enteringQuietState)) {
             try {
                 saveProgram();
             } catch (IOException x) {

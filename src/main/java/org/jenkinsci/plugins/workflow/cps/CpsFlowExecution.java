@@ -262,6 +262,9 @@ public class CpsFlowExecution extends FlowExecution {
     /** User ID associated with this build, or null if none specific. */
     private final @CheckForNull String user;
 
+    /** If true, we did a clean write of FlowNode storage before shutdown. */
+    Boolean persistedClean = null;
+
     /**
      * Start nodes that have been created, whose {@link BlockEndNode} is not yet created.
      */
@@ -367,10 +370,10 @@ public class CpsFlowExecution extends FlowExecution {
         this.owner = owner;
         this.script = script;
         this.sandbox = sandbox;
+        this.durabilityHint = durabilityHint;
         this.storage = createStorage();
         Authentication auth = Jenkins.getAuthentication();
         this.user = auth.equals(ACL.SYSTEM) ? null : auth.getName();
-        this.durabilityHint = durabilityHint;
     }
 
     public CpsFlowExecution(String script, boolean sandbox, FlowExecutionOwner owner) throws IOException {
@@ -597,6 +600,15 @@ public class CpsFlowExecution extends FlowExecution {
         }
     }
 
+    /** If true, we are allowed to resume the build because we shut down cleanly. */
+    public boolean canResume() {
+        if (persistedClean != null) {
+            return persistedClean.booleanValue();
+        }
+        FlowDurabilityHint hint = getDurabilityHint();
+        return hint.isAllowPersistPartially() && hint.isSynchronousWrite();
+    }
+
     @Override
     public void onLoad(FlowExecutionOwner owner) throws IOException {
         this.owner = owner;
@@ -604,7 +616,13 @@ public class CpsFlowExecution extends FlowExecution {
             initializeStorage();
             try {
                 if (!isComplete()) {
-                    loadProgramAsync(getProgramDataFile());
+                    if (canResume()) {
+                        loadProgramAsync(getProgramDataFile());
+                    } else {
+                        // We cannot resume so we need to cleanly fail
+                        // TODO find a way to ensure we close all the Blocks in the FlowGraph cleanly
+                        croak(new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down."));
+                    }
                 }
             } catch (IOException e) {
                 SettableFuture<CpsThreadGroup> p = SettableFuture.create();
@@ -1378,6 +1396,12 @@ public class CpsFlowExecution extends FlowExecution {
             writeChild(w, context, "result", e.result, Result.class);
             writeChild(w, context, "script", e.script, String.class);
             writeChild(w, context, "loadedScripts", e.loadedScripts, Map.class);
+            if (e.persistedClean != null) {
+                writeChild(w, context, "persistedClean", e.persistedClean, Boolean.class);
+            }
+            if (e.durabilityHint != null) {
+                writeChild(w, context, "durabilityHint", e.durabilityHint, FlowDurabilityHint.class);
+            }
             synchronized (e) {
                 if (e.timings != null) {
                     writeChild(w, context, "timings", e.timings, Map.class);
@@ -1412,67 +1436,74 @@ public class CpsFlowExecution extends FlowExecution {
 
         public Object unmarshal(HierarchicalStreamReader reader, final UnmarshallingContext context) {
                 CpsFlowExecution result;
-                if (context.currentObject()!=null) {
-                    result = (CpsFlowExecution) context.currentObject();
-                } else {
-                    result = (CpsFlowExecution) ref.newInstance(CpsFlowExecution.class);
-                }
 
-                result.startNodesSerial = new ArrayList<String>();
-                result.headsSerial = new TreeMap<Integer,String>();
-
-                while (reader.hasMoreChildren()) {
-                    reader.moveDown();
-
-                    String nodeName = reader.getNodeName();
-                    if (nodeName.equals("result")) {
-                        Result r = readChild(reader, context, Result.class, result);
-                        setField(result, "result", r);
-                    } else
-                    if (nodeName.equals("script")) {
-                        String script = readChild(reader, context, String.class, result);
-                        setField(result, "script", script);
-                    } else
-                    if (nodeName.equals("loadedScripts")) {
-                        Map loadedScripts = readChild(reader, context, Map.class, result);
-                        setField(result, "loadedScripts", loadedScripts);
-                    } else
-                    if (nodeName.equals("timings")) {
-                        Map timings = readChild(reader, context, Map.class, result);
-                        setField(result, "timings", timings);
-                    } else
-                    if (nodeName.equals("sandbox")) {
-                        boolean sandbox = readChild(reader, context, Boolean.class, result);
-                        setField(result, "sandbox", sandbox);
-                    } else
-                    if (nodeName.equals("owner")) {
-                        readChild(reader, context, Object.class, result); // for compatibility; discarded
-                    } else
-                    if (nodeName.equals("user")) {
-                        String user = readChild(reader, context, String.class, result);
-                        setField(result, "user", user);
-                    } else
-                    if (nodeName.equals("head")) {
-                        String[] head = readChild(reader, context, String.class, result).split(":");
-                        result.headsSerial.put(Integer.parseInt(head[0]), head[1]);
-                    } else
-                    if (nodeName.equals("iota")) {
-                        Integer iota = readChild(reader, context, Integer.class, result);
-                        setField(result, "iota", new AtomicInteger(iota));
-                    } else
-                    if (nodeName.equals("start")) {
-                        String id = readChild(reader, context, String.class, result);
-                        result.startNodesSerial.add(id);
+                try {
+                    if (context.currentObject() != null) {
+                        result = (CpsFlowExecution) context.currentObject();
+                    } else {
+                        result = (CpsFlowExecution) ref.newInstance(CpsFlowExecution.class);
                     }
 
-                    reader.moveUp();
-                }
+                    result.startNodesSerial = new ArrayList<String>();
+                    result.headsSerial = new TreeMap<Integer, String>();
 
-                return result;
+                    while (reader.hasMoreChildren()) {
+                        reader.moveDown();
+
+                        String nodeName = reader.getNodeName();
+                        if (nodeName.equals("result")) {
+                            Result r = readChild(reader, context, Result.class, result);
+                            setField(result, "result", r);
+                        } else if (nodeName.equals("script")) {
+                            String script = readChild(reader, context, String.class, result);
+                            setField(result, "script", script);
+                        } else if (nodeName.equals("loadedScripts")) {
+                            Map loadedScripts = readChild(reader, context, Map.class, result);
+                            setField(result, "loadedScripts", loadedScripts);
+                        } else if (nodeName.equals("timings")) {
+                            Map timings = readChild(reader, context, Map.class, result);
+                            setField(result, "timings", timings);
+                        } else if (nodeName.equals("sandbox")) {
+                            boolean sandbox = readChild(reader, context, Boolean.class, result);
+                            setField(result, "sandbox", sandbox);
+                        } else if (nodeName.equals("owner")) {
+                            readChild(reader, context, Object.class, result); // for compatibility; discarded
+                        } else if (nodeName.equals("user")) {
+                            String user = readChild(reader, context, String.class, result);
+                            setField(result, "user", user);
+                        } else if (nodeName.equals("head")) {
+                            String[] head = readChild(reader, context, String.class, result).split(":");
+                            result.headsSerial.put(Integer.parseInt(head[0]), head[1]);
+                        } else if (nodeName.equals("iota")) {
+                            Integer iota = readChild(reader, context, Integer.class, result);
+                            setField(result, "iota", new AtomicInteger(iota));
+                        } else if (nodeName.equals("start")) {
+                            String id = readChild(reader, context, String.class, result);
+                            result.startNodesSerial.add(id);
+                        } else if (nodeName.equals("durabilityHint")) {
+                            FlowDurabilityHint hint = readChild(reader, context, FlowDurabilityHint.class, result);
+                            setFieldParent(result, "durabilityHint", hint);
+                        } else if (nodeName.equals("persistedClean")) {
+                            Boolean hint = readChild(reader, context, Boolean.class, result);
+                            setField(result, "persistedClean", hint);
+                        }
+
+                        reader.moveUp();
+                    }
+
+                    return result;
+                } catch (Exception ex) {
+                    LOGGER.log(Level.SEVERE, "Failed to even load the FlowExecution", ex);
+                    throw new RuntimeException(ex);
+                }
         }
 
         private void setField(CpsFlowExecution result, String fieldName, Object value) {
             ref.writeField(result, fieldName, value, CpsFlowExecution.class);
+        }
+
+        private void setFieldParent(CpsFlowExecution result, String fieldName, Object value) {
+            ref.writeField(result, fieldName, value, FlowExecution.class);
         }
 
         /**
@@ -1501,6 +1532,7 @@ public class CpsFlowExecution extends FlowExecution {
         TimingFlowNodeStorage(FlowNodeStorage delegate) {
             this.delegate = delegate;
         }
+
         @Override
         public FlowNode getNode(String string) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
@@ -1599,15 +1631,45 @@ public class CpsFlowExecution extends FlowExecution {
 
     }
 
+    /** Ensures that even if we're limiting persistence of data for performance, we still write out data for shutdown. */
     @Override
     protected void notifyShutdown() {
+        if (isComplete() || (this.getDurabilityHint().isAllowPersistPartially() && this.getDurabilityHint().isSynchronousWrite())) {
+            // Nothing to persist OR we've already persisted it along the way.
+            return;
+        }
         FlowNodeStorage storage = getStorage();
         if (storage != null) {
             try {
                 storage.flush();
-            } catch (IOException ioe) {
-                LOGGER.log(Level.WARNING, "Error persisting storage before shutdown", ioe);
-            }
+
+                // Try to ensure we've saved the appropriate things
+                final SettableFuture<Void> myOutcome = SettableFuture.create();
+                // TODO verify below works OK
+                /*if (programPromise != null && programPromise.isDone()) {
+                    runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+                        @Override
+                        public void onSuccess(CpsThreadGroup result) {
+                            result.saveProgramIfPossible(true);
+                        }
+
+                        @Override
+                        public void onFailure(Throwable t) {
+                            myOutcome.setException(t);
+                        }
+                    });
+
+                    myOutcome.get(30, TimeUnit.SECONDS);
+                }*/
+                persistedClean = Boolean.TRUE;
+            } catch (IOException ex) {
+//            } catch (TimeoutException | IOException | InterruptedException ex) {
+                persistedClean = Boolean.FALSE;
+                LOGGER.log(Level.WARNING, "Error persisting storage before shutdown", ex);
+            }/* catch (ExecutionException ex) {
+                // Probably safe-ish to ignore
+                LOGGER.log(Level.FINE, "Error loading program, that should be handled elsewhere.", ex);
+            }*/
         }
     }
 

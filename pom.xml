@@ -65,7 +65,7 @@
         <jenkins.version>2.7.3</jenkins.version>
         <no-test-jar>false</no-test-jar>
         <git-plugin.version>3.1.0</git-plugin.version>
-        <workflow-support-plugin.version>2.16-deferactionwritemk3-SNAPSHOT</workflow-support-plugin.version>
+        <workflow-support-plugin.version>2.16-deferactionwritemk5-SNAPSHOT</workflow-support-plugin.version>
         <scm-api-plugin.version>2.0.8</scm-api-plugin.version>
         <groovy-cps.version>1.19</groovy-cps.version>
     </properties>
