@@ -1642,7 +1642,7 @@ public class CpsFlowExecution extends FlowExecution {
                 storage.flush();
 
                 // Try to ensure we've saved the appropriate things
-                final SettableFuture<Void> myOutcome = SettableFuture.create();
+                /*final SettableFuture<Void> myOutcome = SettableFuture.create();
                 if (programPromise != null && programPromise.isDone()) {
                     runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
                         @Override
@@ -1656,17 +1656,17 @@ public class CpsFlowExecution extends FlowExecution {
                         }
                     });
                     myOutcome.get(30, TimeUnit.SECONDS);
-                }
+                }*/
                 persistedClean = Boolean.TRUE;
             } catch (IOException ex) {
 //            } catch (TimeoutException | IOException | InterruptedException ex) {
                 persistedClean = Boolean.FALSE;
                 LOGGER.log(Level.WARNING, "Error persisting storage before shutdown", ex);
-            } catch (ExecutionException ex) {
+            /*} catch (ExecutionException ex) {
                 // Probably safe-ish to ignore
                 LOGGER.log(Level.FINE, "Error loading program, that should be handled elsewhere.", ex);
             } catch (InterruptedException | TimeoutException e) {
-                LOGGER.log(Level.WARNING, "Failed to persist program when needed", e);
+                LOGGER.log(Level.WARNING, "Failed to persist program when needed", e);*/
             }
         }
     }
