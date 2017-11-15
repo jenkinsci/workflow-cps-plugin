@@ -95,6 +95,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -617,6 +618,7 @@ public class CpsFlowExecution extends FlowExecution {
                     } else {
                         // We cannot resume so we need to cleanly fail
                         // TODO find a way to ensure we close all the Blocks in the FlowGraph cleanly
+                        LOGGER.log(Level.FINE, "Couldn't resume pipeline - not persisted in valid state");
                         croak(new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down."));
                     }
                 }
@@ -1641,8 +1643,7 @@ public class CpsFlowExecution extends FlowExecution {
 
                 // Try to ensure we've saved the appropriate things
                 final SettableFuture<Void> myOutcome = SettableFuture.create();
-                // TODO verify below works OK
-                /*if (programPromise != null && programPromise.isDone()) {
+                if (programPromise != null && programPromise.isDone()) {
                     runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
                         @Override
                         public void onSuccess(CpsThreadGroup result) {
@@ -1654,18 +1655,19 @@ public class CpsFlowExecution extends FlowExecution {
                             myOutcome.setException(t);
                         }
                     });
-
                     myOutcome.get(30, TimeUnit.SECONDS);
-                }*/
+                }
                 persistedClean = Boolean.TRUE;
             } catch (IOException ex) {
 //            } catch (TimeoutException | IOException | InterruptedException ex) {
                 persistedClean = Boolean.FALSE;
                 LOGGER.log(Level.WARNING, "Error persisting storage before shutdown", ex);
-            }/* catch (ExecutionException ex) {
+            } catch (ExecutionException ex) {
                 // Probably safe-ish to ignore
                 LOGGER.log(Level.FINE, "Error loading program, that should be handled elsewhere.", ex);
-            }*/
+            } catch (InterruptedException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "Failed to persist program when needed", e);
+            }
         }
     }
 

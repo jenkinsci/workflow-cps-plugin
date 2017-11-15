@@ -332,7 +332,6 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                Thread.sleep(3000L);
                 Assert.assertEquals(FlowDurabilityHint.SURVIVE_CLEAN_RESTART, run.getExecution().getDurabilityHint());
                 assertBaseStorageType(run.getExecution(), LumpFlowNodeStorage.class);
                 verifySafelyResumed(story.j, run, true);
