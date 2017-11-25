@@ -616,10 +616,8 @@ public class CpsFlowExecution extends FlowExecution {
                     if (canResume()) {
                         loadProgramAsync(getProgramDataFile());
                     } else {
-                        // We cannot resume so we need to cleanly fail
-                        // TODO find a way to ensure we close all the Blocks in the FlowGraph cleanly
-                        LOGGER.log(Level.FINE, "Couldn't resume pipeline - not persisted in valid state");
-                        croak(new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down."));
+                        LOGGER.log(Level.WARNING, "Pipeline state not properly persisted, cannot resume "+owner.getUrl());
+                        throw new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down.");
                     }
                 }
             } catch (IOException e) {
@@ -1074,14 +1072,9 @@ public class CpsFlowExecution extends FlowExecution {
      */
     synchronized void onProgramEnd(Outcome outcome) {
         FlowNode head = new FlowEndNode(this, iotaStr(), (FlowStartNode)startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
-        if (outcome.isFailure())
+        if (outcome.isFailure()) {
             head.addAction(new ErrorAction(outcome.getAbnormal()));
-        try {
-            this.getStorage().flush();
-        } catch (IOException ioe) {
-            LOGGER.log(Level.WARNING, "Error flushing FlowNodeStorage to disk at end of run", ioe);
         }
-
 
         // shrink everything into a single new head
         done = true;
@@ -1090,6 +1083,12 @@ public class CpsFlowExecution extends FlowExecution {
             first.setNewHead(head);
             heads.clear();
             heads.put(first.getId(),first);
+        }
+
+        try {
+            this.getStorage().flush();
+        } catch (IOException ioe) {
+            LOGGER.log(Level.WARNING, "Error flushing FlowNodeStorage to disk at end of run", ioe);
         }
 
     }
