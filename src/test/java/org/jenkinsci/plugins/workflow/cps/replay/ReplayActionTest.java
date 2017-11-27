@@ -295,8 +295,8 @@ public class ReplayActionTest {
                 GlobalMatrixAuthorizationStrategy gmas = new GlobalMatrixAuthorizationStrategy();
                 gmas.add(Jenkins.READ, "dev3");
                 List<Permission> permissions = Run.PERMISSIONS.getPermissions();
-                assertThat(permissions, Matchers.hasItem(ReplayAction.REBUILD));
-                gmas.add(ReplayAction.REBUILD, "dev3");
+                assertThat(permissions, Matchers.hasItem(Item.BUILD));
+                gmas.add(Item.BUILD, "dev3");
                 gmas.add(Item.READ, "dev3");
 
                 story.j.jenkins.setAuthorizationStrategy(gmas);
