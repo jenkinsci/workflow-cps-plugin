@@ -232,7 +232,7 @@ public final class CpsThreadGroup implements Serializable {
                 @SuppressFBWarnings(value="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE", justification="runner.submit() result")
                 public Void call() throws Exception {
                     Jenkins j = Jenkins.getInstance();
-                    if (paused.get() || j == null ) {
+                    if (paused.get() || j == null || (execution != null && j.isQuietingDown())) {
                         // by doing the pause check inside, we make sure that scheduleRun() returns a
                         // future that waits for any previously scheduled tasks to be completed.
                         saveProgramIfPossible(true);
