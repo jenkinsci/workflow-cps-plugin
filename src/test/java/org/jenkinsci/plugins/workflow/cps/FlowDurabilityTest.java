@@ -354,7 +354,6 @@ public class FlowDurabilityTest {
     /** Verify that our flag for whether or not a build was cleanly persisted gets reset when things happen.
      */
     @Test
-    @Ignore // For now
     public void testDurableAgainstCleanRestartResetsCleanlyPersistedFlag() throws Exception {
         final String jobName = "durableAgainstClean";
         story.addStep(new Statement() {
@@ -375,11 +374,22 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
-                Thread.sleep(350000);  // Step completes
-                WorkflowJob job = story.j.jenkins.createProject(WorkflowJob.class, jobName);
-                CpsFlowExecution exec = (CpsFlowExecution)(job.getLastBuild().getExecution());
-                assert exec.persistedClean == null;
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                assert run.isBuilding();
+                assert run.getResult() != Result.FAILURE;
+                Thread.sleep(35000);  // Step completes
+                if (run.getExecution() instanceof  CpsFlowExecution) {
+                    CpsFlowExecution exec = (CpsFlowExecution)run.getExecution();
+                    assert exec.persistedClean == null;
+                }
+                simulateAbruptFailure(story);
+            }
+        });
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                Thread.sleep(2000L);  // Just to allow time for basic async processes to finish.
+               verifyFailedCleanly(story.j.jenkins, story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild());
             }
         });
     }
