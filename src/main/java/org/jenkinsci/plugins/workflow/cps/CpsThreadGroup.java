@@ -339,7 +339,10 @@ public final class CpsThreadGroup implements Serializable {
                         result = ((FlowInterruptedException) error).getResult();
                     }
                     execution.setResult(result);
-                    t.head.get().addAction(new ErrorAction(error));
+                    FlowNode fn = t.head.get();
+                    if (fn != null) {
+                        t.head.get().addAction(new ErrorAction(error));
+                    }
                 }
 
                 if (!t.isAlive()) {
@@ -421,7 +424,7 @@ public final class CpsThreadGroup implements Serializable {
      */
     @CpsVmThreadOnly
     void saveProgramIfPossible(boolean enteringQuietState) {
-        if (this.getExecution() != null && (this.getExecution().getDurabilityHint().isAllowPersistPartially()
+        if (this.getExecution() != null && (this.getExecution().getDurabilityHint().isPersistWithEveryStep()
                 || enteringQuietState)) {
             try {
                 saveProgram();

@@ -523,7 +523,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         try {
             final SettableFuture<Void> f = SettableFuture.create();
             CpsFlowExecution exec = getFlowExecution();
-            if (!exec.getDurabilityHint().isAllowPersistPartially()) {
+            if (!exec.getDurabilityHint().isPersistWithEveryStep()) {
                 f.set(null);
                 return f;
             }

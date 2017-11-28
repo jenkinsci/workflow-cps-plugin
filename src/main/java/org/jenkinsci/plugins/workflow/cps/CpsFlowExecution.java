@@ -95,7 +95,6 @@ import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -479,9 +478,9 @@ public class CpsFlowExecution extends FlowExecution {
         FlowNodeStorage wrappedStorage;
 
         FlowDurabilityHint hint = getDurabilityHint();
-        wrappedStorage = (hint == FlowDurabilityHint.NO_PROMISES || hint == FlowDurabilityHint.SURVIVE_CLEAN_RESTART)
-                ? new LumpFlowNodeStorage(this, getStorageDir())
-                :  new SimpleXStreamFlowNodeStorage(this, getStorageDir());
+        wrappedStorage = (hint.isPersistWithEveryStep())
+                ? new SimpleXStreamFlowNodeStorage(this, getStorageDir())
+                : new LumpFlowNodeStorage(this, getStorageDir());
 
         return new TimingFlowNodeStorage(wrappedStorage);
     }
@@ -495,6 +494,9 @@ public class CpsFlowExecution extends FlowExecution {
 
     @Override
     public void start() throws IOException {
+        // FIXME: if we're in non-durable mode, run needs to be saved once begun, just once!
+        //  That way we know it's not the first time it ran.
+
         final CpsScript s = parseScript();
         scriptClass = s.getClass();
         s.$initialize();
@@ -506,6 +508,7 @@ public class CpsFlowExecution extends FlowExecution {
         h.newStartNode(new FlowStartNode(this, iotaStr()));
 
         final CpsThreadGroup g = new CpsThreadGroup(this);
+
         g.register(s);
         final SettableFuture<CpsThreadGroup> f = SettableFuture.create();
         programPromise = f;
@@ -577,6 +580,28 @@ public class CpsFlowExecution extends FlowExecution {
         return iota.get();
     }
 
+    /** Handle failures where we can't load heads. */
+    private void rebuildEmptyGraph() {
+        synchronized (this) {
+            // something went catastrophically wrong and there's no live head. fake one
+            if (this.startNodes == null) {
+                this.startNodes = new Stack<BlockStartNode>();
+            }
+            this.heads.clear();
+            this.startNodes.clear();
+            FlowHead head = new FlowHead(this);
+            heads.put(head.getId(), head);
+            try {
+                FlowStartNode start = new FlowStartNode(this, iotaStr());
+                startNodes.push(start);
+                head.newStartNode(start);
+            } catch (IOException e) {
+                LOGGER.log(Level.FINE, "Failed to persist", e);
+            }
+            persistedClean = false;
+        }
+    }
+
     protected void initializeStorage() throws IOException {
         storage = createStorage();
         synchronized (this) {
@@ -584,14 +609,31 @@ public class CpsFlowExecution extends FlowExecution {
             heads = new TreeMap<Integer,FlowHead>();
             for (Map.Entry<Integer,String> entry : headsSerial.entrySet()) {
                 FlowHead h = new FlowHead(this, entry.getKey());
-                h.setForDeserialize(storage.getNode(entry.getValue()));
-                heads.put(h.getId(), h);
+
+                FlowNode n = storage.getNode(entry.getValue());
+                if (n != null) {
+                    h.setForDeserialize(storage.getNode(entry.getValue()));
+                    heads.put(h.getId(), h);
+                } else {
+                    // FlowNodeStorage not in synch with the FlowExecution -- hard failure of master with storage not persisted cleanly
+                    // Or files deleted (maybe build rotation).
+                    // Need to find a way to mimick up the heads and fail cleanly, far enough to let the canResume do its thing
+                    rebuildEmptyGraph();
+                    return;
+                }
             }
+
             headsSerial = null;
             // Same for startNodes:
             startNodes = new Stack<BlockStartNode>();
             for (String id : startNodesSerial) {
-                startNodes.add((BlockStartNode) storage.getNode(id));
+                FlowNode node = storage.getNode(id);
+                if (node != null) {
+                    startNodes.add((BlockStartNode) storage.getNode(id));
+                } else {
+                    rebuildEmptyGraph();
+                    return;
+                }
             }
             startNodesSerial = null;
         }
@@ -603,7 +645,7 @@ public class CpsFlowExecution extends FlowExecution {
             return persistedClean.booleanValue();
         }
         FlowDurabilityHint hint = getDurabilityHint();
-        return hint.isAllowPersistPartially() && hint.isSynchronousWrite();
+        return hint.isPersistWithEveryStep();
     }
 
     @Override
@@ -760,7 +802,7 @@ public class CpsFlowExecution extends FlowExecution {
      * Execute a task in {@link CpsVmExecutorService} to safely access {@link CpsThreadGroup} internal states.
      *
      * <p>
-     * If the {@link CpsThreadGroup} deserializatoin fails, {@link FutureCallback#onFailure(Throwable)} will
+     * If the {@link CpsThreadGroup} deserialization fails, {@link FutureCallback#onFailure(Throwable)} will
      * be invoked (on a random thread, since CpsVmThread doesn't exist without a valid program.)
      */
     void runInCpsVmThread(final FutureCallback<CpsThreadGroup> callback) {
@@ -1051,7 +1093,7 @@ public class CpsFlowExecution extends FlowExecution {
         try {
             FlowExecution exec = node.getExecution();
             if (exec instanceof CpsFlowExecution) {
-                if (exec.getDurabilityHint().isAllowPersistPartially()) {
+                if (exec.getDurabilityHint().isPersistWithEveryStep()) {
                     ((CpsFlowExecution) exec).getStorage().autopersist(node);
                 }
             }
@@ -1639,7 +1681,7 @@ public class CpsFlowExecution extends FlowExecution {
     /** Ensures that even if we're limiting persistence of data for performance, we still write out data for shutdown. */
     @Override
     protected void notifyShutdown() {
-        if (isComplete() || (this.getDurabilityHint().isAllowPersistPartially() && this.getDurabilityHint().isSynchronousWrite())) {
+        if (isComplete() || this.getDurabilityHint().isPersistWithEveryStep()) {
             // Nothing to persist OR we've already persisted it along the way.
             return;
         }

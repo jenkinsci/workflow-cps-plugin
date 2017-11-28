@@ -69,6 +69,9 @@ public class FlowDurabilityTest {
     @Rule
     public RestartableJenkinsRule story = new RestartableJenkinsRule();
 
+    static FlowDurabilityHint SURVIVE_CLEAN_RESTART = new FlowDurabilityHint.SurviveCleanRestart();
+
+    static FlowDurabilityHint FULLY_DURABLE = new FlowDurabilityHint.FullyDurable();
 
     static WorkflowRun createAndRunBasicJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint) throws Exception {
         return createAndRunBasicJob(jenkins, jobName, durabilityHint, 1);
@@ -98,10 +101,10 @@ public class FlowDurabilityTest {
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
         SemaphoreStep.waitForStart("halt/"+semaphoreIndex, run);
         Assert.assertEquals(durabilityHint, run.getExecution().getDurabilityHint());
-        if (durabilityHint == FlowDurabilityHint.NO_PROMISES || durabilityHint == FlowDurabilityHint.SURVIVE_CLEAN_RESTART) {
-            assertBaseStorageType(run.getExecution(), LumpFlowNodeStorage.class);
-        } else {
+        if (durabilityHint.isPersistWithEveryStep()) {
             assertBaseStorageType(run.getExecution(), SimpleXStreamFlowNodeStorage.class);
+        } else {
+            assertBaseStorageType(run.getExecution(), LumpFlowNodeStorage.class);
         }
         return run;
     }
@@ -196,12 +199,19 @@ public class FlowDurabilityTest {
             if (exec instanceof CpsFlowExecution) {
                 waitForBuildToResumeOrFail((CpsFlowExecution)exec);
             } else {
-                Thread.sleep(2000L);
+                Thread.sleep(4000L);
             }
         }
 
         assert !run.isBuilding();
-        assert run.getResult() == Result.FAILURE || run.getResult() == Result.ABORTED;
+        if (run.getExecution() instanceof  CpsFlowExecution) {
+            Assert.assertEquals(Result.FAILURE, ((CpsFlowExecution) run.getExecution()).getResult());
+        }
+
+        // FIXME how does the FlowExecution bubble result back up to the WorkfloWRun
+
+        Assert.assertEquals(Result.FAILURE, run.getResult());
+        assert !run.isBuilding();
         // TODO verify all blocks cleanly closed out, so Block start and end nodes have same counts and FlowEndNode is last node
         verifyCompletedCleanly(j, run);
     }
@@ -243,7 +253,7 @@ public class FlowDurabilityTest {
      */
     @Test
     public void testCompleteAndLoadBuilds() throws Exception {
-        final FlowDurabilityHint[] durabilityHints = FlowDurabilityHint.values();
+        final FlowDurabilityHint[] durabilityHints = {new FlowDurabilityHint.FullyDurable(), new FlowDurabilityHint.SurviveCleanRestart()};
         final WorkflowJob[] jobs = new WorkflowJob[durabilityHints.length];
 
         // Create and run jobs for each of the durability hints
@@ -297,7 +307,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                createAndRunBasicJob(story.j.jenkins, jobName, FlowDurabilityHint.SURVIVE_CLEAN_RESTART);
+                createAndRunBasicJob(story.j.jenkins, jobName, SURVIVE_CLEAN_RESTART);
             }
         });
 
@@ -305,7 +315,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                Assert.assertEquals(FlowDurabilityHint.SURVIVE_CLEAN_RESTART, run.getExecution().getDurabilityHint());
+                Assert.assertEquals(SURVIVE_CLEAN_RESTART, run.getExecution().getDurabilityHint());
                 verifySafelyResumed(story.j, run, true);
             }
         });
@@ -322,7 +332,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.SURVIVE_CLEAN_RESTART);
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, SURVIVE_CLEAN_RESTART);
                 FlowExecution exec = run.getExecution();
                 assertBaseStorageType(exec, LumpFlowNodeStorage.class);
             }
@@ -332,7 +342,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                Assert.assertEquals(FlowDurabilityHint.SURVIVE_CLEAN_RESTART, run.getExecution().getDurabilityHint());
+                Assert.assertEquals(SURVIVE_CLEAN_RESTART, run.getExecution().getDurabilityHint());
                 assertBaseStorageType(run.getExecution(), LumpFlowNodeStorage.class);
                 verifySafelyResumed(story.j, run, true);
             }
@@ -354,7 +364,7 @@ public class FlowDurabilityTest {
                         "  dir('nothing'){sleep 30;}\n"+
                         "} \n" +
                         "echo 'I like chese'\n", false);
-                def.setDurabilityHint(FlowDurabilityHint.SURVIVE_CLEAN_RESTART);
+                def.setDurabilityHint(SURVIVE_CLEAN_RESTART);
                 job.setDefinition(def);
                 WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
                 Thread.sleep(2000L);  // Hacky but we just need to ensure this can start up
@@ -380,9 +390,8 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.SURVIVE_CLEAN_RESTART);
-                // DURABILITY HINT WAS RESET TO FULLY DURABLE SOMEHOW
-                Assert.assertEquals(FlowDurabilityHint.SURVIVE_CLEAN_RESTART, run.getExecution().getDurabilityHint());
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", SURVIVE_CLEAN_RESTART);
+                Assert.assertEquals(SURVIVE_CLEAN_RESTART, run.getExecution().getDurabilityHint());
                 simulateAbruptFailure(story);
             }
         });
@@ -391,27 +400,6 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
-                verifyFailedCleanly(story.j.jenkins, run);
-            }
-        });
-    }
-
-    /** Verify that if the master dies messily and we're not durable against restarts, the build fails somewhat cleanly.
-     */
-    @Test
-    public void testNotDurableFailsOnDirtyShutdown() throws Exception {
-        story.addStep(new Statement() {
-            @Override
-            public void evaluate() throws Throwable {
-                createAndRunSleeperJob(story.j.jenkins, "nonDurable", FlowDurabilityHint.NO_PROMISES);
-                simulateAbruptFailure(story);
-            }
-        });
-
-        story.addStep(new Statement() {
-            @Override
-            public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName("nonDurable", WorkflowJob.class).getLastBuild();
                 verifyFailedCleanly(story.j.jenkins, run);
             }
         });
@@ -426,7 +414,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunBasicJob(story.j.jenkins, jobName, FlowDurabilityHint.FULLY_DURABLE);
+                WorkflowRun run = createAndRunBasicJob(story.j.jenkins, jobName, FULLY_DURABLE);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
@@ -454,7 +442,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.FULLY_DURABLE);
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FULLY_DURABLE);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
