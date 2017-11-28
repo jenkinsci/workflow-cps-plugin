@@ -95,6 +95,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -1690,8 +1691,8 @@ public class CpsFlowExecution extends FlowExecution {
             try {
                 storage.flush();
 
-                // Try to ensure we've saved the appropriate things
-                /*final SettableFuture<Void> myOutcome = SettableFuture.create();
+                // Try to ensure we've saved the appropriate things -- the program is the last stumbling block.
+                final SettableFuture<Void> myOutcome = SettableFuture.create();
                 if (programPromise != null && programPromise.isDone()) {
                     runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
                         @Override
@@ -1705,17 +1706,26 @@ public class CpsFlowExecution extends FlowExecution {
                         }
                     });
                     myOutcome.get(30, TimeUnit.SECONDS);
-                }*/
+                }
                 persistedClean = Boolean.TRUE;
-            } catch (IOException ex) {
-//            } catch (TimeoutException | IOException | InterruptedException ex) {
+//            } catch (IOException ex) {
+            } catch (TimeoutException | IOException | InterruptedException ex) {
                 persistedClean = Boolean.FALSE;
+                // FIXME TimeoutException always triggered!
                 LOGGER.log(Level.WARNING, "Error persisting storage before shutdown", ex);
-            /*} catch (ExecutionException ex) {
+            } catch (ExecutionException ex) {
                 // Probably safe-ish to ignore
                 LOGGER.log(Level.FINE, "Error loading program, that should be handled elsewhere.", ex);
-            } catch (InterruptedException | TimeoutException e) {
-                LOGGER.log(Level.WARNING, "Failed to persist program when needed", e);*/
+//            } catch (InterruptedException | TimeoutException e) {
+//                LOGGER.log(Level.WARNING, "Failed to persist program when needed", e);
+            }
+            try {
+                if (this.owner.getExecutable() instanceof Saveable) {
+                    Saveable saveable = (Saveable)(this.owner.getExecutable());
+                    saveable.save();
+                }
+            } catch (IOException ex) {
+                LOGGER.log(Level.WARNING, "Error persisting Run before shutdown", ex);
             }
         }
     }
