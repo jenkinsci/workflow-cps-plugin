@@ -106,6 +106,7 @@ public class FlowDurabilityTest {
         } else {
             assertBaseStorageType(run.getExecution(), LumpFlowNodeStorage.class);
         }
+        Assert.assertEquals("semaphore", run.getExecution().getCurrentHeads().get(0).getDisplayFunctionName());
         return run;
     }
 
@@ -120,6 +121,7 @@ public class FlowDurabilityTest {
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
         Thread.sleep(4000L);  // Hacky but we just need to ensure this can start up
         Assert.assertEquals(durabilityHint, run.getExecution().getDurabilityHint());
+        Assert.assertEquals("sleep", run.getExecution().getCurrentHeads().get(0).getDisplayFunctionName());
         return run;
     }
 

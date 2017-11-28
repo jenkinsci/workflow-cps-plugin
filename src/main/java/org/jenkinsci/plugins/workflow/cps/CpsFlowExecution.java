@@ -1697,7 +1697,13 @@ public class CpsFlowExecution extends FlowExecution {
                     runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
                         @Override
                         public void onSuccess(CpsThreadGroup result) {
-                            result.saveProgramIfPossible(true);
+                            try {
+                                result.saveProgramIfPossible(true);
+                                myOutcome.set(null);
+                            } catch (Exception ex) {
+                                LOGGER.log(Level.WARNING, "Error persisting program: "+ex);
+                                myOutcome.setException(ex);
+                            }
                         }
 
                         @Override
@@ -1708,7 +1714,7 @@ public class CpsFlowExecution extends FlowExecution {
                     myOutcome.get(30, TimeUnit.SECONDS);
                 }
                 persistedClean = Boolean.TRUE;
-//            } catch (IOException ex) {
+//            } catch (IOException | InterruptedException ex) {
             } catch (TimeoutException | IOException | InterruptedException ex) {
                 persistedClean = Boolean.FALSE;
                 // FIXME TimeoutException always triggered!
@@ -1716,13 +1722,14 @@ public class CpsFlowExecution extends FlowExecution {
             } catch (ExecutionException ex) {
                 // Probably safe-ish to ignore
                 LOGGER.log(Level.FINE, "Error loading program, that should be handled elsewhere.", ex);
-//            } catch (InterruptedException | TimeoutException e) {
-//                LOGGER.log(Level.WARNING, "Failed to persist program when needed", e);
-            }
+            } /*catch (InterruptedException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "Failed to persist program when needed", e);
+            }*/
             try {
                 if (this.owner.getExecutable() instanceof Saveable) {
                     Saveable saveable = (Saveable)(this.owner.getExecutable());
                     saveable.save();
+                    storage.flush();
                 }
             } catch (IOException ex) {
                 LOGGER.log(Level.WARNING, "Error persisting Run before shutdown", ex);
