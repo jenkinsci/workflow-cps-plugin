@@ -25,6 +25,9 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.CpsTransformer;
+import hudson.Functions;
+import hudson.model.Computer;
+import hudson.model.Executor;
 import hudson.model.Result;
 import java.util.logging.Level;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
@@ -32,7 +35,11 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.junit.Assert.*;
+
+import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
@@ -69,6 +76,64 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
         exec.waitForSuspension();
         assertTrue(exec.isComplete());
+    }
+
+    /**
+     * Verify that we kill endlessly recursive CPS code cleanly.
+     */
+    @Test
+    @Ignore /** Intermittent failures because triggers a longstanding unrelated SandboxResolvingClassloader bug
+     resolved in https://github.com/jenkinsci/script-security-plugin/pull/160 */
+    public void endlessRecursion() throws Exception {
+        Assume.assumeTrue(!Functions.isWindows());  // Sidestep false failures specific to a few Windows build environments.
+        String script = "def getThing(){return thing == null}; \n" +
+                "node { echo getThing(); } ";
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "recursion");
+        job.setDefinition(new CpsFlowDefinition(script, true));
+
+        // Should have failed with error about excessive recursion depth
+        WorkflowRun r = jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
+        jenkins.assertLogContains("look for unbounded recursion", r);
+
+        Assert.assertTrue("No queued FlyWeightTask for job should remain after failure", jenkins.jenkins.getQueue().isEmpty());
+
+        for (Computer c : jenkins.jenkins.getComputers()) {
+            for (Executor ex : c.getExecutors()) {
+                if (ex.isBusy()) {
+                    fail(ex.getCurrentExecutable().toString());
+                }
+            }
+        }
+    }
+
+    /**
+     * Verify that we kill endlessly recursive NonCPS code cleanly and don't leave remnants.
+     * This is a bit of extra caution to go along with {@link #endlessRecursion()} to ensure
+     *  we don't trigger other forms of failure with the StackOverflowError.
+     */
+    @Test
+    @Ignore  /** Intermittent failures because triggers a longstanding unrelated SandboxResolvingClassloader bug
+                 resolved in https://github.com/jenkinsci/script-security-plugin/pull/160 */
+    public void endlessRecursionNonCPS() throws Exception {
+        Assume.assumeTrue(!Functions.isWindows());  // Sidestep false failures specific to a few Windows build environments.
+
+        String script = "@NonCPS def getThing(){return thing == null}; \n" +
+                "node { echo getThing(); } ";
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "recursion");
+        job.setDefinition(new CpsFlowDefinition(script, true));
+
+        // Should have failed with error about excessive recursion depth
+        WorkflowRun r = jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
+
+        Assert.assertTrue("No queued FlyWeightTask for job should remain after failure", jenkins.jenkins.getQueue().isEmpty());
+
+        for (Computer c : jenkins.jenkins.getComputers()) {
+            for (Executor ex : c.getExecutors()) {
+                if (ex.isBusy()) {
+                    fail(ex.getCurrentExecutable().toString());
+                }
+            }
+        }
     }
 
     @Test public void configRoundTrip() throws Exception {

@@ -282,7 +282,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         boolean singleArgumentOnly = false;
         if (metaStep != null) {
-            Descriptor symbolDescriptor = SymbolLookup.get().findDescriptor((Class) metaStep.getMetaStepArgumentType(), symbol);
+            Descriptor symbolDescriptor = SymbolLookup.get().findDescriptor((Class)(metaStep.getMetaStepArgumentType()), symbol);
             DescribableModel<?> symbolModel = new DescribableModel(symbolDescriptor.clazz);
 
             singleArgumentOnly = symbolModel.hasSingleRequiredParameter() && symbolModel.getParameters().size() == 1;
@@ -305,8 +305,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // might be resolved with a specific type.
             return ud;
         } else {
-            Descriptor d = SymbolLookup.get().findDescriptor((Class) metaStep.getMetaStepArgumentType(), symbol);
-
+            Descriptor d = SymbolLookup.get().findDescriptor((Class)(metaStep.getMetaStepArgumentType()), symbol);
             try {
                 // execute this Describable through a meta-step
 
