@@ -127,6 +127,45 @@ public class IteratorHackTest {
         });
     }
 
+    @Issue("JENKINS-46597")
+    @Test public void treeMapIterator() {
+        rr.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = rr.j.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition(
+                        "def map = new TreeMap<String,Integer>()\n" +
+                                "map.put('one', 1)\n" +
+                                "map.put('two', 2)\n" +
+                                "@NonCPS def entrySet(m) {m.collect {k, v -> [key: k, value: v]}}; for (def e in entrySet(map)) {echo \"running flattened loop on ${e.key} -> ${e.value}\"; semaphore \"C-${e.key}\"}\n" +
+                                "map.each { e -> echo \"running new-style loop on ${e.key} -> ${e.value}\"; semaphore \"new-${e.key}\"}"
+                        , false)); // sandbox is false to allow new TreeMap
+                WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+                SemaphoreStep.waitForStart("C-one/1", b);
+                rr.j.waitForMessage("running flattened loop on one -> 1", b);
+            }
+        });
+        rr.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowRun b = rr.j.jenkins.getItemByFullName("p", WorkflowJob.class).getLastBuild();
+                SemaphoreStep.success("C-one/1", null);
+                SemaphoreStep.success("C-two/1", null);
+                rr.j.waitForMessage("running flattened loop on two -> 2", b);
+                SemaphoreStep.waitForStart("new-one/1", b);
+                rr.j.waitForMessage("running new-style loop on one -> 1", b);
+            }
+        });
+        rr.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowRun b = rr.j.jenkins.getItemByFullName("p", WorkflowJob.class).getLastBuild();
+                SemaphoreStep.success("new-one/1", null);
+                SemaphoreStep.success("new-two/1", null);
+                rr.j.waitForCompletion(b);
+                rr.j.assertBuildStatusSuccess(b);
+                rr.j.assertLogContains("running new-style loop on two -> 2", b);
+            }
+        });
+    }
+
     @Issue("JENKINS-27421")
     @Test public void otherIterators() {
         rr.addStep(new Statement() {
@@ -152,4 +191,30 @@ public class IteratorHackTest {
         });
     }
 
+    @Issue("JENKINS-46597")
+    @Test public void otherTreeMapIterators() {
+        rr.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = rr.j.createProject(WorkflowJob.class, "p");
+                // Map.keySet/values:
+                p.setDefinition(new CpsFlowDefinition(
+                        "def map = new TreeMap<String,Integer>()\n" +
+                                "map.put('one', 1)\n" +
+                                "map.put('two', 2)\n" +
+                                "def append(c) {def t = ''; sleep 1; for (def e : c) {t += e; sleep 1}; t}\n" +
+                                "echo(/keys: ${append(map.keySet())} values: ${append(map.values())}/)"
+                        , false)); // Sandbox disabled so we can do new TreeMap
+                WorkflowRun b = rr.j.buildAndAssertSuccess(p);
+                rr.j.assertLogContains("keys: onetwo values: 12", b);
+                // List.listIterator:
+                ScriptApproval.get().approveSignature("method java.util.List listIterator"); // TODO add to generic-whitelist
+                ScriptApproval.get().approveSignature("method java.util.ListIterator set java.lang.Object"); // ditto
+                p.setDefinition(new CpsFlowDefinition("def list = [1, 2, 3]; def itr = list.listIterator(); while (itr.hasNext()) {itr.set(itr.next() + 1); sleep 1}; echo(/new list: $list/)", true));
+                rr.j.assertLogContains("new list: [2, 3, 4]", rr.j.buildAndAssertSuccess(p));
+                // Set.iterator:
+                p.setDefinition(new CpsFlowDefinition("def set = [1, 2, 3] as Set; def sum = 0; for (def e : set) {sum += e; sleep 1}; echo(/sum: $sum/)", true));
+                rr.j.assertLogContains("sum: 6", rr.j.buildAndAssertSuccess(p));
+            }
+        });
+    }
 }
