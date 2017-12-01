@@ -301,32 +301,6 @@ public class FlowDurabilityTest {
      * Verifies that if we're only durable against clean restarts, the pipeline will survive it.
      */
     @Test
-    @Ignore
-    public void demonstrateReloadFailureWithSemaphoreStep() throws Exception {
-        final String jobName = "durableAgainstClean";
-
-        story.addStep(new Statement() {
-            @Override
-            public void evaluate() throws Throwable {
-                Jenkins jenkins = story.j.jenkins;
-                createAndRunBasicJob(story.j.jenkins, jobName, SURVIVE_CLEAN_RESTART);
-            }
-        });
-
-        story.addStep(new Statement() {
-            @Override
-            public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                Assert.assertEquals(SURVIVE_CLEAN_RESTART, run.getExecution().getDurabilityHint());
-                verifySafelyResumed(story.j, run, true);
-            }
-        });
-    }
-
-    /**
-     * Verifies that if we're only durable against clean restarts, the pipeline will survive it.
-     */
-    @Test
     public void testDurableAgainstCleanRestartSurvivesIt() throws Exception {
         final String jobName = "durableAgainstClean";
 
