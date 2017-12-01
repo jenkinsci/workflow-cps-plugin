@@ -29,7 +29,6 @@ import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStora
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.Assert;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -127,6 +126,7 @@ public class FlowDurabilityTest {
 
     static void verifySucceededCleanly(Jenkins j, WorkflowRun run) throws Exception {
         Assert.assertEquals(Result.SUCCESS, run.getResult());
+        int outputHash = run.getLog().hashCode();
         FlowExecution exec = run.getExecution();
         verifyCompletedCleanly(j, run);
 
@@ -158,7 +158,7 @@ public class FlowDurabilityTest {
     }
 
     /** If it's a {@link SemaphoreStep} we test less rigorously because that blocks async GraphListeners. */
-    static void verifySafelyResumed(JenkinsRule rule, WorkflowRun run, boolean isSemaphore) throws Exception {
+    static void verifySafelyResumed(JenkinsRule rule, WorkflowRun run, boolean isSemaphore, String logStart) throws Exception {
         assert run.isBuilding();
         FlowExecution exec = run.getExecution();
 
@@ -178,6 +178,7 @@ public class FlowDurabilityTest {
 
         rule.waitForCompletion(run);
         verifySucceededCleanly(rule.jenkins, run);
+        rule.assertLogContains(logStart, run);
     }
 
     /** Waits until the build to resume or die. */
@@ -257,6 +258,7 @@ public class FlowDurabilityTest {
     public void testCompleteAndLoadBuilds() throws Exception {
         final FlowDurabilityHint[] durabilityHints = {new FlowDurabilityHint.FullyDurable(), new FlowDurabilityHint.SurviveCleanRestart()};
         final WorkflowJob[] jobs = new WorkflowJob[durabilityHints.length];
+        final String[] logOutput = new String[durabilityHints.length];
 
         // Create and run jobs for each of the durability hints
         story.addStep(new Statement() {
@@ -270,6 +272,7 @@ public class FlowDurabilityTest {
                         SemaphoreStep.success("halt/"+i++,Result.SUCCESS);
                         story.j.waitForCompletion(run);
                         story.j.assertBuildStatus(Result.SUCCESS, run);
+                        logOutput[i-2] = JenkinsRule.getLog(run);
                     } catch (AssertionError ae) {
                         System.out.println("Error with durability level: "+hint);
                         throw ae;
@@ -288,6 +291,7 @@ public class FlowDurabilityTest {
                         WorkflowRun run = j.getLastBuild();
                         verifySucceededCleanly(story.j.jenkins, run);
                         Assert.assertEquals(durabilityHints[i], run.getExecution().getDurabilityHint());
+                        Assert.assertEquals(logOutput[i], JenkinsRule.getLog(run));
                     } catch (AssertionError ae) {
                         System.out.println("Error with durability level: "+j.getDefinition().getDurabilityHint());
                         throw ae;
@@ -303,6 +307,7 @@ public class FlowDurabilityTest {
     @Test
     public void testDurableAgainstCleanRestartSurvivesIt() throws Exception {
         final String jobName = "durableAgainstClean";
+        final String[] logStart = new String[1];
 
         story.addStep(new Statement() {
             @Override
@@ -311,6 +316,7 @@ public class FlowDurabilityTest {
                 WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, SURVIVE_CLEAN_RESTART);
                 FlowExecution exec = run.getExecution();
                 assertBaseStorageType(exec, LumpFlowNodeStorage.class);
+                logStart[0] = JenkinsRule.getLog(run);
             }
         });
 
@@ -320,7 +326,7 @@ public class FlowDurabilityTest {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
                 Assert.assertEquals(SURVIVE_CLEAN_RESTART, run.getExecution().getDurabilityHint());
                 assertBaseStorageType(run.getExecution(), LumpFlowNodeStorage.class);
-                verifySafelyResumed(story.j, run, true);
+                verifySafelyResumed(story.j, run, true, logStart[0]);
             }
         });
     }
@@ -373,11 +379,13 @@ public class FlowDurabilityTest {
      */
     @Test
     public void testDurableAgainstCleanRestartFailsWithDirtyShutdown() throws Exception {
+        final String[] logStart = new String[1];
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", SURVIVE_CLEAN_RESTART);
                 Assert.assertEquals(SURVIVE_CLEAN_RESTART, run.getExecution().getDurabilityHint());
+                logStart[0] = JenkinsRule.getLog(run);
                 simulateAbruptFailure(story);
             }
         });
@@ -387,6 +395,7 @@ public class FlowDurabilityTest {
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
                 verifyFailedCleanly(story.j.jenkins, run);
+                story.j.assertLogContains(logStart[0], run);
             }
         });
     }
@@ -395,6 +404,7 @@ public class FlowDurabilityTest {
     @Test
     public void testFullyDurableSurvivesCleanRestart() throws Exception {
         final String jobName = "survivesEverything";
+        final String[] logStart = new String[1];
 
         story.addStep(new Statement() {
             @Override
@@ -405,6 +415,7 @@ public class FlowDurabilityTest {
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
                 }
+                logStart[0] = JenkinsRule.getLog(run);
             }
         });
 
@@ -412,7 +423,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                verifySafelyResumed(story.j, run, true);
+                verifySafelyResumed(story.j, run, true, logStart[0]);
             }
         });
     }
@@ -423,6 +434,7 @@ public class FlowDurabilityTest {
     @Test
     public void testFullyDurableSurvivesDirtyRestart() throws Exception {
         final String jobName = "survivesEverything";
+        final String[] logStart = new String[1];
 
         story.addStep(new Statement() {
             @Override
@@ -434,6 +446,7 @@ public class FlowDurabilityTest {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
                 }
                 simulateAbruptFailure(story);
+                logStart[0] = JenkinsRule.getLog(run);
             }
         });
 
@@ -441,7 +454,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                verifySafelyResumed(story.j, run, false);
+                verifySafelyResumed(story.j, run, false, logStart[0]);
             }
         });
     }
