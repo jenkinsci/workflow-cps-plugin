@@ -672,10 +672,11 @@ public class CpsFlowExecution extends FlowExecution {
         FlowHead head;
 
         synchronized(this) {
-            if (heads.isEmpty())
+            if (heads == null || heads.isEmpty()) {
                 head = null;
-            else
+            } else {
                 head = getFirstHead();
+            }
         }
 
         if (head==null) {
@@ -1029,13 +1030,17 @@ public class CpsFlowExecution extends FlowExecution {
 
         // shrink everything into a single new head
         done = true;
-        FlowHead first = getFirstHead();
-        first.setNewHead(head);
-        heads.clear();
-        heads.put(first.getId(),first);
+        if (heads != null) {
+            FlowHead first = getFirstHead();
+            first.setNewHead(head);
+            heads.clear();
+            heads.put(first.getId(),first);
+        }
+
     }
 
     void cleanUpHeap() {
+        LOGGER.log(Level.FINE, "cleanUpHeap on {0}", owner);
         shell = null;
         trusted = null;
         if (scriptClass != null) {
@@ -1045,6 +1050,8 @@ public class CpsFlowExecution extends FlowExecution {
                 LOGGER.log(Level.WARNING, "failed to clean up memory from " + owner, x);
             }
             scriptClass = null;
+        } else {
+            LOGGER.fine("no scriptClass");
         }
         // perhaps also set programPromise to null or a precompleted failure?
     }
@@ -1055,6 +1062,7 @@ public class CpsFlowExecution extends FlowExecution {
             return;
         }
         if (!(loader instanceof GroovyClassLoader)) {
+            LOGGER.log(Level.FINER, "ignoring {0}", loader);
             return;
         }
         if (!encounteredLoaders.add(loader)) {

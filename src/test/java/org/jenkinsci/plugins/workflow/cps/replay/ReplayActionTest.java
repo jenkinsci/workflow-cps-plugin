@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.workflow.cps.replay;
 
+import com.gargoylesoftware.htmlunit.WebAssert;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlTextArea;
@@ -61,6 +62,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.Issue;
+import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
 public class ReplayActionTest {
@@ -154,7 +157,7 @@ public class ReplayActionTest {
                 assertThat(permissions, Matchers.hasItem(ReplayAction.REPLAY));
                 gmas.add(ReplayAction.REPLAY, "dev2");
                 gmas.add(Jenkins.READ, "dev3");
-                gmas.add(Item.BUILD, "dev3"); // does not imply REPLAY
+                gmas.add(Item.BUILD, "dev3"); // does not imply REPLAY, does allow rebuilding
                 story.j.jenkins.setAuthorizationStrategy(gmas);
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("", /* whole-script approval */ false));
@@ -164,6 +167,7 @@ public class ReplayActionTest {
                 assertFalse("not sandboxed, so only safe for admins", canReplay(b1, "dev1"));
                 assertFalse(canReplay(b1, "dev2"));
                 assertFalse(canReplay(b1, "dev3"));
+                assertTrue(canRebuild(b1, "dev3"));
                 p.setDefinition(new CpsFlowDefinition("", /* sandbox */ true));
                 WorkflowRun b2 = p.scheduleBuild2(0).get();
                 assertTrue(canReplay(b2, "admin"));
@@ -171,6 +175,14 @@ public class ReplayActionTest {
                 assertTrue(canReplay(b2, "dev1"));
                 assertTrue(canReplay(b2, "dev2"));
                 assertFalse(canReplay(b2, "dev3"));
+                assertTrue(canRebuild(b2, "dev3"));
+                // Disable the job and verify that no one can replay it.
+                p.makeDisabled(true);
+                assertFalse(canReplay(b2, "admin"));
+                assertFalse(canReplay(b2, "dev1"));
+                assertFalse(canReplay(b2, "dev2"));
+                assertFalse(canReplay(b2, "dev3"));
+                assertFalse(canRebuild(b2, "dev3"));
             }
         });
     }
@@ -179,6 +191,15 @@ public class ReplayActionTest {
         return ACL.impersonate(User.get(user).impersonate(), new NotReallyRoleSensitiveCallable<Boolean,RuntimeException>() {
             @Override public Boolean call() throws RuntimeException {
                 return a.isEnabled();
+            }
+        });
+    }
+
+    private static boolean canRebuild(WorkflowRun b, String user) {
+        final ReplayAction a = b.getAction(ReplayAction.class);
+        return ACL.impersonate(User.get(user).impersonate(), new NotReallyRoleSensitiveCallable<Boolean,RuntimeException>() {
+            @Override public Boolean call() throws RuntimeException {
+                return a.isRebuildEnabled();
             }
         });
     }
@@ -261,6 +282,51 @@ public class ReplayActionTest {
                 assertEquals(3, b3.getNumber());
                 // Main script picked up from #1, not #2.
                 story.j.assertLogContains("got new text", b3);
+            }
+        });
+    }
+
+    @Issue("JENKINS-47339")
+    @Test
+    public void rebuild() throws Exception {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                story.j.jenkins.setSecurityRealm(story.j.createDummySecurityRealm());
+                GlobalMatrixAuthorizationStrategy gmas = new GlobalMatrixAuthorizationStrategy();
+                gmas.add(Jenkins.READ, "dev3");
+                gmas.add(Item.BUILD, "dev3");
+                gmas.add(Item.READ, "dev3");
+
+                story.j.jenkins.setAuthorizationStrategy(gmas);
+
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition("echo 'script to rebuild'", true));
+                WorkflowRun b1 = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
+                story.j.assertLogContains("script to rebuild", b1);
+
+                WorkflowRun b2;
+                { // First time around, verify that UI elements are present and functional.
+                    ReplayAction a = b1.getAction(ReplayAction.class);
+                    assertNotNull(a);
+                    assertFalse(canReplay(b1, "dev3"));
+                    assertTrue(canRebuild(b1, "dev3"));
+                    JenkinsRule.WebClient wc = story.j.createWebClient();
+                    wc.login("dev3");
+                    HtmlPage page = wc.getPage(b1, a.getUrlName());
+                    WebAssert.assertFormNotPresent(page, "config");
+                    HtmlForm form = page.getFormByName("rebuild");
+                    HtmlPage redirect = story.j.submit(form);
+                    assertEquals(p.getAbsoluteUrl(), redirect.getUrl().toString());
+                    story.j.waitUntilNoActivity();
+                    b2 = p.getBuildByNumber(2);
+                    assertNotNull(b2);
+                }
+                story.j.assertLogContains("script to rebuild", story.j.assertBuildStatusSuccess(b2));
+                ReplayCause cause = b2.getCause(ReplayCause.class);
+                assertNotNull(cause);
+                assertEquals(1, cause.getOriginalNumber());
+                assertEquals(b1, cause.getOriginal());
+                assertEquals(b2, cause.getRun());
             }
         });
     }

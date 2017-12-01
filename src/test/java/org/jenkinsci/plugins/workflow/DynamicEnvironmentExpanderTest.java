@@ -25,16 +25,21 @@
 package org.jenkinsci.plugins.workflow;
 
 import hudson.EnvVars;
+import hudson.model.EnvironmentContributor;
+import hudson.model.Run;
+import hudson.model.TaskListener;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Set;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.EnvironmentExpander;
+import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -56,7 +61,7 @@ public class DynamicEnvironmentExpanderTest {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
-                p.setDefinition(new CpsFlowDefinition("dynamicEnv {echo \"initially ${env.DYNVAR}\"; semaphore 'wait'; echo \"subsequently ${env.DYNVAR}\"}"));
+                p.setDefinition(new CpsFlowDefinition("dynamicEnv {echo \"initially ${env.DYNVAR}\"; semaphore 'wait'; echo \"subsequently ${env.DYNVAR}\"}", true));
                 WorkflowRun b = p.scheduleBuild2(0).waitForStart();
                 SemaphoreStep.waitForStart("wait/1", b);
                 story.j.waitForMessage("initially one", b);
@@ -71,9 +76,15 @@ public class DynamicEnvironmentExpanderTest {
             }
         });
     }
-    public static class DynamicEnvStep extends AbstractStepImpl {
+    public static class DynamicEnvStep extends Step {
         @DataBoundConstructor public DynamicEnvStep() {}
-        public static class Execution extends AbstractStepExecutionImpl {
+        @Override public StepExecution start(StepContext context) throws Exception {
+            return new Execution(context);
+        }
+        private static class Execution extends StepExecution {
+            Execution(StepContext context) {
+                super(context);
+            }
             private static final long serialVersionUID = 1;
             String value;
             @Override public boolean start() throws Exception {
@@ -89,7 +100,6 @@ public class DynamicEnvironmentExpanderTest {
                 super.onResume();
                 value = "two";
             }
-            @Override public void stop(Throwable cause) throws Exception {}
         }
         private static class ExpanderImpl extends EnvironmentExpander {
             private static final long serialVersionUID = 1;
@@ -102,13 +112,36 @@ public class DynamicEnvironmentExpanderTest {
                 env.override("DYNVAR", execution.value);
             }
         }
-        @TestExtension("dynamics") public static class DescriptorImpl extends AbstractStepDescriptorImpl {
-            public DescriptorImpl() {
-                super(Execution.class);
-            }
+        @TestExtension("dynamics") public static class DescriptorImpl extends StepDescriptor {
             @Override public String getFunctionName() {return "dynamicEnv";}
-            @Override public String getDisplayName() {return getFunctionName();}
             @Override public boolean takesImplicitBlockArgument() {return true;}
+            @Override public Set<? extends Class<?>> getRequiredContext() {
+                return Collections.emptySet();
+            }
+        }
+    }
+
+    @Issue("JENKINS-42499")
+    @Test public void changingEnvironment() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                p.setDefinition(new CpsFlowDefinition("echo(/before VAR=$VAR/); " + EnvAdder.class.getCanonicalName() + ".value = 'after'; echo(/after VAR=$VAR/)", false));
+                WorkflowRun b = story.j.buildAndAssertSuccess(p);
+                story.j.assertLogContains("buildEnvironmentFor #1", b);
+                story.j.assertLogContains("before VAR=before", b);
+                story.j.assertLogContains("buildEnvironmentFor #2", b);
+                story.j.assertLogContains("after VAR=after", b);
+            }
+        });
+    }
+    @TestExtension("changingEnvironment") public static class EnvAdder extends EnvironmentContributor {
+        public static String value = "before";
+        private int count;
+        @SuppressWarnings("rawtypes")
+        @Override public void buildEnvironmentFor(Run r, EnvVars envs, TaskListener listener) throws IOException, InterruptedException {
+            listener.getLogger().println("buildEnvironmentFor #" + count++);
+            envs.put("VAR", value);
         }
     }
 

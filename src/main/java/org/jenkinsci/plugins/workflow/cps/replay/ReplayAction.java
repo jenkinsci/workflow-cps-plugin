@@ -58,6 +58,8 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
+
+import hudson.util.HttpResponses;
 import jenkins.model.Jenkins;
 import jenkins.model.ParameterizedJobMixIn;
 import jenkins.model.TransientActionFactory;
@@ -75,6 +77,8 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
+
+import static javax.servlet.http.HttpServletResponse.SC_CONFLICT;
 
 /**
  * Attached to a {@link Run} when it could be replayed with script edits.
@@ -95,11 +99,11 @@ public class ReplayAction implements Action {
     }
 
     @Override public String getIconFileName() {
-        return isEnabled() ? "redo.png" : null;
+        return isEnabled() || isRebuildEnabled() ? "redo.png" : null;
     }
 
     @Override public String getUrlName() {
-        return isEnabled() ? "replay" : null;
+        return isEnabled() || isRebuildEnabled() ? "replay" : null;
     }
 
     private @CheckForNull CpsFlowExecution getExecution() {
@@ -111,10 +115,26 @@ public class ReplayAction implements Action {
         return exec instanceof CpsFlowExecution ? (CpsFlowExecution) exec : null;
     }
 
+    /* accessible to Jelly */ public boolean isRebuildEnabled() {
+        if (!run.hasPermission(Item.BUILD)) {
+            return false;
+        }
+        if (!run.getParent().isBuildable()) {
+            return false;
+        }
+
+        return getExecution() != null;
+    }
+
     /* accessible to Jelly */ public boolean isEnabled() {
         if (!run.hasPermission(REPLAY)) {
             return false;
         }
+
+        if (!run.getParent().isBuildable()) {
+            return false;
+        }
+
         CpsFlowExecution exec = getExecution();
         if (exec == null) {
             return false;
@@ -163,7 +183,23 @@ public class ReplayAction implements Action {
             // optString since you might be replaying a running build, which might have loaded a script after the page load but before submission.
             replacementLoadedScripts.put(entry.getKey(), form.optString(entry.getKey().replace('.', '_'), entry.getValue()));
         }
-        run(form.getString("mainScript"), replacementLoadedScripts);
+        if (run(form.getString("mainScript"), replacementLoadedScripts) == null) {
+            throw HttpResponses.error(SC_CONFLICT, new IOException(run.getParent().getFullName() + " is not buildable"));
+
+        }
+        rsp.sendRedirect("../.."); // back to WorkflowJob; new build might not start instantly so cannot redirect to it
+    }
+
+    @Restricted(DoNotUse.class)
+    @RequirePOST
+    public void doRebuild(StaplerRequest req, StaplerResponse rsp) throws ServletException, IOException {
+        if (!isRebuildEnabled()) {
+            throw new AccessDeniedException("not allowed to replay"); // AccessDeniedException2 requires us to look up the specific Permission
+        }
+        if (run(getOriginalScript(), getOriginalLoadedScripts()) == null) {
+            throw HttpResponses.error(SC_CONFLICT, new IOException(run.getParent().getFullName() + " is not buildable"));
+
+        }
         rsp.sendRedirect("../.."); // back to WorkflowJob; new build might not start instantly so cannot redirect to it
     }
 
