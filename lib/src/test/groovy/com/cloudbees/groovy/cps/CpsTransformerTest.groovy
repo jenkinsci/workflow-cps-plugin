@@ -2,6 +2,7 @@ package com.cloudbees.groovy.cps
 
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import groovy.transform.NotYetImplemented
+import org.codehaus.groovy.control.MultipleCompilationErrorsException
 import org.junit.Test
 import org.jvnet.hudson.test.Issue
 
@@ -876,5 +877,50 @@ def (a, b) = ['first', 'second', 'third']
 def (c, d) = ['fourth']
 return [a, b, c, d].join(' ')
 ''') == "first second fourth null"
+    }
+
+    @Issue("JENKINS-47363")
+    @Test
+    void excessiveListElements() {
+        def l1 = 0..249
+        def s1 = l1.join(",\n")
+        assert evalCPS("""
+def b = [${s1}]
+return b.size()
+""") == 250
+
+        def l2 = 0..250
+        def s2 = l2.join(",\n")
+        try {
+            assert evalCPS("""
+def b = [${s2}]
+return b.size()
+""") == 251
+        } catch (Exception e) {
+            assert e instanceof MultipleCompilationErrorsException
+            assert e.message.contains('List expressions can only contain up to 250 elements')
+        }
+    }
+
+    @Issue("JENKINS-47363")
+    @Test
+    void excessiveMapElements() {
+        def l1 = 0..124
+        def s1 = l1.collect { "${it}:${it}" }.join(",\n")
+        assert evalCPS("""
+def b = [${s1}]
+return b.size()
+""") == 125
+        def l2 = 0..125
+        def s2 = l2.collect { "${it}:${it}" }.join(",\n")
+        try {
+            assert evalCPS("""
+def b = [${s2}]
+return b.size()
+""") == 126
+        } catch (Exception e) {
+            assert e instanceof MultipleCompilationErrorsException
+            assert e.message.contains('Map expressions can only contain up to 125 entries')
+        }
     }
 }
