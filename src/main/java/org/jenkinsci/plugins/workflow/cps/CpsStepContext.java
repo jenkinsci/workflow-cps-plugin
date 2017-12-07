@@ -35,6 +35,7 @@ import hudson.model.Result;
 import hudson.util.DaemonThreadFactory;
 import hudson.util.NamingThreadFactory;
 import jenkins.model.Jenkins;
+import org.jenkinsci.plugins.workflow.actions.BodyInvocationAction;
 import org.jenkinsci.plugins.workflow.actions.FlowNodeStatusAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
@@ -439,9 +440,11 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                             StepEndNode endNode = new StepEndNode(flow, (StepStartNode) n, parents);
                             Result result = null;
                             for (FlowNode p : parents) {
-                                FlowNodeStatusAction statusAction = p.getPersistentAction(FlowNodeStatusAction.class);
-                                if (statusAction != null && (result == null || result.isWorseThan(statusAction.getResult()))) {
-                                    result = statusAction.getResult();
+                                if (p.getPersistentAction(BodyInvocationAction.class) != null) {
+                                    FlowNodeStatusAction statusAction = p.getPersistentAction(FlowNodeStatusAction.class);
+                                    if (statusAction != null && (result == null || result.isBetterThan(statusAction.getResult()))) {
+                                        result = statusAction.getResult();
+                                    }
                                 }
                             }
                             if (result != null) {
