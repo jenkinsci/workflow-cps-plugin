@@ -17,6 +17,7 @@ import hudson.util.Iterators;
 import jenkins.model.CauseOfInterruption;
 import org.jenkinsci.plugins.workflow.actions.BodyInvocationAction;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
+import org.jenkinsci.plugins.workflow.actions.FlowNodeStatusAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
@@ -355,6 +356,19 @@ class CpsBodyExecution extends BodyExecution {
         @Override
         public Next receive(Object o) {
             StepEndNode en = addBodyEndFlowNode();
+            Result r = null;
+            StepStartNode start = en.getStartNode();
+            for (FlowNode child : start.getImmediateChildren()) {
+                FlowNodeStatusAction statusAction = child.getPersistentAction(FlowNodeStatusAction.class);
+                if (statusAction != null) {
+                    if (r == null || r.isBetterThan(statusAction.getResult())) {
+                        r = statusAction.getResult();
+                    }
+                }
+            }
+            if (r != null) {
+                en.addAction(new FlowNodeStatusAction(r));
+            }
 
             setOutcome(new Outcome(o,null));
             StepContext sc = new CpsBodySubContext(context, en);

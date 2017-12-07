@@ -35,6 +35,7 @@ import hudson.model.Result;
 import hudson.util.DaemonThreadFactory;
 import hudson.util.NamingThreadFactory;
 import jenkins.model.Jenkins;
+import org.jenkinsci.plugins.workflow.actions.FlowNodeStatusAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
@@ -434,7 +435,19 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                             // clear all the subsumed heads that are joining. thread that owns parents.get(0) lives on
                             for (int i=1; i<parents.size(); i++)
                                 g.getExecution().subsumeHead(parents.get(i));
-                            thread.head.setNewHead(new StepEndNode(flow, (StepStartNode) n, parents));
+
+                            StepEndNode endNode = new StepEndNode(flow, (StepStartNode) n, parents);
+                            Result result = null;
+                            for (FlowNode p : parents) {
+                                FlowNodeStatusAction statusAction = p.getPersistentAction(FlowNodeStatusAction.class);
+                                if (statusAction != null && (result == null || result.isWorseThan(statusAction.getResult()))) {
+                                    result = statusAction.getResult();
+                                }
+                            }
+                            if (result != null) {
+                                endNode.addAction(new FlowNodeStatusAction(result));
+                            }
+                            thread.head.setNewHead(endNode);
                         }
                         thread.head.markIfFail(getOutcome());
                         thread.setStep(null);
