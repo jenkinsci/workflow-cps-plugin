@@ -75,7 +75,7 @@ import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.PickleResolver;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverReader;
 import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
-import org.jenkinsci.plugins.workflow.support.storage.LumpFlowNodeStorage;
+import org.jenkinsci.plugins.workflow.support.storage.BulkFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStorage;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -373,6 +373,7 @@ public class CpsFlowExecution extends FlowExecution {
         this.sandbox = sandbox;
         this.durabilityHint = durabilityHint;
         this.storage = createStorage();
+        this.storage.setAvoidAtomicWrite(!this.getDurabilityHint().isAtomicWrite());
         Authentication auth = Jenkins.getAuthentication();
         this.user = auth.equals(ACL.SYSTEM) ? null : auth.getName();
     }
@@ -481,8 +482,7 @@ public class CpsFlowExecution extends FlowExecution {
         FlowDurabilityHint hint = getDurabilityHint();
         wrappedStorage = (hint.isPersistWithEveryStep())
                 ? new SimpleXStreamFlowNodeStorage(this, getStorageDir())
-                : new LumpFlowNodeStorage(this, getStorageDir());
-
+                : new BulkFlowNodeStorage(this, getStorageDir());
         return new TimingFlowNodeStorage(wrappedStorage);
     }
 

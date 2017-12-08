@@ -24,7 +24,7 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
-import org.jenkinsci.plugins.workflow.support.storage.LumpFlowNodeStorage;
+import org.jenkinsci.plugins.workflow.support.storage.BulkFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.Assert;
@@ -68,9 +68,6 @@ public class FlowDurabilityTest {
     @Rule
     public RestartableJenkinsRule story = new RestartableJenkinsRule();
 
-    static FlowDurabilityHint SURVIVE_CLEAN_RESTART = new FlowDurabilityHint.SurviveCleanRestart();
-
-    static FlowDurabilityHint FULLY_DURABLE = new FlowDurabilityHint.FullyDurable();
 
     static WorkflowRun createAndRunBasicJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint) throws Exception {
         return createAndRunBasicJob(jenkins, jobName, durabilityHint, 1);
@@ -103,7 +100,7 @@ public class FlowDurabilityTest {
         if (durabilityHint.isPersistWithEveryStep()) {
             assertBaseStorageType(run.getExecution(), SimpleXStreamFlowNodeStorage.class);
         } else {
-            assertBaseStorageType(run.getExecution(), LumpFlowNodeStorage.class);
+            assertBaseStorageType(run.getExecution(), BulkFlowNodeStorage.class);
         }
         Assert.assertEquals("semaphore", run.getExecution().getCurrentHeads().get(0).getDisplayFunctionName());
         return run;
@@ -143,8 +140,6 @@ public class FlowDurabilityTest {
         Assert.assertEquals(2, scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(StepEndNode.class))).size());
         Assert.assertEquals(1, scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(FlowStartNode.class))).size());
 
-        // TODO fix the fact that echo step won't match descriptorImpl to descriptorImpl with NodeStepTypePredicate
-        // Because instances don't match.
         Predicate<FlowNode> sleepOrSemaphoreMatch = Predicates.or(
                 new NodeStepNamePredicate(StepDescriptor.byFunctionName("semaphore").getId()),
                 new NodeStepNamePredicate(StepDescriptor.byFunctionName("sleep").getId())
@@ -256,7 +251,7 @@ public class FlowDurabilityTest {
      */
     @Test
     public void testCompleteAndLoadBuilds() throws Exception {
-        final FlowDurabilityHint[] durabilityHints = {new FlowDurabilityHint.FullyDurable(), new FlowDurabilityHint.SurviveCleanRestart()};
+        final FlowDurabilityHint[] durabilityHints = FlowDurabilityHint.values();
         final WorkflowJob[] jobs = new WorkflowJob[durabilityHints.length];
         final String[] logOutput = new String[durabilityHints.length];
 
@@ -313,9 +308,9 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, SURVIVE_CLEAN_RESTART);
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
                 FlowExecution exec = run.getExecution();
-                assertBaseStorageType(exec, LumpFlowNodeStorage.class);
+                assertBaseStorageType(exec, BulkFlowNodeStorage.class);
                 logStart[0] = JenkinsRule.getLog(run);
             }
         });
@@ -324,8 +319,8 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                Assert.assertEquals(SURVIVE_CLEAN_RESTART, run.getExecution().getDurabilityHint());
-                assertBaseStorageType(run.getExecution(), LumpFlowNodeStorage.class);
+                Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                assertBaseStorageType(run.getExecution(), BulkFlowNodeStorage.class);
                 verifySafelyResumed(story.j, run, true, logStart[0]);
             }
         });
@@ -345,7 +340,7 @@ public class FlowDurabilityTest {
                         "  dir('nothing'){sleep 30;}\n"+
                         "} \n" +
                         "echo 'I like chese'\n", false);
-                def.setDurabilityHint(SURVIVE_CLEAN_RESTART);
+                def.setDurabilityHint(FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
                 job.setDefinition(def);
                 WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
                 Thread.sleep(2000L);  // Hacky but we just need to ensure this can start up
@@ -383,8 +378,8 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", SURVIVE_CLEAN_RESTART);
-                Assert.assertEquals(SURVIVE_CLEAN_RESTART, run.getExecution().getDurabilityHint());
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
                 logStart[0] = JenkinsRule.getLog(run);
                 simulateAbruptFailure(story);
             }
@@ -410,7 +405,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunBasicJob(story.j.jenkins, jobName, FULLY_DURABLE);
+                WorkflowRun run = createAndRunBasicJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
@@ -440,7 +435,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FULLY_DURABLE);
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
