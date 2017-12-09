@@ -79,7 +79,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <version>2.25-20171209.204507-5</version> <!-- TODO: Switch to release -->
+            <version>2.25-20171209.215528-6</version> <!-- TODO: Switch to release -->
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>

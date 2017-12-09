@@ -21,6 +21,7 @@ import org.jenkinsci.plugins.workflow.actions.FlowNodeStatusAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
 import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
@@ -358,8 +359,12 @@ class CpsBodyExecution extends BodyExecution {
             StepEndNode en = addBodyEndFlowNode();
             Result r = null;
             StepStartNode start = en.getStartNode();
-            for (FlowNode child : start.getImmediateChildren()) {
-                FlowNodeStatusAction statusAction = child.getPersistentAction(FlowNodeStatusAction.class);
+            final String startId = start.getId();
+            DepthFirstScanner scan = new DepthFirstScanner();
+            for (FlowNode f : scan.filteredNodes(Collections.singletonList(en),
+                    Collections.singletonList(start),
+                    (input) -> input != null && startId.equals(input.getEnclosingId()))) {
+                FlowNodeStatusAction statusAction = f.getPersistentAction(FlowNodeStatusAction.class);
                 if (statusAction != null) {
                     if (r == null || r.isBetterThan(statusAction.getResult())) {
                         r = statusAction.getResult();
