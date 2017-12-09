@@ -43,7 +43,7 @@ public final class SetStatusStep extends Step {
         @Override protected Void run() throws Exception {
             FlowNode node = getContext().get(FlowNode.class);
             if (node != null) {
-                node.replaceAction(new FlowNodeStatusAction(Result.fromString(result)));
+                node.addOrReplaceAction(new FlowNodeStatusAction(Result.fromString(result)));
             }
             return null;
         }
