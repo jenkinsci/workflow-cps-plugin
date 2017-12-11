@@ -495,9 +495,6 @@ public class CpsFlowExecution extends FlowExecution {
 
     @Override
     public void start() throws IOException {
-        // FIXME: if we're in non-durable mode, run needs to be saved once begun, just once!
-        //  That way we know it's not the first time it ran.
-
         final CpsScript s = parseScript();
         scriptClass = s.getClass();
         s.$initialize();
@@ -513,6 +510,7 @@ public class CpsFlowExecution extends FlowExecution {
         g.register(s);
         final SettableFuture<CpsThreadGroup> f = SettableFuture.create();
         programPromise = f;
+        saveOwner(); // Ensures we've saves the WorkFlowRun at least once with initial state
         g.runner.submit(new Runnable() {
             @Override
             public void run() {
