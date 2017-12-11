@@ -357,23 +357,7 @@ class CpsBodyExecution extends BodyExecution {
         @Override
         public Next receive(Object o) {
             StepEndNode en = addBodyEndFlowNode();
-            Result r = null;
-            StepStartNode start = en.getStartNode();
-            final String startId = start.getId();
-            DepthFirstScanner scan = new DepthFirstScanner();
-            for (FlowNode f : scan.filteredNodes(Collections.singletonList(en),
-                    Collections.singletonList(start),
-                    (input) -> input != null && startId.equals(input.getEnclosingId()))) {
-                FlowNodeStatusAction statusAction = f.getPersistentAction(FlowNodeStatusAction.class);
-                if (statusAction != null) {
-                    if (r == null || r.isBetterThan(statusAction.getResult())) {
-                        r = statusAction.getResult();
-                    }
-                }
-            }
-            if (r != null) {
-                en.addAction(new FlowNodeStatusAction(r));
-            }
+            en.setFlowNodeStatus();
 
             setOutcome(new Outcome(o,null));
             StepContext sc = new CpsBodySubContext(context, en);

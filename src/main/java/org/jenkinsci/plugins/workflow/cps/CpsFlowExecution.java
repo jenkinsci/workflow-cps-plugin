@@ -57,6 +57,7 @@ import jenkins.model.CauseOfInterruption;
 import jenkins.model.Jenkins;
 import org.jboss.marshalling.Unmarshaller;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
+import org.jenkinsci.plugins.workflow.actions.FlowNodeStatusAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
@@ -1024,10 +1025,16 @@ public class CpsFlowExecution extends FlowExecution {
      * @param outcome success; or a normal failure (uncaught exception); or a fatal error in VM machinery
      */
     synchronized void onProgramEnd(Outcome outcome) {
-        FlowNode head = new FlowEndNode(this, iotaStr(), (FlowStartNode)startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
-        if (outcome.isFailure())
+        BlockEndNode head = new FlowEndNode(this, iotaStr(), (FlowStartNode)startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
+        if (outcome.isFailure()) {
             head.addAction(new ErrorAction(outcome.getAbnormal()));
-
+        } else {
+            head.setFlowNodeStatus();
+            FlowNodeStatusAction statusAction = head.getPersistentAction(FlowNodeStatusAction.class);
+            if (head.getError() == null && statusAction != null) {
+                setResult(statusAction.getResult());
+            }
+        }
         // shrink everything into a single new head
         done = true;
         if (heads != null) {

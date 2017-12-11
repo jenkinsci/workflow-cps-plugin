@@ -2,6 +2,7 @@ package org.jenkinsci.plugins.workflow.cps.steps;
 
 import hudson.model.Result;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.graph.BlockEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -18,6 +19,7 @@ import javax.annotation.Nonnull;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class SetStatusStepTest {
     @ClassRule
@@ -29,6 +31,99 @@ public class SetStatusStepTest {
     @Test
     public void setStatus() throws Exception {
         WorkflowJob j = r.jenkins.createProject(WorkflowJob.class, "setStatus");
+        j.setDefinition(new CpsFlowDefinition("stage('unstable') {\n" +
+                "  echo 'Hi there'\n" +
+                "  status('UNSTABLE')\n" +
+                "}\n", true));
+
+        // Note that at least as of now, setting step/stage status doesn't set overall build status. May need to revisit that.
+        // It does now set CpsFlowExecution#result, though...
+        WorkflowRun b = r.buildAndAssertSuccess(j);
+        FlowExecution rawExec = b.getExecution();
+        assertNotNull(rawExec);
+        assertTrue(rawExec instanceof CpsFlowExecution);
+        CpsFlowExecution execution = (CpsFlowExecution) rawExec;
+
+        assertEquals(Result.UNSTABLE, execution.getResult());
+
+        // The FlowEndNode should return UNSTABLE.
+        expectedNodeStatus(execution, "9", Result.UNSTABLE);
+
+        // stage('unstable') and its body should return UNSTABLE.
+        expectedNodeStatus(execution, "8", Result.UNSTABLE);
+        expectedNodeStatus(execution, "7", Result.UNSTABLE);
+
+        // The actual status step call should return UNSTABLE.
+        expectedNodeStatus(execution, "6", Result.UNSTABLE);
+
+        // The echo step should return SUCCESS.
+        expectedNodeStatus(execution, "5", Result.SUCCESS);
+    }
+
+    @Issue("JENKINS-43995")
+    @Test
+    public void setStatusUnknownString() throws Exception {
+        WorkflowJob j = r.jenkins.createProject(WorkflowJob.class, "setStatusUnknownString");
+        j.setDefinition(new CpsFlowDefinition("stage('will-be-failure') {\n" +
+                "  echo 'Hi there'\n" +
+                "  status('UNKNOWNRESULT')\n" +
+                "}\n", true));
+
+        // Note that at least as of now, setting step/stage status doesn't set overall build status. May need to revisit that.
+        // It does now set CpsFlowExecution#result, though...
+        WorkflowRun b = r.buildAndAssertSuccess(j);
+        FlowExecution rawExec = b.getExecution();
+        assertNotNull(rawExec);
+        assertTrue(rawExec instanceof CpsFlowExecution);
+        CpsFlowExecution execution = (CpsFlowExecution) rawExec;
+
+        assertEquals(Result.FAILURE, execution.getResult());
+
+        // The FlowEndNode should return FAILURE.
+        expectedNodeStatus(execution, "9", Result.FAILURE);
+
+        // stage('will-be-failure') and its body should return FAILURE.
+        expectedNodeStatus(execution, "8", Result.FAILURE);
+        expectedNodeStatus(execution, "7", Result.FAILURE);
+
+        // The actual status step call should return FAILURE.
+        expectedNodeStatus(execution, "6", Result.FAILURE);
+
+        // The echo step should return SUCCESS.
+        expectedNodeStatus(execution, "5", Result.SUCCESS);
+    }
+
+    @Issue("JENKINS-43995")
+    @Test
+    public void blockWithoutBody() throws Exception {
+        WorkflowJob j = r.jenkins.createProject(WorkflowJob.class, "blockWithoutBody");
+        j.setDefinition(new CpsFlowDefinition("stage('unstable') {\n" +
+                "  dir('some-dir') {\n" +
+                "    echo 'Hi there'\n" +
+                "    status('UNSTABLE')\n" +
+                "  }\n" +
+                "}\n", true));
+
+        // Note that at least as of now, setting step/stage status doesn't set overall build status. May need to revisit that.
+        WorkflowRun b = r.waitForCompletion(j.scheduleBuild2(0).waitForStart());
+        FlowExecution rawExec = b.getExecution();
+        assertNotNull(rawExec);
+        assertTrue(rawExec instanceof CpsFlowExecution);
+        CpsFlowExecution execution = (CpsFlowExecution) rawExec;
+
+        assertEquals(Result.FAILURE, execution.getResult());
+
+        // Flow, stage, stage body, and dir end nodes should all return FAILURE.
+        expectedNodeStatus(execution, "9", Result.FAILURE);
+        expectedNodeStatus(execution, "8", Result.FAILURE);
+        expectedNodeStatus(execution, "7", Result.FAILURE);
+        expectedNodeStatus(execution, "6", Result.FAILURE);
+    }
+
+    @Issue("JENKINS-43995")
+    @Test
+    public void nestedBlocks() throws Exception {
+        WorkflowJob j = r.jenkins.createProject(WorkflowJob.class, "nestedBlocks");
         j.setDefinition(new CpsFlowDefinition("stage('outermost') {\n" +
                 "  stage('middle-unstable') {\n" +
                 "    echo 'hi there again'\n" +
@@ -262,8 +357,8 @@ Action format:
 
     @Issue("JENKINS-43995")
     @Test
-    public void setStatusInParallels() throws Exception {
-        WorkflowJob j = r.jenkins.createProject(WorkflowJob.class, "setStatusInParallels");
+    public void nestedParallels() throws Exception {
+        WorkflowJob j = r.jenkins.createProject(WorkflowJob.class, "nestedParallels");
         j.setDefinition(new CpsFlowDefinition("stage('outermost') {\n" +
                 "  stage('middle-unstable') {\n" +
                 "    parallel(a: { status('SUCCESS') },\n" +
