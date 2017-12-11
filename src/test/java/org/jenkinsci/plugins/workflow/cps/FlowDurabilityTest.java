@@ -29,9 +29,12 @@ import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStora
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.Assert;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestRule;
+import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -39,6 +42,10 @@ import org.jvnet.hudson.test.RestartableJenkinsRule;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -65,9 +72,50 @@ import java.util.concurrent.TimeoutException;
 public class FlowDurabilityTest {
     @ClassRule
     public static BuildWatcher buildWatcher = new BuildWatcher();
+
     @Rule
     public RestartableJenkinsRule story = new RestartableJenkinsRule();
 
+    @Rule
+    public TimedRepeatRule repeater = new TimedRepeatRule();
+
+    // Used in testing
+    static class TimedRepeatRule implements TestRule {
+
+        @Target({ElementType.METHOD})
+        @Retention(RetentionPolicy.RUNTIME)
+        @interface RepeatForTime {
+            long repeatMillis();
+        }
+
+        private static class RepeatedStatement extends Statement {
+            private final Statement repeatedStmt;
+            private final long repeatMillis;
+
+            private RepeatedStatement(Statement stmt, long millis) {
+                this.repeatedStmt = stmt;
+                this.repeatMillis = millis;
+            }
+
+            @Override
+            public void evaluate() throws Throwable {
+                long start = System.currentTimeMillis();
+                while(Math.abs(System.currentTimeMillis()-start)<repeatMillis) {
+                    repeatedStmt.evaluate();
+                }
+            }
+        }
+
+        @Override
+        public Statement apply(Statement statement, Description description) {
+            RepeatForTime rep = description.getAnnotation(RepeatForTime.class);
+            if (rep == null) {
+                return statement;
+            } else {
+                return new RepeatedStatement(statement, rep.repeatMillis());
+            }
+        }
+    }
 
     static WorkflowRun createAndRunBasicJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint) throws Exception {
         return createAndRunBasicJob(jenkins, jobName, durabilityHint, 1);
@@ -488,6 +536,31 @@ public class FlowDurabilityTest {
             return FileVisitResult.CONTINUE;
         }
     }
+
+    @Test
+    @Ignore
+    @TimedRepeatRule.RepeatForTime(repeatMillis = 300_000)
+    public void fuzzTesting() throws Exception {
+
+        long startTime = System.nanoTime();
+
+        // Create thread that eventually interrupts Jenkins with a hard shutdown at a random time interval
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                Jenkins jenkins = story.j.jenkins;
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "bob", FlowDurabilityHint.MAX_SURVIVABILITY);
+                FlowExecution exec = run.getExecution();
+                if (exec instanceof CpsFlowExecution) {
+                    assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
+                }
+                simulateAbruptFailure(story);
+//                logStart[0] = JenkinsRule.getLog(run);
+            }
+        });
+
+    }
+
 
     /**
      * Simulate an abrupt failure of Jenkins to see if it appropriately handles inconsistent states when

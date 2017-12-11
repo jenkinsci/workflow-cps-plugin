@@ -1381,6 +1381,14 @@ public class CpsFlowExecution extends FlowExecution {
             @Override public void onSuccess(CpsThreadGroup g) {
                 if (v) {
                     g.pause();
+                    saveOwner();
+                    if (storage != null) {
+                        try {
+                            storage.flush();
+                        } catch (IOException ioe) {
+                            LOGGER.log(Level.WARNING, "Error persisting FlowNode storage after pause", ioe);
+                        }
+                    }
                 } else {
                     g.unpause();
                 }
@@ -1679,6 +1687,18 @@ public class CpsFlowExecution extends FlowExecution {
 
     }
 
+    /** Save the owner that holds this execution. */
+    void saveOwner() {
+        try {
+            if (this.owner.getExecutable() instanceof Saveable) {
+                Saveable saveable = (Saveable)(this.owner.getExecutable());
+                saveable.save();
+            }
+        } catch (IOException ex) {
+            LOGGER.log(Level.WARNING, "Error persisting Run before shutdown", ex);
+        }
+    }
+
     /** Ensures that even if we're limiting persistence of data for performance, we still write out data for shutdown. */
     @Override
     protected void notifyShutdown() {
@@ -1725,14 +1745,11 @@ public class CpsFlowExecution extends FlowExecution {
             } /*catch (InterruptedException | TimeoutException e) {
                 LOGGER.log(Level.WARNING, "Failed to persist program when needed", e);
             }*/
+            saveOwner();
             try {
-                if (this.owner.getExecutable() instanceof Saveable) {
-                    Saveable saveable = (Saveable)(this.owner.getExecutable());
-                    saveable.save();
-                    storage.flush();
-                }
-            } catch (IOException ex) {
-                LOGGER.log(Level.WARNING, "Error persisting Run before shutdown", ex);
+                storage.flush();
+            } catch (IOException ioe) {
+                LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before shutdown", ioe);
             }
         }
     }

@@ -111,6 +111,10 @@ class CpsGroovyShell extends GroovyShell {
         Script s = doParse(codeSource);
         if (execution!=null)
             execution.loadedScripts.put(s.getClass().getName(), codeSource.getScriptText());
+        if (this.execution != null && !this.execution.getDurabilityHint().isPersistWithEveryStep()) {
+            // Ensure we persist new scripts
+            this.execution.saveOwner();
+        }
         prepareScript(s);
         return s;
     }
