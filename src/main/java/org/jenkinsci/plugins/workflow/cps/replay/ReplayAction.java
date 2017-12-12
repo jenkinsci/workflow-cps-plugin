@@ -99,11 +99,11 @@ public class ReplayAction implements Action {
     }
 
     @Override public String getIconFileName() {
-        return isEnabled() ? "redo.png" : null;
+        return isEnabled() || isRebuildEnabled() ? "redo.png" : null;
     }
 
     @Override public String getUrlName() {
-        return isEnabled() ? "replay" : null;
+        return isEnabled() || isRebuildEnabled() ? "replay" : null;
     }
 
     private @CheckForNull CpsFlowExecution getExecution() {
@@ -113,6 +113,17 @@ public class ReplayAction implements Action {
         }
         FlowExecution exec = owner.getOrNull();
         return exec instanceof CpsFlowExecution ? (CpsFlowExecution) exec : null;
+    }
+
+    /* accessible to Jelly */ public boolean isRebuildEnabled() {
+        if (!run.hasPermission(Item.BUILD)) {
+            return false;
+        }
+        if (!run.getParent().isBuildable()) {
+            return false;
+        }
+
+        return getExecution() != null;
     }
 
     /* accessible to Jelly */ public boolean isEnabled() {
@@ -173,6 +184,19 @@ public class ReplayAction implements Action {
             replacementLoadedScripts.put(entry.getKey(), form.optString(entry.getKey().replace('.', '_'), entry.getValue()));
         }
         if (run(form.getString("mainScript"), replacementLoadedScripts) == null) {
+            throw HttpResponses.error(SC_CONFLICT, new IOException(run.getParent().getFullName() + " is not buildable"));
+
+        }
+        rsp.sendRedirect("../.."); // back to WorkflowJob; new build might not start instantly so cannot redirect to it
+    }
+
+    @Restricted(DoNotUse.class)
+    @RequirePOST
+    public void doRebuild(StaplerRequest req, StaplerResponse rsp) throws ServletException, IOException {
+        if (!isRebuildEnabled()) {
+            throw new AccessDeniedException("not allowed to replay"); // AccessDeniedException2 requires us to look up the specific Permission
+        }
+        if (run(getOriginalScript(), getOriginalLoadedScripts()) == null) {
             throw HttpResponses.error(SC_CONFLICT, new IOException(run.getParent().getFullName() + " is not buildable"));
 
         }

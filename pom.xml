@@ -28,15 +28,15 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>2.35</version>
+        <version>3.1</version>
         <relativePath />
     </parent>
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
     <artifactId>workflow-cps</artifactId>
-    <version>2.42-durability-v3-SNAPSHOT</version> <!-- Temp version to help separate this work, remove before merge -->
+    <version>2.43-durability-v3-SNAPSHOT</version> <!-- Temp version to help separate this work, remove before merge -->
     <packaging>hpi</packaging>
     <name>Pipeline: Groovy</name>
-    <url>https://wiki.jenkins-ci.org/display/JENKINS/Pipeline+Groovy+Plugin</url>
+    <url>https://wiki.jenkins.io/display/JENKINS/Pipeline+Groovy+Plugin</url>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -62,12 +62,13 @@
         </pluginRepository>
     </pluginRepositories>
     <properties>
-        <jenkins.version>2.7.3</jenkins.version>
+        <jenkins.version>2.60.3</jenkins.version>
+        <java.level>8</java.level>
         <no-test-jar>false</no-test-jar>
         <git-plugin.version>3.1.0</git-plugin.version>
         <workflow-support-plugin.version>2.17-durability-v3-20171212.214810-1</workflow-support-plugin.version>
         <scm-api-plugin.version>2.0.8</scm-api-plugin.version>
-        <groovy-cps.version>1.20</groovy-cps.version>
+        <groovy-cps.version>1.21</groovy-cps.version>
         <jenkins-test-harness.version>2.33-20171212.181147-1</jenkins-test-harness.version>
     </properties>
     <dependencies>
@@ -95,7 +96,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1.34</version>
+            <version>1.36</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
