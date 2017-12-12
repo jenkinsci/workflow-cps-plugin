@@ -4,6 +4,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import hudson.model.Computer;
 import hudson.model.Executor;
+import hudson.model.Item;
 import hudson.model.Result;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
@@ -19,6 +20,7 @@ import org.jenkinsci.plugins.workflow.graph.FlowEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
+import org.jenkinsci.plugins.workflow.graphanalysis.LinearScanner;
 import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepNamePredicate;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -32,7 +34,6 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -40,18 +41,12 @@ import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
-import java.io.File;
-import java.io.IOException;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -155,6 +150,11 @@ public class FlowDurabilityTest {
     }
 
     static WorkflowRun createAndRunSleeperJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint) throws Exception {
+        Item prev = jenkins.getItemByFullName(jobName);
+        if (prev != null) {
+            prev.delete();
+        }
+
         WorkflowJob job = jenkins.createProject(WorkflowJob.class, jobName);
         CpsFlowDefinition def = new CpsFlowDefinition("node {\n " +
                 "sleep 30 \n" +
@@ -225,10 +225,11 @@ public class FlowDurabilityTest {
     }
 
     /** Waits until the build to resume or die. */
-    static void waitForBuildToResumeOrFail(CpsFlowExecution execution) throws TimeoutException {
+    static void waitForBuildToResumeOrFail(WorkflowRun run) throws TimeoutException {
+        CpsFlowExecution execution = (CpsFlowExecution)(run.getExecution());
         long nanoStartTime = System.nanoTime();
         while (true) {
-            if (execution.isComplete() || (execution.programPromise != null && execution.programPromise.isDone())) {
+            if (!run.isBuilding()) {
                 return;
             }
             long currentTime = System.nanoTime();
@@ -243,13 +244,19 @@ public class FlowDurabilityTest {
         if (run.isBuilding()) {  // Give the run a little bit of time to see if it can resume or not
             FlowExecution exec = run.getExecution();
             if (exec instanceof CpsFlowExecution) {
-                waitForBuildToResumeOrFail((CpsFlowExecution)exec);
+                waitForBuildToResumeOrFail(run);
             } else {
                 Thread.sleep(4000L);
             }
         }
 
-        assert !run.isBuilding();
+        if (run.getExecution() instanceof CpsFlowExecution) {
+            CpsFlowExecution cfe = (CpsFlowExecution)(run.getExecution());
+            assert cfe.isComplete() || (cfe.programPromise != null && cfe.programPromise.isDone());
+        }
+
+        assert !run.isBuilding();  // This test flakes sometimes!  This needs to be FIXED.  Why does it still show as "isBuilding"?
+
         if (run.getExecution() instanceof  CpsFlowExecution) {
             Assert.assertEquals(Result.FAILURE, ((CpsFlowExecution) run.getExecution()).getResult());
         }
@@ -374,6 +381,44 @@ public class FlowDurabilityTest {
         });
     }
 
+    /**
+     * Verifies that paused pipelines survive dirty restarts
+     */
+    @Test
+    public void testPauseForcesLowDurabilityToPersist() throws Exception {
+        final String jobName = "durableAgainstClean";
+        final String[] logStart = new String[1];
+
+        story.addStepWithDirtyShutdown(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                Jenkins jenkins = story.j.jenkins;
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                FlowExecution exec = run.getExecution();
+                assertBaseStorageType(exec, BulkFlowNodeStorage.class);
+                logStart[0] = JenkinsRule.getLog(run);
+                if (run.getExecution() instanceof CpsFlowExecution) {
+                    CpsFlowExecution cpsFlow = (CpsFlowExecution)(run.getExecution());
+                    cpsFlow.pause(true);
+                    long timeout = System.nanoTime()+TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS);
+                    while(System.nanoTime() < timeout && !cpsFlow.isPaused()) {
+                        Thread.sleep(100L);
+                    }
+                }
+            }
+        });
+
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                assertBaseStorageType(run.getExecution(), BulkFlowNodeStorage.class);
+                verifySafelyResumed(story.j, run, true, logStart[0]);
+            }
+        });
+    }
+
     /** Verify that our flag for whether or not a build was cleanly persisted gets reset when things happen.
      */
     @Test
@@ -437,6 +482,64 @@ public class FlowDurabilityTest {
                 WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
                 verifyFailedCleanly(story.j.jenkins, run);
                 story.j.assertLogContains(logStart[0], run);
+            }
+        });
+    }
+
+    /** Veryify that if we bomb out because we cannot resume, we at least try to finish the flow graph */
+    @Test
+    public void testPipelineFinishesFlowGraph() throws Exception {
+        final String[] logStart = new String[1];
+        final List<FlowNode> nodesOut = new ArrayList<FlowNode>();
+        story.addStepWithDirtyShutdown(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                logStart[0] = JenkinsRule.getLog(run);
+                if (run.getExecution() instanceof CpsFlowExecution) {
+                    // Pause and unPause to force persistence
+                    CpsFlowExecution cpsFlow = (CpsFlowExecution)(run.getExecution());
+                    cpsFlow.pause(true);
+                    long timeout = System.nanoTime()+TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS);
+                    while(System.nanoTime() < timeout && !cpsFlow.isPaused()) {
+                        Thread.sleep(100L);
+                    }
+                    nodesOut.addAll(new LinearScanner().allNodes(run.getExecution()));
+                    Collections.reverse(nodesOut);
+                    cpsFlow.pause(false);
+                    timeout = System.nanoTime()+TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS);
+                    while(System.nanoTime() < timeout && cpsFlow.isPaused()) {
+                        Thread.sleep(100L);
+                    }
+
+                    // Ensures we're marked as can-not-resume
+                    cpsFlow.persistedClean = false;
+                    cpsFlow.saveOwner();
+                }
+            }
+        });
+
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
+                verifyFailedCleanly(story.j.jenkins, run);
+                story.j.assertLogContains(logStart[0], run);
+                List<FlowNode> nodes = new LinearScanner().allNodes(run.getExecution());
+                Collections.reverse(nodes);
+
+                // Make sure we have the starting nodes at least
+                assert  nodesOut.size() > nodes.size();
+                for (int i=0; i<nodesOut.size(); i++) {
+                    try {
+                        FlowNode match = nodesOut.get(i);
+                        FlowNode after = nodes.get(i);
+                        Assert.assertEquals(match.getDisplayFunctionName(), after.getDisplayFunctionName());
+                    } catch (Exception ex) {
+                        throw new Exception("Error with flownode at index="+i, ex);
+                    }
+                }
             }
         });
     }
