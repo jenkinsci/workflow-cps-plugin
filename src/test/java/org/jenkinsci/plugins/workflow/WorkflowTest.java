@@ -36,6 +36,7 @@ import hudson.model.Slave;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.slaves.CommandLauncher;
+import hudson.slaves.ComputerLauncher;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.RetentionStrategy;
 import hudson.slaves.SlaveComputer;
@@ -338,7 +339,7 @@ public class WorkflowTest extends SingleJobTestBase {
     }
     private static class SpecialEnvSlave extends Slave {
         private final Map<String,String> env;
-        SpecialEnvSlave(File remoteFS, CommandLauncher launcher, String nodeName, @Nonnull String labels, Map<String,String> env) throws Descriptor.FormException, IOException {
+        SpecialEnvSlave(File remoteFS, ComputerLauncher launcher, String nodeName, @Nonnull String labels, Map<String,String> env) throws Descriptor.FormException, IOException {
             super(nodeName, nodeName, remoteFS.getAbsolutePath(), 1, Node.Mode.NORMAL, labels, launcher, RetentionStrategy.NOOP, Collections.<NodeProperty<?>>emptyList());
             this.env = env;
         }

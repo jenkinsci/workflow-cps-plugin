@@ -394,7 +394,7 @@ public class FlowDurabilityTest {
                 Thread.sleep(2000L);  // Hacky but we just need to ensure this can start up
             }
         });
-        story.addStep(new Statement() {
+        story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
@@ -405,7 +405,6 @@ public class FlowDurabilityTest {
                     CpsFlowExecution exec = (CpsFlowExecution)run.getExecution();
                     assert exec.persistedClean == null;
                 }
-                simulateAbruptFailure(story);
             }
         });
         story.addStep(new Statement() {
@@ -423,13 +422,12 @@ public class FlowDurabilityTest {
     @Test
     public void testDurableAgainstCleanRestartFailsWithDirtyShutdown() throws Exception {
         final String[] logStart = new String[1];
-        story.addStep(new Statement() {
+        story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
                 Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
                 logStart[0] = JenkinsRule.getLog(run);
-                simulateAbruptFailure(story);
             }
         });
 
@@ -479,7 +477,7 @@ public class FlowDurabilityTest {
         final String jobName = "survivesEverything";
         final String[] logStart = new String[1];
 
-        story.addStep(new Statement() {
+        story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
@@ -488,7 +486,6 @@ public class FlowDurabilityTest {
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
                 }
-                simulateAbruptFailure(story);
                 logStart[0] = JenkinsRule.getLog(run);
             }
         });
@@ -502,41 +499,6 @@ public class FlowDurabilityTest {
         });
     }
 
-    /** https://stackoverflow.com/questions/6214703/copy-entire-directory-contents-to-another-directory */
-    public static class CopyFileVisitor extends SimpleFileVisitor<Path> {
-        private final Path targetPath;
-        private Path sourcePath = null;
-        public CopyFileVisitor(Path targetPath) {
-            this.targetPath = targetPath;
-        }
-
-        @Override
-        public FileVisitResult preVisitDirectory(final Path dir,
-                                                 final BasicFileAttributes attrs) throws IOException {
-            if (sourcePath == null) {
-                sourcePath = dir;
-            } else {
-                Files.createDirectories(targetPath.resolve(sourcePath
-                        .relativize(dir)));
-            }
-            return FileVisitResult.CONTINUE;
-        }
-
-        @Override
-        public FileVisitResult visitFile(final Path file,
-                                         final BasicFileAttributes attrs) throws IOException {
-            if (!Files.isSymbolicLink(file)) {
-                // Needed because Jenkins includes invalid lastSuccessful symlinks and otherwise we get a NoSuchFileException
-                Files.copy(file,
-                        targetPath.resolve(sourcePath.relativize(file)));
-            } else if (Files.isSymbolicLink(file) && Files.exists(Files.readSymbolicLink(file))) {
-                Files.copy(file,
-                        targetPath.resolve(sourcePath.relativize(file)));
-            }
-            return FileVisitResult.CONTINUE;
-        }
-    }
-
     @Test
     @Ignore
     @TimedRepeatRule.RepeatForTime(repeatMillis = 300_000)
@@ -545,7 +507,7 @@ public class FlowDurabilityTest {
         long startTime = System.nanoTime();
 
         // Create thread that eventually interrupts Jenkins with a hard shutdown at a random time interval
-        story.addStep(new Statement() {
+        story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
@@ -554,34 +516,8 @@ public class FlowDurabilityTest {
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
                 }
-                simulateAbruptFailure(story);
-//                logStart[0] = JenkinsRule.getLog(run);
             }
         });
 
-    }
-
-
-    /**
-     * Simulate an abrupt failure of Jenkins to see if it appropriately handles inconsistent states when
-     *  shutdown cleanup is not performed or data is not written fully to disk.
-     *
-     * Works by copying the JENKINS_HOME to a new directory and then setting the {@link RestartableJenkinsRule} to use
-     * that for the next restart. Thus we only have the data actually persisted to disk at that time to work with.
-     *
-     * Should be run as the last part of a {@link org.jvnet.hudson.test.RestartableJenkinsRule.Step}.
-     *
-     * @param rule Restartable JenkinsRule to use for simulating failure and restart
-     * @throws IOException
-     */
-    public static void simulateAbruptFailure(RestartableJenkinsRule rule) throws IOException {
-        File homeDir = rule.home;
-        TemporaryFolder temp = new TemporaryFolder();
-        temp.create();
-        File newHome = temp.newFolder();
-
-        // Copy efficiently
-        Files.walkFileTree(homeDir.toPath(), Collections.EMPTY_SET, 99, new CopyFileVisitor(newHome.toPath()));
-        rule.home = newHome;
     }
 }
