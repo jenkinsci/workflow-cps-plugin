@@ -1506,6 +1506,7 @@ public class CpsFlowExecution extends FlowExecution {
             w.endNode();
         }
 
+        @SuppressFBWarnings(value = "BX_UNBOXING_IMMEDIATELY_REBOXED", justification = "Nastiness with the impl")
         public Object unmarshal(HierarchicalStreamReader reader, final UnmarshallingContext context) {
                 CpsFlowExecution result;
 
