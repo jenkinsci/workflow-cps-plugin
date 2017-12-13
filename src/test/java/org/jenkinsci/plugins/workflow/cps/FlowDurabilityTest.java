@@ -255,7 +255,7 @@ public class FlowDurabilityTest {
             assert cfe.isComplete() || (cfe.programPromise != null && cfe.programPromise.isDone());
         }
 
-        assert !run.isBuilding();  // This test flakes sometimes!  This needs to be FIXED.  Why does it still show as "isBuilding"?
+        assert !run.isBuilding();
 
         if (run.getExecution() instanceof  CpsFlowExecution) {
             Assert.assertEquals(Result.FAILURE, ((CpsFlowExecution) run.getExecution()).getResult());
@@ -526,22 +526,27 @@ public class FlowDurabilityTest {
                 WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
                 verifyFailedCleanly(story.j.jenkins, run);
                 story.j.assertLogContains(logStart[0], run);
-                List<FlowNode> nodes = new LinearScanner().allNodes(run.getExecution());
-                Collections.reverse(nodes);
-
-                // Make sure we have the starting nodes at least
-                assert  nodesOut.size() > nodes.size();
-                for (int i=0; i<nodesOut.size(); i++) {
-                    try {
-                        FlowNode match = nodesOut.get(i);
-                        FlowNode after = nodes.get(i);
-                        Assert.assertEquals(match.getDisplayFunctionName(), after.getDisplayFunctionName());
-                    } catch (Exception ex) {
-                        throw new Exception("Error with flownode at index="+i, ex);
-                    }
-                }
+                assertIncludesNodes(nodesOut, run);
             }
         });
+    }
+
+    /** Verify that we retain and flowgraph start with the included nodes, which must be in sorted order */
+    void assertIncludesNodes(List<FlowNode> prefixNodes, WorkflowRun run) throws Exception {
+        List<FlowNode> nodes = new LinearScanner().allNodes(run.getExecution());
+        Collections.reverse(nodes);
+
+        // Make sure we have the starting nodes at least
+        assert  prefixNodes.size() > nodes.size();
+        for (int i=0; i<prefixNodes.size(); i++) {
+            try {
+                FlowNode match = prefixNodes.get(i);
+                FlowNode after = nodes.get(i);
+                Assert.assertEquals(match.getDisplayFunctionName(), after.getDisplayFunctionName());
+            } catch (Exception ex) {
+                throw new Exception("Error with flownode at index="+i, ex);
+            }
+        }
     }
 
     /** Sanity check that fully durable pipelines shutdown and restart cleanly */
@@ -598,6 +603,38 @@ public class FlowDurabilityTest {
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
                 verifySafelyResumed(story.j, run, false, logStart[0]);
+            }
+        });
+    }
+
+    @Test
+    public void testResumeBlocked() throws Exception {
+        final String jobName = "survivesEverything";
+        final String[] logStart = new String[1];
+        final List<FlowNode> nodesOut = new ArrayList<FlowNode>();
+
+        story.addStepWithDirtyShutdown(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                Jenkins jenkins = story.j.jenkins;
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY);
+                FlowExecution exec = run.getExecution();
+                if (exec instanceof CpsFlowExecution) {
+                    assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
+                    ((CpsFlowExecution)exec).setResumeBlocked(true);
+                }
+                logStart[0] = JenkinsRule.getLog(run);
+                nodesOut.addAll(new LinearScanner().allNodes(run.getExecution()));
+                Collections.reverse(nodesOut);
+            }
+        });
+
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                verifyFailedCleanly(story.j.jenkins, run);
+                assertIncludesNodes(nodesOut, run);
             }
         });
     }

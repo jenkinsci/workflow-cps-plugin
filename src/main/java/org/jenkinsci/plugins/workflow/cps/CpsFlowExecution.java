@@ -266,6 +266,8 @@ public class CpsFlowExecution extends FlowExecution {
     /** If true, we did a clean write of FlowNode storage before shutdown. */
     Boolean persistedClean = null;
 
+    boolean resumeBlocked = false;
+
     /**
      * Start nodes that have been created, whose {@link BlockEndNode} is not yet created.
      */
@@ -329,6 +331,18 @@ public class CpsFlowExecution extends FlowExecution {
 
     /** Actions to add to the {@link FlowStartNode}. */
     transient final List<Action> flowStartNodeActions = new ArrayList<Action>();
+
+    /** If true, pipeline is forbidden to resume even if it can. */
+    public boolean isResumeBlocked() {
+        return resumeBlocked;
+    }
+
+    public void setResumeBlocked(boolean resumeBlocked) {
+        if (this.resumeBlocked != resumeBlocked) {
+            this.resumeBlocked = resumeBlocked;
+            saveOwner();
+        }
+    }
 
     enum TimingKind {
         /**
@@ -638,8 +652,11 @@ public class CpsFlowExecution extends FlowExecution {
         }
     }
 
-    /** If true, we are allowed to resume the build because we shut down cleanly. */
+    /** If true, we are allowed to resume the build because resume is enabled AND we shut down cleanly. */
     public boolean canResume() {
+        if (isResumeBlocked()) {
+            return false;
+        }
         if (persistedClean != null) {
             return persistedClean.booleanValue();
         }
@@ -1474,6 +1491,7 @@ public class CpsFlowExecution extends FlowExecution {
                     writeChild(w, context, "start", st.getId(), String.class);
                 }
             }
+            writeChild(w, context, "resumeBlocked", e.resumeBlocked, Boolean.class);
         }
 
         private <T> void writeChild(HierarchicalStreamWriter w, MarshallingContext context, String name, @Nonnull T v, Class<T> staticType) {
@@ -1540,6 +1558,9 @@ public class CpsFlowExecution extends FlowExecution {
                         } else if (nodeName.equals("persistedClean")) {
                             Boolean hint = readChild(reader, context, Boolean.class, result);
                             setField(result, "persistedClean", hint);
+                        } else if (nodeName.equals("resumeBlocked")) {
+                            Boolean val = readChild(reader, context, Boolean.class, result);
+                            setField(result, "resumeBlocked", val.booleanValue());
                         }
 
                         reader.moveUp();
