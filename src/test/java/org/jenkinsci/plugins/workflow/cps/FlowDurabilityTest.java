@@ -546,7 +546,7 @@ public class FlowDurabilityTest {
         Collections.reverse(nodes);
 
         // Make sure we have the starting nodes at least
-        assert  prefixNodes.size() > nodes.size();
+        assert prefixNodes.size() < nodes.size();
         for (int i=0; i<prefixNodes.size(); i++) {
             try {
                 FlowNode match = prefixNodes.get(i);
