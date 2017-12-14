@@ -1380,6 +1380,10 @@ public class CpsFlowExecution extends FlowExecution {
         return false;
     }
 
+    private void setPersistedClean(boolean persistedClean) {  // Workaround for some issues with anonymous classes.
+        this.persistedClean = persistedClean;
+    }
+
     /**
      * Pause or unpause the execution.
      *
@@ -1396,14 +1400,7 @@ public class CpsFlowExecution extends FlowExecution {
             @Override public void onSuccess(CpsThreadGroup g) {
                 if (v) {
                     g.pause();
-                    saveOwner();
-                    if (storage != null) {
-                        try {
-                            storage.flush();
-                        } catch (IOException ioe) {
-                            LOGGER.log(Level.WARNING, "Error persisting FlowNode storage after pause", ioe);
-                        }
-                    }
+                    checkpoint();
                 } else {
                     g.unpause();
                 }
@@ -1716,22 +1713,21 @@ public class CpsFlowExecution extends FlowExecution {
             }
         } catch (IOException ex) {
             LOGGER.log(Level.WARNING, "Error persisting Run before shutdown", ex);
+            persistedClean = false;
         }
     }
 
-    /** Ensures that even if we're limiting persistence of data for performance, we still write out data for shutdown. */
-    @Override
-    protected void notifyShutdown() {
+    /** Save everything we can to disk - program, run, flownodes. */
+    private void checkpoint() {
         if (isComplete() || this.getDurabilityHint().isPersistWithEveryStep()) {
             // Nothing to persist OR we've already persisted it along the way.
             return;
         }
+        boolean persistOk = true;
         FlowNodeStorage storage = getStorage();
         if (storage != null) {
+            // Try to ensure we've saved the appropriate things -- the program is the last stumbling block.
             try {
-                storage.flush();
-
-                // Try to ensure we've saved the appropriate things -- the program is the last stumbling block.
                 final SettableFuture<Void> myOutcome = SettableFuture.create();
                 if (programPromise != null && programPromise.isDone()) {
                     runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
@@ -1753,25 +1749,30 @@ public class CpsFlowExecution extends FlowExecution {
                     });
                     myOutcome.get(30, TimeUnit.SECONDS);
                 }
-                persistedClean = Boolean.TRUE;
-//            } catch (IOException | InterruptedException ex) {
-            } catch (TimeoutException | IOException | InterruptedException ex) {
-                persistedClean = Boolean.FALSE;
-                // FIXME TimeoutException always triggered!
-                LOGGER.log(Level.WARNING, "Error persisting storage before shutdown", ex);
-            } catch (ExecutionException ex) {
-                // Probably safe-ish to ignore
-                LOGGER.log(Level.FINE, "Error loading program, that should be handled elsewhere.", ex);
-            } /*catch (InterruptedException | TimeoutException e) {
-                LOGGER.log(Level.WARNING, "Failed to persist program when needed", e);
-            }*/
-            saveOwner();
+
+            } catch (TimeoutException te) {
+                persistOk = false;
+                LOGGER.log(Level.WARNING, "Timeout persisting program at execution checkpoint", te);
+            } catch (ExecutionException | InterruptedException ex) {
+                persistOk = false;
+                LOGGER.log(Level.FINE, "Error saving program, that should be handled elsewhere.", ex);
+            }
+
             try {
                 storage.flush();
             } catch (IOException ioe) {
+                persistOk=false;
                 LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before shutdown", ioe);
             }
+            persistedClean = persistOk;
+            saveOwner();
         }
+    }
+
+    /** Ensures that even if we're limiting persistence of data for performance, we still write out data for shutdown. */
+    @Override
+    protected void notifyShutdown() {
+        checkpoint();
     }
 
 }

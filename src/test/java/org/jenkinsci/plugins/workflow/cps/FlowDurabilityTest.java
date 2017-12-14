@@ -412,9 +412,17 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                if (run.getExecution() instanceof CpsFlowExecution) {
+                    CpsFlowExecution cpsFlow = (CpsFlowExecution)(run.getExecution());
+                    cpsFlow.pause(false);
+                    long timeout = System.nanoTime()+TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS);
+                    while(System.nanoTime() < timeout && cpsFlow.isPaused()) {
+                        Thread.sleep(100L);
+                    }
+                }
                 Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
                 assertBaseStorageType(run.getExecution(), BulkFlowNodeStorage.class);
-                verifySafelyResumed(story.j, run, true, logStart[0]);
+                verifySafelyResumed(story.j, run, false, logStart[0]);
             }
         });
     }
