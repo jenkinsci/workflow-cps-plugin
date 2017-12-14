@@ -1113,7 +1113,8 @@ public class CpsFlowExecution extends FlowExecution {
             FlowExecution exec = node.getExecution();
             if (exec instanceof CpsFlowExecution) {
                 if (exec.getDurabilityHint().isPersistWithEveryStep()) {
-                    ((CpsFlowExecution) exec).getStorage().autopersist(node);
+                    FlowNodeStorage exc = ((CpsFlowExecution) exec).getStorage();
+                    exc.autopersist(node);
                 }
             }
         } catch (IOException ioe) {

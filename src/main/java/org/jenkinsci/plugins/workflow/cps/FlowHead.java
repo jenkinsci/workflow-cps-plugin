@@ -115,6 +115,9 @@ final class FlowHead implements Serializable {
 
     void setNewHead(FlowNode v) {
         try {
+            if (this.head != null) {
+                execution.storage.autopersist(head);
+            }
             this.head = v;
             execution.storage.storeNode(head, true);
 
