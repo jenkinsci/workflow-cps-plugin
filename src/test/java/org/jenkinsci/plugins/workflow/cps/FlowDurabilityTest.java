@@ -494,8 +494,9 @@ public class FlowDurabilityTest {
         });
     }
 
-    /** Veryify that if we bomb out because we cannot resume, we at least try to finish the flow graph */
+    /** Veryify that if we bomb out because we cannot resume, we at least try to finish the flow graph if we have something to work with. */
     @Test
+    @Ignore // Can be fleshed out later if we have a valid need for it.
     public void testPipelineFinishesFlowGraph() throws Exception {
         final String[] logStart = new String[1];
         final List<FlowNode> nodesOut = new ArrayList<FlowNode>();

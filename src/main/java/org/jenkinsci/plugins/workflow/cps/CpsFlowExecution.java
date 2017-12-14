@@ -644,6 +644,7 @@ public class CpsFlowExecution extends FlowExecution {
                 if (node != null) {
                     startNodes.add((BlockStartNode) storage.getNode(id));
                 } else {
+                    // TODO if possible, consider tyring to close out unterminated blocks to keep existing graph history
                     rebuildEmptyGraph();
                     return;
                 }
@@ -674,7 +675,10 @@ public class CpsFlowExecution extends FlowExecution {
                     if (canResume()) {
                         loadProgramAsync(getProgramDataFile());
                     } else {
+                        // TODO if possible, consider tyring to close out unterminated blocks to keep existing graph history
+                        // That way we can visualize the graph in some error cases.
                         LOGGER.log(Level.WARNING, "Pipeline state not properly persisted, cannot resume "+owner.getUrl());
+                        this.finishFlowGraph();
                         throw new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down.");
                     }
                 }
