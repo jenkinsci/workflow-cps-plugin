@@ -678,7 +678,6 @@ public class CpsFlowExecution extends FlowExecution {
                         // TODO if possible, consider tyring to close out unterminated blocks to keep existing graph history
                         // That way we can visualize the graph in some error cases.
                         LOGGER.log(Level.WARNING, "Pipeline state not properly persisted, cannot resume "+owner.getUrl());
-                        this.finishFlowGraph();
                         throw new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down.");
                     }
                 }
@@ -1404,6 +1403,7 @@ public class CpsFlowExecution extends FlowExecution {
             @Override public void onSuccess(CpsThreadGroup g) {
                 if (v) {
                     g.pause();
+                    checkAndAbortNonresumableBuild();
                     checkpoint();
                 } else {
                     g.unpause();
@@ -1773,9 +1773,42 @@ public class CpsFlowExecution extends FlowExecution {
         }
     }
 
+    /** Clean shutdown of build */
+    private void checkAndAbortNonresumableBuild() {
+        if (isComplete() || this.getDurabilityHint().isPersistWithEveryStep() || !isResumeBlocked()) {
+            return;
+        }
+        try {
+            // FIXME we need to actually kill the darn build
+
+            owner.getListener().getLogger().println("Failing build: shutting down master and build is marked to not resume");
+            final Throwable x = new FlowInterruptedException(Result.ABORTED);
+            Futures.addCallback(this.getCurrentExecutions(/* cf. JENKINS-26148 */true), new FutureCallback<List<StepExecution>>() {
+                @Override public void onSuccess(List<StepExecution> l) {
+                    for (StepExecution e : Iterators.reverse(l)) {
+                        StepContext context = e.getContext();
+                        context.onFailure(x);
+                        try {
+                            FlowNode n = context.get(FlowNode.class);
+                            if (n != null) {
+                                owner.getListener().getLogger().println("Terminating " + n.getDisplayFunctionName());
+                            }
+                        } catch (Exception x) {
+                            LOGGER.log(Level.FINE, null, x);
+                        }
+                    }
+                }
+                @Override public void onFailure(Throwable t) {}
+            });
+        } catch (IOException ioe) {
+            LOGGER.log(Level.WARNING, "Error just doing logging", ioe);
+        }
+    }
+
     /** Ensures that even if we're limiting persistence of data for performance, we still write out data for shutdown. */
     @Override
     protected void notifyShutdown() {
+        checkAndAbortNonresumableBuild();
         checkpoint();
     }
 
