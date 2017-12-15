@@ -81,7 +81,7 @@
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
             <!-- Temp until https://github.com/jenkinsci/workflow-api-plugin/pull/55 is released -->
-            <version>2.25-durability-v3-20171212.214047-1</version>
+            <version>2.25-durability-v3-20171214.022350-2</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
