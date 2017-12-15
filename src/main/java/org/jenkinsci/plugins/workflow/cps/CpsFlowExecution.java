@@ -58,6 +58,7 @@ import jenkins.model.Jenkins;
 import org.jboss.marshalling.Unmarshaller;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.flow.BlockableResume;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
@@ -229,7 +230,7 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
  * @author Kohsuke Kawaguchi
  */
 @PersistIn(RUN)
-public class CpsFlowExecution extends FlowExecution {
+public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /**
      * Groovy script of the main source file (that the user enters in the GUI)
      */
