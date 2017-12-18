@@ -20,6 +20,7 @@ import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.graph.BlockStartNode;
 import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
@@ -194,15 +195,21 @@ class CpsBodyExecution extends BodyExecution {
         t.getExecution().runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
             @Override public void onSuccess(CpsThreadGroup g) {
                 try {
+                    if (g.threads.size() == 1) {
+                        result.set(Collections.singletonList(g.threads.firstEntry().getValue().getStep()));
+                        return;
+                    }
+
                     List<StepExecution> executions = new ArrayList<>();
                     // cf. trick in CpsFlowExecution.getCurrentExecutions(true)
                     Map<FlowHead, CpsThread> m = new LinkedHashMap<>();
                     for (CpsThread t : g.threads.values()) {
                         m.put(t.head, t);
                     }
+                    // TODO seems cumbersome to have to go through the flow graph to find out whether a head is a descendant of ours, yet FlowHead does not seem to retain a parent field
+                    LinearBlockHoppingScanner scanner = new LinearBlockHoppingScanner();
+                    // For each head, if it is enclosed by the execution OR follows after it, add it.
                     for (CpsThread t : m.values()) {
-                        // TODO seems cumbersome to have to go through the flow graph to find out whether a head is a descendant of ours, yet FlowHead does not seem to retain a parent field
-                        LinearBlockHoppingScanner scanner = new LinearBlockHoppingScanner();
                         scanner.setup(t.head.get());
                         for (FlowNode node : scanner) {
                             if (node.getId().equals(startNodeId)) {
@@ -247,13 +254,20 @@ class CpsBodyExecution extends BodyExecution {
             t.getExecution().runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
                 @Override
                 public void onSuccess(CpsThreadGroup g) {
+                    if (g.threads.size() == 1) {
+                        // Early exit for trivial case
+                        g.threads.firstEntry().getValue().stop(stopped);
+                        return;
+                    }
+
                     // Similar to getCurrentExecutions but we want the raw CpsThread, not a StepExecution; cf. CpsFlowExecution.interrupt
                     Map<FlowHead, CpsThread> m = new LinkedHashMap<>();
                     for (CpsThread t : thread.group.threads.values()) {
                         m.put(t.head, t);
                     }
+                    // Stop all threads enclosed by or following from this body.
+                    LinearBlockHoppingScanner scanner = new LinearBlockHoppingScanner();
                     for (CpsThread t : Iterators.reverse(ImmutableList.copyOf(m.values()))) {
-                        LinearBlockHoppingScanner scanner = new LinearBlockHoppingScanner();
                         scanner.setup(t.head.get());
                         for (FlowNode node : scanner) {
                             if (node.getId().equals(startNodeId)) {
