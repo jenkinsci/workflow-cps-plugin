@@ -119,7 +119,7 @@ class CpsBodyExecution extends BodyExecution {
                 sn.addAction(a);
         }
 
-        CpsFlowExecution.maybeAutoPersistNode(sn);  // Hacky but helpful
+        CpsFlowExecution.maybeAutoPersistNode(sn);
 
         StepContext sc = new CpsBodySubContext(context, sn);
         for (BodyExecutionCallback c : callbacks) {

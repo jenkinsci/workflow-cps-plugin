@@ -610,7 +610,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 startNodes.push(start);
                 head.newStartNode(start);
             } catch (IOException e) {
-                LOGGER.log(Level.FINE, "Failed to persist", e);
+                LOGGER.log(Level.WARNING, "Failed to persist", e);
             }
             persistedClean = false;
         }
@@ -645,7 +645,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 if (node != null) {
                     startNodes.add((BlockStartNode) storage.getNode(id));
                 } else {
-                    // TODO if possible, consider tyring to close out unterminated blocks to keep existing graph history
+                    // TODO if possible, consider trying to close out unterminated blocks using heads, to keep existing graph history
                     rebuildEmptyGraph();
                     return;
                 }
@@ -1775,7 +1775,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    /** Clean shutdown of build */
+    /** Clean shutdown of build. */
     private void checkAndAbortNonresumableBuild() {
         if (isComplete() || this.getDurabilityHint().isPersistWithEveryStep() || !isResumeBlocked()) {
             return;
@@ -1800,7 +1800,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         }
                     }
                 }
-                @Override public void onFailure(Throwable t) {}
+
+                @Override public void onFailure(Throwable t) {
+                    LOGGER.log(Level.WARNING, "Error stopping build due to error obtaining executions", t);
+                }
             });
         } catch (IOException ioe) {
             LOGGER.log(Level.WARNING, "Error just doing logging", ioe);
