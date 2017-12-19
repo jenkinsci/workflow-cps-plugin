@@ -8,6 +8,7 @@ import hudson.model.Item;
 import hudson.model.Result;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.plugins.workflow.TestDurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.actions.LogAction;
 import org.jenkinsci.plugins.workflow.actions.TimingAction;
@@ -135,7 +136,8 @@ public class FlowDurabilityTest {
                 "semaphore 'halt' \n" +
                 "} \n" +
                 "echo 'I like chese'\n", false);
-        def.setDurabilityHint(durabilityHint);
+        TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
+        provider.registerHint(jobName, durabilityHint);
         job.setDefinition(def);
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
         SemaphoreStep.waitForStart("halt/"+semaphoreIndex, run);
@@ -160,7 +162,8 @@ public class FlowDurabilityTest {
                 "sleep 30 \n" +
                 "} \n" +
                 "echo 'I like chese'\n", false);
-        def.setDurabilityHint(durabilityHint);
+        TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
+        provider.registerHint(jobName, durabilityHint);
         job.setDefinition(def);
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
         Thread.sleep(4000L);  // Hacky but we just need to ensure this can start up
@@ -343,7 +346,7 @@ public class FlowDurabilityTest {
                         Assert.assertEquals(durabilityHints[i], run.getExecution().getDurabilityHint());
                         Assert.assertEquals(logOutput[i], JenkinsRule.getLog(run));
                     } catch (AssertionError ae) {
-                        System.out.println("Error with durability level: "+j.getDefinition().getDurabilityHint());
+                        System.out.println("Error with durability level: "+durabilityHints[i]);
                         throw ae;
                     }
                 }
@@ -441,7 +444,8 @@ public class FlowDurabilityTest {
                         "  dir('nothing'){sleep 30;}\n"+
                         "} \n" +
                         "echo 'I like chese'\n", false);
-                def.setDurabilityHint(FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
+                provider.registerHint(jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
                 job.setDefinition(def);
                 WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
                 Thread.sleep(2000L);  // Hacky but we just need to ensure this can start up
