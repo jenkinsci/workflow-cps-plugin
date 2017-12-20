@@ -17,11 +17,12 @@ import org.jenkinsci.plugins.workflow.cps.nodes.StepNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.graph.FlowEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
-import org.jenkinsci.plugins.workflow.graphanalysis.LinearScanner;
+import org.jenkinsci.plugins.workflow.graphanalysis.FlowScanningUtils;
 import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepNamePredicate;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -50,6 +51,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -161,7 +163,7 @@ public class FlowDurabilityTest {
         CpsFlowDefinition def = new CpsFlowDefinition("node {\n " +
                 "sleep 30 \n" +
                 "} \n" +
-                "echo 'I like chese'\n", false);
+                "echo 'I like cheese'\n", false);
         TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
         provider.registerHint(jobName, durabilityHint);
         job.setDefinition(def);
@@ -518,8 +520,8 @@ public class FlowDurabilityTest {
                     while(System.nanoTime() < timeout && !cpsFlow.isPaused()) {
                         Thread.sleep(100L);
                     }
-                    nodesOut.addAll(new LinearScanner().allNodes(run.getExecution()));
-                    Collections.reverse(nodesOut);
+                    nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
+                    nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
                     cpsFlow.pause(false);
                     timeout = System.nanoTime()+TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS);
                     while(System.nanoTime() < timeout && cpsFlow.isPaused()) {
@@ -546,11 +548,11 @@ public class FlowDurabilityTest {
 
     /** Verify that we retain and flowgraph start with the included nodes, which must be in sorted order */
     void assertIncludesNodes(List<FlowNode> prefixNodes, WorkflowRun run) throws Exception {
-        List<FlowNode> nodes = new LinearScanner().allNodes(run.getExecution());
-        Collections.reverse(nodes);
+        List<FlowNode> nodes = new DepthFirstScanner().allNodes(run.getExecution());
+        nodes.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
 
         // Make sure we have the starting nodes at least
-        assert prefixNodes.size() < nodes.size();
+        assert prefixNodes.size() <= nodes.size();
         for (int i=0; i<prefixNodes.size(); i++) {
             try {
                 FlowNode match = prefixNodes.get(i);
@@ -637,8 +639,8 @@ public class FlowDurabilityTest {
                     ((CpsFlowExecution)exec).setResumeBlocked(true);
                 }
                 logStart[0] = JenkinsRule.getLog(run);
-                nodesOut.addAll(new LinearScanner().allNodes(run.getExecution()));
-                Collections.reverse(nodesOut);
+                nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
+                nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
             }
         });
 
@@ -652,23 +654,76 @@ public class FlowDurabilityTest {
         });
     }
 
+    /** Test interrupting build by randomly dying at unpredictable times. */
     @Test
-    @Ignore
-    @TimedRepeatRule.RepeatForTime(repeatMillis = 300_000)
-    public void fuzzTesting() throws Exception {
-
-        long startTime = System.nanoTime();
+    @Ignore //Too long to run as part of main suite
+    @TimedRepeatRule.RepeatForTime(repeatMillis = 170_000)
+    public void fuzzTimingDurable() throws Exception {
+        final String jobName = "NestedParallelDurableJob";
+        final String[] logStart = new String[1];
+        final List<FlowNode> nodesOut = new ArrayList<FlowNode>();
 
         // Create thread that eventually interrupts Jenkins with a hard shutdown at a random time interval
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "bob", FlowDurabilityHint.MAX_SURVIVABILITY);
-                FlowExecution exec = run.getExecution();
-                if (exec instanceof CpsFlowExecution) {
-                    assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
+                WorkflowJob job = jenkins.getItemByFullName(jobName, WorkflowJob.class);
+                if (job == null) {  // Job may already have been created
+                    job = jenkins.createProject(WorkflowJob.class, jobName);
+                    FlowDurabilityHint hint = FlowDurabilityHint.MAX_SURVIVABILITY;
+                    TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
+                    provider.registerHint(job.getFullName(), hint);
+                    job.setDefinition(new CpsFlowDefinition(
+                            "echo 'first'\n" +
+                                    "def steps = [:]\n" +
+                                    "steps['1'] = {\n" +
+                                    "    echo 'do 1 stuff'\n" +
+                                    "}\n" +
+                                    "steps['2'] = {\n" +
+                                    "    echo '2a'\n" +
+                                    "    echo '2b'\n" +
+                                    "    def nested = [:]\n" +
+                                    "    nested['2-1'] = {\n" +
+                                    "        echo 'do 2-1'\n" +
+                                    "    } \n" +
+                                    "    nested['2-2'] = {\n" +
+                                    "        sleep 1\n" +
+                                    "        echo '2 section 2'\n" +
+                                    "    }\n" +
+                                    "    parallel nested\n" +
+                                    "}\n" +
+                                    "parallel steps\n" +
+                                    "echo 'final'"
+                    ));
                 }
+                story.j.buildAndAssertSuccess(job);
+                long millisDuration = job.getLastBuild().getDuration();
+
+                int time = new Random().nextInt((int) millisDuration);
+                WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
+                Thread.sleep(time);
+                logStart[0] = JenkinsRule.getLog(run);
+                nodesOut.clear();
+                nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
+                nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
+            }
+            });
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                if (run.isBuilding()) {
+                    story.j.waitForCompletion(run);
+                    Assert.assertEquals(Result.SUCCESS, run.getResult());
+                } else {
+                    verifyCompletedCleanly(story.j.jenkins, run);
+                }
+                assertIncludesNodes(nodesOut, run);
+                story.j.assertLogContains(logStart[0], run);
+                try {
+                    FlowExecutionList.get().unregister(run.asFlowExecutionOwner());
+                } catch (Exception ex){}
             }
         });
 

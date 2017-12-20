@@ -69,7 +69,8 @@
         <workflow-support-plugin.version>2.17-durability-v3-20171212.214810-1</workflow-support-plugin.version>
         <scm-api-plugin.version>2.0.8</scm-api-plugin.version>
         <groovy-cps.version>1.21</groovy-cps.version>
-        <jenkins-test-harness.version>2.33-20171212.224055-2</jenkins-test-harness.version>
+        <!-- Just until https://github.com/jenkinsci/jenkins-test-harness/pull/91 is released -->
+        <jenkins-test-harness.version>2.33-20171220.165503-3</jenkins-test-harness.version>
     </properties>
     <dependencies>
         <dependency>
