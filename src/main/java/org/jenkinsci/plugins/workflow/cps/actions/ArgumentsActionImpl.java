@@ -126,6 +126,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             "JOB_URL",
             "NODE_LABELS",
             "NODE_NAME",
+            "STAGE_NAME",
             "WORKSPACE",
 
             // Normal system variables for posix environments
