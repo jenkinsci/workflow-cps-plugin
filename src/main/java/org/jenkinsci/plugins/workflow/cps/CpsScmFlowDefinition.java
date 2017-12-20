@@ -133,6 +133,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         SCMStep delegate = new GenericSCMStep(scm);
         delegate.setPoll(true);
         delegate.setChangelog(true);
+        FilePath acquiredDir;
         try (WorkspaceList.Lease lease = computer.getWorkspaceList().acquire(dir)) {
             delegate.checkout(build, dir, listener, node.createLauncher(listener));
             FilePath scriptFile = dir.child(scriptPath);
@@ -143,11 +144,12 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                 throw new AbortException(scriptFile + " not found");
             }
             script = scriptFile.readToString();
+            acquiredDir = lease.path;
         }
         Queue.Executable queueExec = owner.getExecutable();
         FlowDurabilityHint hint = (queueExec instanceof Run) ? DurabilityHintProvider.suggestedFor(((Run)queueExec).getParent()) : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
         CpsFlowExecution exec = new CpsFlowExecution(script, true, owner, hint);
-        exec.flowStartNodeActions.add(new WorkspaceActionImpl(dir, null));
+        exec.flowStartNodeActions.add(new WorkspaceActionImpl(acquiredDir, null));
         return exec;
     }
 
