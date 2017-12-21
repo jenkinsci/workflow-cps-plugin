@@ -275,6 +275,12 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>pipeline-stage-step</artifactId>
+            <version>2.3</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <build>
         <resources>
