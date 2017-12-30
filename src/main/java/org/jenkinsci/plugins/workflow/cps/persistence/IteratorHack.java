@@ -39,6 +39,7 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.SortedMap;
 
 /**
  * Makes Java iterators effectively serializable.
@@ -168,6 +169,11 @@ public class IteratorHack {
         return entries;
     }
 
+    public static <K, V> Set<Map.Entry<K, V>> entrySet(SortedMap<K, V> map) {
+        return entrySet((Map<K,V>)map);
+
+    }
+
     public static <K> Set<K> keySet(Map<K, ?> map) {
         if (!Caller.isAsynchronous(map, "keySet") && !Caller.isAsynchronous(IteratorHack.class, "keySet", map)) {
             return map.keySet();
@@ -175,11 +181,19 @@ public class IteratorHack {
         return new LinkedHashSet<>(map.keySet());
     }
 
+    public static <K> Set<K> keySet(SortedMap<K, ?> map) {
+        return keySet((Map<K,?>)map);
+    }
+
     public static <V> Collection<V> values(Map<?, V> map) {
         if (!Caller.isAsynchronous(map, "values") && !Caller.isAsynchronous(IteratorHack.class, "values", map)) {
             return map.values();
         }
         return new ArrayList<>(map.values());
+    }
+
+    public static <V> Collection<V> values(SortedMap<?, V> map) {
+        return values((Map<?,V>)map);
     }
 
     private IteratorHack() {}

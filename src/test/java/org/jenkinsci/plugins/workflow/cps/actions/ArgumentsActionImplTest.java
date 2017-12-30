@@ -14,9 +14,11 @@ import hudson.Functions;
 import hudson.XmlFile;
 import hudson.model.Action;
 import hudson.tasks.ArtifactArchiver;
+import jenkins.model.Jenkins;
 import org.apache.commons.lang.RandomStringUtils;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
+import org.jenkinsci.plugins.workflow.actions.StageAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.CpsThread;
@@ -38,13 +40,17 @@ import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import static org.hamcrest.Matchers.*;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -206,6 +212,31 @@ public class ArgumentsActionImplTest {
 
         Assert.assertEquals(unsanitizedList, impl.sanitizeObjectAndRecordMutation(unsanitizedList, new EnvVars()));
         Assert.assertEquals(unsanitizedList, impl.sanitizeListAndRecordMutation(unsanitizedList, new EnvVars()));
+    }
+
+    @Test
+    @Issue("JENKINS-48644")
+    public void testMissingDescriptionInsideStage() throws Exception {
+        Assume.assumeTrue(r.jenkins.getComputer("").isUnix()); // No need for windows-specific testing
+        WorkflowJob j = r.jenkins.createProject(WorkflowJob.class, "HiddenStep");
+        j.setDefinition(new CpsFlowDefinition("node{\n" +
+                "   stage ('Build') {\n" +
+                "       sh \"echo 'Building'\"\n" +
+                "   }\n" +
+                "   stage ('Test') {\n" +
+                "       sh \"echo 'testing'\"\n" +
+                "   }\n" +
+                "    stage ('Deploy') {\n" +
+                "       sh \"echo 'deploy'\"\n" +
+                "   }\n" +
+                "}\n", true));
+        WorkflowRun run = r.buildAndAssertSuccess(j);
+        List<FlowNode> nodes = new LinearScanner().filteredNodes(run.getExecution(), new NodeStepTypePredicate("sh"));
+        for (FlowNode f : nodes) {
+            if (ArgumentsAction.getStepArgumentsAsString(f) == null) {
+                Assert.fail("No arguments action for node: "+f.toString());
+            }
+        }
     }
 
     @Test

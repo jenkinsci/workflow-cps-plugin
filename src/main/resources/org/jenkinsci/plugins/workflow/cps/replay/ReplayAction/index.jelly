@@ -4,7 +4,7 @@
     <l:layout title="Replay ${it.owner.displayName}" norefresh="true">
         <st:include page="sidepanel.jelly" it="${it.owner}"/>
         <l:main-panel>
-            <j:if test="${it.enabled}">
+            <j:if test="${it.enabled or it.rebuildEnabled}">
                 <h1>Replay ${it.owner.displayName}</h1>
                 <p>
                     <j:out value="${%blurb}"/>
