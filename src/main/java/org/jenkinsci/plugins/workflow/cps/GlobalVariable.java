@@ -35,12 +35,23 @@ import jenkins.model.RunAction2;
 import javax.annotation.Nonnull;
 import java.util.Iterator;
 import javax.annotation.CheckForNull;
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.steps.Step;
 
 /**
  * Defines a provider of a global variable offered to flows.
  * Within a given flow execution, the variable is assumed to be a singleton.
  * It is created on demand if the script refers to it by name.
- *
+ * <p><strong>Note:</strong>
+ * This extension point was designed for a handful of variables defined by generic Pipeline plugins.
+ * If you find yourself implementing this in a domain-specific plugin,
+ * you are probably doing too much work and harming usability in the process.
+ * For example, there will be no {@link Snippetizer} integration except to list its name and help text.
+ * Variables will also not generally be compatible with Declarative Pipeline,
+ * and may not work at all in alternate {@link FlowExecution} implementations.
+ * It is also all too easy to introduce security vulnerabilities for variables implemented using Groovy code.
+ * Just because you can does not mean you should.
+ * If at all possible, limit your plugin to implementing plain {@link Step}s.
  * <p>
  * Should have a view named {@code help} offering usage.
  * 
