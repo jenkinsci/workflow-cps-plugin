@@ -36,6 +36,7 @@ import java.util.logging.Logger;
 
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.actions.FlowNodeAction;
+import org.jenkinsci.plugins.workflow.actions.TimingAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
 
@@ -116,11 +117,11 @@ final class FlowHead implements Serializable {
     void setNewHead(FlowNode v) {
         try {
             if (this.head != null) {
-                execution.storage.autopersist(head);
+                CpsFlowExecution.maybeAutoPersistNode(head);
             }
             this.head = v;
-            execution.storage.storeNode(head, true);
-
+            execution.storage.storeNode(v, true);
+            v.addAction(new TimingAction());
             CpsThreadGroup c = CpsThreadGroup.current();
             if (c !=null) {
                 // if the manipulation is from within the program executing thread, then
@@ -133,12 +134,6 @@ final class FlowHead implements Serializable {
                 execution.notifyListeners(Collections.singletonList(v), true);
                 execution.notifyListeners(Collections.singletonList(v), false);
             }
-
-            // Persist the node - block start and end nodes do their own persistence.
-            if (v instanceof AtomNode) {
-                CpsFlowExecution.maybeAutoPersistNode(v);
-            }
-
         } catch (IOException e) {
             LOGGER.log(Level.FINE, "Failed to record new head: " + v, e);
         }

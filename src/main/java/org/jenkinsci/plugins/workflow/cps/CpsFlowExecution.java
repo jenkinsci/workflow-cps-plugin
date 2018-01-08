@@ -1108,6 +1108,16 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         storage.saveActions(node, actions);
     }
 
+    /** Stores FlowNode with write deferred */
+    void cacheNode(@Nonnull FlowNode node) {
+        try {
+            getStorage().storeNode(node, true);
+        } catch (IOException ioe) {
+            LOGGER.log(Level.WARNING, "Attempt to persist triggered IOException for node "+node.getId(), ioe);
+        }
+
+    }
+
     /** Invoke me to toggle autopersist back on for steps that delay it. */
     public static void maybeAutoPersistNode(@Nonnull FlowNode node) {
         try {

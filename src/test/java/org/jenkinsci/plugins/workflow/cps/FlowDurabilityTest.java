@@ -131,13 +131,27 @@ public class FlowDurabilityTest {
         }
     }
 
+    /** Verify we didn't lose TimingAction */
+    static void assertHasTimingAction(FlowExecution exec) throws Exception {
+        DepthFirstScanner scan = new DepthFirstScanner();
+        for (FlowNode node : scan.allNodes(exec)) {
+            try {
+                if (!(node instanceof FlowStartNode) && !(node instanceof FlowEndNode)) {
+                    Assert.assertNotNull("Missing TimingAction on node", node.getPersistentAction(TimingAction.class));
+                }
+            } catch (Exception ex) {
+                throw new Exception("Error with node: "+node.getId(), ex);
+            }
+        }
+    }
+
     /** Create and run a job with a semaphore and basic steps -- takes a semaphoreIndex in case you have multiple semaphores of the same name in one test.*/
     static WorkflowRun createAndRunBasicJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint, int semaphoreIndex) throws Exception {
         WorkflowJob job = jenkins.createProject(WorkflowJob.class, jobName);
         CpsFlowDefinition def = new CpsFlowDefinition("node {\n " +
                 "semaphore 'halt' \n" +
                 "} \n" +
-                "echo 'I like chese'\n", false);
+                "echo 'I like cheese'\n", false);
         TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
         provider.registerHint(jobName, durabilityHint);
         job.setDefinition(def);
@@ -203,6 +217,7 @@ public class FlowDurabilityTest {
         for (FlowNode node : (List<FlowNode>)(scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(StepNode.class))))) {
             Assert.assertNotNull("Node: "+node.toString()+" does not have a TimingAction", node.getAction(TimingAction.class));
         }
+        assertHasTimingAction(run.getExecution());
     }
 
     /** If it's a {@link SemaphoreStep} we test less rigorously because that blocks async GraphListeners. */
@@ -223,7 +238,7 @@ public class FlowDurabilityTest {
         } else {
             SemaphoreStep.success("halt/1", Result.SUCCESS);
         }
-
+        assertHasTimingAction(run.getExecution());
         rule.waitForCompletion(run);
         verifySucceededCleanly(rule.jenkins, run);
         rule.assertLogContains(logStart, run);
@@ -328,6 +343,7 @@ public class FlowDurabilityTest {
                         story.j.waitForCompletion(run);
                         story.j.assertBuildStatus(Result.SUCCESS, run);
                         logOutput[i-2] = JenkinsRule.getLog(run);
+                        assertHasTimingAction(run.getExecution());
                     } catch (AssertionError ae) {
                         System.out.println("Error with durability level: "+hint);
                         throw ae;
@@ -347,6 +363,7 @@ public class FlowDurabilityTest {
                         verifySucceededCleanly(story.j.jenkins, run);
                         Assert.assertEquals(durabilityHints[i], run.getExecution().getDurabilityHint());
                         Assert.assertEquals(logOutput[i], JenkinsRule.getLog(run));
+                        assertHasTimingAction(run.getExecution());
                     } catch (AssertionError ae) {
                         System.out.println("Error with durability level: "+durabilityHints[i]);
                         throw ae;
