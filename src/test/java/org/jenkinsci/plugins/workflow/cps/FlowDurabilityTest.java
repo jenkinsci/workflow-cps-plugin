@@ -43,11 +43,14 @@ import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -504,6 +507,36 @@ public class FlowDurabilityTest {
                 WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
                 Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
                 logStart[0] = JenkinsRule.getLog(run);
+            }
+        });
+
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
+                verifyFailedCleanly(story.j.jenkins, run);
+                story.j.assertLogContains(logStart[0], run);
+            }
+        });
+    }
+
+    /** Verify that if the master dies messily and FlowNode storage is lost entirely we fail the build cleanly.
+     */
+    @Test
+    public void testDurableAgainstCleanRestartFailsWithBogusStorageFile() throws Exception {
+        final String[] logStart = new String[1];
+        story.addStepWithDirtyShutdown(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                logStart[0] = JenkinsRule.getLog(run);
+                CpsFlowExecution exec = (CpsFlowExecution)(run.getExecution());
+
+                // Ensure the storage file is unreadable
+                try (FileChannel fis = new FileOutputStream(new File(exec.getStorageDir(), "flowNodeStore.xml")).getChannel()) {
+                    fis.truncate(5); // Leave a tiny bit just to make things more interesting
+                }
             }
         });
 
