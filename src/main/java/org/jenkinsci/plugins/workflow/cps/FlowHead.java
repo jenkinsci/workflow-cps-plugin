@@ -119,9 +119,9 @@ final class FlowHead implements Serializable {
             if (this.head != null) {
                 CpsFlowExecution.maybeAutoPersistNode(head);
             }
-            this.head = v;
             execution.storage.storeNode(v, true);
             v.addAction(new TimingAction());
+            this.head = v;
             CpsThreadGroup c = CpsThreadGroup.current();
             if (c !=null) {
                 // if the manipulation is from within the program executing thread, then
