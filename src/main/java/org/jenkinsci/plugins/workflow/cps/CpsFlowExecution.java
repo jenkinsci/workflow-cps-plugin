@@ -269,6 +269,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     boolean resumeBlocked = false;
 
+    /** Subdirectory string where we store {@link FlowNode}s */
+    private String storageDir = null;
+
     /**
      * Start nodes that have been created, whose {@link BlockEndNode} is not yet created.
      */
@@ -387,10 +390,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this.script = script;
         this.sandbox = sandbox;
         this.durabilityHint = durabilityHint;
-        this.storage = createStorage();
-        this.storage.setAvoidAtomicWrite(!this.getDurabilityHint().isAtomicWrite());
         Authentication auth = Jenkins.getAuthentication();
         this.user = auth.equals(ACL.SYSTEM) ? null : auth.getName();
+        this.storage = createStorage();
+        this.storage.setAvoidAtomicWrite(!this.getDurabilityHint().isAtomicWrite());
     }
 
     public CpsFlowExecution(String script, boolean sandbox, FlowExecutionOwner owner) throws IOException {
@@ -505,7 +508,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * Directory where workflow stores its state.
      */
     public File getStorageDir() throws IOException {
-        return new File(this.owner.getRootDir(),"workflow");
+        return new File(this.owner.getRootDir(),
+                (this.storageDir != null) ? this.storageDir : "workflow");
     }
 
     @Override
@@ -613,44 +617,59 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 LOGGER.log(Level.WARNING, "Failed to persist", e);
             }
             persistedClean = false;
+            startNodesSerial = null;
+            headsSerial = null;
         }
     }
 
-    protected void initializeStorage() throws IOException {
-        storage = createStorage();
-        synchronized (this) {
-            // heads could not be restored in unmarshal, so doing that now:
-            heads = new TreeMap<Integer,FlowHead>();
-            for (Map.Entry<Integer,String> entry : headsSerial.entrySet()) {
-                FlowHead h = new FlowHead(this, entry.getKey());
+    protected synchronized void initializeStorage() throws IOException {
+        boolean storageErrors = false;  // Maybe storage didn't get to persist properly or files were deleted.
+        try {
+            storage = createStorage();
 
-                FlowNode n = storage.getNode(entry.getValue());
-                if (n != null) {
-                    h.setForDeserialize(storage.getNode(entry.getValue()));
-                    heads.put(h.getId(), h);
-                } else {
-                    // FlowNodeStorage not in synch with the FlowExecution -- hard failure of master with storage not persisted cleanly
-                    // Or files deleted (maybe build rotation).
-                    // Need to find a way to mimick up the heads and fail cleanly, far enough to let the canResume do its thing
-                    rebuildEmptyGraph();
-                    return;
+                heads = new TreeMap<Integer,FlowHead>();
+                for (Map.Entry<Integer,String> entry : headsSerial.entrySet()) {
+                    FlowHead h = new FlowHead(this, entry.getKey());
+
+                    FlowNode n = storage.getNode(entry.getValue());
+                    if (n != null) {
+                        h.setForDeserialize(storage.getNode(entry.getValue()));
+                        heads.put(h.getId(), h);
+                    } else {
+                        storageErrors = true;
+                        break;
+                    }
                 }
-            }
 
             headsSerial = null;
-            // Same for startNodes:
-            startNodes = new Stack<BlockStartNode>();
-            for (String id : startNodesSerial) {
-                FlowNode node = storage.getNode(id);
-                if (node != null) {
-                    startNodes.add((BlockStartNode) storage.getNode(id));
-                } else {
-                    // TODO if possible, consider trying to close out unterminated blocks using heads, to keep existing graph history
-                    rebuildEmptyGraph();
-                    return;
+
+            if (!storageErrors) {
+                // Same for startNodes:
+                storageErrors = false;
+                startNodes = new Stack<BlockStartNode>();
+                for (String id : startNodesSerial) {
+                    FlowNode node = storage.getNode(id);
+                    if (node != null) {
+                        startNodes.add((BlockStartNode) storage.getNode(id));
+                    } else {
+                        // TODO if possible, consider trying to close out unterminated blocks using heads, to keep existing graph history
+                        storageErrors = true;
+                        break;
+                    }
                 }
             }
             startNodesSerial = null;
+
+        } catch (IOException ioe) {
+            LOGGER.log(Level.WARNING, "Error initializing storage and loading nodes", ioe);
+            storageErrors = true;
+        }
+
+        if (storageErrors) {  //
+            this.storageDir = getStorageDir()+"-fallback";  // Avoid overwriting data
+            this.storage = createStorage();  // Empty storage
+            // Need to find a way to mimic up the heads and fail cleanly, far enough to let the canResume do its thing
+            rebuildEmptyGraph();
         }
     }
 
@@ -1505,6 +1524,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 }
             }
             writeChild(w, context, "resumeBlocked", e.resumeBlocked, Boolean.class);
+
+            if (e.storageDir != null) {
+                writeChild(w, context, "storageDir", e.storageDir, String.class);
+            }
         }
 
         private <T> void writeChild(HierarchicalStreamWriter w, MarshallingContext context, String name, @Nonnull T v, Class<T> staticType) {
@@ -1575,6 +1598,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         } else if (nodeName.equals("resumeBlocked")) {
                             Boolean val = readChild(reader, context, Boolean.class, result);
                             setField(result, "resumeBlocked", val.booleanValue());
+                        } else if (nodeName.equals("storageDir")) {
+                            String val = readChild(reader, context, String.class, result);
+                            setField(result, "storageDir", val);
                         }
 
                         reader.moveUp();

@@ -40,6 +40,7 @@ import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
@@ -523,6 +524,7 @@ public class FlowDurabilityTest {
     /** Verify that if the master dies messily and FlowNode storage is lost entirely we fail the build cleanly.
      */
     @Test
+    @Issue("JENKINS-48824")
     public void testDurableAgainstCleanRestartFailsWithBogusStorageFile() throws Exception {
         final String[] logStart = new String[1];
         story.addStepWithDirtyShutdown(new Statement() {
