@@ -86,7 +86,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
     @DataBoundSetter public void setLightweight(boolean lightweight) {
         this.lightweight = lightweight;
     }
-    
+
     @Override public CpsFlowExecution create(FlowExecutionOwner owner, TaskListener listener, List<? extends Action> actions) throws Exception {
         for (Action a : actions) {
             if (a instanceof CpsFlowFactoryAction2) {
@@ -150,14 +150,14 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                         listener.error(e.getMessage());
                     }
                 } catch (InterruptedIOException e) {
-                    throw (InterruptedException)new InterruptedException().initCause(e);
+                    throw e;
                 } catch (IOException e) {
                     // checkout error not yet reported
-                    listener.error(e.toString());
+                    listener.error("Checkout failed").println(Functions.printThrowable(e).trim()); // TODO 2.43+ use Functions.printStackTrace
                 }
-                
+
                 if (retryCount == 0)   // all attempts failed
-                    throw new AbortException();
+                    throw new AbortException("Maximum checkout retry attempts reached, aborting");
 
                 listener.getLogger().println("Retrying after 10 seconds");
                 Thread.sleep(10000);
