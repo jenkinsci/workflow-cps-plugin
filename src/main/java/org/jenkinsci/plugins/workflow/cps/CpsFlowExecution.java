@@ -622,6 +622,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
+    @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification="Storage does not actually NEED to be synchronized but the rest does.")
     protected synchronized void initializeStorage() throws IOException {
         boolean storageErrors = false;  // Maybe storage didn't get to persist properly or files were deleted.
         try {
