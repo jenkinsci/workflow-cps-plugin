@@ -30,6 +30,10 @@ THE SOFTWARE.
     </p>
     <pre><code>if (params.BOOLEAN_PARAM_NAME) {doSomething()}</code></pre>
     <p>
+        or to supply a nontrivial default value:
+    </p>
+    <pre><code>if (params.get('BOOLEAN_PARAM_NAME', true)) {doSomething()}</code></pre>
+    <p>
         Note for multibranch (<code>Jenkinsfile</code>) usage: the <code>properties</code> step allows you to define job properties,
         but these take effect when the step is run, whereas build parameter definitions are generally consulted before the build begins.
         As a convenience, any parameters <em>currently</em> defined in the job which have default values will also be listed in this map.

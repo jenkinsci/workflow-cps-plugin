@@ -129,19 +129,11 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         SCMStep delegate = new GenericSCMStep(scm);
         delegate.setPoll(true);
         delegate.setChangelog(true);
+        FilePath acquiredDir;
         try (WorkspaceList.Lease lease = computer.getWorkspaceList().acquire(dir)) {
             for (int retryCount = Jenkins.getInstance().getScmCheckoutRetryCount(); retryCount >= 0; retryCount--) {
                 try {
                     delegate.checkout(build, dir, listener, node.createLauncher(listener));
-
-                    FilePath scriptFile = dir.child(scriptPath);
-                    if (!scriptFile.absolutize().getRemote().replace('\\', '/').startsWith(dir.absolutize().getRemote().replace('\\', '/') + '/')) { // TODO JENKINS-26838
-                        throw new IOException(scriptFile + " is not inside " + dir);
-                    }
-                    if (!scriptFile.exists()) {
-                        throw new AbortException(scriptFile + " not found");
-                    }
-                    script = scriptFile.readToString();
                     break;
                 } catch (AbortException e) {
                     // abort exception might have a null message.
@@ -162,9 +154,19 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                 listener.getLogger().println("Retrying after 10 seconds");
                 Thread.sleep(10000);
             }
+            
+            FilePath scriptFile = dir.child(scriptPath);
+            if (!scriptFile.absolutize().getRemote().replace('\\', '/').startsWith(dir.absolutize().getRemote().replace('\\', '/') + '/')) { // TODO JENKINS-26838
+                throw new IOException(scriptFile + " is not inside " + dir);
+            }
+            if (!scriptFile.exists()) {
+                throw new AbortException(scriptFile + " not found");
+            }
+            script = scriptFile.readToString();
+            acquiredDir = lease.path;
         }
         CpsFlowExecution exec = new CpsFlowExecution(script, true, owner);
-        exec.flowStartNodeActions.add(new WorkspaceActionImpl(dir, null));
+        exec.flowStartNodeActions.add(new WorkspaceActionImpl(acquiredDir, null));
         return exec;
     }
 
