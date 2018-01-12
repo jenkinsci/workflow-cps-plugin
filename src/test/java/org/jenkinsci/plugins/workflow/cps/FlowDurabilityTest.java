@@ -40,14 +40,18 @@ import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -131,13 +135,27 @@ public class FlowDurabilityTest {
         }
     }
 
+    /** Verify we didn't lose TimingAction */
+    static void assertHasTimingAction(FlowExecution exec) throws Exception {
+        DepthFirstScanner scan = new DepthFirstScanner();
+        for (FlowNode node : scan.allNodes(exec)) {
+            try {
+                if (!(node instanceof FlowStartNode) && !(node instanceof FlowEndNode)) {
+                    Assert.assertNotNull("Missing TimingAction on node", node.getPersistentAction(TimingAction.class));
+                }
+            } catch (Exception ex) {
+                throw new Exception("Error with node: "+node.getId(), ex);
+            }
+        }
+    }
+
     /** Create and run a job with a semaphore and basic steps -- takes a semaphoreIndex in case you have multiple semaphores of the same name in one test.*/
     static WorkflowRun createAndRunBasicJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint, int semaphoreIndex) throws Exception {
         WorkflowJob job = jenkins.createProject(WorkflowJob.class, jobName);
         CpsFlowDefinition def = new CpsFlowDefinition("node {\n " +
                 "semaphore 'halt' \n" +
                 "} \n" +
-                "echo 'I like chese'\n", false);
+                "echo 'I like cheese'\n", false);
         TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
         provider.registerHint(jobName, durabilityHint);
         job.setDefinition(def);
@@ -203,6 +221,7 @@ public class FlowDurabilityTest {
         for (FlowNode node : (List<FlowNode>)(scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(StepNode.class))))) {
             Assert.assertNotNull("Node: "+node.toString()+" does not have a TimingAction", node.getAction(TimingAction.class));
         }
+        assertHasTimingAction(run.getExecution());
     }
 
     /** If it's a {@link SemaphoreStep} we test less rigorously because that blocks async GraphListeners. */
@@ -223,7 +242,7 @@ public class FlowDurabilityTest {
         } else {
             SemaphoreStep.success("halt/1", Result.SUCCESS);
         }
-
+        assertHasTimingAction(run.getExecution());
         rule.waitForCompletion(run);
         verifySucceededCleanly(rule.jenkins, run);
         rule.assertLogContains(logStart, run);
@@ -328,6 +347,7 @@ public class FlowDurabilityTest {
                         story.j.waitForCompletion(run);
                         story.j.assertBuildStatus(Result.SUCCESS, run);
                         logOutput[i-2] = JenkinsRule.getLog(run);
+                        assertHasTimingAction(run.getExecution());
                     } catch (AssertionError ae) {
                         System.out.println("Error with durability level: "+hint);
                         throw ae;
@@ -347,6 +367,7 @@ public class FlowDurabilityTest {
                         verifySucceededCleanly(story.j.jenkins, run);
                         Assert.assertEquals(durabilityHints[i], run.getExecution().getDurabilityHint());
                         Assert.assertEquals(logOutput[i], JenkinsRule.getLog(run));
+                        assertHasTimingAction(run.getExecution());
                     } catch (AssertionError ae) {
                         System.out.println("Error with durability level: "+durabilityHints[i]);
                         throw ae;
@@ -487,6 +508,37 @@ public class FlowDurabilityTest {
                 WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
                 Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
                 logStart[0] = JenkinsRule.getLog(run);
+            }
+        });
+
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
+                verifyFailedCleanly(story.j.jenkins, run);
+                story.j.assertLogContains(logStart[0], run);
+            }
+        });
+    }
+
+    /** Verify that if the master dies messily and FlowNode storage is lost entirely we fail the build cleanly.
+     */
+    @Test
+    @Issue("JENKINS-48824")
+    public void testDurableAgainstCleanRestartFailsWithBogusStorageFile() throws Exception {
+        final String[] logStart = new String[1];
+        story.addStepWithDirtyShutdown(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                logStart[0] = JenkinsRule.getLog(run);
+                CpsFlowExecution exec = (CpsFlowExecution)(run.getExecution());
+
+                // Ensure the storage file is unreadable
+                try (FileChannel fis = new FileOutputStream(new File(exec.getStorageDir(), "flowNodeStore.xml")).getChannel()) {
+                    fis.truncate(5); // Leave a tiny bit just to make things more interesting
+                }
             }
         });
 

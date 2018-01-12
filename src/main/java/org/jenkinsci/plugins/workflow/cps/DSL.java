@@ -64,6 +64,8 @@ import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.*;
+
+import org.jenkinsci.plugins.workflow.actions.TimingAction;
 import org.jenkinsci.plugins.workflow.cps.actions.ArgumentsActionImpl;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
@@ -73,6 +75,7 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
+import org.jenkinsci.plugins.workflow.graph.AtomNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.MissingContextVariableException;
@@ -219,6 +222,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 LOGGER.log(Level.WARNING, "Error storing the arguments for step: "+d.getFunctionName(), e);
             }
 
+            // Persist the node - block start and end nodes do their own persistence.
+            CpsFlowExecution.maybeAutoPersistNode(an);
             StepExecution e = s.start(context);
             thread.setStep(e);
             sync = e.start();
