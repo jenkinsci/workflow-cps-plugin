@@ -214,7 +214,7 @@ public class CpsScmFlowDefinitionTest {
         CpsScmFlowDefinition def = new CpsScmFlowDefinition(new GitSCM(Collections.singletonList(new UserRemoteConfig(sampleRepo.fileUrl(), null, null, null)),
                 Collections.singletonList(new BranchSpec("master")),
                 false, Collections.<SubmoduleConfig>emptyList(), null, null, Collections.<GitSCMExtension>emptyList()), "${SCRIPT_PATH}");
-        def.setLightweight(false); // TODO SCMFileSystem.of cannot pick up build parameters
+
         p.setDefinition(def);
         p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("SCRIPT_PATH", "flow.groovy")));
         r.assertLogContains("version one", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
