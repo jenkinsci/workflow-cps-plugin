@@ -272,13 +272,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /** Subdirectory string where we store {@link FlowNode}s */
     private String storageDir = null;
 
-    static {
-        // Prevents the sole Timeout thread from being created where it will get a Groovy classloader and cause memory leaks
-        try (Timeout tim = Timeout.limit(1, TimeUnit.SECONDS)){
-            System.currentTimeMillis();
-        }
-    }
-
 
     /**
      * Start nodes that have been created, whose {@link BlockEndNode} is not yet created.
