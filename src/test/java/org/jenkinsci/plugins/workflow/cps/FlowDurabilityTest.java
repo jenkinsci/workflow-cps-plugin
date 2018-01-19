@@ -6,6 +6,7 @@ import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Item;
 import hudson.model.Result;
+import hudson.util.CopyOnWriteList;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.TestDurabilityHintProvider;
@@ -18,6 +19,7 @@ import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.graph.FlowEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
@@ -53,7 +55,6 @@ import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -192,6 +193,20 @@ public class FlowDurabilityTest {
         return run;
     }
 
+    private static void verifyExecutionRemoved(WorkflowRun run) throws Exception{
+        // Verify we've removed all FlowExcecutionList entries
+        FlowExecutionList list = FlowExecutionList.get();
+        for (FlowExecution fe : list) {
+            if (fe == run.getExecution()) {
+                Assert.fail("Run still has an execution in the list and should be removed!");
+            }
+        }
+        Field f = list.getClass().getDeclaredField("runningTasks");
+        f.setAccessible(true);
+        CopyOnWriteList<FlowExecutionOwner> runningTasks = (CopyOnWriteList<FlowExecutionOwner>)(f.get(list));
+        Assert.assertFalse(runningTasks.contains(run.asFlowExecutionOwner()));
+    }
+
     static void verifySucceededCleanly(Jenkins j, WorkflowRun run) throws Exception {
         Assert.assertEquals(Result.SUCCESS, run.getResult());
         int outputHash = run.getLog().hashCode();
@@ -285,8 +300,6 @@ public class FlowDurabilityTest {
             Assert.assertEquals(Result.FAILURE, ((CpsFlowExecution) run.getExecution()).getResult());
         }
 
-        // FIXME how does the FlowExecution bubble result back up to the WorkfloWRun
-
         Assert.assertEquals(Result.FAILURE, run.getResult());
         assert !run.isBuilding();
         // TODO verify all blocks cleanly closed out, so Block start and end nodes have same counts and FlowEndNode is last node
@@ -309,6 +322,8 @@ public class FlowDurabilityTest {
             Assert.assertNull("We should have no Groovy shell left or that's a memory leak", cpsFlow.getShell());
             Assert.assertNull("We should have no Groovy shell left or that's a memory leak", cpsFlow.getTrustedShell());
         }
+
+        verifyExecutionRemoved(run);
     }
 
     /** Verifies we have nothing left that uses an executor for a given job. */
@@ -552,7 +567,7 @@ public class FlowDurabilityTest {
         });
     }
 
-    /** Veryify that if we bomb out because we cannot resume, we at least try to finish the flow graph if we have something to work with. */
+    /** Verify that if we bomb out because we cannot resume, we at least try to finish the flow graph if we have something to work with. */
     @Test
     @Ignore // Can be fleshed out later if we have a valid need for it.
     public void testPipelineFinishesFlowGraph() throws Exception {
@@ -773,9 +788,6 @@ public class FlowDurabilityTest {
                 }
                 assertIncludesNodes(nodesOut, run);
                 story.j.assertLogContains(logStart[0], run);
-                try {
-                    FlowExecutionList.get().unregister(run.asFlowExecutionOwner());
-                } catch (Exception ex){}
             }
         });
 
