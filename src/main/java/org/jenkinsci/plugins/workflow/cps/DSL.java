@@ -388,16 +388,27 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             logger.println("Perhaps you forgot to surround the code with a step that provides this, such as: "+names);
     }
 
+    /** Returns the capacity we need to allocate for a HashMap so it will hold all elements without needing to resize. */
+    private static int preallocatedHashmapCapacity(int elementsToHold) {
+        if (elementsToHold == 0) {
+            return 0;
+        } else if (elementsToHold < 3) {
+            return elementsToHold+1;
+        } else {
+            return elementsToHold+elementsToHold/3; // Default load factor is 0.75, so we want to fill that much.
+        }
+    }
+
     static class NamedArgsAndClosure {
         final Map<String,Object> namedArgs;
         final Closure body;
 
         private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body) {
-            this.namedArgs = new LinkedHashMap<String,Object>();
+            this.namedArgs = new LinkedHashMap<String,Object>(preallocatedHashmapCapacity(namedArgs.size()));
             this.body = body;
 
             for (Map.Entry<?,?> entry : namedArgs.entrySet()) {
-                String k = entry.getKey().toString(); // coerces GString and more
+                String k = entry.getKey().toString().intern(); // coerces GString and more
                 Object v = flattenGString(entry.getValue());
                 this.namedArgs.put(k, v);
             }
@@ -428,7 +439,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             return mutated ? r : v;
         } else if (v instanceof Map) {
             boolean mutated = false;
-            Map<Object,Object> r = new LinkedHashMap<>();
+            Map<Object,Object> r = new LinkedHashMap<>(preallocatedHashmapCapacity(((Map) v).size()));
             for (Map.Entry<?,?> e : ((Map<?, ?>) v).entrySet()) {
                 Object k = e.getKey();
                 Object k2 = flattenGString(k);

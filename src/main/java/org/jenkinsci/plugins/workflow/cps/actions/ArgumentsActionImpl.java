@@ -281,10 +281,10 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
             if (modded != param.getValue()) {
                 // Sanitization stripped out some values, so we need to store the mutated object
-                output.put(param.getKey().intern(), modded);
+                output.put(param.getKey(), modded);
                 isMutated = true; //isUnmodifiedBySanitization was already set
             } else { // Any mutation was just from exploding step/uninstantiated describable, and we can just use the original
-                output.put(param.getKey().intern(), param.getValue());
+                output.put(param.getKey(), param.getValue());
             }
         }
 
