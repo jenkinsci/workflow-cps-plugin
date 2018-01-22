@@ -350,4 +350,12 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         job.setDefinition(new CpsFlowDefinition("assert ['a', 'b'].every { sleep 1; return it != null }\n", true));
         jenkins.buildAndAssertSuccess(job);
     }
+
+    @Issue("JENKINS-48501")
+    @Test
+    public void variableDecl() throws Exception {
+        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("String foo", true));
+        jenkins.buildAndAssertSuccess(p);
+    }
 }
