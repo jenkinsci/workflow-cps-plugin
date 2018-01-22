@@ -272,7 +272,7 @@ public class FlowDurabilityTest {
                 return;
             }
             long currentTime = System.nanoTime();
-            if (TimeUnit.SECONDS.convert(currentTime-nanoStartTime, TimeUnit.NANOSECONDS) > 5) {
+            if (TimeUnit.SECONDS.convert(currentTime-nanoStartTime, TimeUnit.NANOSECONDS) > 10) {
                 throw new TimeoutException();
             }
         }
@@ -326,8 +326,8 @@ public class FlowDurabilityTest {
         verifyExecutionRemoved(run);
     }
 
-    /** Verifies we have nothing left that uses an executor for a given job. */
-    static void verifyNoTasksRunning(Jenkins j) {
+    private static void assertNoTasksRunning(Jenkins j) {
+        j.getQueue().maintain();
         assert j.getQueue().isEmpty();
         Computer[] computerList = j.getComputers();
         for (Computer c : computerList) {
@@ -337,6 +337,17 @@ public class FlowDurabilityTest {
                     Assert.fail("Computer "+c+" has an Executor "+ex+" still running a task: "+ex.getCurrentWorkUnit());
                 }
             }
+        }
+    }
+
+    /** Verifies we have nothing left that uses an executor for a given job. */
+    static void verifyNoTasksRunning(Jenkins j) throws Exception {
+        try {
+            assertNoTasksRunning(j);
+        } catch (AssertionError ae) {
+            // Allows for slightly delayed processes
+            Thread.sleep(1000L);
+            assertNoTasksRunning(j);
         }
     }
 
