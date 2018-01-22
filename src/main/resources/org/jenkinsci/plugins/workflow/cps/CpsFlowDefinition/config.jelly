@@ -33,5 +33,4 @@
     <f:block>
         <a href="pipeline-syntax" target="_blank">${%Pipeline Syntax}</a>
     </f:block>
-
 </j:jelly>
