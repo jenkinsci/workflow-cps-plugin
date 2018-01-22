@@ -264,7 +264,7 @@ public class FlowDurabilityTest {
     }
 
     /** Waits until the build to resume or die. */
-    static void waitForBuildToResumeOrFail(WorkflowRun run) throws TimeoutException {
+    static void waitForBuildToResumeOrFail(WorkflowRun run) throws Exception {
         CpsFlowExecution execution = (CpsFlowExecution)(run.getExecution());
         long nanoStartTime = System.nanoTime();
         while (true) {
@@ -273,8 +273,20 @@ public class FlowDurabilityTest {
             }
             long currentTime = System.nanoTime();
             if (TimeUnit.SECONDS.convert(currentTime-nanoStartTime, TimeUnit.NANOSECONDS) > 10) {
-                throw new TimeoutException();
+                StringBuilder builder = new StringBuilder();
+                builder.append("Timeout with run, result: "+run.getResult()+" and execution != null:"+run.getExecution() != null).append('\n');
+                FlowExecution exec = run.getExecution();
+                if (exec instanceof CpsFlowExecution) {
+                    CpsFlowExecution cpsFlow = (CpsFlowExecution)exec;
+                    builder.append(" FlowExecution is paused: "+cpsFlow.isPaused())
+                            .append(", FlowExecution is complete: "+cpsFlow.isComplete())
+                            .append(", FlowExecution result: "+cpsFlow.getResult())
+                            .append(", FlowExecution PersistedClean: "+cpsFlow.persistedClean).append('\n');
+                }
+                System.out.println(builder.toString());
+                throw new TimeoutException("Build didn't resume or fail in a timely fashion.");
             }
+            Thread.sleep(1000L);
         }
     }
 
