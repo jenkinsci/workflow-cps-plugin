@@ -29,6 +29,7 @@ import hudson.Extension;
 import hudson.FilePath;
 import hudson.model.Action;
 import hudson.model.Computer;
+import hudson.model.Item;
 import hudson.model.Job;
 import hudson.model.Node;
 import hudson.model.Queue;
@@ -45,9 +46,13 @@ import jenkins.model.Jenkins;
 import jenkins.scm.api.SCMFileSystem;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.JOB;
+
+import org.jenkinsci.plugins.workflow.flow.DurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinitionDescriptor;
+import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
+import org.jenkinsci.plugins.workflow.flow.GlobalDefaultFlowDurabilityLevel;
 import org.jenkinsci.plugins.workflow.steps.scm.GenericSCMStep;
 import org.jenkinsci.plugins.workflow.steps.scm.SCMStep;
 import org.jenkinsci.plugins.workflow.support.actions.WorkspaceActionImpl;
@@ -100,7 +105,9 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                 if (fs != null) {
                     String script = fs.child(scriptPath).contentAsString();
                     listener.getLogger().println("Obtained " + scriptPath + " from " + scm.getKey());
-                    return new CpsFlowExecution(script, true, owner);
+                    Queue.Executable exec = owner.getExecutable();
+                    FlowDurabilityHint hint = (exec instanceof Item) ? DurabilityHintProvider.suggestedFor((Item)exec) : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
+                    return new CpsFlowExecution(script, true, owner, hint);
                 } else {
                     listener.getLogger().println("Lightweight checkout support not available, falling back to full checkout.");
                 }
@@ -139,7 +146,9 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             script = scriptFile.readToString();
             acquiredDir = lease.path;
         }
-        CpsFlowExecution exec = new CpsFlowExecution(script, true, owner);
+        Queue.Executable queueExec = owner.getExecutable();
+        FlowDurabilityHint hint = (queueExec instanceof Run) ? DurabilityHintProvider.suggestedFor(((Run)queueExec).getParent()) : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
+        CpsFlowExecution exec = new CpsFlowExecution(script, true, owner, hint);
         exec.flowStartNodeActions.add(new WorkspaceActionImpl(acquiredDir, null));
         return exec;
     }

@@ -33,10 +33,15 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.actions.FlowNodeAction;
+import org.jenkinsci.plugins.workflow.actions.TimingAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
+
+import org.jenkinsci.plugins.workflow.graph.AtomNode;
+import org.jenkinsci.plugins.workflow.graph.BlockEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
 
@@ -106,14 +111,17 @@ final class FlowHead implements Serializable {
         synchronized (execution) {
             this.head = execution.startNodes.push(n);
         }
-        execution.storage.storeNode(head);
+        execution.storage.storeNode(head, false);
     }
 
     void setNewHead(FlowNode v) {
         try {
+            if (this.head != null) {
+                CpsFlowExecution.maybeAutoPersistNode(head);
+            }
+            execution.storage.storeNode(v, true);
+            v.addAction(new TimingAction());
             this.head = v;
-            execution.storage.storeNode(head);
-
             CpsThreadGroup c = CpsThreadGroup.current();
             if (c !=null) {
                 // if the manipulation is from within the program executing thread, then

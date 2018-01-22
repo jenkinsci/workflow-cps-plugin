@@ -119,6 +119,9 @@ class CpsBodyExecution extends BodyExecution {
                 sn.addAction(a);
         }
 
+        head.setNewHead(sn);
+        CpsFlowExecution.maybeAutoPersistNode(sn);
+
         StepContext sc = new CpsBodySubContext(context, sn);
         for (BodyExecutionCallback c : callbacks) {
             c.onStart(sc);
@@ -331,13 +334,16 @@ class CpsBodyExecution extends BodyExecution {
         public Next receive(Object o) {
             if (!isLaunched()) {
                 // failed before we even started. fake the start node that start() would have created.
-                addBodyStartFlowNode(CpsThread.current().head);
+                FlowHead h = CpsThread.current().head;
+                StepStartNode ssn = addBodyStartFlowNode(h);
+                h.setNewHead(ssn);
+                CpsFlowExecution.maybeAutoPersistNode(ssn);
             }
 
             StepEndNode en = addBodyEndFlowNode();
-
             Throwable t = (Throwable)o;
             en.addAction(new ErrorAction(t));
+            CpsFlowExecution.maybeAutoPersistNode(en);
 
             setOutcome(new Outcome(null,t));
             StepContext sc = new CpsBodySubContext(context, en);
@@ -355,7 +361,7 @@ class CpsBodyExecution extends BodyExecution {
         @Override
         public Next receive(Object o) {
             StepEndNode en = addBodyEndFlowNode();
-
+            CpsFlowExecution.maybeAutoPersistNode(en);
             setOutcome(new Outcome(o,null));
             StepContext sc = new CpsBodySubContext(context, en);
             for (BodyExecutionCallback c : callbacks) {
@@ -374,11 +380,12 @@ class CpsBodyExecution extends BodyExecution {
      * @see #addBodyEndFlowNode()
      */
     private @Nonnull StepStartNode addBodyStartFlowNode(FlowHead head) {
+        CpsFlowExecution.maybeAutoPersistNode(head.get());
         StepStartNode start = new StepStartNode(head.getExecution(),
                 context.getStepDescriptor(), head.get());
+        head.getExecution().cacheNode(start);
         this.startNodeId = start.getId();
         start.addAction(new BodyInvocationAction());
-        head.setNewHead(start);
         return start;
     }
 
@@ -393,6 +400,7 @@ class CpsBodyExecution extends BodyExecution {
 
             StepEndNode end = new StepEndNode(head.getExecution(),
                     getBodyStartNode(), head.get());
+            head.getExecution().cacheNode(end);
             end.addAction(new BodyInvocationAction());
             head.setNewHead(end);
 

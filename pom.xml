@@ -33,7 +33,7 @@
     </parent>
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
     <artifactId>workflow-cps</artifactId>
-    <version>2.43-SNAPSHOT</version>
+    <version>2.44-SNAPSHOT</version> <!-- Temp version to help separate this work, remove before merge -->
     <packaging>hpi</packaging>
     <name>Pipeline: Groovy</name>
     <url>https://wiki.jenkins.io/display/JENKINS/Pipeline+Groovy+Plugin</url>
@@ -66,9 +66,10 @@
         <java.level>8</java.level>
         <no-test-jar>false</no-test-jar>
         <git-plugin.version>3.1.0</git-plugin.version>
-        <workflow-support-plugin.version>2.14</workflow-support-plugin.version>
+        <workflow-support-plugin.version>2.17</workflow-support-plugin.version>
         <scm-api-plugin.version>2.0.8</scm-api-plugin.version>
         <groovy-cps.version>1.21</groovy-cps.version>
+        <jenkins-test-harness.version>2.33</jenkins-test-harness.version>
     </properties>
     <dependencies>
         <dependency>
@@ -79,7 +80,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <version>2.24</version>
+            <version>2.25</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>

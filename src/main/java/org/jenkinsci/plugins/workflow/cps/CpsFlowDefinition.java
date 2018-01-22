@@ -27,13 +27,18 @@ package org.jenkinsci.plugins.workflow.cps;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.Item;
+import hudson.model.Queue;
+import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.util.FormValidation;
 import hudson.util.StreamTaskListener;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.flow.DurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinitionDescriptor;
+import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
+import org.jenkinsci.plugins.workflow.flow.GlobalDefaultFlowDurabilityLevel;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.IOException;
@@ -48,6 +53,7 @@ import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
@@ -106,7 +112,9 @@ public class CpsFlowDefinition extends FlowDefinition {
                 return ((CpsFlowFactoryAction2) a).create(this, owner, actions);
             }
         }
-        return new CpsFlowExecution(sandbox ? script : ScriptApproval.get().using(script, GroovyLanguage.get()), sandbox, owner);
+        Queue.Executable exec = owner.getExecutable();
+        FlowDurabilityHint hint = (exec instanceof Run) ? DurabilityHintProvider.suggestedFor(((Run)exec).getParent()) : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
+        return new CpsFlowExecution(sandbox ? script : ScriptApproval.get().using(script, GroovyLanguage.get()), sandbox, owner, hint);
     }
 
     @Extension

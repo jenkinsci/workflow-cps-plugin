@@ -434,7 +434,9 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                             // clear all the subsumed heads that are joining. thread that owns parents.get(0) lives on
                             for (int i=1; i<parents.size(); i++)
                                 g.getExecution().subsumeHead(parents.get(i));
-                            thread.head.setNewHead(new StepEndNode(flow, (StepStartNode) n, parents));
+                            StepEndNode en = new StepEndNode(flow, (StepStartNode) n, parents);
+                            thread.head.setNewHead(en);
+                            CpsFlowExecution.maybeAutoPersistNode(en);
                         }
                         thread.head.markIfFail(getOutcome());
                         thread.setStep(null);
@@ -522,7 +524,13 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     @Override public ListenableFuture<Void> saveState() {
         try {
             final SettableFuture<Void> f = SettableFuture.create();
-            getFlowExecution().runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+            CpsFlowExecution exec = getFlowExecution();
+            if (!exec.getDurabilityHint().isPersistWithEveryStep()) {
+                f.set(null);
+                return f;
+            }
+
+            exec.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
                 @Override public void onSuccess(CpsThreadGroup result) {
                     try {
                         // TODO keep track of whether the program was saved anyway after saveState was called but before now, and do not bother resaving it in that case

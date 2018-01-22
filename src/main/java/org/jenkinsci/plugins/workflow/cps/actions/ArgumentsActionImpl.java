@@ -24,11 +24,10 @@
  */
 package org.jenkinsci.plugins.workflow.cps.actions;
 
+import com.google.common.collect.Maps;
 import hudson.EnvVars;
-import hudson.model.Describable;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
-import org.jenkinsci.plugins.workflow.actions.ArgumentsAction.NotStoredReason;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -274,7 +273,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     @Nonnull
     Map<String,Object> sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables) {
         // Package scoped so we can test it directly
-        HashMap<String, Object> output = new HashMap<String, Object>();
+        HashMap<String, Object> output = Maps.newHashMapWithExpectedSize(mapContents.size());
 
         boolean isMutated = false;
         for (Map.Entry<String,?> param : mapContents.entrySet()) {

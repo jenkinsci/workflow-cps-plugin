@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableSet;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.InvisibleAction;
+import hudson.model.Item;
 import hudson.model.Queue;
 import java.io.IOException;
 import java.util.HashMap;
@@ -36,10 +37,15 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+
+import hudson.model.Run;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowFactoryAction2;
+import org.jenkinsci.plugins.workflow.flow.DurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
+import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
+import org.jenkinsci.plugins.workflow.flow.GlobalDefaultFlowDurabilityLevel;
 
 /**
  * Attached to a run that is a replay of an earlier one.
@@ -59,7 +65,9 @@ class ReplayFlowFactoryAction extends InvisibleAction implements CpsFlowFactoryA
     @Override public CpsFlowExecution create(FlowDefinition def, FlowExecutionOwner owner, List<? extends Action> actions) throws IOException {
         String script = replacementMainScript;
         replacementMainScript = null; // minimize build.xml size
-        return new CpsFlowExecution(script, sandbox, owner);
+        Queue.Executable exec = owner.getExecutable();
+        FlowDurabilityHint hint = (exec instanceof Run) ? DurabilityHintProvider.suggestedFor(((Run)exec).getParent()) : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
+        return new CpsFlowExecution(script, sandbox, owner, hint);
     }
 
     @Override public boolean shouldSchedule(List<Action> actions) {
