@@ -272,7 +272,7 @@ public class FlowDurabilityTest {
                 return;
             }
             long currentTime = System.nanoTime();
-            if (TimeUnit.SECONDS.convert(currentTime-nanoStartTime, TimeUnit.NANOSECONDS) > 5) {
+            if (TimeUnit.SECONDS.convert(currentTime-nanoStartTime, TimeUnit.NANOSECONDS) > 10) {
                 throw new TimeoutException();
             }
         }
