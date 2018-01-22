@@ -286,7 +286,7 @@ public class FlowDurabilityTest {
                 System.out.println(builder.toString());
                 throw new TimeoutException("Build didn't resume or fail in a timely fashion.");
             }
-            Thread.sleep(1000L);
+            Thread.sleep(100L);
         }
     }
 
