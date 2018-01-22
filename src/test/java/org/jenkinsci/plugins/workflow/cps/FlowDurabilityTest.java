@@ -274,17 +274,17 @@ public class FlowDurabilityTest {
             long currentTime = System.nanoTime();
             if (TimeUnit.SECONDS.convert(currentTime-nanoStartTime, TimeUnit.NANOSECONDS) > 10) {
                 StringBuilder builder = new StringBuilder();
-                builder.append("Timeout with run, result: "+run.getResult()+" and execution != null:"+run.getExecution() != null).append('\n');
+                builder.append("Run result: "+run.getResult());
+                builder.append(" and execution != null:"+run.getExecution() != null+" ");
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
                     CpsFlowExecution cpsFlow = (CpsFlowExecution)exec;
-                    builder.append(" FlowExecution is paused: "+cpsFlow.isPaused())
+                    builder.append(", FlowExecution is paused: "+cpsFlow.isPaused())
                             .append(", FlowExecution is complete: "+cpsFlow.isComplete())
                             .append(", FlowExecution result: "+cpsFlow.getResult())
                             .append(", FlowExecution PersistedClean: "+cpsFlow.persistedClean).append('\n');
                 }
-                System.out.println(builder.toString());
-                throw new TimeoutException("Build didn't resume or fail in a timely fashion. \n"+builder.toString());
+                throw new TimeoutException("Build didn't resume or fail in a timely fashion. "+builder.toString());
             }
             Thread.sleep(100L);
         }

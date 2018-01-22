@@ -668,7 +668,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         if (storageErrors) {  //
-            this.storageDir = getStorageDir()+"-fallback";  // Avoid overwriting data
+            this.storageDir = (this.storageDir != null) ? this.storageDir+"-fallback" : "workflow-fallback";  // Avoid overwriting data
             this.storage = createStorage();  // Empty storage
             // Need to find a way to mimic up the heads and fail cleanly, far enough to let the canResume do its thing
             rebuildEmptyGraph();
