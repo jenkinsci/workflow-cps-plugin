@@ -284,7 +284,7 @@ public class FlowDurabilityTest {
                             .append(", FlowExecution PersistedClean: "+cpsFlow.persistedClean).append('\n');
                 }
                 System.out.println(builder.toString());
-                throw new TimeoutException("Build didn't resume or fail in a timely fashion.");
+                throw new TimeoutException("Build didn't resume or fail in a timely fashion. \n"+builder.toString());
             }
             Thread.sleep(100L);
         }
