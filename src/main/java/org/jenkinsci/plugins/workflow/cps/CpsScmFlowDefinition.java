@@ -27,6 +27,7 @@ package org.jenkinsci.plugins.workflow.cps;
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.FilePath;
+import hudson.Functions;
 import hudson.model.Action;
 import hudson.model.Computer;
 import hudson.model.Item;
@@ -34,12 +35,14 @@ import hudson.model.Job;
 import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.Run;
+import hudson.model.Run.RunnerAbortedException;
 import hudson.model.TaskListener;
 import hudson.model.TopLevelItem;
 import hudson.scm.SCM;
 import hudson.scm.SCMDescriptor;
 import hudson.slaves.WorkspaceList;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.util.Collection;
 import java.util.List;
 import jenkins.model.Jenkins;
@@ -125,7 +128,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             dir = new FilePath(owner.getRootDir());
         }
         listener.getLogger().println("Checking out " + scm.getKey() + " into " + dir + " to read " + scriptPath);
-        String script;
+        String script = null;
         Computer computer = node.toComputer();
         if (computer == null) {
             throw new IOException(node.getDisplayName() + " may be offline");
@@ -135,7 +138,30 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         delegate.setChangelog(true);
         FilePath acquiredDir;
         try (WorkspaceList.Lease lease = computer.getWorkspaceList().acquire(dir)) {
-            delegate.checkout(build, dir, listener, node.createLauncher(listener));
+            for (int retryCount = Jenkins.getInstance().getScmCheckoutRetryCount(); retryCount >= 0; retryCount--) {
+                try {
+                    delegate.checkout(build, dir, listener, node.createLauncher(listener));
+                    break;
+                } catch (AbortException e) {
+                    // abort exception might have a null message.
+                    // If so, just skip echoing it.
+                    if (e.getMessage() != null) {
+                        listener.error(e.getMessage());
+                    }
+                } catch (InterruptedIOException e) {
+                    throw e;
+                } catch (IOException e) {
+                    // checkout error not yet reported
+                    listener.error("Checkout failed").println(Functions.printThrowable(e).trim()); // TODO 2.43+ use Functions.printStackTrace
+                }
+
+                if (retryCount == 0)   // all attempts failed
+                    throw new AbortException("Maximum checkout retry attempts reached, aborting");
+
+                listener.getLogger().println("Retrying after 10 seconds");
+                Thread.sleep(10000);
+            }
+            
             FilePath scriptFile = dir.child(scriptPath);
             if (!scriptFile.absolutize().getRemote().replace('\\', '/').startsWith(dir.absolutize().getRemote().replace('\\', '/') + '/')) { // TODO JENKINS-26838
                 throw new IOException(scriptFile + " is not inside " + dir);

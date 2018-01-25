@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
+import hudson.model.Result;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.plugins.git.BranchSpec;
@@ -59,6 +60,7 @@ public class CpsScmFlowDefinitionTest {
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public JenkinsRule r = new JenkinsRule();
     @Rule public GitSampleRepoRule sampleRepo = new GitSampleRepoRule();
+    @Rule public GitSampleRepoRule invalidRepo = new GitSampleRepoRule();
 
     @Test public void configRoundtrip() throws Exception {
         sampleRepo.init();
@@ -82,6 +84,7 @@ public class CpsScmFlowDefinitionTest {
         // TODO currently the log text is in Run.log, but not on FlowStartNode/LogAction, so not visible from Workflow Steps etc.
         r.assertLogContains("hello from SCM", b);
         r.assertLogContains("Staging flow.groovy", b);
+        r.assertLogNotContains("Retrying after 10 seconds", b);
         FlowGraphWalker w = new FlowGraphWalker(b.getExecution());
         int workspaces = 0;
         for (FlowNode n : w) {
@@ -105,6 +108,7 @@ public class CpsScmFlowDefinitionTest {
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("Cloning the remote Git repository", b);
         r.assertLogContains("version one", b);
+        r.assertLogNotContains("Retrying after 10 seconds", b);
         sampleRepo.write("flow.groovy", "echo 'version two'");
         sampleRepo.git("add", "flow.groovy");
         sampleRepo.git("commit", "--message=next");
@@ -113,6 +117,7 @@ public class CpsScmFlowDefinitionTest {
         assertEquals(2, b.number);
         r.assertLogContains("Fetching changes from the remote Git repository", b);
         r.assertLogContains("version two", b);
+        r.assertLogNotContains("Retrying after 10 seconds", b);
         List<ChangeLogSet<? extends ChangeLogSet.Entry>> changeSets = b.getChangeSets();
         assertEquals(1, changeSets.size());
         ChangeLogSet<? extends ChangeLogSet.Entry> changeSet = changeSets.get(0);
@@ -138,6 +143,7 @@ public class CpsScmFlowDefinitionTest {
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("Cloning the remote Git repository", b);
         r.assertLogContains("version one", b);
+        r.assertLogNotContains("Retrying after 10 seconds", b);
         b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         assertEquals(2, b.number);
         List<ChangeLogSet<? extends ChangeLogSet.Entry>> changeSets = b.getChangeSets();
@@ -157,8 +163,23 @@ public class CpsScmFlowDefinitionTest {
         p.setDefinition(def);
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogNotContains("Cloning the remote Git repository", b);
+        r.assertLogNotContains("Retrying after 10 seconds", b);
         r.assertLogContains("Obtained flow.groovy from git " + sampleRepo, b);
         r.assertLogContains("version one", b);
+    }
+    
+    @Issue("JENKINS-39194")
+    @Test public void retry() throws Exception {
+        // We use an un-initialized repo here to test retry
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        GitStep step = new GitStep(invalidRepo.toString());
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(step.createSCM(), "flow.groovy");
+        def.setLightweight(false);
+        p.setDefinition(def);
+        r.jenkins.setScmCheckoutRetryCount(1);
+        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        r.assertLogContains("Could not read from remote repository", b);
+        r.assertLogContains("Retrying after 10 seconds", b);
     }
 
     @Issue("JENKINS-28447")
