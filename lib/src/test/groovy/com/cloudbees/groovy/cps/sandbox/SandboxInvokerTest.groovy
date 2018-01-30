@@ -46,8 +46,6 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
         """)
 
         assertIntercept("""
-Script1:___cps___0()
-Script1:___cps___1()
 Script1.super(Script1).setBinding(Binding)
 new Point(Integer,Integer)
 Point.equals(Point)
@@ -79,8 +77,6 @@ ScriptBytecodeAdapter:compareEqual(Integer,Integer)
     return length("foo")
 """)
         assertIntercept('''
-Script1:___cps___0()
-Script1:___cps___1()
 Script1.super(Script1).setBinding(Binding)
 Script1.length(String)
 String.length()
@@ -105,9 +101,6 @@ String.length()
     return "${nonCPSMatcherMethod('foo')}${cpsMatcherMethod('foo')}"
 ''')
         assertIntercept(''' 
-Script1:___cps___0()
-Script1:___cps___1()
-Script1:___cps___2()
 Script1.super(Script1).setBinding(Binding)
 Script1.nonCPSMatcherMethod(String)
 ScriptBytecodeAdapter:findRegex(String,String)
@@ -156,8 +149,6 @@ new GStringImpl(Object[],String[])
 
         assert [new Point(1,4),new File("foo")]==evalCpsSandbox("trusted.foo(4)");
         assertIntercept("""
-Script2:___cps___6()
-Script2:___cps___7()
 Script2.super(Script2).setBinding(Binding)
 Script2.trusted
 Script1.foo(Integer)
@@ -209,11 +200,8 @@ new File(String)
         ''')=="xbase"
 
         assertIntercept('''
-Script1:___cps___0()
-Script1:___cps___1()
 Script1.super(Script1).setBinding(Binding)
 new Bar()
-Foo:___cps___2()
 new Foo()
 new SandboxInvokerTest$Base()
 Bar.toString()
@@ -235,8 +223,6 @@ String.plus(String)
             assert new C().p.y == 3
         ''')
         assertIntercept('''
-Script1:___cps___0()
-Script1:___cps___1()
 Script1.super(Script1).setBinding(Binding)
 new C()
 new Point(Integer,Integer)
@@ -256,8 +242,6 @@ ScriptBytecodeAdapter:compareEqual(Double,Integer)
             assert new C().p.y == 3
         ''')
         assertIntercept('''
-Script1:___cps___0()
-Script1:___cps___1()
 Script1.super(Script1).setBinding(Binding)
 new C()
 new Point(Integer,Integer)
@@ -280,8 +264,6 @@ ScriptBytecodeAdapter:compareEqual(Double,Integer)
             assert new C().p.y == 3
         ''')
         assertIntercept('''
-Script1:___cps___0()
-Script1:___cps___1()
 Script1.super(Script1).setBinding(Binding)
 new C()
 new Point(Integer,Integer)
@@ -310,8 +292,6 @@ ScriptBytecodeAdapter:compareEqual(Double,Integer)
         ''')
         // TODO recording Checker.checkedCast is undesirable, but how to avoid it?
         assertIntercept('''
-Script1:___cps___0()
-Script1:___cps___1()
 Script1.super(Script1).setBinding(Binding)
 Checker:checkedCast(Class,Class,Boolean,Boolean,Boolean)
 Locale:getAvailableLocales()
@@ -358,9 +338,6 @@ runit({-> b.noArg()} as Callable)
 runit(b.&noArg as Callable)
 ''')
         assertIntercept('''
-Script1:___cps___0()
-Script1:___cps___1()
-Script1:___cps___2()
 Script1.super(Script1).setBinding(Binding)
 new SandboxInvokerTest$Base()
 SandboxedMethodClosure.call()
@@ -401,8 +378,6 @@ SandboxInvokerTest$Base.noArg()
 (SandboxInvokerTest.Base.&staticOneArg)('Something') 
 ''')
         assertIntercept('''
-Script1:___cps___0()
-Script1:___cps___1()
 Script1.super(Script1).setBinding(Binding)
 SandboxedMethodClosure.call(String,String)
 SandboxInvokerTest$Base:staticMultipleArgs(String,String)
