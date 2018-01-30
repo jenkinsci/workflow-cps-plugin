@@ -125,13 +125,13 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         this.classNode = classNode;
         try {
 
+            for (FieldNode field : new ArrayList<>(classNode.getFields())) {
+                visitNontransformedField(field);
+            }
             for (MethodNode method : new ArrayList<>(classNode.getMethods())) {
                 visitMethod(method);
             }
             processConstructors(classNode);
-            for (FieldNode field : new ArrayList<>(classNode.getFields())) {
-                visitNontransformedField(field);
-            }
             for (Statement statement : new ArrayList<>(classNode.getObjectInitializerStatements())) {
                 visitNontransformedStatement(statement);
             }
