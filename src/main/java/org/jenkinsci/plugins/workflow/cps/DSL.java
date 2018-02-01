@@ -288,7 +288,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         boolean singleArgumentOnly = false;
         if (metaStep != null) {
             Descriptor symbolDescriptor = SymbolLookup.get().findDescriptor((Class)(metaStep.getMetaStepArgumentType()), symbol);
-            DescribableModel<?> symbolModel = new DescribableModel(symbolDescriptor.clazz);
+            DescribableModel<?> symbolModel = DescribableModel.of(symbolDescriptor.clazz);
 
             singleArgumentOnly = symbolModel.hasSingleRequiredParameter() && symbolModel.getParameters().size() == 1;
         }
@@ -315,8 +315,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 // execute this Describable through a meta-step
 
                 // split args between MetaStep (represented by mm) and Describable (represented by dm)
-                DescribableModel<?> mm = new DescribableModel(metaStep.clazz);
-                DescribableModel<?> dm = new DescribableModel(d.clazz);
+                DescribableModel<?> mm = DescribableModel.of(metaStep.clazz);
+                DescribableModel<?> dm = DescribableModel.of(d.clazz);
                 DescribableParameter p = mm.getFirstRequiredParameter();
                 if (p==null) {
                     // meta-step not having a required parameter is a bug in this meta step
@@ -457,7 +457,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     static NamedArgsAndClosure parseArgs(Object arg, StepDescriptor d) {
         boolean singleArgumentOnly = false;
         try {
-            DescribableModel<?> stepModel = new DescribableModel<>(d.clazz);
+            DescribableModel<?> stepModel = DescribableModel.of(d.clazz);
             singleArgumentOnly = stepModel.hasSingleRequiredParameter() && stepModel.getParameters().size() == 1;
         } catch (NoStaplerConstructorException e) {
             // Ignore steps without databound constructors and treat them as normal.

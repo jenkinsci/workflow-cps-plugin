@@ -129,7 +129,7 @@ public class StepAtomNode extends AtomNode implements StepNode {
      */
     private static @CheckForNull Class<?> getDelegateType(@Nonnull FlowNode node, @Nonnull StepDescriptor d) {
         if (d.isMetaStep()) {
-            DescribableParameter p = new DescribableModel<>(d.clazz).getFirstRequiredParameter();
+            DescribableParameter p = DescribableModel.of(d.clazz).getFirstRequiredParameter();
             if (p != null) {
                 Object arg = ArgumentsAction.getResolvedArguments(node).get(p.getName());
                 if (arg instanceof UninstantiatedDescribable) {

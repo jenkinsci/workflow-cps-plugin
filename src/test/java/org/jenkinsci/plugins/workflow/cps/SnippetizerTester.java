@@ -124,7 +124,7 @@ public class SnippetizerTester {
      */
     @SuppressWarnings("unchecked")
     public static void assertDocGeneration(Class<? extends Describable> describableClass) throws Exception {
-        DescribableModel<?> model = new DescribableModel(describableClass);
+        DescribableModel<?> model = DescribableModel.of(describableClass);
 
         assertNotNull(model);
 
