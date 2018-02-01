@@ -105,9 +105,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>structs</artifactId>
-            <!-- Picks up both https://github.com/jenkinsci/structs-plugin/pull/31 and https://github.com/jenkinsci/structs-plugin/pull/30
-              plus the unreleased https://github.com/jenkinsci/structs-plugin/pull/29 until released -->
-            <version>1.11-fast-20180130.155644-2</version>
+            <version>1.12</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
