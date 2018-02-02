@@ -458,7 +458,13 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         boolean singleArgumentOnly = false;
         try {
             DescribableModel<?> stepModel = DescribableModel.of(d.clazz);
-            singleArgumentOnly = stepModel.hasSingleRequiredParameter() && stepModel.getParameters().size() == 1;
+            if (stepModel != null) {
+                singleArgumentOnly = stepModel.hasSingleRequiredParameter() && stepModel.getParameters().size() == 1;
+                if (singleArgumentOnly) {  // Can fetch the one argument we need
+                    String paramName = stepModel.getSoleRequiredParameter().getName();
+                    return parseArgs(arg, d.takesImplicitBlockArgument(), paramName, singleArgumentOnly);
+                }
+            }
         } catch (NoStaplerConstructorException e) {
             // Ignore steps without databound constructors and treat them as normal.
         }
