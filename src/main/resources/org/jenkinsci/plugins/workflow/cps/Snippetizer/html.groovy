@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps.Snippetizer
 
+import org.jenkinsci.plugins.structs.SymbolLookup
 import org.jenkinsci.plugins.structs.describable.ArrayType
 import org.jenkinsci.plugins.structs.describable.AtomicType
 import org.jenkinsci.plugins.structs.describable.DescribableModel
@@ -161,8 +162,10 @@ def describeType(ParameterType type, int headerLevel) throws Exception {
           } else {
             dl(class:'schema') {
               for (Map.Entry<String, DescribableModel> entry : ((HeterogeneousObjectType) type).getTypes().entrySet()) {
+                Set<String> symbols = SymbolLookup.getSymbolValue(entry.getValue().getType());
+                String symbol = symbols.isEmpty() ? DescribableModel.CLAZZ + ": '" + entry.getKey() + "'" : symbols.iterator().next();
                 dt {
-                  code(DescribableModel.CLAZZ + ": '" + entry.key + "'")
+                  code(symbol)
                 }
                 dd{
                   generateHelp(entry.value, nextHeaderLevel);
