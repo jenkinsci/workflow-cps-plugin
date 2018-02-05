@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import static java.util.Arrays.*;
 import java.util.List;
+
+import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 import org.jenkinsci.plugins.workflow.SingleJobTestBase;
 import org.jenkinsci.plugins.workflow.actions.ThreadNameAction;
@@ -328,7 +330,7 @@ public class ParallelStepTest extends SingleJobTestBase {
                         }
                     }
                 }
-                assertEquals(128*3,shell);
+                assertEquals(42*3,shell);
             }
         });
     }

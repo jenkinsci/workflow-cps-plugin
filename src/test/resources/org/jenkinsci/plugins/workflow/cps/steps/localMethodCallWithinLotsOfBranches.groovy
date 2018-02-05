@@ -14,7 +14,7 @@ def doNotify(msg) {
 node {
     ws {}
     def x = [:]
-    for (def i=0; i<128; i++) {
+    for (def i=0; i<42; i++) {
         def j = i;
         // TODO JENKINS-25979 x["branch${i}"] = {…} does not work
         x.put("branch${i}", { notify("Hello ${j}") })
