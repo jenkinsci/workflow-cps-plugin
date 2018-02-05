@@ -57,11 +57,11 @@ div(class:'dsl-reference'){
 
 def generateStepHelp(Snippetizer.QuasiDescriptor d) throws Exception {
   return {
-    dt(class:'step-title'){
+    dt(class:'step-title show-minimize'){
       code(d.getSymbol())
       raw(": ${d.real.getDisplayName()}")
     }
-    dd(class:'step-body'){
+    dd(class:'step-body minimize'){
       try {
         generateHelp(new DescribableModel(d.real.clazz), 3);
       } catch (Exception x) {
