@@ -160,14 +160,14 @@ def describeType(ParameterType type, int headerLevel) throws Exception {
           if (type.actualType == Object) {
             span(_("(not enumerable)"))
           } else {
-            dl(class:'schema') {
+            dl(class:'schema root') {
               for (Map.Entry<String, DescribableModel> entry : ((HeterogeneousObjectType) type).getTypes().entrySet()) {
                 Set<String> symbols = SymbolLookup.getSymbolValue(entry.getValue().getType());
                 String symbol = symbols.isEmpty() ? DescribableModel.CLAZZ + ": '" + entry.getKey() + "'" : symbols.iterator().next();
-                dt {
+                dt(class: 'show-minimize') {
                   code(symbol)
                 }
-                dd{
+                dd(class: 'minimize') {
                   generateHelp(entry.value, nextHeaderLevel);
                 }
               }
