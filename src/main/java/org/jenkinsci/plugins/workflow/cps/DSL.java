@@ -461,7 +461,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             if (stepModel != null) {
                 singleArgumentOnly = stepModel.hasSingleRequiredParameter() && stepModel.getParameters().size() == 1;
                 if (singleArgumentOnly) {  // Can fetch the one argument we need
-                    String paramName = stepModel.getSoleRequiredParameter().getName();
+                    DescribableParameter dp = stepModel.getSoleRequiredParameter();
+                    String paramName = (dp != null) ? dp.getName() : null;
                     return parseArgs(arg, d.takesImplicitBlockArgument(), paramName, singleArgumentOnly);
                 }
             }
