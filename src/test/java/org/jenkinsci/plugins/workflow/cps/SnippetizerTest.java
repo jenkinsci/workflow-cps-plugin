@@ -233,7 +233,7 @@ public class SnippetizerTest {
         st.assertGenerateSnippet("{'stapler-class':'" + CatchErrorStep.class.getName() + "'}", "// " + Messages.Snippetizer_this_step_should_not_normally_be_used_in() + "\ncatchError {\n    // some block\n}", null);
     }
 
-    @Issue("JENKINS-26126")
+    @Issue({"JENKINS-26126", "JENKINS-37215"})
     @Test public void doDslRef() throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
         String html = wc.goTo(Snippetizer.ACTION_URL + "/html").getWebResponse().getContentAsString();
@@ -241,6 +241,8 @@ public class SnippetizerTest {
         assertThat("GitSCM.submoduleCfg is mentioned as an attribute of a value of GenericSCMStep.scm", html, containsString("submoduleCfg"));
         assertThat("CleanBeforeCheckout is mentioned as an option", html, containsString("CleanBeforeCheckout"));
         assertThat("content is written to the end", html, containsString("</body></html>"));
+        assertThat("symbols are noted for heterogeneous lists", html, containsString("<code>booleanParam</code>"));
+        assertThat("symbols are noted for homogeneous lists", html, containsString("<code>configFile</code>"));
     }
 
     @Issue({"JENKINS-35395", "JENKINS-38114"})

@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps.Snippetizer
 
+import org.jenkinsci.plugins.structs.SymbolLookup
 import org.jenkinsci.plugins.structs.describable.ArrayType
 import org.jenkinsci.plugins.structs.describable.AtomicType
 import org.jenkinsci.plugins.structs.describable.DescribableModel
@@ -57,11 +58,11 @@ div(class:'dsl-reference'){
 
 def generateStepHelp(Snippetizer.QuasiDescriptor d) throws Exception {
   return {
-    dt(class:'step-title'){
+    dt(class:'step-title show-minimize'){
       code(d.getSymbol())
       raw(": ${d.real.getDisplayName()}")
     }
-    dd(class:'step-body'){
+    dd(class:'step-body minimize'){
       try {
         generateHelp(new DescribableModel(d.real.clazz), 3);
       } catch (Exception x) {
@@ -147,9 +148,11 @@ def describeType(ParameterType type, int headerLevel) throws Exception {
       }
     } else if (type instanceof HomogeneousObjectType) {
       dl(class:'nested-object-box nested') {
-        dt(_("Nested object"))
+        DescribableModel model = ((HomogeneousObjectType) type).getSchemaType();
+        Set<String> symbols = SymbolLookup.getSymbolValue(model.getType());
+        dt(symbols.isEmpty() ? _("Nested object") : code(symbols.iterator().next()))
         dd{
-          generateHelp(((HomogeneousObjectType) type).getSchemaType(), nextHeaderLevel);
+          generateHelp(model, nextHeaderLevel);
         }
       }
     } else if (type instanceof HeterogeneousObjectType) {
@@ -159,12 +162,14 @@ def describeType(ParameterType type, int headerLevel) throws Exception {
           if (type.actualType == Object) {
             span(_("(not enumerable)"))
           } else {
-            dl(class:'schema') {
+            dl(class:'schema root') {
               for (Map.Entry<String, DescribableModel> entry : ((HeterogeneousObjectType) type).getTypes().entrySet()) {
-                dt {
-                  code(DescribableModel.CLAZZ + ": '" + entry.key + "'")
+                Set<String> symbols = SymbolLookup.getSymbolValue(entry.getValue().getType());
+                String symbol = symbols.isEmpty() ? DescribableModel.CLAZZ + ": '" + entry.getKey() + "'" : symbols.iterator().next();
+                dt(class: 'show-minimize') {
+                  code(symbol)
                 }
-                dd{
+                dd(class: 'minimize') {
                   generateHelp(entry.value, nextHeaderLevel);
                 }
               }
