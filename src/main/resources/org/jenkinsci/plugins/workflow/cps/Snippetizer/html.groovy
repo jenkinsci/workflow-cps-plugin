@@ -148,9 +148,11 @@ def describeType(ParameterType type, int headerLevel) throws Exception {
       }
     } else if (type instanceof HomogeneousObjectType) {
       dl(class:'nested-object-box nested') {
-        dt(_("Nested object"))
+        DescribableModel model = ((HomogeneousObjectType) type).getSchemaType();
+        Set<String> symbols = SymbolLookup.getSymbolValue(model.getType());
+        dt(symbols.isEmpty() ? _("Nested object") : code(symbols.iterator().next()))
         dd{
-          generateHelp(((HomogeneousObjectType) type).getSchemaType(), nextHeaderLevel);
+          generateHelp(model, nextHeaderLevel);
         }
       }
     } else if (type instanceof HeterogeneousObjectType) {
