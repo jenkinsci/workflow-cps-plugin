@@ -289,6 +289,71 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
     }
 
+    @Issue("JENKINS-38052")
+    @Test
+    public void curriedClosuresInParallel() throws Exception {
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("def example_c = { input -> node { echo \"$input\" } }\n" +
+                "def map = [:]\n" +
+                "map['spam'] = example_c.curry('spam')\n" +
+                "map['eggs'] = example_c.curry('eggs')\n" +
+                "parallel map\n", true));
+        WorkflowRun b = jenkins.buildAndAssertSuccess(job);
+        jenkins.assertLogContains("[spam] spam", b);
+        jenkins.assertLogContains("[eggs] eggs", b);
+    }
+
+    @Issue("JENKINS-27916")
+    @Test
+    public void gStringInMapKey() throws Exception {
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("def s1 = \"first-${env.BUILD_NUMBER}\"\n" +
+                "def s2 = \"second-${env.BUILD_NUMBER}\"\n" +
+                "def m = [(s1): 'first-key',\n" +
+                "  \"${s2}\": 'second-key',\n" +
+                "  \"third-${env.BUILD_NUMBER}\": 'third-key']\n" +
+                "m.each { k, v -> echo \"${k}:${v}\" }\n", true));
+
+        WorkflowRun b = jenkins.buildAndAssertSuccess(job);
+        jenkins.assertLogContains("first-1:first-key", b);
+        jenkins.assertLogContains("second-1:second-key", b);
+        jenkins.assertLogContains("third-1:third-key", b);
+    }
+
+    @Issue("JENKINS-41248")
+    @Test
+    public void explicitSetter() throws Exception {
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("class Foo {\n" +
+                "    private int a\n" +
+                "    void setA(int a) {\n" +
+                "        this.a = a\n" +
+                "    }\n" +
+                "    String getA() {\n" +
+                "        return a\n" +
+                "    }\n" +
+                "}\n" +
+                "Foo foo = new Foo()\n" +
+                "foo.setA(10)\n" +
+                "echo \"a is ${foo.getA()}\"", true));
+        WorkflowRun b = jenkins.buildAndAssertSuccess(job);
+
+        jenkins.assertLogContains("a is 10", b);
+    }
+
+    @Issue("JENKINS-28321")
+    @Test
+    public void whitelistedMethodPointer() throws Exception {
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("def foo = 'lowercase'\n" +
+                "def bar = foo.&toUpperCase\n" +
+                "echo bar.call()\n", true));
+
+        WorkflowRun b = jenkins.buildAndAssertSuccess(job);
+
+        jenkins.assertLogContains("LOWERCASE", b);
+    }
+
     @Issue("JENKINS-46391")
     @Test
     public void tildePattern() throws Exception {
