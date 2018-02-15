@@ -1,7 +1,18 @@
 <div>
+  <p>
     Specify where to obtain a source code repository containing your Groovy script.
     It will be checked out somewhere on the Jenkins master and used to load your Pipeline script.
     (If you wish to use other files from the same repository during your Pipeline,
     you will need to check them out separately on some slave;
     this checkout cannot be reused.)
+  </p>
+  <p>
+    This Pipeline script provider uses the functionality provided in standalone SCM plugins.
+    In particular cases these plugins may require custom environment on the Jenkins master in order 
+    to get the data from the configured SCM.
+    This environment may involve: tools, environment variables, specific platform, etc.
+    In instance, for <a href="https://wiki.jenkins-ci.org/display/JENKINS/Git+Plugin">Git SCM</a>
+    it is required to have a Git binary tool installed on the machine and declared in the <b>PATH</b> variable.
+    Check documentation of SCM plugins in order to get more info about such requirements.
+  </p>
 </div>
