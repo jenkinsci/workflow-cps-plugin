@@ -91,6 +91,15 @@ public abstract class CpsScript extends SerializableScript {
     @Override
     public final Object invokeMethod(String name, Object args) {
         // TODO probably better to call super method and only proceed here incase of MissingMethodException:
+        
+        // check for user defined closures in the script binding
+        if (getBinding().hasVariable(name)){
+            if (getBinding().getVariable(name) instanceof CpsClosure2){
+				CpsClosure2 local_closure = (CpsClosure2) getBinding().getVariable(name);
+                return local_closure.call(args);
+            }
+        }
+        
         // if global variables are defined by that name, try to call it.
         // the 'call' convention comes from Closure
         GlobalVariable v = GlobalVariable.byName(name, $buildNoException());
