@@ -15,6 +15,7 @@ import org.jvnet.hudson.test.Issue;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.junit.Rule;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 
 public class CpsScriptTest extends AbstractCpsFlowTest {
