@@ -95,7 +95,7 @@ public abstract class CpsScript extends SerializableScript {
         // check for user defined closures in the script binding
         if (getBinding().hasVariable(name)){
             if (getBinding().getVariable(name) instanceof CpsClosure2){
-				CpsClosure2 local_closure = (CpsClosure2) getBinding().getVariable(name);
+		CpsClosure2 local_closure = (CpsClosure2) getBinding().getVariable(name);
                 return local_closure.call(args);
             }
         }
