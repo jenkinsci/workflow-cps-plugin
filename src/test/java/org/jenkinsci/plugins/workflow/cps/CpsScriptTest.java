@@ -126,7 +126,7 @@ public class CpsScriptTest extends AbstractCpsFlowTest {
     @Test public void userDefinedClosureExecution() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("binding.setVariable(\"my_closure\", { echo \"my closure!\" })\n my_closure() ", true));
-        r.assertLogContains("my closure!", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+        r.assertLogContains("my closure!", r.assertBuildStatusSuccess(p.scheduleBuild2(0))); 
     }
     
     
