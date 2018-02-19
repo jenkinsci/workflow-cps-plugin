@@ -47,6 +47,7 @@ import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
@@ -314,6 +315,18 @@ public class DSLTest {
         p.setDefinition(new CpsFlowDefinition("try {def c = classLoad(getClass().name); error(/did not expect to be able to load ${c} from ${c.classLoader}/)} catch (ClassNotFoundException x) {echo(/good, got ${x}/)}", false));
         r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
+
+    /**
+     *  Test user defined closure execution
+     */
+    @Test public void userDefinedClosureExecution() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        ScriptApproval.get().approveSignature("method groovy.lang.Binding setVariable java.lang.String java.lang.Object");
+        p.setDefinition(new CpsFlowDefinition("binding.setVariable(\"my_closure\", { echo \"my closure!\" })\n my_closure() ", true));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("my closure!", b); 
+    }
+    
     public static class CLStep extends Step {
         public final String name;
         @DataBoundConstructor public CLStep(String name) {this.name = name;}

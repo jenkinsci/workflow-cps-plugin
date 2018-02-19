@@ -12,16 +12,8 @@ import static org.junit.Assert.*;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
-import org.jenkinsci.plugins.workflow.job.WorkflowJob;
-import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.jvnet.hudson.test.JenkinsRule;
-import org.junit.Rule;
-import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 
 public class CpsScriptTest extends AbstractCpsFlowTest {
-    
-    @Rule public JenkinsRule r = new JenkinsRule();
-    
     /**
      * Test the 'evaluate' method call.
      * The first test case.
@@ -120,15 +112,5 @@ public class CpsScriptTest extends AbstractCpsFlowTest {
         }
         assertEquals(dumpError(), Result.SUCCESS, exec.getResult());
     }
-    
-    /**
-     *  Test user defined closure execution
-     */
-    @Test public void userDefinedClosureExecution() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("binding.setVariable(\"my_closure\", { echo \"my closure!\" })\n my_closure() ", true));
-        r.assertLogContains("my closure!", r.assertBuildStatusSuccess(p.scheduleBuild2(0))); 
-    }
-    
-    
+
 }
