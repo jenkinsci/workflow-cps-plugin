@@ -25,6 +25,9 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.CpsTransformer;
+import com.gargoylesoftware.htmlunit.TextPage;
+import com.gargoylesoftware.htmlunit.html.DomNodeUtil;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Executor;
@@ -34,6 +37,8 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
+
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
@@ -177,6 +182,15 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
         WorkflowRun r = jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
         jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", r);
+        jenkins.assertLogContains("Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance. " + Messages.SandboxContinuable_ScriptApprovalLink(), r);
+
+        // make sure we see the annotation
+        HtmlPage rsp = jenkins.createWebClient().getPage(r, "console");
+        assertEquals(1, DomNodeUtil.selectNodes(rsp, "//A[@href='" + jenkins.contextPath + "/scriptApproval']").size());
+
+        // make sure raw console output doesn't include the garbage
+        TextPage raw = (TextPage)jenkins.createWebClient().goTo(r.getUrl()+"consoleText","text/plain");
+        assertThat(raw.getContent(), containsString(" getInstance. " + Messages.SandboxContinuable_ScriptApprovalLink()));
     }
 
     @Issue("SECURITY-551")
