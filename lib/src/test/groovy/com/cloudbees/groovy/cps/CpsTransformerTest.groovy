@@ -923,4 +923,28 @@ return b.size()
             assert e.message.contains('Map expressions can only contain up to 125 entries')
         }
     }
+
+    @Issue("JENKINS-49679")
+    @Test
+    void multipleAssignmentRunsMethodOnce() {
+        assert evalCPS('''
+alreadyRun = false
+
+def getAandB() {
+  if (!alreadyRun) {
+    alreadyRun = true
+    return ['first', 'second']
+  } else {
+    return ['bad', 'worse']
+  }
+}
+
+def (a, b) = getAandB()
+def c, d
+(c, d) = ['third', 'fourth']
+
+return a + b + c + d
+''') == 'firstsecondthirdfourth'
+    }
+
 }

@@ -774,6 +774,10 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                                     final Expression rhs) {
         List<Expression> tupleExpressions = tuple.getExpressions();
 
+        final VariableExpression rhsTmpVar = new VariableExpression("___cpsTmpVar___" + iota.getAndIncrement());
+        rhsTmpVar.setAccessedVariable(rhsTmpVar);
+        DeclarationExpression decl = new DeclarationExpression(rhsTmpVar, new Token(ASSIGN, "=", -1, -1), rhs);
+        visit(decl);
         for (int i = 0, tupleExpressionsSize = tupleExpressions.size(); i < tupleExpressionsSize; i++) {
             final Expression tupleExpression = tupleExpressions.get(i);
             final Expression index = new ConstantExpression(i, true);
@@ -786,7 +790,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                 public void run() {
                     loc(parentExpression);
                     visit(tupleExpression);
-                    getMultipleAssignmentValueOrCast((VariableExpression)tupleExpression, rhs, index);
+                    getMultipleAssignmentValueOrCast((VariableExpression)tupleExpression, rhsTmpVar, index);
                 }
             });
         }
@@ -1103,6 +1107,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                 }
             });
         } else {
+            System.err.println("V: " + exp);
             sourceUnit.addError(new SyntaxException("Unsupported expression for CPS transformation", exp.getLineNumber(), exp.getColumnNumber()));
         }
     }
