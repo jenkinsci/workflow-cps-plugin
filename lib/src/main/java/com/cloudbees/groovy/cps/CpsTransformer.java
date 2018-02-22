@@ -786,17 +786,21 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                 public void run() {
                     loc(parentExpression);
                     visit(tupleExpression);
-                    makeNode("array", new Runnable() {
-                        @Override
-                        public void run() {
-                            loc(rhs);
-                            visit(rhs);
-                            makeNode("constant", index);
-                        }
-                    });
+                    getMultipleAssignmentValueOrCast((VariableExpression)tupleExpression, rhs, index);
                 }
             });
         }
+    }
+
+    protected void getMultipleAssignmentValueOrCast(final VariableExpression varExp, final Expression rhs, final Expression index) {
+        makeNode("array", new Runnable() {
+            @Override
+            public void run() {
+                loc(rhs);
+                visit(rhs);
+                makeNode("constant", index);
+            }
+        });
     }
 
     /**
@@ -1135,10 +1139,14 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                     loc(exp);
                     literal(v.getType());
                     literal(v.getName());
-                    visit(exp.getRightExpression()); // this will not produce anything if this is EmptyExpression
+                    visitAssignmentOrCast(v, exp.getRightExpression());
                 }
             });
         }
+    }
+
+    protected void visitAssignmentOrCast(final VariableExpression varExp, final Expression rhs) {
+        visit(rhs); // this will not produce anything if this is EmptyExpression
     }
 
     @Override

@@ -6,12 +6,17 @@ import org.codehaus.groovy.ast.ClassNode;
 import org.codehaus.groovy.ast.FieldNode;
 import org.codehaus.groovy.ast.MethodNode;
 import org.codehaus.groovy.ast.expr.CastExpression;
+import org.codehaus.groovy.ast.expr.ConstantExpression;
 import org.codehaus.groovy.ast.expr.DeclarationExpression;
+import org.codehaus.groovy.ast.expr.Expression;
+import org.codehaus.groovy.ast.expr.TupleExpression;
 import org.codehaus.groovy.ast.expr.VariableExpression;
 import org.codehaus.groovy.ast.stmt.Statement;
 import org.codehaus.groovy.classgen.GeneratorContext;
 import org.codehaus.groovy.control.SourceUnit;
 import org.kohsuke.groovy.sandbox.SandboxTransformer;
+
+import java.util.List;
 
 /**
  * {@link CpsTransformer} + {@link SandboxTransformer}
@@ -82,31 +87,45 @@ public class SandboxCpsTransformer extends CpsTransformer {
     }
 
     @Override
-    public void visitDeclarationExpression(final DeclarationExpression exp) {
-        if (exp.isMultipleAssignmentDeclaration()) {
-            throw new UnsupportedOperationException("multiple assignments not supported"); // TODO
-        } else if (SandboxTransformer.mightBePositionalArgumentConstructor(exp.getVariableExpression())) {
-            makeNode("declareVariable", new Runnable() {
+    protected void visitAssignmentOrCast(final VariableExpression varExp, final Expression rhs) {
+        if (SandboxTransformer.mightBePositionalArgumentConstructor(varExp)) {
+            makeNode("sandboxCast", new Runnable() {
                 @Override
                 public void run() {
-                    VariableExpression v = exp.getVariableExpression();
-                    loc(exp);
-                    literal(v.getType());
-                    literal(v.getName());
-                    makeNode("sandboxCast", new Runnable() {
-                        @Override
-                        public void run() {
-                            loc(exp);
-                            visit(exp.getRightExpression());
-                            literal(exp.getVariableExpression().getType());
-                            literal(false);
-                            literal(false);
-                        }
-                    });
+                    loc(varExp);
+                    visit(rhs);
+                    literal(varExp.getType());
+                    literal(false);
+                    literal(false);
                 }
             });
         } else {
-            super.visitDeclarationExpression(exp);
+            super.visitAssignmentOrCast(varExp, rhs);
+        }
+    }
+
+    @Override
+    protected void getMultipleAssignmentValueOrCast(final VariableExpression varExp, final Expression rhs, final Expression index) {
+        if (SandboxTransformer.mightBePositionalArgumentConstructor(varExp)) {
+            makeNode("sandboxCast", new Runnable() {
+                @Override
+                public void run() {
+                    loc(varExp);
+                    makeNode("array", new Runnable() {
+                        @Override
+                        public void run() {
+                            loc(rhs);
+                            visit(rhs);
+                            makeNode("constant", index);
+                        }
+                    });
+                    literal(varExp.getType());
+                    literal(false);
+                    literal(false);
+                }
+            });
+        } else {
+            super.getMultipleAssignmentValueOrCast(varExp, rhs, index);
         }
     }
 

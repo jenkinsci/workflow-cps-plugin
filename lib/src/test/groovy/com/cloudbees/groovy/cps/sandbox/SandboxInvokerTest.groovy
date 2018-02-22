@@ -388,4 +388,51 @@ SandboxInvokerTest$Base:staticOneArg(String)
 ''')
     }
 
+    @Issue("JENKINS-45575")
+    @Test
+    void sandboxedMultipleAssignment() {
+        assert evalCpsSandbox('''
+def (a, b) = ['first', 'second']
+def c, d
+(c, d) = ['third', 'fourth']
+
+return a + b + c + d
+''') == 'firstsecondthirdfourth'
+    }
+
+    @Issue("JENKINS-45575")
+    @Test
+    void typeCoercionMultipleAssignment() {
+        ProxyGeneratorAdapter.pxyCounter.set(0); // make sure *_groovyProxy names are predictable
+        evalCpsSandbox('''
+            interface Static {
+                Locale[] getAvailableLocales()
+            }
+            interface Instance {
+                String getCountry()
+            }
+            def (a, b) = [Locale as Static, Locale.getDefault() as Instance]
+            assert a.getAvailableLocales() != null
+            assert b.country != null
+''')
+        assertIntercept('''
+Script1.super(Script1).setBinding(Binding)
+Checker:checkedCast(Class,Class,Boolean,Boolean,Boolean)
+Locale:getAvailableLocales()
+Locale:getDefault()
+Checker:checkedCast(Class,Locale,Boolean,Boolean,Boolean)
+Locale.getCountry()
+ArrayList[Integer]
+Checker:checkedCast(Class,Class,Boolean,Boolean,Boolean)
+Locale:getAvailableLocales()
+Locale:getDefault()
+Checker:checkedCast(Class,Locale,Boolean,Boolean,Boolean)
+Locale.getCountry()
+ArrayList[Integer]
+Class1_groovyProxy.getAvailableLocales()
+ScriptBytecodeAdapter:compareNotEqual(Locale[],null)
+Locale2_groovyProxy.country
+ScriptBytecodeAdapter:compareNotEqual(String,null)
+''')
+    }
 }
