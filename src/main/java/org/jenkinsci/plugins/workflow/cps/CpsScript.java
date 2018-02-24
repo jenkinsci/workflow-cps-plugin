@@ -89,7 +89,7 @@ public abstract class CpsScript extends SerializableScript {
      * That means we cannot let user-written script override this method, hence the final.
      */
     @Override
-    public final Object invokeMethod(String name, Object args){
+    public final Object invokeMethod(String name, Object args) {
         // TODO probably better to call super method and only proceed here incase of MissingMethodException:
 
         // check for user defined closures in the script binding
@@ -100,7 +100,7 @@ public abstract class CpsScript extends SerializableScript {
                 return local_closure.call(args);
             }
         }
-    		
+        
         // if global variables are defined by that name, try to call it.
         // the 'call' convention comes from Closure
         GlobalVariable v = GlobalVariable.byName(name, $buildNoException());
@@ -112,10 +112,10 @@ public abstract class CpsScript extends SerializableScript {
                 throw new InvokerInvocationException(x);
             }
         }
-		
+
         // otherwise try Step impls.
         DSL dsl = (DSL) getBinding().getVariable(STEPS_VAR);
-        return dsl.invokeMethod(name,args);         
+        return dsl.invokeMethod(name,args);
     }
 
     @Override
