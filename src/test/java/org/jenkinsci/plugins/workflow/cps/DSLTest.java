@@ -315,26 +315,26 @@ public class DSLTest {
         r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
 
-	@Test public void userDefinedClosureInvocationExecution() throws Exception {
+    @Test public void userDefinedClosureInvocationExecution() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("binding[\"my_closure\"] = { \n" +
-										       " sleep 1 \n" + 
-        									   " echo \"my closure!\" \n" + 
-        									   "}\n" + 
-        									   "my_closure() ", false));
+                                              " sleep 1 \n" + 
+                                              " echo \"my closure!\" \n" + 
+                                              "}\n" + 
+                                              "my_closure() ", false));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("my closure!", b); 
     }
 
-	@Test public void userDefinedClosureShellInvocationExecution() throws Exception {
+    @Test public void userDefinedClosureShellInvocationExecution() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("my_closure = { \n" +
-										       " sleep 1 \n" + 
-        									   " node{ \n" + 
-        									   "   sh \"pwd\" \n" + 
-        									   " }\n" +
-        									   "}\n" + 
-        									   "my_closure() ", false));
+                                              " sleep 1 \n" + 
+                                              " node{ \n" + 
+                                              "   sh \"pwd\" \n" + 
+                                              " }\n" +
+                                              "}\n" + 
+                                              "my_closure() ", false));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
 
@@ -348,9 +348,9 @@ public class DSLTest {
     @Test public void userDefinedClosure1ArgInvocationExecution() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("my_closure = { String message -> \n" +
-										       "  echo message \n" +
-        									   "}\n" + 
-        									   "my_closure(\"my message!\") ", false));
+                                              "  echo message \n" +
+                                              "}\n" + 
+                                              "my_closure(\"my message!\") ", false));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("my message!", b); 
     }
@@ -358,9 +358,9 @@ public class DSLTest {
     @Test public void userDefinedClosure2ArgInvocationExecution() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("my_closure = { String message1, String message2 -> \n" +
-										       "  echo \"my message is ${message1} and ${message2}\" \n" +
-        									   "}\n" + 
-        									   "my_closure(\"string1\", \"string2\") ", false));
+                                              "  echo \"my message is ${message1} and ${message2}\" \n" +
+                                              "}\n" + 
+                                              "my_closure(\"string1\", \"string2\") ", false));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("my message is string1 and string2", b); 
     }
@@ -368,11 +368,11 @@ public class DSLTest {
     @Test public void userDefinedClosureVarArgInvocationExecution() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("my_closure = { String message, Integer... n -> \n" +
-                                               "  println message \n" + 
-        									   "  println n \n" +
-										       "  n.sum() \n" +
-        									   "}\n" + 
-        									   "my_closure(\"testing\",1,2,3) ", false));
+                                              "  println message \n" + 
+                                              "  println n \n" +
+                                              "  n.sum() \n" +
+                                              "}\n" + 
+                                              "my_closure(\"testing\",1,2,3) ", false));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("testing", b)
         r.assertLogContains("6", b); 
