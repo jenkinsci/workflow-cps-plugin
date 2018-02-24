@@ -112,4 +112,5 @@ public class CpsScriptTest extends AbstractCpsFlowTest {
         }
         assertEquals(dumpError(), Result.SUCCESS, exec.getResult());
     }
+
 }
