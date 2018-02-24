@@ -91,30 +91,30 @@ public abstract class CpsScript extends SerializableScript {
     @Override
     public final Object invokeMethod(String name, Object args){
 
-    		// check for user defined closures in the script binding
-    		if (getBinding().hasVariable(name)){
-    		    Object local_var = getBinding().getVariable(name);
-    		    if (local_var instanceof CpsClosure2){
-                    CpsClosure2 local_closure = (CpsClosure2) local_var;
-    		        return local_closure.call(args);
-    		    }
-    		}
+        // check for user defined closures in the script binding
+        if (getBinding().hasVariable(name)){
+            Object local_var = getBinding().getVariable(name);
+            if (local_var instanceof CpsClosure2){
+                CpsClosure2 local_closure = (CpsClosure2) local_var;
+                return local_closure.call(args);
+            }
+        }
     		
-			// if global variables are defined by that name, try to call it.
-		    // the 'call' convention comes from Closure
-	        GlobalVariable v = GlobalVariable.byName(name, $buildNoException());
-	        if (v != null) {
-	            try {
-	                Object o = v.getValue(this);
-	                return InvokerHelper.getMetaClass(o).invokeMethod(o, "call", args);
-	            } catch (Exception x) {
-	                throw new InvokerInvocationException(x);
-	            }
-	        }
+        // if global variables are defined by that name, try to call it.
+        // the 'call' convention comes from Closure
+        GlobalVariable v = GlobalVariable.byName(name, $buildNoException());
+        if (v != null) {
+            try {
+                Object o = v.getValue(this);
+                return InvokerHelper.getMetaClass(o).invokeMethod(o, "call", args);
+            } catch (Exception x) {
+                throw new InvokerInvocationException(x);
+            }
+        }
 		
-	        // otherwise try Step impls.
-	        DSL dsl = (DSL) getBinding().getVariable(STEPS_VAR);
-	        return dsl.invokeMethod(name,args);
+        // otherwise try Step impls.
+        DSL dsl = (DSL) getBinding().getVariable(STEPS_VAR);
+        return dsl.invokeMethod(name,args);
 	             
     }
 
