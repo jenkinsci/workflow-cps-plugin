@@ -27,7 +27,6 @@ package org.jenkinsci.plugins.workflow.cps;
 import com.cloudbees.groovy.cps.SerializableScript;
 import groovy.lang.GroovyShell;
 import groovy.lang.MissingPropertyException;
-import groovy.lang.MissingMethodException;
 import groovy.lang.Script;
 import hudson.model.Queue;
 import hudson.model.Run;
