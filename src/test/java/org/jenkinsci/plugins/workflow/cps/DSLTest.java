@@ -374,7 +374,7 @@ public class DSLTest {
                                               "}\n" + 
                                               "my_closure(\"testing\",1,2,3) ", false));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-        r.assertLogContains("testing", b)
+        r.assertLogContains("testing", b);
         r.assertLogContains("6", b); 
     }
     
