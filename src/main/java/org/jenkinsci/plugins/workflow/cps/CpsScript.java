@@ -27,6 +27,7 @@ package org.jenkinsci.plugins.workflow.cps;
 import com.cloudbees.groovy.cps.SerializableScript;
 import groovy.lang.GroovyShell;
 import groovy.lang.MissingPropertyException;
+import groovy.lang.MissingMethodException;
 import groovy.lang.Script;
 import hudson.model.Queue;
 import hudson.model.Run;
@@ -89,33 +90,33 @@ public abstract class CpsScript extends SerializableScript {
      * That means we cannot let user-written script override this method, hence the final.
      */
     @Override
-    public final Object invokeMethod(String name, Object args) {
-        // TODO probably better to call super method and only proceed here incase of MissingMethodException:
-        
-        // check for user defined closures in the script binding
-        if (getBinding().hasVariable(name)){
-	    Object local_var = getBinding().getVariable(name);
-            if (local_var instanceof CpsClosure2){
-		CpsClosure2 local_closure = (CpsClosure2) local_var;
-                return local_closure.call(args);
-            }
-        }
-        
-        // if global variables are defined by that name, try to call it.
-        // the 'call' convention comes from Closure
-        GlobalVariable v = GlobalVariable.byName(name, $buildNoException());
-        if (v != null) {
-            try {
-                Object o = v.getValue(this);
-                return InvokerHelper.getMetaClass(o).invokeMethod(o, "call", args);
-            } catch (Exception x) {
-                throw new InvokerInvocationException(x);
-            }
-        }
+    public final Object invokeMethod(String name, Object args){
 
-        // otherwise try Step impls.
-        DSL dsl = (DSL) getBinding().getVariable(STEPS_VAR);
-        return dsl.invokeMethod(name,args);
+    		// check for user defined closures in the script binding
+    		if (getBinding().hasVariable(name)){
+    		    Object local_var = getBinding().getVariable(name);
+    		    if (local_var instanceof CpsClosure2){
+                    CpsClosure2 local_closure = (CpsClosure2) local_var;
+    		        return local_closure.call(args);
+    		    }
+    		}
+    		
+			// if global variables are defined by that name, try to call it.
+		    // the 'call' convention comes from Closure
+	        GlobalVariable v = GlobalVariable.byName(name, $buildNoException());
+	        if (v != null) {
+	            try {
+	                Object o = v.getValue(this);
+	                return InvokerHelper.getMetaClass(o).invokeMethod(o, "call", args);
+	            } catch (Exception x) {
+	                throw new InvokerInvocationException(x);
+	            }
+	        }
+		
+	        // otherwise try Step impls.
+	        DSL dsl = (DSL) getBinding().getVariable(STEPS_VAR);
+	        return dsl.invokeMethod(name,args);
+	             
     }
 
     @Override
