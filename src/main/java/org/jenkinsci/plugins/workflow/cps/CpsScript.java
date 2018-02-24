@@ -91,7 +91,7 @@ public abstract class CpsScript extends SerializableScript {
     @Override
     public final Object invokeMethod(String name, Object args){
         // TODO probably better to call super method and only proceed here incase of MissingMethodException:
-        
+
         // check for user defined closures in the script binding
         if (getBinding().hasVariable(name)){
             Object local_var = getBinding().getVariable(name);
@@ -115,8 +115,7 @@ public abstract class CpsScript extends SerializableScript {
 		
         // otherwise try Step impls.
         DSL dsl = (DSL) getBinding().getVariable(STEPS_VAR);
-        return dsl.invokeMethod(name,args);
-	             
+        return dsl.invokeMethod(name,args);         
     }
 
     @Override
