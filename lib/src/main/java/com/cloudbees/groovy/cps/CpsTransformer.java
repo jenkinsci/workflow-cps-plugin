@@ -157,6 +157,11 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         }
     }
 
+    /**
+     * Constructors can't be transformed - if we throw a {@link CpsCallableInvocation} from inside a constructor, there's
+     * no way to get back to the continuation. The object does not get created and so we're unable to proceed with it.
+     * The same thing applies for object initializers.
+     */
     protected void processConstructors(ClassNode classNode) {
         for (ConstructorNode constructor : new ArrayList<>(classNode.getDeclaredConstructors())) {
             visitNontransformedMethod(constructor);
