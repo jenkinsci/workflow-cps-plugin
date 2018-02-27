@@ -211,7 +211,6 @@ String.plus(String)
 ''')
     }
 
-    @NotYetImplemented
     @Issue("JENKINS-45982")
     @Test
     void transformedSuperClass() {

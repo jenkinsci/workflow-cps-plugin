@@ -1,6 +1,7 @@
 package com.cloudbees.groovy.cps.sandbox;
 
 import com.cloudbees.groovy.cps.impl.CallSiteBlock;
+import groovy.lang.GroovyRuntimeException;
 import groovy.lang.MetaClass;
 import org.codehaus.groovy.runtime.InvokerHelper;
 import org.codehaus.groovy.runtime.MethodClosure;
@@ -26,8 +27,12 @@ public class DefaultInvoker implements Invoker {
     }
 
     public Object superCall(Class methodType, Object receiver, String method, Object[] args) throws Throwable {
-        MetaClass mc = InvokerHelper.getMetaClass(receiver.getClass());
-        return mc.invokeMethod(methodType, receiver, method, args, true, true);
+        try {
+            MetaClass mc = InvokerHelper.getMetaClass(receiver.getClass());
+            return mc.invokeMethod(methodType, receiver, method, args, true, true);
+        } catch (GroovyRuntimeException gre) {
+            throw ScriptBytecodeAdapter.unwrap(gre);
+        }
     }
 
     public Object getProperty(Object lhs, String name) throws Throwable {
