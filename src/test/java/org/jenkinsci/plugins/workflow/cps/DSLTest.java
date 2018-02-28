@@ -316,6 +316,9 @@ public class DSLTest {
         r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
 
+    /**
+    * Tests the ability to execute a user defined closure
+    */
     @Test public void userDefinedClosureInvocationExecution() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("binding[\"my_closure\"] = { \n" +
@@ -326,7 +329,10 @@ public class DSLTest {
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("my closure!", b); 
     }
-
+    
+    /**
+    * Tests the ability to resolve DSL steps within a user defined closure
+    */
     @Test public void userDefinedClosurePwdInvocationExecution() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("my_closure = { \n" +
@@ -338,7 +344,10 @@ public class DSLTest {
                                               "my_closure() ", false));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
-
+ 
+    /**
+    * Tests the ability to execute a user defined closure with no arguments
+    */
     @Test public void userDefinedClosure0ArgsExecution() throws Exception {
          WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
          p.setDefinition(new CpsFlowDefinition("binding.setVariable(\"my_closure\", { echo \"my closure!\" })\n my_closure() ", false));
@@ -346,6 +355,9 @@ public class DSLTest {
          r.assertLogContains("my closure!", b); 
     }
 
+    /**
+    * Tests the ability to execute a user defined closure with one arguments
+    */
     @Test public void userDefinedClosure1ArgInvocationExecution() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("my_closure = { String message -> \n" +
@@ -356,6 +368,9 @@ public class DSLTest {
         r.assertLogContains("my message!", b); 
     }
 
+    /**
+    * Tests the ability to execute a user defined closure with 2 arguments
+    */
     @Test public void userDefinedClosure2ArgInvocationExecution() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("my_closure = { String message1, String message2 -> \n" +
@@ -366,6 +381,11 @@ public class DSLTest {
         r.assertLogContains("my message is string1 and string2", b); 
     }
 
+    /**
+    * Tests the ability to execute a user defined closure with variable arguments
+    * note: currently fails because CpsClosure's don't currently work with varargs
+    *
+    */
 	@Ignore
     @Test public void userDefinedClosureVarArgInvocationExecution() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
