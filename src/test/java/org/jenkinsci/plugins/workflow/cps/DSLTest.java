@@ -53,6 +53,7 @@ import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.Ignore;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -326,12 +327,12 @@ public class DSLTest {
         r.assertLogContains("my closure!", b); 
     }
 
-    @Test public void userDefinedClosureShellInvocationExecution() throws Exception {
+    @Test public void userDefinedClosurePwdInvocationExecution() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("my_closure = { \n" +
                                               " sleep 1 \n" + 
                                               " node{ \n" + 
-                                              "   sh \"pwd\" \n" + 
+                                              "   echo pwd() \n" + 
                                               " }\n" +
                                               "}\n" + 
                                               "my_closure() ", false));
@@ -365,6 +366,7 @@ public class DSLTest {
         r.assertLogContains("my message is string1 and string2", b); 
     }
 
+	@Ignore
     @Test public void userDefinedClosureVarArgInvocationExecution() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("my_closure = { String message, Integer... n -> \n" +
