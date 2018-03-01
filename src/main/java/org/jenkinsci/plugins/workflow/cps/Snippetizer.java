@@ -80,6 +80,17 @@ import org.kohsuke.stapler.StaplerRequest;
     }
 
     /**
+     * Publicly accessible version of {@link #object2Groovy(StringBuilder, Object, boolean)} that translates an object into
+     * the equivalent Pipeline Groovy string.
+     *
+     * @param o The object to translate.
+     * @return A string translation of the object.
+     */
+    public static String object2Groovy(Object o) throws UnsupportedOperationException {
+        return object2Groovy(new StringBuilder(), o, false).toString();
+    }
+
+    /**
      * Renders the invocation syntax to re-create a given object 'o' into 'b'
      *
      * @param nestedExp
