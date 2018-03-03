@@ -329,21 +329,6 @@ public class DSLTest {
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("my closure!", b); 
     }
-    
-    /**
-    * Tests the ability to resolve DSL steps within a user defined closure
-    */
-    @Test public void userDefinedClosurePwdInvocationExecution() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("my_closure = { \n" +
-                                              " sleep 1 \n" + 
-                                              " node{ \n" + 
-                                              "   echo pwd() \n" + 
-                                              " }\n" +
-                                              "}\n" + 
-                                              "my_closure() ", false));
-        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-    }
  
     /**
     * Tests the ability to execute a user defined closure with no arguments
