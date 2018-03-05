@@ -1107,7 +1107,6 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                 }
             });
         } else {
-            System.err.println("V: " + exp);
             sourceUnit.addError(new SyntaxException("Unsupported expression for CPS transformation", exp.getLineNumber(), exp.getColumnNumber()));
         }
     }
