@@ -423,11 +423,6 @@ Locale:getDefault()
 Checker:checkedCast(Class,Locale,Boolean,Boolean,Boolean)
 Locale.getCountry()
 ArrayList[Integer]
-Checker:checkedCast(Class,Class,Boolean,Boolean,Boolean)
-Locale:getAvailableLocales()
-Locale:getDefault()
-Checker:checkedCast(Class,Locale,Boolean,Boolean,Boolean)
-Locale.getCountry()
 ArrayList[Integer]
 Class1_groovyProxy.getAvailableLocales()
 ScriptBytecodeAdapter:compareNotEqual(Locale[],null)
@@ -435,4 +430,28 @@ Locale2_groovyProxy.country
 ScriptBytecodeAdapter:compareNotEqual(String,null)
 ''')
     }
+
+    @Issue("JENKINS-49679")
+    @Test
+    void sandboxedMultipleAssignmentRunsMethodOnce() {
+        assert evalCpsSandbox('''
+alreadyRun = false
+
+def getAandB() {
+  if (!alreadyRun) {
+    alreadyRun = true
+    return ['first', 'second']
+  } else {
+    return ['bad', 'worse']
+  }
+}
+
+def (a, b) = getAandB()
+def c, d
+(c, d) = ['third', 'fourth']
+
+return a + b + c + d
+''') == 'firstsecondthirdfourth'
+    }
+
 }
