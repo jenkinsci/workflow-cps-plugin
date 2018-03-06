@@ -345,7 +345,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     public void setResumeBlocked(boolean resumeBlocked) {
         if (this.resumeBlocked != resumeBlocked) {
             this.resumeBlocked = resumeBlocked;
-            saveOwner();
         }
     }
 
