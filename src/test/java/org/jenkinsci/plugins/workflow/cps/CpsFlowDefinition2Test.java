@@ -423,4 +423,46 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         p.setDefinition(new CpsFlowDefinition("String foo", true));
         jenkins.buildAndAssertSuccess(p);
     }
+
+    @Issue("JENKINS-45575")
+    @Test
+    public void multipleAssignmentInSandbox() throws Exception {
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("def (a, b) = ['first', 'second']\n" +
+                "def c, d\n" +
+                "(c, d) = ['third', 'fourth']\n" +
+                "assert a+b+c+d == 'firstsecondthirdfourth'\n", true));
+        jenkins.buildAndAssertSuccess(job);
+    }
+
+    @Issue("JENKINS-45575")
+    @Test
+    public void multipleAssignmentOutsideSandbox() throws Exception {
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("def (a, b) = ['first', 'second']\n" +
+                "def c, d\n" +
+                "(c, d) = ['third', 'fourth']\n" +
+                "assert a+b+c+d == 'firstsecondthirdfourth'\n", false));
+        jenkins.buildAndAssertSuccess(job);
+    }
+
+    @Issue("JENKINS-49679")
+    @Test
+    public void multipleAssignmentFunctionCalledOnce() throws Exception {
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("alreadyRun = false\n" +
+                "def getAandB() {\n" +
+                "  if (!alreadyRun) {\n" +
+                "    alreadyRun = true\n" +
+                "    return ['first', 'second']\n" +
+                "  } else {\n" +
+                "    return ['bad', 'worse']\n" +
+                "  }\n" +
+                "}\n" +
+                "def (a, b) = getAandB()\n" +
+                "def c, d\n" +
+                "(c, d) = ['third', 'fourth']\n" +
+                "assert a+b+c+d == 'firstsecondthirdfourth'\n", true));
+        jenkins.buildAndAssertSuccess(job);
+    }
 }
