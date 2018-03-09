@@ -27,7 +27,10 @@ package org.jenkinsci.plugins.workflow.cps;
 import hudson.Extension;
 import hudson.ExtensionPoint;
 import hudson.Functions;
+import hudson.model.Job;
 import hudson.model.RootAction;
+import org.kohsuke.stapler.Stapler;
+import org.kohsuke.stapler.StaplerRequest;
 
 import javax.annotation.Nonnull;
 
@@ -54,23 +57,32 @@ public abstract class SnippetizerLink implements ExtensionPoint {
     public abstract String getUrl();
 
     /**
-     * Get the actual URL to use in sidepanel.jelly. If {@link #getUrl()} is not absolute, this will prepend "../" to
-     * {@link #getUrl()} to ensure it will work from the snippetizer and other similar pages. Otherwise it will just
-     * return {@link #getUrl()}.
+     * Get the actual URL to use in sidepanel.jelly. If {@link #getUrl()} is not absolute, this will try to get the
+     * current Job context and return a url starting with that job's {@link Job#getUrl()} appended with {@link #getUrl()}.
      */
     @Nonnull
     public final String getDisplayUrl() {
         String u = getUrl();
+
         try {
             if (new URI(u).isAbsolute()) {
                 return u;
-            } else {
-                return "../" + u;
             }
         } catch (URISyntaxException e) {
-            LOGGER.log(Level.WARNING, "Failed to parse URL for {0}: {1}", new Object[] {u, e});
+            LOGGER.log(Level.WARNING, "Failed to parse URL for {0}: {1}", new Object[]{u, e});
             return "";
         }
+
+        StaplerRequest req = Stapler.getCurrentRequest();
+        if (req == null) {
+            return u;
+        }
+
+        Job ancestor = req.findAncestorObject(Job.class);
+        if (ancestor == null) {
+            return u;
+        }
+        return "/" + ancestor.getUrl() + u;
     }
 
     /**
