@@ -41,6 +41,7 @@ import static org.junit.Assert.*;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -90,6 +91,13 @@ public class CpsThreadTest {
                 return "unkillable";
             }
         }
+    }
+
+    @Issue("JENKINS-31314")
+    @Test public void wrongCatcher() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("def ok() {sleep 1}; @NonCPS def bad() {for (int i = 0; i < 10; i++) {sleep 1}; assert false : 'never gets here'}; node {ok(); bad()}", true));
+        r.assertLogContains("expected to call bad but wound up catching sleep", r.buildAndAssertSuccess(p));
     }
 
 }

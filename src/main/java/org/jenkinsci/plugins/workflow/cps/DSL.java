@@ -259,7 +259,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         } else {
             // if it's in progress, suspend it until we get invoked later.
             // when it resumes, the CPS caller behaves as if this method returned with the resume value
-            Continuable.suspend(new ThreadTaskImpl(context));
+            Continuable.suspend(d.getFunctionName(), new ThreadTaskImpl(context));
 
             // the above method throws an exception to unwind the call stack, and
             // the control then goes back to CpsFlowExecution.runNextChunk

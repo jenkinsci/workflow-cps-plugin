@@ -1,12 +1,15 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import com.cloudbees.groovy.cps.Logging;
 import hudson.model.Computer;
 import hudson.remoting.SingleLaneExecutorService;
 import hudson.security.ACL;
+import java.io.IOException;
 import jenkins.util.InterceptingExecutorService;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.WARNING;
@@ -105,6 +108,11 @@ class CpsVmExecutorService extends InterceptingExecutorService {
             assert cpsThreadGroup.getExecution().getShell().getClassLoader() != null;
             t.setContextClassLoader(cpsThreadGroup.getExecution().getShell().getClassLoader());
         }
+        try {
+            Logging.register(cpsThreadGroup.getExecution().getOwner().getListener().getLogger());
+        } catch (IOException x) {
+            LOGGER.log(Level.FINE, null, x);
+        }
         return context;
     }
 
@@ -116,6 +124,7 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         if (isShutdown()) {
             execution.logTimings();
         }
+        Logging.register(null);
     }
 
     static ThreadLocal<CpsThreadGroup> CURRENT = new ThreadLocal<>();
