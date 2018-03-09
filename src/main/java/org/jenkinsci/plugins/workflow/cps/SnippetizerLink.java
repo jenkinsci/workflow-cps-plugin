@@ -26,9 +26,8 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import hudson.Extension;
 import hudson.ExtensionPoint;
-import hudson.Functions;
+import hudson.model.Item;
 import hudson.model.Job;
-import hudson.model.RootAction;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
 
@@ -78,11 +77,13 @@ public abstract class SnippetizerLink implements ExtensionPoint {
             return u;
         }
 
-        Job ancestor = req.findAncestorObject(Job.class);
-        if (ancestor == null) {
+        Item i = req.findAncestorObject(Item.class);
+
+        if (i == null) {
             return u;
         }
-        return "/" + ancestor.getUrl() + u;
+
+        return req.getContextPath() + "/" + i.getUrl() + u;
     }
 
     /**
