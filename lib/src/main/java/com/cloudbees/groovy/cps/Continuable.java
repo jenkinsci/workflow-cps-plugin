@@ -221,8 +221,13 @@ public class Continuable implements Serializable {
      * When the continuable is resumed via {@link #run(Object)} later, the argument to the run method
      * will become the return value from this method to the CPS-transformed program.
      */
+    @Deprecated
     public static Object suspend(final Object v) {
-        throw new CpsCallableInvocation(SuspendBlock.SUSPEND,null,v);
+        return suspend("suspend?", v);
+    }
+
+    public static Object suspend(String methodName, Object v) {
+        throw new CpsCallableInvocation(methodName, SuspendBlock.SUSPEND,null,v);
     }
 
     /**

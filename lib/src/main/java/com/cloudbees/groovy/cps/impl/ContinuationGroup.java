@@ -4,6 +4,7 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
+import com.cloudbees.groovy.cps.Logging;
 import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 import org.codehaus.groovy.runtime.callsite.CallSite;
@@ -15,6 +16,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static com.cloudbees.groovy.cps.impl.SourceLocation.*;
+import java.io.PrintStream;
 
 /**
  * Base class for defining a series of {@link Continuation} methods that share the same set of contextual values.
@@ -59,6 +61,12 @@ abstract class ContinuationGroup implements Serializable {
             // if this was a normal function, the method had just executed synchronously
             return k.receive(v);
         } catch (CpsCallableInvocation inv) {
+            if (!methodName.equals(inv.methodName)) {
+                PrintStream ps = Logging.current();
+                if (ps != null) {
+                    ps.println("expected to call " + methodName + " but wound up catching " + inv.methodName);
+                }
+            }
             return inv.invoke(e, loc, k);
         } catch (Throwable t) {
             return throwException(e, t, loc, new ReferenceStackTrace());

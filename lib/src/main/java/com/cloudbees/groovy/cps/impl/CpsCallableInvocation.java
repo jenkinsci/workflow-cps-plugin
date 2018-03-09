@@ -26,11 +26,18 @@ import java.util.Collections;
  * @author Kohsuke Kawaguchi
  */
 public class CpsCallableInvocation extends Error/*not really an error but we want something that doesn't change signature*/ {
+    public final String methodName;
     public final CpsCallable call;
     public final Object receiver;
     public final List arguments;
 
+    @Deprecated
     public CpsCallableInvocation(CpsCallable call, Object receiver, Object... arguments) {
+        this("?", call, receiver, arguments);
+    }
+
+    public CpsCallableInvocation(String description, CpsCallable call, Object receiver, Object... arguments) {
+        this.methodName = description;
         this.call = call;
         this.receiver = receiver;
         this.arguments = arguments != null ? asList(arguments) : Collections.emptyList();
@@ -54,6 +61,11 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
     @Override
     public synchronized Throwable fillInStackTrace() {
         return this;
+    }
+
+    @Override
+    public String toString() {
+        return "CpsCallableInvocation{methodName=" + methodName + ", call=" + call + ", receiver=" + receiver + ", arguments=" + arguments + '}';
     }
 
 }
