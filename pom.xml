@@ -68,7 +68,7 @@
         <git-plugin.version>3.1.0</git-plugin.version>
         <workflow-support-plugin.version>2.17</workflow-support-plugin.version>
         <scm-api-plugin.version>2.0.8</scm-api-plugin.version>
-        <groovy-cps.version>1.23</groovy-cps.version>
+        <groovy-cps.version>1.24</groovy-cps.version>
         <jenkins-test-harness.version>2.33</jenkins-test-harness.version>
     </properties>
     <dependencies>
@@ -95,7 +95,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1.39</version>
+            <version>1.42</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>

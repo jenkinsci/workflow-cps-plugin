@@ -465,4 +465,25 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
                 "assert a+b+c+d == 'firstsecondthirdfourth'\n", true));
         jenkins.buildAndAssertSuccess(job);
     }
+
+    @Issue("JENKINS-45982")
+    @Test
+    public void transformedSuperClass() throws Exception {
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("class Foo {\n" +
+                "    public String other() {\n" +
+                "        return 'base'\n" +
+                "    }\n" +
+                "}\n" +
+                "class Bar extends Foo {\n" +
+                "    public String other() {\n" +
+                "        return 'y'+super.other()\n" +
+                "    }\n" +
+                "}\n" +
+                "String output = new Bar().other()\n" +
+                "echo 'OUTPUT: ' + output\n" +
+                "assert output == 'ybase'\n", true));
+        WorkflowRun r = jenkins.buildAndAssertSuccess(job);
+        jenkins.assertLogContains("OUTPUT: ybase", r);
+    }
 }
