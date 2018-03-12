@@ -105,7 +105,7 @@
   </build>
 
   <properties>
-      <groovy-sandbox.version>1.17-20180227.180728-1</groovy-sandbox.version> <!-- TODO: Switch to release -->
+      <groovy-sandbox.version>1.17</groovy-sandbox.version>
   </properties>
   <dependencies>
     <dependency>
