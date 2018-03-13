@@ -65,7 +65,6 @@ import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.*;
 
-import org.jenkinsci.plugins.workflow.actions.TimingAction;
 import org.jenkinsci.plugins.workflow.cps.actions.ArgumentsActionImpl;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
@@ -75,7 +74,6 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
-import org.jenkinsci.plugins.workflow.graph.AtomNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.MissingContextVariableException;
@@ -150,7 +148,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
         final StepDescriptor sd = functions.get(name);
         if (sd != null) {
-            return invokeStep(sd,args);
+            return invokeStep(sd, args, name);
         }
         if (SymbolLookup.get().findDescriptor(Describable.class, name) != null) {
             return invokeDescribable(name,args);
@@ -179,7 +177,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     /**
      * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
      */
-    protected Object invokeStep(StepDescriptor d, Object args) {
+    protected Object invokeStep(StepDescriptor d, Object args, String methodName) {
         final NamedArgsAndClosure ps = parseArgs(args, d);
 
         CpsThread thread = CpsThread.current();
@@ -259,7 +257,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         } else {
             // if it's in progress, suspend it until we get invoked later.
             // when it resumes, the CPS caller behaves as if this method returned with the resume value
-            Continuable.suspend(d.getFunctionName(), new ThreadTaskImpl(context));
+            Continuable.suspend(methodName, new ThreadTaskImpl(context));
 
             // the above method throws an exception to unwind the call stack, and
             // the control then goes back to CpsFlowExecution.runNextChunk
@@ -355,7 +353,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 ud = new UninstantiatedDescribable(symbol, null, dargs);
                 margs.put(p.getName(),ud);
 
-                return invokeStep(metaStep,new NamedArgsAndClosure(margs,args.body));
+                return invokeStep(metaStep,new NamedArgsAndClosure(margs,args.body), symbol);
             } catch (Exception e) {
                 throw new IllegalArgumentException("Failed to prepare "+symbol+" step",e);
             }
