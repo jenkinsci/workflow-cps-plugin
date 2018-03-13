@@ -102,7 +102,7 @@ public class CpsThreadTest {
         WorkflowRun b = r.buildAndAssertSuccess(p);
         r.assertLogContains("oops got -1", b);
         r.assertLogContains("expected to call sort but wound up catching call", b);
-        p.setDefinition(new CpsFlowDefinition("node {[1, 2, 3].each {x -> sh(/echo no problem got $x/)}}", true));
+        p.setDefinition(new CpsFlowDefinition("node {[1, 2, 3].each {x -> sleep 1; echo(/no problem got $x/)}}", true));
         b = r.buildAndAssertSuccess(p);
         r.assertLogContains("no problem got 3", b);
         r.assertLogNotContains("expected to call", b);
