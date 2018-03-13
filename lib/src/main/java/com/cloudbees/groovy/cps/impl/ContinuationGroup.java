@@ -61,7 +61,7 @@ abstract class ContinuationGroup implements Serializable {
             // if this was a normal function, the method had just executed synchronously
             return k.receive(v);
         } catch (CpsCallableInvocation inv) {
-            if (!methodName.equals(inv.methodName) && /* see TODO comment in Translator w.r.t. overloadsResolved */ !methodName.startsWith("$")) {
+            if (isMismatch(methodName, inv.methodName)) {
                 PrintStream ps = Logging.current();
                 if (ps != null) {
                     ps.println("expected to call " + methodName + " but wound up catching " + inv.methodName);
@@ -71,6 +71,21 @@ abstract class ContinuationGroup implements Serializable {
         } catch (Throwable t) {
             return throwException(e, t, loc, new ReferenceStackTrace());
         }
+    }
+
+    /** @see <a href="https://issues.jenkins-ci.org/browse/JENKINS-31314">JENKINS-31314</a> */
+    private static boolean isMismatch(String expected, String caught) {
+        if (expected.equals(caught)) {
+            return false;
+        }
+        if (expected.startsWith("$")) {
+            // see TODO comment in Translator w.r.t. overloadsResolved
+            return false;
+        }
+        if (expected.equals("evaluate") && caught.equals("run")) {
+            return false;
+        }
+        return true;
     }
 
     /**
