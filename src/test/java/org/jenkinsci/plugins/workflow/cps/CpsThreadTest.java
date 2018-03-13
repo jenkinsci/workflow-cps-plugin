@@ -93,7 +93,7 @@ public class CpsThreadTest {
         }
     }
 
-    @Issue("JENKINS-31314")
+    @Issue({"JENKINS-31314", "JENKINS-27306"})
     @Test public void wrongCatcher() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("def ok() {sleep 1}; @NonCPS def bad() {for (int i = 0; i < 10; i++) {sleep 1}; assert false : 'never gets here'}; node {ok(); bad()}", true));
@@ -106,6 +106,13 @@ public class CpsThreadTest {
         b = r.buildAndAssertSuccess(p);
         r.assertLogContains("no problem got 3", b);
         r.assertLogNotContains("expected to call", b);
+        p.setDefinition(new CpsFlowDefinition("class C {@Override String toString() {'never used'}}; def gstring = /embedding ${new C()}/; echo(/oops got $gstring/)", true));
+        b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)); // JENKINS-27306: unclassified new org.codehaus.groovy.runtime.GStringImpl java.lang.String java.lang.String[]
+        r.assertLogContains("expected to call asType but wound up catching toString", b);
+        p.setDefinition(new CpsFlowDefinition("echo(/see what ${-> 'this'} does/)", true));
+        b = r.buildAndAssertSuccess(p);
+        r.assertLogContains("expected to call echo but wound up catching call", b);
+        r.assertLogNotContains("see what", b);
     }
 
 }
