@@ -113,6 +113,16 @@ public class CpsThreadTest {
         b = r.buildAndAssertSuccess(p);
         r.assertLogContains("expected to call echo but wound up catching call", b);
         r.assertLogNotContains("see what", b);
+        p.setDefinition(new CpsFlowDefinition(
+            "@NonCPS def shouldBomb() {\n" +
+            "  def text = ''\n" +
+            "  ['a', 'b', 'c'].each {it -> writeFile file: it, text: it; text += it}\n" +
+            "  text\n" +
+            "}\n" +
+            "node {\n" +
+            "  echo shouldBomb()\n" +
+            "}\n", true));
+        r.assertLogContains("expected to call shouldBomb but wound up catching writeFile", r.buildAndAssertSuccess(p));
     }
 
 }

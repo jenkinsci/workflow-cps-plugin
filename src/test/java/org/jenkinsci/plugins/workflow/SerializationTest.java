@@ -227,23 +227,4 @@ public class SerializationTest extends SingleJobTestBase {
         });
     }
 
-    @Issue("JENKINS-31314")
-    @Test public void nonCpsContinuable() {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(
-                    "@NonCPS def shouldBomb() {\n" +
-                    "  def text = ''\n" +
-                    "  ['a', 'b', 'c'].each {it -> writeFile file: it, text: it; text += it}\n" +
-                    "  text\n" +
-                    "}\n" +
-                    "node {\n" +
-                    "  echo shouldBomb()\n" +
-                    "}\n", true));
-                story.j.assertLogContains("expected to call shouldBomb but wound up catching writeFile", story.j.buildAndAssertSuccess(p));
-            }
-        });
-    }
-
 }
