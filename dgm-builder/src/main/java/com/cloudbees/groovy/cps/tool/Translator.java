@@ -389,6 +389,7 @@ public class Translator {
                                     .arg(n(e));
                             } else if (overloadsResolved.containsKey(overloadResolved)) {
                                 // Private, so delegate to our mangled version.
+                                // TODO add a String parameter to each internal helper method for the expected methodName to pass to CpsCallableInvocation.<init>
                                 inv = $b.invoke("staticCall")
                                     .arg(loc(mt))
                                     .arg($output.dotclass())
@@ -686,6 +687,7 @@ public class Translator {
 
         JVar $f = m.body().decl($CpsFunction, "f", f);
         m.body()._throw(JExpr._new($CpsCallableInvocation)
+            .arg(JExpr.lit(methodName))
             .arg($f)
             .arg(JExpr._null())
             .args(params));

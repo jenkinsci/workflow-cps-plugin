@@ -61,7 +61,7 @@ abstract class ContinuationGroup implements Serializable {
             // if this was a normal function, the method had just executed synchronously
             return k.receive(v);
         } catch (CpsCallableInvocation inv) {
-            if (!methodName.equals(inv.methodName)) {
+            if (!methodName.equals(inv.methodName) && /* see TODO comment in Translator w.r.t. overloadsResolved */ !methodName.startsWith("$")) {
                 PrintStream ps = Logging.current();
                 if (ps != null) {
                     ps.println("expected to call " + methodName + " but wound up catching " + inv.methodName);
