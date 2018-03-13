@@ -16,7 +16,6 @@ import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
 import static org.junit.Assert.assertTrue;
-import org.junit.Ignore;
 import org.jvnet.hudson.test.Issue;
 
 /**
@@ -228,7 +227,7 @@ public class SerializationTest extends SingleJobTestBase {
         });
     }
 
-    @Ignore("TODO JENKINS-31314: calls writeFile just once, echoes null (i.e., return value of writeFile), then succeeds")
+    @Issue("JENKINS-31314")
     @Test public void nonCpsContinuable() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
@@ -242,7 +241,7 @@ public class SerializationTest extends SingleJobTestBase {
                     "node {\n" +
                     "  echo shouldBomb()\n" +
                     "}\n", true));
-                b = story.j.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0).get());
+                story.j.assertLogContains("expected to call shouldBomb but wound up catching writeFile", story.j.buildAndAssertSuccess(p));
             }
         });
     }
