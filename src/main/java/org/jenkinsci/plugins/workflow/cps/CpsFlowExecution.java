@@ -601,7 +601,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     /** For diagnostic purposes only. */
-    private String getHeadsAsString() {
+    private synchronized String getHeadsAsString() {
         NavigableMap<Integer, FlowHead> myHeads = this.heads;
         if (myHeads == null) {
             return "null-heads";
@@ -710,6 +710,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     @Override
+    @SuppressFBWarnings(value = "RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN", justification = "We want to explicitly check for boolean not-null and true")
     public void onLoad(FlowExecutionOwner owner) throws IOException {
         this.owner = owner;
         try {
@@ -1185,6 +1186,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     @Override
+    @SuppressFBWarnings(value = "RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN", justification = "We want to explicitly check for boolean not-null and true")
     public boolean isComplete() {
         return done == Boolean.TRUE || super.isComplete(); // Compare to Boolean.TRUE so null == false.
     }
