@@ -134,6 +134,8 @@ import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
@@ -313,7 +315,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * {@link FlowExecution} gets loaded into memory for the build records that have been completed,
      * and for those we don't want to load the program state, so that check should be efficient.
      */
-    private boolean done;
+    private Boolean done;
 
     /**
      * Groovy compiler with CPS+sandbox transformation correctly setup.
@@ -598,14 +600,35 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         return iota.get();
     }
 
+    /** For diagnostic purposes only. */
+    private String getHeadsAsString() {
+        NavigableMap<Integer, FlowHead> myHeads = this.heads;
+        if (myHeads == null) {
+            return "null-heads";
+        } else if (myHeads.size() == 0) {
+            return "empty-heads";
+        } else {
+            return myHeads.entrySet().stream().map(h->h.getKey()+"::"+h.getValue()).collect(Collectors.joining(","));
+        }
+
+    }
+
     /** Handle failures where we can't load heads. */
     private void rebuildEmptyGraph() {
         synchronized (this) {
             // something went catastrophically wrong and there's no live head. fake one
+            LOGGER.log(Level.WARNING, "Failed to load pipeline heads, so faking some up for execution " + this.toString());
             if (this.startNodes == null) {
                 this.startNodes = new Stack<BlockStartNode>();
             }
-            this.heads.clear();
+
+            if (this.heads != null && this.heads.size() > 0) {
+                if (LOGGER.isLoggable(Level.WARNING)) {
+                    LOGGER.log(Level.WARNING, "Resetting heads to rebuild the Pipeline structure, tossing existing heads: "+getHeadsAsString());
+                }
+                this.heads.clear();
+            }
+
             this.startNodes.clear();
             FlowHead head = new FlowHead(this);
             heads.put(head.getId(), head);
@@ -696,13 +719,15 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     if (canResume()) {
                         loadProgramAsync(getProgramDataFile());
                     } else {
-                        // TODO if possible, consider tyring to close out unterminated blocks to keep existing graph history
+                        // TODO if possible, consider trying to close out unterminated blocks to keep existing graph history
                         // That way we can visualize the graph in some error cases.
                         LOGGER.log(Level.WARNING, "Pipeline state not properly persisted, cannot resume "+owner.getUrl());
                         throw new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down.");
                     }
+                } else if (done == Boolean.TRUE && !super.isComplete()) {
+                    LOGGER.log(Level.WARNING, "Completed flow without FlowEndNode: "+this+" heads:"+getHeadsAsString());
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {  // Multicatch ensures that failure to load does not nuke the master
                 SettableFuture<CpsThreadGroup> p = SettableFuture.create();
                 programPromise = p;
                 loadProgramFailed(e, p);
@@ -829,6 +854,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         setResult(Result.FAILURE);
         onProgramEnd(new Outcome(null, t));
         cleanUpHeap();
+        try {
+            saveOwner();
+        } catch (Exception ex) {
+            LOGGER.log(Level.WARNING, "Failed to persist WorkflowRun after noting a serious failure for run:", owner);
+        }
     }
 
     /**
@@ -1156,7 +1186,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     @Override
     public boolean isComplete() {
-        return done || super.isComplete();
+        return done == Boolean.TRUE || super.isComplete(); // Compare to Boolean.TRUE so null == false.
     }
 
     /**
@@ -1183,7 +1213,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         } catch (IOException ioe) {
             LOGGER.log(Level.WARNING, "Error flushing FlowNodeStorage to disk at end of run", ioe);
         }
-
     }
 
     void cleanUpHeap() {
@@ -1523,7 +1552,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 for (BlockStartNode st : e.startNodes) {
                     writeChild(w, context, "start", st.getId(), String.class);
                 }
-                writeChild(w, context, "done", e.done, Boolean.class);
+                if (e.done != null) {
+                    writeChild(w, context, "done", e.done, Boolean.class);
+                }
             }
             writeChild(w, context, "resumeBlocked", e.resumeBlocked, Boolean.class);
 
@@ -1590,7 +1621,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             setField(result, "iota", new AtomicInteger(iota));
                         } else if (nodeName.equals("done")) {
                             Boolean isDone = readChild(reader, context, Boolean.class, result);
-                            setField(result, "done", isDone.booleanValue());
+                            setField(result, "done", isDone);
                         } else if (nodeName.equals("start")) {
                             String id = readChild(reader, context, String.class, result);
                             result.startNodesSerial.add(id);
@@ -1754,7 +1785,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /** Save the owner that holds this execution. */
     void saveOwner() {
         try {
-            if (this.owner.getExecutable() instanceof Saveable) {
+            if (this.owner != null && this.owner.getExecutable() instanceof Saveable) {  // Null-check covers some anomalous cases we've seen
                 Saveable saveable = (Saveable)(this.owner.getExecutable());
                 saveable.save();
             }

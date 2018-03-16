@@ -181,4 +181,9 @@ final class FlowHead implements Serializable {
 
     private static final Logger LOGGER = Logger.getLogger(FlowHead.class.getName());
     private static final long serialVersionUID = 1L;
+
+    @Override
+    public String toString() {
+        return id+":"+head;
+    }
 }
