@@ -1523,6 +1523,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 for (BlockStartNode st : e.startNodes) {
                     writeChild(w, context, "start", st.getId(), String.class);
                 }
+                writeChild(w, context, "done", e.done, Boolean.class);
             }
             writeChild(w, context, "resumeBlocked", e.resumeBlocked, Boolean.class);
 
@@ -1587,6 +1588,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         } else if (nodeName.equals("iota")) {
                             Integer iota = readChild(reader, context, Integer.class, result);
                             setField(result, "iota", new AtomicInteger(iota));
+                        } else if (nodeName.equals("done")) {
+                            Boolean isDone = readChild(reader, context, Boolean.class, result);
+                            setField(result, "done", isDone.booleanValue());
                         } else if (nodeName.equals("start")) {
                             String id = readChild(reader, context, String.class, result);
                             result.startNodesSerial.add(id);
