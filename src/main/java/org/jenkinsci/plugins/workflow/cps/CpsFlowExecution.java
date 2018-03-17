@@ -660,6 +660,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         h.setForDeserialize(storage.getNode(entry.getValue()));
                         heads.put(h.getId(), h);
                     } else {
+                        LOGGER.log(Level.WARNING, "Tried to load head FlowNodes for execution "+this.owner+" but FlowNode was not found in storage for head id:FlowNodeId "+entry.getKey()+":"+entry.getValue());
                         storageErrors = true;
                         break;
                     }
@@ -677,6 +678,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         startNodes.add((BlockStartNode) storage.getNode(id));
                     } else {
                         // TODO if possible, consider trying to close out unterminated blocks using heads, to keep existing graph history
+                        LOGGER.log(Level.WARNING, "Tried to load startNode FlowNodes for execution "+this.owner+" but FlowNode was not found in storage for FlowNode Id "+id);
                         storageErrors = true;
                         break;
                     }
@@ -817,6 +819,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             } else {
                 head = getFirstHead();
             }
+            done = Boolean.TRUE;
         }
 
         if (head==null) {
@@ -853,6 +856,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /** Report a fatal error in the VM. */
     void croak(Throwable t) {
         setResult(Result.FAILURE);
+        done = true;
         onProgramEnd(new Outcome(null, t));
         cleanUpHeap();
         try {
@@ -1202,12 +1206,22 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         // shrink everything into a single new head
-        done = true;
+        done = Boolean.TRUE;
         if (heads != null) {
             FlowHead first = getFirstHead();
             first.setNewHead(head);
             heads.clear();
             heads.put(first.getId(),first);
+
+            if (heads.size() > 1) {
+                LOGGER.log(Level.WARNING, "Execution "+this.owner+" finished but had more than one final FlowNode where one expected, heads are: "+this.getHeadsAsString());
+            }
+
+            String tempIotaStr = Integer.toString(this.iota.get());
+            FlowHead lastHead = heads.get(tempIotaStr);
+            if (lastHead == null || lastHead.get() == null || !(lastHead.get().getId().equals(tempIotaStr))) {
+                LOGGER.log(Level.WARNING, "Invalid final head for execution "+this.owner+" with head: "+lastHead);
+            }
         }
 
         try {
@@ -1462,6 +1476,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         if (executable instanceof AccessControlled) {
             ((AccessControlled) executable).checkPermission(Item.CANCEL);
         }
+        done = Boolean.FALSE;
         Futures.addCallback(programPromise, new FutureCallback<CpsThreadGroup>() {
             @Override public void onSuccess(CpsThreadGroup g) {
                 if (v) {
