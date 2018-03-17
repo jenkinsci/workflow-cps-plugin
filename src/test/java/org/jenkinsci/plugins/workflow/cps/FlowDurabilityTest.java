@@ -56,6 +56,7 @@ import java.lang.reflect.Field;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -333,6 +334,12 @@ public class FlowDurabilityTest {
             Assert.assertFalse("Should always be able to retrieve script", StringUtils.isEmpty(cpsFlow.getScript()));
             Assert.assertNull("We should have no Groovy shell left or that's a memory leak", cpsFlow.getShell());
             Assert.assertNull("We should have no Groovy shell left or that's a memory leak", cpsFlow.getTrustedShell());
+            assert cpsFlow.done == Boolean.TRUE;
+            assert cpsFlow.isComplete();
+            assert cpsFlow.heads.size() == 1;
+            Map.Entry<Integer, FlowHead> finalHead = cpsFlow.heads.entrySet().iterator().next();
+            assert finalHead.getValue().get() instanceof FlowEndNode;
+            Assert.assertEquals(cpsFlow.storage.getNode(finalHead.getValue().get().getId()), finalHead.getValue().get());
         }
 
         verifyExecutionRemoved(run);

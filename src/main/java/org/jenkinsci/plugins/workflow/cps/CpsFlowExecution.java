@@ -284,7 +284,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     private transient List<String> startNodesSerial; // used only between unmarshal and onLoad
 
     @GuardedBy("this")
-    private /* almost final*/ NavigableMap<Integer,FlowHead> heads = new TreeMap<Integer,FlowHead>();
+    /* almost final*/ NavigableMap<Integer,FlowHead> heads = new TreeMap<Integer,FlowHead>(); // Non-private for unit tests
+
     @SuppressFBWarnings({"IS_FIELD_NOT_GUARDED", "IS2_INCONSISTENT_SYNC"}) // irrelevant here
     private transient Map<Integer,String> headsSerial; // used only between unmarshal and onLoad
 
@@ -315,7 +316,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * {@link FlowExecution} gets loaded into memory for the build records that have been completed,
      * and for those we don't want to load the program state, so that check should be efficient.
      */
-    private Boolean done;
+     Boolean done; // Only non-private for unit test use.
 
     /**
      * Groovy compiler with CPS+sandbox transformation correctly setup.
