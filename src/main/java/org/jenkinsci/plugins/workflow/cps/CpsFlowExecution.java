@@ -1219,7 +1219,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
 
             String tempIotaStr = Integer.toString(this.iota.get());
-            FlowHead lastHead = heads.get(tempIotaStr);
+            FlowHead lastHead = heads.get(this.iota.get());
             if (lastHead == null || lastHead.get() == null || !(lastHead.get().getId().equals(tempIotaStr))) {
                 LOGGER.log(Level.WARNING, "Invalid final head for execution "+this.owner+" with head: "+lastHead);
             }
