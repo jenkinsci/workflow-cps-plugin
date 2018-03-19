@@ -624,8 +624,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
 
             if (this.heads != null && this.heads.size() > 0) {
-                if (LOGGER.isLoggable(Level.WARNING)) {
-                    LOGGER.log(Level.WARNING, "Resetting heads to rebuild the Pipeline structure, tossing existing heads: "+getHeadsAsString());
+                if (LOGGER.isLoggable(Level.INFO)) {
+                    LOGGER.log(Level.INFO, "Resetting heads to rebuild the Pipeline structure, tossing existing heads: "+getHeadsAsString());
                 }
                 this.heads.clear();
             }
