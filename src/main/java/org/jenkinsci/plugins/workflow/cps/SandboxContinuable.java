@@ -31,15 +31,15 @@ class SandboxContinuable extends Continuable {
         try {
             CpsFlowExecution e = thread.group.getExecution();
             if (e == null) {
-                throw new IllegalStateException("no loaded execution");
+                throw new IllegalStateException("JENKINS-50407: no loaded execution");
             }
             GroovyShell shell = e.getShell();
             if (shell == null) {
-                throw new IllegalStateException("no loaded shell in " + e);
+                throw new IllegalStateException("JENKINS-50407: no loaded shell in " + e);
             }
             GroovyShell trustedShell = e.getTrustedShell();
             if (trustedShell == null) {
-                throw new IllegalStateException("no loaded trustedShell in " + e);
+                throw new IllegalStateException("JENKINS-50407: no loaded trustedShell in " + e);
             }
             return GroovySandbox.runInSandbox(() -> {
                     Outcome outcome = SandboxContinuable.super.run0(cn, categories);
