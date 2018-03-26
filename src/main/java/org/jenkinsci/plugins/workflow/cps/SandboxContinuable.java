@@ -2,6 +2,7 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
+import groovy.lang.GroovyShell;
 import java.util.List;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.GroovySandbox;
@@ -29,19 +30,27 @@ class SandboxContinuable extends Continuable {
     public Outcome run0(final Outcome cn, final List<Class> categories) {
         try {
             CpsFlowExecution e = thread.group.getExecution();
-            return GroovySandbox.runInSandbox(new Callable<Outcome>() {
-                @Override
-                public Outcome call() {
+            if (e == null) {
+                throw new IllegalStateException("no loaded execution");
+            }
+            GroovyShell shell = e.getShell();
+            if (shell == null) {
+                throw new IllegalStateException("no loaded shell in " + e);
+            }
+            GroovyShell trustedShell = e.getTrustedShell();
+            if (trustedShell == null) {
+                throw new IllegalStateException("no loaded trustedShell in " + e);
+            }
+            return GroovySandbox.runInSandbox(() -> {
                     Outcome outcome = SandboxContinuable.super.run0(cn, categories);
                     RejectedAccessException x = findRejectedAccessException(outcome.getAbnormal());
                     if (x != null) {
                         ScriptApproval.get().accessRejected(x, ApprovalContext.create());
                     }
                     return outcome;
-                }
             }, new GroovyClassLoaderWhitelist(CpsWhitelist.get(),
-                    e.getTrustedShell().getClassLoader(),
-                    e.getShell().getClassLoader()));
+                    trustedShell.getClassLoader(),
+                    shell.getClassLoader()));
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
