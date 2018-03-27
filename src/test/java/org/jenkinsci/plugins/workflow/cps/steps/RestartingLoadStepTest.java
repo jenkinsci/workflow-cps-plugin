@@ -167,18 +167,27 @@ public class RestartingLoadStepTest {
                 FilePath pkgDir = story.j.jenkins.getWorkspaceFor(p).child("src/org/foo/devops");
                 pkgDir.mkdirs();
                 pkgDir.child("Utility.groovy").write("package org.foo.devops\n" +
-                        "def isValueExist(String value) {\n" +
-                        "    if(value == null || value.trim().length() == 0 || value.trim().equals(\"\\\"\\\"\")) {\n" +
-                        "        return false\n" +
+                        "def isValueExist(String outerValue) {\n" +
+                        "  return new Object() {\n" +
+                        "    def isValueExist(String value) {\n" +
+                        "        if(value == null || value.trim().length() == 0 || value.trim().equals(\"\\\"\\\"\")) {\n" +
+                        "            return false\n" +
+                        "        }\n" +
+                        "        return true\n" +
                         "    }\n" +
-                        "    return true\n" +
+                        "  }.isValueExist(outerValue)\n" +
                         "}\n" +
                         "return this;\n", null);
                 pkgDir.child("JenkinsEnvironment.groovy").write("package org.foo.devops\n" +
+                        "class InnerEnvClass {\n" +
+                        "  def loadProdConfiguration() {\n" +
+                        "      def valueMap = [:]\n" +
+                        "      valueMap.put('key','value')\n" +
+                        "      return valueMap\n" +
+                        "  }\n" +
+                        "}\n" +
                         "def loadProdConfiguration() {\n" +
-                        "    def valueMap = [:]\n" +
-                        "    valueMap.put('key','value')\n" +
-                        "    return valueMap\n" +
+                        "  return new InnerEnvClass().loadProdConfiguration()\n" +
                         "}\n" +
                         "return this;\n", null);
 
@@ -195,6 +204,8 @@ public class RestartingLoadStepTest {
                         "node('master') {\n" +
                         "    util2 = load 'src/org/foo/devops/Utility.groovy'\n" +
                         "    util = load 'src/org/foo/devops/Utility.groovy'\n" +
+                        "    assert util.isValueExist('foo') == true\n" +
+                        "    assert util2.isValueExist('foo') == true\n" +
                         "}\n", true));
                 WorkflowRun b = p.scheduleBuild2(0).getStartCondition().get();
                 SemaphoreStep.waitForStart("wait/1", b);
