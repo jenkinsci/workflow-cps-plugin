@@ -110,7 +110,7 @@ class CpsGroovyShell extends GroovyShell {
     public Script parse(GroovyCodeSource codeSource) throws CompilationFailedException {
         Script s = doParse(codeSource);
         if (execution!=null)
-            execution.loadedScripts.put(s.getClass().getName(), codeSource.getScriptText());
+            execution.loadedScripts.put(s.getClass().getSimpleName(), codeSource.getScriptText());
         if (this.execution != null && !this.execution.getDurabilityHint().isPersistWithEveryStep()) {
             // Ensure we persist new scripts
             this.execution.saveOwner();

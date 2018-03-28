@@ -1,6 +1,8 @@
 package org.jenkinsci.plugins.workflow.cps.steps;
 
 import javax.inject.Inject;
+
+import hudson.FilePath;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -153,6 +155,68 @@ public class RestartingLoadStepTest {
                 jenkins.getWorkspaceFor(p).child("b.groovy").write("def m(a, arg) {a(\"${arg} from b\")}; this", null);
                 p.setDefinition(new CpsFlowDefinition("def a; def b; node {a = load 'a.groovy'; b = load 'b.groovy'}; b.m(a, 'value')", true));
                 story.j.assertLogContains("a ran on value from b", story.j.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+            }
+        });
+    }
+
+    @Issue("JENKINS-50172")
+    @Test public void loadAndUnnamedClassesInPackage() {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                FilePath pkgDir = story.j.jenkins.getWorkspaceFor(p).child("src/org/foo/devops");
+                pkgDir.mkdirs();
+                pkgDir.child("Utility.groovy").write("package org.foo.devops\n" +
+                        "def isValueExist(String outerValue) {\n" +
+                        "  return new Object() {\n" +
+                        "    def isValueExist(String value) {\n" +
+                        "        if(value == null || value.trim().length() == 0 || value.trim().equals(\"\\\"\\\"\")) {\n" +
+                        "            return false\n" +
+                        "        }\n" +
+                        "        return true\n" +
+                        "    }\n" +
+                        "  }.isValueExist(outerValue)\n" +
+                        "}\n" +
+                        "return this;\n", null);
+                pkgDir.child("JenkinsEnvironment.groovy").write("package org.foo.devops\n" +
+                        "class InnerEnvClass {\n" +
+                        "  def loadProdConfiguration() {\n" +
+                        "      def valueMap = [:]\n" +
+                        "      valueMap.put('key','value')\n" +
+                        "      return valueMap\n" +
+                        "  }\n" +
+                        "}\n" +
+                        "def loadProdConfiguration() {\n" +
+                        "  return new InnerEnvClass().loadProdConfiguration()\n" +
+                        "}\n" +
+                        "return this;\n", null);
+
+                p.setDefinition(new CpsFlowDefinition("def util\n" +
+                        "def config\n" +
+                        "def util2\n" +
+                        "node('master') {\n" +
+                        "    config = load 'src/org/foo/devops/JenkinsEnvironment.groovy'\n" +
+                        "    util = load 'src/org/foo/devops/Utility.groovy'\n" +
+                        "    config.loadProdConfiguration()\n" +
+                        "}\n" +
+                        "util.isValueExist(\"\")\n" +
+                        "semaphore 'wait'\n" +
+                        "node('master') {\n" +
+                        "    util2 = load 'src/org/foo/devops/Utility.groovy'\n" +
+                        "    util = load 'src/org/foo/devops/Utility.groovy'\n" +
+                        "    assert util.isValueExist('foo') == true\n" +
+                        "    assert util2.isValueExist('foo') == true\n" +
+                        "}\n", true));
+                WorkflowRun b = p.scheduleBuild2(0).getStartCondition().get();
+                SemaphoreStep.waitForStart("wait/1", b);
+            }
+        });
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+                WorkflowRun b = p.getBuildByNumber(1);
+                SemaphoreStep.success("wait/1", null);
+                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
             }
         });
     }
