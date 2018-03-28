@@ -50,7 +50,8 @@ public abstract class SnippetizerLink implements ExtensionPoint {
     private static final Logger LOGGER = Logger.getLogger(SnippetizerLink.class.getName());
 
     /**
-     * Get the URL this link should point to.
+     * Get the URL this link should point to, which will be used by {@link #getDisplayUrl()}. If this is not absolute,
+     * {@link #getDisplayUrl()} will link to this within the current context.
      */
     @Nonnull
     public abstract String getUrl();
@@ -68,7 +69,7 @@ public abstract class SnippetizerLink implements ExtensionPoint {
                 return u;
             }
         } catch (URISyntaxException e) {
-            LOGGER.log(Level.WARNING, "Failed to parse URL for {0}: {1}", new Object[]{u, e});
+            LOGGER.log(Level.WARNING, "Failed to parse URL for " + u, e);
             return "";
         }
 
@@ -79,11 +80,27 @@ public abstract class SnippetizerLink implements ExtensionPoint {
 
         Item i = req.findAncestorObject(Item.class);
 
-        if (i == null) {
-            return u;
+        StringBuilder toAppend = new StringBuilder();
+
+        toAppend.append(req.getContextPath());
+
+        if (!req.getContextPath().endsWith("/")) {
+            toAppend.append("/");
         }
 
-        return req.getContextPath() + "/" + i.getUrl() + u;
+        if (i == null) {
+            toAppend.append(u);
+        } else {
+            toAppend.append(i.getUrl());
+
+            if (!i.getUrl().endsWith("/")) {
+                toAppend.append("/");
+            }
+
+            toAppend.append(u);
+        }
+
+        return toAppend.toString();
     }
 
     /**
