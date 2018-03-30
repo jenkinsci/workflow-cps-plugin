@@ -37,6 +37,7 @@ import hudson.tasks.junit.JUnitResultArchiver;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
+import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.steps.CatchErrorStep;
 import org.jenkinsci.plugins.workflow.steps.CoreStep;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
@@ -358,5 +359,35 @@ public class SnippetizerTest {
         st.assertRoundTrip(new CoreStep(a), "junit '*.xml'");
         a.setHealthScaleFactor(0.5);
         st.assertRoundTrip(new CoreStep(a), "junit healthScaleFactor: 0.5, testResults: '*.xml'");
+    }
+
+    @Test
+    public void snippetizerLinks() throws Exception {
+        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "p");
+        JenkinsRule.WebClient wc = r.createWebClient();
+        String html = wc.getPage(job, Snippetizer.ACTION_URL).getWebResponse().getContentAsString();
+        assertThat("Snippet Generator link is included", html,
+                containsString("href=\"" + r.contextPath + "/" + job.getUrl() + Snippetizer.ACTION_URL + "\""));
+        assertThat("Steps Reference link is included", html,
+                containsString("href=\"" + r.contextPath + "/" + job.getUrl() + Snippetizer.ACTION_URL + "/html\""));
+        assertThat("Globals Reference link is included", html,
+                containsString("href=\"" + r.contextPath + "/" + job.getUrl() + Snippetizer.ACTION_URL + "/globals\""));
+        assertThat("Online docs link is included", html,
+                containsString("href=\"https://jenkins.io/doc/pipeline/\""));
+        assertThat("GDSL link is included", html,
+                containsString("href=\"" + r.contextPath + "/" + job.getUrl() + Snippetizer.ACTION_URL + "/gdsl\""));
+
+        // Now verify that the links are still present and correct when we're not within a job.
+        String rootHtml = wc.goTo(Snippetizer.ACTION_URL).getWebResponse().getContentAsString();
+        assertThat("Snippet Generator link is included", rootHtml,
+                containsString("href=\"" + r.contextPath + "/" + Snippetizer.ACTION_URL + "\""));
+        assertThat("Steps Reference link is included", rootHtml,
+                containsString("href=\"" + r.contextPath + "/" + Snippetizer.ACTION_URL + "/html\""));
+        assertThat("Globals Reference link is included", rootHtml,
+                containsString("href=\"" + r.contextPath + "/" + Snippetizer.ACTION_URL + "/globals\""));
+        assertThat("Online docs link is included", rootHtml,
+                containsString("href=\"https://jenkins.io/doc/pipeline/\""));
+        assertThat("GDSL link is included", rootHtml,
+                containsString("href=\"" + r.contextPath + "/" + Snippetizer.ACTION_URL + "/gdsl\""));
     }
 }
