@@ -45,6 +45,8 @@ import org.jenkinsci.plugins.workflow.graph.BlockEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
 
+import javax.annotation.Nonnull;
+
 /**
  * Growing tip of the node graph.
  *
@@ -114,9 +116,9 @@ final class FlowHead implements Serializable {
         execution.storage.storeNode(head, false);
     }
 
-    void setNewHead(FlowNode v) {
+    void setNewHead(@Nonnull FlowNode v) {
         if (v == null) {
-            LOGGER.log(Level.WARNING, "FlowHead.setNewHead called on FlowHead id="+this.id+" with a null FlowNode, execution="+this.execution);
+            throw new IllegalArgumentException("FlowHead.setNewHead called on FlowHead id="+this.id+" with a null FlowNode, execution="+this.execution);
         }
         try {
             if (this.head != null) {
