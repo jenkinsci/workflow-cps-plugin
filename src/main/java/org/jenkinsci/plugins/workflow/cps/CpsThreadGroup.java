@@ -357,7 +357,6 @@ public final class CpsThreadGroup implements Serializable {
                 } else {
                     stillRunnable |= t.isRunnable();
                 }
-
                 changed = true;
             }
         }

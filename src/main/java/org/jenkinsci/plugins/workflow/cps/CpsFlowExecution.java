@@ -1212,14 +1212,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             FlowHead first = getFirstHead();
             first.setNewHead(head);
             heads.clear();
-            heads.put(first.getId(),first);
-
-            if (heads.size() > 1) {
-                LOGGER.log(Level.WARNING, "Execution "+this.owner+" finished but had more than one final FlowNode where one expected, heads are: "+this.getHeadsAsString());
-            }
+            heads.put(first.getId(), first);
 
             String tempIotaStr = Integer.toString(this.iota.get());
-            FlowHead lastHead = heads.get(this.iota.get());
+            FlowHead lastHead = heads.get(first.getId());
             if (lastHead == null || lastHead.get() == null || !(lastHead.get().getId().equals(tempIotaStr))) {
                 LOGGER.log(Level.WARNING, "Invalid final head for execution "+this.owner+" with head: "+lastHead);
             }
