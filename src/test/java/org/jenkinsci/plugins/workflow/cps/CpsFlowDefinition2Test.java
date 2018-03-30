@@ -25,15 +25,25 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.CpsTransformer;
+import com.gargoylesoftware.htmlunit.TextPage;
+import com.gargoylesoftware.htmlunit.html.DomNodeUtil;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Executor;
+import hudson.model.Item;
 import hudson.model.Result;
+
 import java.util.logging.Level;
+
+import hudson.security.GlobalMatrixAuthorizationStrategy;
+import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
+
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
@@ -44,6 +54,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
+import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 
 public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
@@ -169,6 +180,15 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
     @Test
     public void sandboxInvokerUsed() throws Exception {
+        jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
+        GlobalMatrixAuthorizationStrategy gmas = new GlobalMatrixAuthorizationStrategy();
+        // Set up a user with RUN_SCRIPTS and one without..
+        gmas.add(Jenkins.RUN_SCRIPTS, "runScriptsUser");
+        gmas.add(Jenkins.READ, "runScriptsUser");
+        gmas.add(Item.READ, "runScriptsUser");
+        gmas.add(Jenkins.READ, "otherUser");
+        gmas.add(Item.READ, "otherUser");
+        jenkins.jenkins.setAuthorizationStrategy(gmas);
         WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
         job.setDefinition(new CpsFlowDefinition("[a: 1, b: 2].collectEntries { k, v ->\n" +
                 "  Jenkins.getInstance()\n" +
@@ -177,6 +197,27 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
         WorkflowRun r = jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
         jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", r);
+        jenkins.assertLogContains("Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance. " + Messages.SandboxContinuable_ScriptApprovalLink(), r);
+
+        JenkinsRule.WebClient wc = jenkins.createWebClient();
+
+        wc.login("runScriptsUser");
+        // make sure we see the annotation for the RUN_SCRIPTS user.
+        HtmlPage rsp = wc.getPage(r, "console");
+        assertEquals(1, DomNodeUtil.selectNodes(rsp, "//A[@href='" + jenkins.contextPath + "/scriptApproval']").size());
+
+        // make sure raw console output doesn't include the garbage and has the right message.
+        TextPage raw = (TextPage)wc.goTo(r.getUrl()+"consoleText","text/plain");
+        assertThat(raw.getContent(), containsString(" getInstance. " + Messages.SandboxContinuable_ScriptApprovalLink()));
+
+        wc.login("otherUser");
+        // make sure we don't see the link for the other user.
+        HtmlPage rsp2 = wc.getPage(r, "console");
+        assertEquals(0, DomNodeUtil.selectNodes(rsp2, "//A[@href='" + jenkins.contextPath + "/scriptApproval']").size());
+
+        // make sure raw console output doesn't include the garbage and has the right message.
+        TextPage raw2 = (TextPage)wc.goTo(r.getUrl()+"consoleText","text/plain");
+        assertThat(raw2.getContent(), containsString(" getInstance. " + Messages.SandboxContinuable_ScriptApprovalLink()));
     }
 
     @Issue("SECURITY-551")
@@ -464,5 +505,26 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
                 "(c, d) = ['third', 'fourth']\n" +
                 "assert a+b+c+d == 'firstsecondthirdfourth'\n", true));
         jenkins.buildAndAssertSuccess(job);
+    }
+
+    @Issue("JENKINS-45982")
+    @Test
+    public void transformedSuperClass() throws Exception {
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("class Foo {\n" +
+                "    public String other() {\n" +
+                "        return 'base'\n" +
+                "    }\n" +
+                "}\n" +
+                "class Bar extends Foo {\n" +
+                "    public String other() {\n" +
+                "        return 'y'+super.other()\n" +
+                "    }\n" +
+                "}\n" +
+                "String output = new Bar().other()\n" +
+                "echo 'OUTPUT: ' + output\n" +
+                "assert output == 'ybase'\n", true));
+        WorkflowRun r = jenkins.buildAndAssertSuccess(job);
+        jenkins.assertLogContains("OUTPUT: ybase", r);
     }
 }
