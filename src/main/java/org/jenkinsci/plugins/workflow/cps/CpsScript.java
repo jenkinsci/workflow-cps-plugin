@@ -97,7 +97,11 @@ public abstract class CpsScript extends SerializableScript {
         if (getBinding().hasVariable(name)){
             Object o = getBinding().getVariable(name);
             if (!InvokerHelper.getMetaClass(o).respondsTo(o, "call", (Object[]) args).isEmpty()){
-                return InvokerHelper.getMetaClass(o).invokeMethod(o, "call", args);
+                try{
+                    return InvokerHelper.getMetaClass(o).invokeMethod(o, "call", args);
+                } catch (Exception x) {
+                    throw new InvokerInvocationException(x);
+                }
             }
         }
         
