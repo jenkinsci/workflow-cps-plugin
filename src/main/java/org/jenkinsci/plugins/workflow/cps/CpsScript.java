@@ -92,12 +92,12 @@ public abstract class CpsScript extends SerializableScript {
     public final Object invokeMethod(String name, Object args) {
         // TODO probably better to call super method and only proceed here incase of MissingMethodException:
 
-        // check for user defined closures in the script binding
+        // check for user instantiated objects in the script binding
+        // that respond to call.
         if (getBinding().hasVariable(name)){
-            Object local_var = getBinding().getVariable(name);
-            if (local_var instanceof CpsClosure2){
-                CpsClosure2 local_closure = (CpsClosure2) local_var;
-                return local_closure.call(args);
+            Object o = getBinding().getVariable(name);
+            if (!InvokerHelper.getMetaClass(o).respondsTo(o, "call", (Object[]) args).isEmpty()){
+                return InvokerHelper.getMetaClass(o).invokeMethod(o, "call", args);
             }
         }
         

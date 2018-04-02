@@ -367,6 +367,19 @@ public class DSLTest {
     }
 
     /**
+    * Tests untyped arguments 
+    */
+    @Test public void userDefinedClosureUntypedArgInvocationExecution() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("my_closure = { a , b -> \n" +
+                                                      "  echo \"my message is ${a} and ${b}\" \n" +
+                                                      "}\n" +
+                                                      "my_closure(\"string1\" ,2)",false));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("my message is string1 and 2", b);
+    }
+    
+    /**
     * Tests the ability to execute a user defined closure with variable arguments
     * note: currently fails because CpsClosure's don't currently work with varargs
     *
@@ -376,9 +389,8 @@ public class DSLTest {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("my_closure = { String message, Integer... n -> \n" +
                                               "  println message \n" + 
-                                              "  println n \n" +
-                                              "  n.sum() \n" +
-                                              "}\n" + 
+                                              "  println n.sum() \n" +
+                                              "}\n" +
                                               "my_closure(\"testing\",1,2,3) ", false));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("testing", b);
