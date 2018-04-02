@@ -723,14 +723,48 @@ public class FlowDurabilityTest {
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
                 WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY);
+                run.getParent().setResumeBlocked(true);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
-                    ((CpsFlowExecution)exec).setResumeBlocked(true);
                 }
                 logStart[0] = JenkinsRule.getLog(run);
                 nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
                 nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
+            }
+        });
+
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                verifyFailedCleanly(story.j.jenkins, run);
+                assertIncludesNodes(nodesOut, run);
+            }
+        });
+    }
+
+    @Test
+    @Issue("JENKINS-49961")
+    public void testResumeBlockedAddedAfterRunStart() throws Exception {
+        final String jobName = "survivesEverything";
+        final String[] logStart = new String[1];
+        final List<FlowNode> nodesOut = new ArrayList<FlowNode>();
+
+        story.addStepWithDirtyShutdown(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                Jenkins jenkins = story.j.jenkins;
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY);
+                run.getParent().setResumeBlocked(false);
+                FlowExecution exec = run.getExecution();
+                if (exec instanceof CpsFlowExecution) {
+                    assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
+                }
+                logStart[0] = JenkinsRule.getLog(run);
+                nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
+                nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
+                run.getParent().setResumeBlocked(true);
             }
         });
 

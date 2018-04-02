@@ -38,11 +38,16 @@ THE SOFTWARE.
                 </d:tag>
             </d:taglib>
             <l:task href=".." icon="icon-up icon-md" title="${%Back}"/>
-            <l:task href="." icon="icon-gear2 icon-md" title="${%Snippet Generator}"/>
-            <l:task href="html" icon="icon-help icon-md" title="${%Step Reference}"/>
-            <l:task href="globals" icon="icon-help icon-md" title="${%Global Variables Reference}"/>
-            <local:taskWithTarget href="https://jenkins.io/doc/pipeline/" icon="icon-help icon-md" target="_blank" title="${%Online Documentation}"/>
-            <local:taskWithTarget href="gdsl" icon="icon-package icon-md" target="_blank" title="${%IntelliJ IDEA GDSL}"/>
+            <j:forEach var="link" items="${it.snippetizerLinks}">
+                <j:choose>
+                    <j:when test="${link.inNewWindow}">
+                        <local:taskWithTarget href="${link.displayUrl}" icon="${link.icon}" title="${link.displayName}" target="_blank" />
+                    </j:when>
+                    <j:otherwise>
+                        <l:task href="${link.displayUrl}" icon="${link.icon}" title="${link.displayName}" />
+                    </j:otherwise>
+                </j:choose>
+            </j:forEach>
             <!-- TODO not yet ready: <local:taskWithTarget href="dsld" icon="icon-package icon-md" target="_blank" title="${%Eclipse DSLD}"/> -->
         </l:tasks>
     </l:side-panel>

@@ -25,6 +25,7 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import hudson.Extension;
+import hudson.ExtensionList;
 import hudson.Functions;
 import hudson.model.Action;
 import hudson.model.Describable;
@@ -45,6 +46,7 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.lang.model.SourceVersion;
 import jenkins.model.Jenkins;
 import jenkins.model.TransientActionFactory;
@@ -77,6 +79,17 @@ import org.kohsuke.stapler.StaplerRequest;
      */
     static String step2Groovy(Step s) throws UnsupportedOperationException {
         return object2Groovy(new StringBuilder(), s, false).toString();
+    }
+
+    /**
+     * Publicly accessible version of {@link #object2Groovy(StringBuilder, Object, boolean)} that translates an object into
+     * the equivalent Pipeline Groovy string.
+     *
+     * @param o The object to translate.
+     * @return A string translation of the object.
+     */
+    public static String object2Groovy(Object o) throws UnsupportedOperationException {
+        return object2Groovy(new StringBuilder(), o, false).toString();
     }
 
     /**
@@ -512,6 +525,14 @@ import org.kohsuke.stapler.StaplerRequest;
     @Restricted(DoNotUse.class) // for stapler
     public @CheckForNull Item getItem(StaplerRequest req) {
          return req.findAncestorObject(Item.class);
+    }
+
+    /**
+     * Used to generate the list of links on the sidepanel.
+     */
+    @Nonnull
+    public List<SnippetizerLink> getSnippetizerLinks() {
+        return ExtensionList.lookup(SnippetizerLink.class);
     }
 
     @Restricted(DoNotUse.class)
