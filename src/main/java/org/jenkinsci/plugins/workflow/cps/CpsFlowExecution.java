@@ -316,7 +316,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * {@link FlowExecution} gets loaded into memory for the build records that have been completed,
      * and for those we don't want to load the program state, so that check should be efficient.
      */
-     Boolean done; // Only non-private for unit test use.
+    Boolean done; // Only non-private for unit test use.
 
     /**
      * Groovy compiler with CPS+sandbox transformation correctly setup.
@@ -601,7 +601,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         return iota.get();
     }
 
-    /** For diagnostic purposes only. */
+    /** For diagnostic purposes only, this logs current heads to assist with troubleshooting. */
     private synchronized String getHeadsAsString() {
         NavigableMap<Integer, FlowHead> myHeads = this.heads;
         if (myHeads == null) {
@@ -857,7 +857,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /** Report a fatal error in the VM. */
     void croak(Throwable t) {
         setResult(Result.FAILURE);
-        done = true;
+        done = Boolean.TRUE;
         onProgramEnd(new Outcome(null, t));
         cleanUpHeap();
         try {

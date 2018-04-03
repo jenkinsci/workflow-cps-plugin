@@ -118,6 +118,7 @@ final class FlowHead implements Serializable {
 
     void setNewHead(@Nonnull FlowNode v) {
         if (v == null) {
+            // Because Findbugs isn't 100% at catching cases where this can happen and we really need to fail hard-and-fast
             throw new IllegalArgumentException("FlowHead.setNewHead called on FlowHead id="+this.id+" with a null FlowNode, execution="+this.execution);
         }
         try {
@@ -125,10 +126,10 @@ final class FlowHead implements Serializable {
                 CpsFlowExecution.maybeAutoPersistNode(head);
             }
             execution.storage.storeNode(v, true);
+            v.addAction(new TimingAction());
         } catch (IOException e) {
             LOGGER.log(Level.FINE, "Failed to record new head: " + v, e);
         }
-        v.addAction(new TimingAction());
         this.head = v;
         CpsThreadGroup c = CpsThreadGroup.current();
         if (c !=null) {
