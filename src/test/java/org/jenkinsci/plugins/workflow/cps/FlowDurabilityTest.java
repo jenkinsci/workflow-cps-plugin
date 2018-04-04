@@ -785,6 +785,52 @@ public class FlowDurabilityTest {
         });
     }
 
+    /** Launches the job used for fuzzing in {@link #fuzzTimingDurable()} and {@link #fuzzTimingNonDurable()} -- including the timeout. */
+    private WorkflowRun runFuzzerJob(JenkinsRule jrule, String jobName, FlowDurabilityHint hint) throws Exception {
+        Jenkins jenkins = jrule.jenkins;
+        WorkflowJob job = jenkins.getItemByFullName(jobName, WorkflowJob.class);
+        if (job == null) {  // Job may already have been created
+            job = jenkins.createProject(WorkflowJob.class, jobName);
+            TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
+            provider.registerHint(job.getFullName(), hint);
+            job.setDefinition(new CpsFlowDefinition(
+                    "echo 'first'\n" +
+                            "def steps = [:]\n" +
+                            "steps['1'] = {\n" +
+                            "    echo 'do 1 stuff'\n" +
+                            "}\n" +
+                            "steps['2'] = {\n" +
+                            "    echo '2a'\n" +
+                            "    echo '2b'\n" +
+                            "    def nested = [:]\n" +
+                            "    nested['2-1'] = {\n" +
+                            "        echo 'do 2-1'\n" +
+                            "    } \n" +
+                            "    nested['2-2'] = {\n" +
+                            "        sleep 1\n" +
+                            "        echo '2 section 2'\n" +
+                            "    }\n" +
+                            "    parallel nested\n" +
+                            "}\n" +
+                            "parallel steps\n" +
+                            "echo 'final'"
+            ));
+        }
+
+        // First we need to build the job to get an appropriate estimate for how long we need to wait before hard-restarting Jenkins in order to catch it in the middle
+        story.j.buildAndAssertSuccess(job);
+        long millisDuration = job.getLastBuild().getDuration();
+        System.out.println("Test fuzzer job in  completed in "+millisDuration+" ms");
+
+        // Now we run the job again and wait an appropriate amount of time -- but we return the job so tests can grab info before restarting.
+        int time = new Random().nextInt((int) millisDuration);
+        System.out.println("Starting fuzzer job and waiting "+time+" ms before restarting.");
+        WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
+        run.getExecutionPromise().get();  // Ensures run has begun so that it *can* complete cleanly.
+        Thread.sleep(time);
+        return run;
+    }
+
     /** Test interrupting build by randomly dying at unpredictable times. */
     @Test
     @Ignore //Too long to run as part of main suite
@@ -798,42 +844,7 @@ public class FlowDurabilityTest {
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                Jenkins jenkins = story.j.jenkins;
-                WorkflowJob job = jenkins.getItemByFullName(jobName, WorkflowJob.class);
-                if (job == null) {  // Job may already have been created
-                    job = jenkins.createProject(WorkflowJob.class, jobName);
-                    FlowDurabilityHint hint = FlowDurabilityHint.MAX_SURVIVABILITY;
-                    TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
-                    provider.registerHint(job.getFullName(), hint);
-                    job.setDefinition(new CpsFlowDefinition(
-                            "echo 'first'\n" +
-                                    "def steps = [:]\n" +
-                                    "steps['1'] = {\n" +
-                                    "    echo 'do 1 stuff'\n" +
-                                    "}\n" +
-                                    "steps['2'] = {\n" +
-                                    "    echo '2a'\n" +
-                                    "    echo '2b'\n" +
-                                    "    def nested = [:]\n" +
-                                    "    nested['2-1'] = {\n" +
-                                    "        echo 'do 2-1'\n" +
-                                    "    } \n" +
-                                    "    nested['2-2'] = {\n" +
-                                    "        sleep 1\n" +
-                                    "        echo '2 section 2'\n" +
-                                    "    }\n" +
-                                    "    parallel nested\n" +
-                                    "}\n" +
-                                    "parallel steps\n" +
-                                    "echo 'final'"
-                    ));
-                }
-                story.j.buildAndAssertSuccess(job);
-                long millisDuration = job.getLastBuild().getDuration();
-
-                int time = new Random().nextInt((int) millisDuration);
-                WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
-                Thread.sleep(time);
+                WorkflowRun run = runFuzzerJob(story.j, jobName, FlowDurabilityHint.MAX_SURVIVABILITY);
                 logStart[0] = JenkinsRule.getLog(run);
                 nodesOut.clear();
                 nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
@@ -845,12 +856,50 @@ public class FlowDurabilityTest {
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
                 if (run.isBuilding()) {
-                    story.j.waitForCompletion(run);
-                    Assert.assertEquals(Result.SUCCESS, run.getResult());
+                    try {
+                        story.j.waitUntilNoActivityUpTo(30_000);
+                        Assert.assertEquals(Result.SUCCESS, run.getResult());
+                    } catch (AssertionError ase) {
+                        throw new AssertionError("Build hung: "+run, ase);
+                    }
                 } else {
                     verifyCompletedCleanly(story.j.jenkins, run);
                 }
                 assertIncludesNodes(nodesOut, run);
+                story.j.assertLogContains(logStart[0], run);
+            }
+        });
+
+    }
+
+    /** Test interrupting build by randomly dying at unpredictable times. */
+    @Test
+    @Ignore //Too long to run as part of main suite
+    @TimedRepeatRule.RepeatForTime(repeatMillis = 150_000)
+    public void fuzzTimingNonDurable() throws Exception {
+        final String jobName = "NestedParallelDurableJob";
+        final String[] logStart = new String[1];
+
+        // Create thread that eventually interrupts Jenkins with a hard shutdown at a random time interval
+        story.addStepWithDirtyShutdown(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = runFuzzerJob(story.j, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                logStart[0] = JenkinsRule.getLog(run);
+            }
+        });
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                if (run.isBuilding()) {
+                    try {
+                        story.j.waitUntilNoActivityUpTo(30_000);
+                    } catch (AssertionError ase) {
+                        throw new AssertionError("Build hung: "+run, ase);
+                    }
+                }
+                verifyCompletedCleanly(story.j.jenkins, run);
                 story.j.assertLogContains(logStart[0], run);
             }
         });

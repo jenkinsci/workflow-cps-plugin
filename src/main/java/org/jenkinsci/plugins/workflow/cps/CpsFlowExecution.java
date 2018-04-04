@@ -820,7 +820,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             } else {
                 head = getFirstHead();
             }
-            done = Boolean.TRUE;
         }
 
         if (head==null) {
@@ -857,7 +856,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /** Report a fatal error in the VM. */
     void croak(Throwable t) {
         setResult(Result.FAILURE);
-        done = Boolean.TRUE;
         onProgramEnd(new Outcome(null, t));
         cleanUpHeap();
         try {
@@ -1207,18 +1205,24 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         // shrink everything into a single new head
-        done = Boolean.TRUE;
-        if (heads != null) {
-            FlowHead first = getFirstHead();
-            first.setNewHead(head);
-            heads.clear();
-            heads.put(first.getId(), first);
+        try {
+            if (heads != null) {
+                FlowHead first = getFirstHead();
+                first.setNewHead(head);
+                done = Boolean.TRUE;  // After setting the final head
+                heads.clear();
+                heads.put(first.getId(), first);
 
-            String tempIotaStr = Integer.toString(this.iota.get());
-            FlowHead lastHead = heads.get(first.getId());
-            if (lastHead == null || lastHead.get() == null || !(lastHead.get().getId().equals(tempIotaStr))) {
-                LOGGER.log(Level.WARNING, "Invalid final head for execution "+this.owner+" with head: "+lastHead);
+                String tempIotaStr = Integer.toString(this.iota.get());
+                FlowHead lastHead = heads.get(first.getId());
+                if (lastHead == null || lastHead.get() == null || !(lastHead.get().getId().equals(tempIotaStr))) {
+                    // Warning of problems with the final call to FlowHead.setNewHead
+                    LOGGER.log(Level.WARNING, "Invalid final head for execution "+this.owner+" with head: "+lastHead);
+                }
             }
+        } catch (Exception ex) {
+            done = Boolean.TRUE;
+            throw ex;
         }
 
         try {
