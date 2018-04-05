@@ -45,6 +45,7 @@ import hudson.security.ACL;
 import hudson.security.GlobalMatrixAuthorizationStrategy;
 import hudson.security.Permission;
 import java.io.File;
+import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 import jenkins.model.Jenkins;
@@ -283,6 +284,26 @@ public class ReplayActionTest {
                 assertEquals(3, b3.getNumber());
                 // Main script picked up from #1, not #2.
                 story.j.assertLogContains("got new text", b3);
+            }
+        });
+    }
+
+    @Test public void cliMultipleFiles() throws Exception {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                // As in loadStep, will set up a main and auxiliary script.
+                FilePath f = story.j.jenkins.getWorkspaceFor(p).child("f.groovy");
+                f.write("'original text'", null);
+                p.setDefinition(new CpsFlowDefinition("node {def t = load 'f.groovy'; echo \"got ${t}\"}", true));
+                WorkflowRun b1 = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
+                story.j.assertLogContains("got original text", b1);
+                InputStream tarStream = this.getClass().getResourceAsStream("scripts.tar");
+                assertEquals(0, new CLICommandInvoker(story.j, "replay-pipeline").withStdin(tarStream).invokeWithArgs("p", "-S").returnCode());
+                story.j.waitUntilNoActivity();
+                WorkflowRun b2 = p.getLastBuild();
+                assertEquals(2, b2.getNumber());
+                story.j.assertLogContains("received new text", b2);
             }
         });
     }

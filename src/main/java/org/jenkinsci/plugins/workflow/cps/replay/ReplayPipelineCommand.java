@@ -30,15 +30,22 @@ import hudson.cli.CLICommand;
 import hudson.cli.handlers.GenericItemOptionHandler;
 import hudson.model.Job;
 import hudson.model.Run;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.io.IOUtils;
-import org.jenkinsci.plugins.workflow.cps.replay.Messages;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.OptionDef;
 import org.kohsuke.args4j.spi.Setter;
+
 
 @Extension public class ReplayPipelineCommand extends CLICommand {
 
@@ -50,6 +57,9 @@ import org.kohsuke.args4j.spi.Setter;
 
     @Option(name="-s", aliases="--script", metaVar="SCRIPT", usage="Name of script to edit, such as Script3, if not the main Jenkinsfile.")
     public String script;
+
+    @Option(name="-S", aliases="--scripts", usage="Pass tarball of override scripts to override build scripts on remote")
+    private boolean scripts;
 
     @Override public String getShortDescription() {
         return Messages.ReplayCommand_shortDescription();
@@ -70,18 +80,78 @@ import org.kohsuke.args4j.spi.Setter;
         if (!action.isEnabled()) {
             throw new AbortException("Not authorized to replay builds of this job");
         }
-        String text = IOUtils.toString(stdin);
-        if (script != null) {
-            Map<String,String> replacementLoadedScripts = new HashMap<String,String>(action.getOriginalLoadedScripts());
-            if (!replacementLoadedScripts.containsKey(script)) {
-                throw new AbortException("Unrecognized script name among " + replacementLoadedScripts.keySet());
+        if (scripts) {
+            ArrayList<SimpleEntry<String,String>> replacementScripts = parseScripts(stdin);
+            Map<String,String> replacementLoadedScripts = new HashMap<>(action.getOriginalLoadedScripts());
+            Boolean overrideJenkinsfile = false;
+            String jenkinsfileContent = "";
+
+            for (SimpleEntry<String,String> pair : replacementScripts) {
+              String scriptName = pair.getKey();
+              String scriptContent = pair.getValue();
+
+              if (scriptName.equals("Jenkinsfile")) {
+                  overrideJenkinsfile = true;
+                  jenkinsfileContent = scriptContent;
+              } else {
+                  if (!replacementLoadedScripts.containsKey(scriptName)) {
+                      throw new AbortException("Unrecognized script name " + scriptName + " among " + replacementLoadedScripts.keySet());
+                  }
+                  replacementLoadedScripts.put(scriptName, scriptContent);
+              }
             }
-            replacementLoadedScripts.put(script, text);
-            action.run(action.getOriginalScript(), replacementLoadedScripts);
+
+            if (!overrideJenkinsfile)
+                jenkinsfileContent = action.getOriginalScript();
+
+            action.run(jenkinsfileContent, replacementLoadedScripts);
         } else {
-            action.run(text, action.getOriginalLoadedScripts());
+            String text = IOUtils.toString(stdin);
+            if (script != null) {
+                Map<String, String> replacementLoadedScripts = new HashMap<String, String>(action.getOriginalLoadedScripts());
+                if (!replacementLoadedScripts.containsKey(script)) {
+                    throw new AbortException("Unrecognized script name among " + replacementLoadedScripts.keySet());
+                }
+                replacementLoadedScripts.put(script, text);
+                action.run(action.getOriginalScript(), replacementLoadedScripts);
+            } else {
+                action.run(text, action.getOriginalLoadedScripts());
+            }
         }
         return 0;
+    }
+
+    protected ArrayList<SimpleEntry<String,String>> parseScripts(InputStream tarInputStream) throws Exception {
+        ArrayList<SimpleEntry<String, String>> list = new ArrayList<>();
+
+        try ( TarArchiveInputStream tarIn = new TarArchiveInputStream(tarInputStream) ) {
+            TarArchiveEntry tarEntry = tarIn.getNextTarEntry();
+
+            while (tarEntry != null) {
+                String scriptName = tarEntry.getName();
+
+                int BUFFER_SIZE = 512;
+                int count;
+                byte data[] = new byte[BUFFER_SIZE];
+
+                ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+                BufferedOutputStream outStream =  new BufferedOutputStream(byteStream, BUFFER_SIZE);
+                while ((count = tarIn.read(data, 0, BUFFER_SIZE)) != -1) {
+                    outStream.write(data, 0, count);
+                }
+                outStream.flush();
+                String scriptContent = new String(byteStream.toByteArray());
+
+                SimpleEntry<String, String> entry = new SimpleEntry<>(scriptName, scriptContent);
+                list.add(entry);
+
+                tarEntry = tarIn.getNextTarEntry();
+            }
+        } catch ( Exception e) {
+            throw e;
+        }
+
+        return list;
     }
 
     @SuppressWarnings("rawtypes")
