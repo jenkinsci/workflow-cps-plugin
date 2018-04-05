@@ -1820,6 +1820,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         boolean persistOk = true;
         FlowNodeStorage storage = getStorage();
         if (storage != null) {
+            try { // Node storage must be flushed first so program can be restored
+                storage.flush();
+            } catch (IOException ioe) {
+                persistOk=false;
+                LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before shutdown", ioe);
+            }
+
             // Try to ensure we've saved the appropriate things -- the program is the last stumbling block.
             try {
                 final SettableFuture<Void> myOutcome = SettableFuture.create();
@@ -1850,13 +1857,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             } catch (ExecutionException | InterruptedException ex) {
                 persistOk = false;
                 LOGGER.log(Level.FINE, "Error saving program, that should be handled elsewhere.", ex);
-            }
-
-            try {
-                storage.flush();
-            } catch (IOException ioe) {
-                persistOk=false;
-                LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before shutdown", ioe);
             }
             persistedClean = persistOk;
             saveOwner();
