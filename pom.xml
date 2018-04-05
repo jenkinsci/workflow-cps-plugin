@@ -69,7 +69,8 @@
         <workflow-support-plugin.version>2.17</workflow-support-plugin.version>
         <scm-api-plugin.version>2.0.8</scm-api-plugin.version>
         <groovy-cps.version>1.24</groovy-cps.version>
-        <jenkins-test-harness.version>2.37-20180405.183013-2</jenkins-test-harness.version>
+        <!-- Pending https://github.com/jenkinsci/jenkins-test-harness/pull/101 -->
+        <jenkins-test-harness.version>2.37-20180405.213807-3</jenkins-test-harness.version>
     </properties>
     <dependencies>
         <dependency>
