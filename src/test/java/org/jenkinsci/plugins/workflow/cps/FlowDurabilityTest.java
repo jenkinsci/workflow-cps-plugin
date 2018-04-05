@@ -835,7 +835,9 @@ public class FlowDurabilityTest {
         return run;
     }
 
-    /** Test interrupting build by randomly dying at unpredictable times. */
+    /** Test interrupting build by randomly dying at unpredictable times.
+     * May fail rarely due to files being copied in a different order than they are modified as part of simulating a dirty restart.
+     * See {@link RestartableJenkinsRule#simulateAbruptShutdown()} for why that copying happens. */
     @Test
     //Too long to run as part of main suite
     @TimedRepeatRule.RepeatForTime(repeatMillis = 170_000)
@@ -883,7 +885,9 @@ public class FlowDurabilityTest {
 
     }
 
-    /** Test interrupting build by randomly dying at unpredictable times. */
+    /** Test interrupting build by randomly dying at unpredictable times.
+     *  May fail rarely due to files being copied in a different order than they are modified as part of simulating a dirty restart.
+     *  See {@link RestartableJenkinsRule#simulateAbruptShutdown()} for why that copying happens. */
     @Test
     @Ignore //Too long to run as part of main suite
     @TimedRepeatRule.RepeatForTime(repeatMillis = 150_000)
