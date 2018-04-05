@@ -316,7 +316,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * {@link FlowExecution} gets loaded into memory for the build records that have been completed,
      * and for those we don't want to load the program state, so that check should be efficient.
      */
-    Boolean done; // Only non-private for unit test use.
+    boolean done; // Only non-private for unit test use.
 
     /**
      * Groovy compiler with CPS+sandbox transformation correctly setup.
@@ -728,7 +728,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         LOGGER.log(Level.WARNING, "Pipeline state not properly persisted, cannot resume "+owner.getUrl());
                         throw new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down.");
                     }
-                } else if (done == Boolean.TRUE && !super.isComplete()) {
+                } else if (done && !super.isComplete()) {
                     LOGGER.log(Level.WARNING, "Completed flow without FlowEndNode: "+this+" heads:"+getHeadsAsString());
                 }
             } catch (Exception e) {  // Multicatch ensures that failure to load does not nuke the master
@@ -1191,7 +1191,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     @Override
     @SuppressFBWarnings(value = "RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN", justification = "We want to explicitly check for boolean not-null and true")
     public boolean isComplete() {
-        return done == Boolean.TRUE || super.isComplete(); // Compare to Boolean.TRUE so null == false.
+        return done || super.isComplete(); // Compare to Boolean.TRUE so null == false.
     }
 
     /**
@@ -1570,9 +1570,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 for (BlockStartNode st : e.startNodes) {
                     writeChild(w, context, "start", st.getId(), String.class);
                 }
-                if (e.done != null) {
-                    writeChild(w, context, "done", e.done, Boolean.class);
-                }
+                writeChild(w, context, "done", e.done, Boolean.class);
             }
             writeChild(w, context, "resumeBlocked", e.resumeBlocked, Boolean.class);
 

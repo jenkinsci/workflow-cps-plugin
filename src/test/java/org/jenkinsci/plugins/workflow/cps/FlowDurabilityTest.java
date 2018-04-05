@@ -165,6 +165,8 @@ public class FlowDurabilityTest {
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
         SemaphoreStep.waitForStart("halt/"+semaphoreIndex, run);
         Assert.assertEquals(durabilityHint, run.getExecution().getDurabilityHint());
+        Assert.assertFalse(run.getExecution().isComplete());
+        Assert.assertFalse(((CpsFlowExecution)(run.getExecution())).done);
         if (durabilityHint.isPersistWithEveryStep()) {
             assertBaseStorageType(run.getExecution(), SimpleXStreamFlowNodeStorage.class);
         } else {
@@ -190,6 +192,8 @@ public class FlowDurabilityTest {
         job.setDefinition(def);
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
         Thread.sleep(4000L);  // Hacky but we just need to ensure this can start up
+        Assert.assertFalse(run.getExecution().isComplete());
+        Assert.assertFalse(((CpsFlowExecution)(run.getExecution())).done);
         Assert.assertEquals(durabilityHint, run.getExecution().getDurabilityHint());
         Assert.assertEquals("sleep", run.getExecution().getCurrentHeads().get(0).getDisplayFunctionName());
         return run;
@@ -335,7 +339,7 @@ public class FlowDurabilityTest {
             Assert.assertFalse("Should always be able to retrieve script", StringUtils.isEmpty(cpsFlow.getScript()));
             Assert.assertNull("We should have no Groovy shell left or that's a memory leak", cpsFlow.getShell());
             Assert.assertNull("We should have no Groovy shell left or that's a memory leak", cpsFlow.getTrustedShell());
-            assert cpsFlow.done == Boolean.TRUE;
+            Assert.assertTrue(cpsFlow.done);
             assert cpsFlow.isComplete();
             assert cpsFlow.heads.size() == 1;
             Map.Entry<Integer, FlowHead> finalHead = cpsFlow.heads.entrySet().iterator().next();
@@ -833,12 +837,13 @@ public class FlowDurabilityTest {
 
     /** Test interrupting build by randomly dying at unpredictable times. */
     @Test
-    @Ignore //Too long to run as part of main suite
+    //Too long to run as part of main suite
     @TimedRepeatRule.RepeatForTime(repeatMillis = 170_000)
     public void fuzzTimingDurable() throws Exception {
         final String jobName = "NestedParallelDurableJob";
         final String[] logStart = new String[1];
         final List<FlowNode> nodesOut = new ArrayList<FlowNode>();
+        final int[] buildNumber = new int [1];
 
         // Create thread that eventually interrupts Jenkins with a hard shutdown at a random time interval
         story.addStepWithDirtyShutdown(new Statement() {
@@ -864,10 +869,10 @@ public class FlowDurabilityTest {
                 if (run.isBuilding()) {
                     try {
                         story.j.waitUntilNoActivityUpTo(30_000);
-                        Assert.assertEquals(Result.SUCCESS, run.getResult());
                     } catch (AssertionError ase) {
                         throw new AssertionError("Build hung: "+run, ase);
                     }
+                    Assert.assertEquals(Result.SUCCESS, run.getResult());
                 } else {
                     verifyCompletedCleanly(story.j.jenkins, run);
                 }
