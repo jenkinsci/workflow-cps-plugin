@@ -28,6 +28,7 @@ import org.jenkinsci.plugins.workflow.graphanalysis.FlowScanningUtils;
 import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepNamePredicate;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.job.properties.DurabilityHintJobProperty;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
 import org.jenkinsci.plugins.workflow.support.storage.BulkFlowNodeStorage;
@@ -791,8 +792,7 @@ public class FlowDurabilityTest {
         WorkflowJob job = jenkins.getItemByFullName(jobName, WorkflowJob.class);
         if (job == null) {  // Job may already have been created
             job = jenkins.createProject(WorkflowJob.class, jobName);
-            TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
-            provider.registerHint(job.getFullName(), hint);
+            job.addProperty(new DurabilityHintJobProperty(hint));
             job.setDefinition(new CpsFlowDefinition(
                     "echo 'first'\n" +
                             "def steps = [:]\n" +
@@ -849,12 +849,18 @@ public class FlowDurabilityTest {
                 nodesOut.clear();
                 nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
                 nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
+                if (run.getExecution() != null) {
+                    Assert.assertEquals(FlowDurabilityHint.MAX_SURVIVABILITY, run.getExecution().getDurabilityHint());
+                }
             }
             });
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                if (run.getExecution() != null) {
+                    Assert.assertEquals(FlowDurabilityHint.MAX_SURVIVABILITY, run.getExecution().getDurabilityHint());
+                }
                 if (run.isBuilding()) {
                     try {
                         story.j.waitUntilNoActivityUpTo(30_000);
@@ -886,12 +892,18 @@ public class FlowDurabilityTest {
             public void evaluate() throws Throwable {
                 WorkflowRun run = runFuzzerJob(story.j, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
                 logStart[0] = JenkinsRule.getLog(run);
+                if (run.getExecution() != null) {
+                    Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                }
             }
         });
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                if (run.getExecution() != null) {
+                    Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                }
                 if (run.isBuilding()) {
                     try {
                         story.j.waitUntilNoActivityUpTo(30_000);
