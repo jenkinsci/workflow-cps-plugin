@@ -861,7 +861,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         try {
             saveOwner();
         } catch (Exception ex) {
-            LOGGER.log(Level.WARNING, "Failed to persist WorkflowRun after noting a serious failure for run:", owner);
+            LOGGER.log(Level.WARNING, "Failed to persist WorkflowRun after noting a serious failure for run: " + owner, ex);
         }
     }
 
