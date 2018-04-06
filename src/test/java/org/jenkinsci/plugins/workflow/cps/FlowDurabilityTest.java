@@ -840,7 +840,7 @@ public class FlowDurabilityTest {
      * See {@link RestartableJenkinsRule#simulateAbruptShutdown()} for why that copying happens. */
     @Test
     @Ignore //Too long to run as part of main suite
-    @TimedRepeatRule.RepeatForTime(repeatMillis = 170_000)
+    @TimedRepeatRule.RepeatForTime(repeatMillis = 150_000)
     public void fuzzTimingDurable() throws Exception {
         final String jobName = "NestedParallelDurableJob";
         final String[] logStart = new String[1];
