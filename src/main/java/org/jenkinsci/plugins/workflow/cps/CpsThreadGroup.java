@@ -68,6 +68,7 @@ import javax.annotation.CheckForNull;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
+import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
 
 /**
  * List of {@link CpsThread}s that form a single {@link CpsFlowExecution}.
@@ -357,7 +358,6 @@ public final class CpsThreadGroup implements Serializable {
                 } else {
                     stillRunnable |= t.isRunnable();
                 }
-
                 changed = true;
             }
         }
@@ -426,6 +426,16 @@ public final class CpsThreadGroup implements Serializable {
     void saveProgramIfPossible(boolean enteringQuietState) {
         if (this.getExecution() != null && (this.getExecution().getDurabilityHint().isPersistWithEveryStep()
                 || enteringQuietState)) {
+
+            try {  // Program may depend on flownodes being saved, so save nodes
+                FlowNodeStorage storage = this.execution.getStorage();
+                if (storage != null) {
+                    storage.flush();
+                }
+            } catch (IOException ioe) {
+                LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before saving program", ioe);
+            }
+
             try {
                 saveProgram();
             } catch (IOException x) {
