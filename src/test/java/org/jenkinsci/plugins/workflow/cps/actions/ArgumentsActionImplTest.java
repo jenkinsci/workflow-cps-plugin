@@ -503,15 +503,13 @@ public class ArgumentsActionImplTest {
     @Issue("JENKINS-50665")
     public void testArgumentActionFiltering() throws Exception {
         WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "argumentActionFiltering");
-        // TODO: apparently Pipeline does not fail if JEP-200 regression happens
-        // for ArgumentsActionImpl#arguments() within NonCPS
         job.setDefinition(new CpsFlowDefinition(
                 "nonCPS.exec() {\n" +
                         "   def formatter = new org.jfree.chart.axis.QuarterDateFormat()\n" +
                         "   printTimestamp arg1: 'foo', formatter: formatter\n" +
                         "}", false));
         WorkflowRun run = r.buildAndAssertSuccess(job);
-        r.assertLogContains("Got argument foo. Timestamp=", run);
+        r.assertLogContains("Got argument foo (persist formatter: false). Timestamp=", run);
     }
 
     //TODO: Uncomment once JENKINS-50670 is fixed
@@ -569,7 +567,7 @@ public class ArgumentsActionImplTest {
             @Override
             public boolean start() throws Exception {
                 listener.getLogger().println(
-                        String.format("Got argument %s(persist formatter: %s). Timestamp=%s",
+                        String.format("Got argument %s (persist formatter: %s). Timestamp=%s",
                                 step.arg1, step.persistFormatter, step.formatter.format(new Date())));
                 getContext().onSuccess(Result.SUCCESS);
                 return true;
