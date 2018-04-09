@@ -504,10 +504,13 @@ public class ArgumentsActionImplTest {
     public void testArgumentActionFiltering() throws Exception {
         WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "argumentActionFiltering");
         job.setDefinition(new CpsFlowDefinition(
-                "nonCPS.exec() {\n" +
+                        "@NonCPS\n" +
+                        "def doIt() {\n" +
                         "   def formatter = new org.jfree.chart.axis.QuarterDateFormat()\n" +
                         "   printTimestamp arg1: 'foo', formatter: formatter\n" +
-                        "}", false));
+                        "}\n" +
+                        "doIt()\n" +
+                        "", false));
         WorkflowRun run = r.buildAndAssertSuccess(job);
         r.assertLogContains("Got argument foo (persist formatter: false). Timestamp=", run);
     }
@@ -515,7 +518,6 @@ public class ArgumentsActionImplTest {
     //TODO: Uncomment once JENKINS-50670 is fixed
     @Test
     @Issue("JENKINS-50670")
-    @Ignore
     public void testArgumentActionJEP200Propagation() throws Exception {
         assumeTrue("Jenkins should be 2.102+ to reproduce JEP-200 issues",
                 Jenkins.getVersion().isNewerThan(new VersionNumber("2.102")));
@@ -523,10 +525,12 @@ public class ArgumentsActionImplTest {
         // TODO: apparently Pipeline does not fail if JEP-200 regression happens
         // for ArgumentsActionImpl#arguments() within NonCPS
         job.setDefinition(new CpsFlowDefinition(
-                "nonCPS.exec() {\n" +
+                        "@NonCPS\n"+
+                        "def doIt() {\n" +
                         "   def formatter = new org.jfree.chart.axis.QuarterDateFormat()\n" +
                         "   printTimestamp arg1: 'foo', formatter: formatter, persistFormatter: true\n" +
-                        "}", false));
+                        "}" +
+                        "doIt()", false));
         WorkflowRun run = job.scheduleBuild2(0).get();
         assertThat("Run should fail dues to the serialization of non-whitelisted variable",
                 run.getResult(), equalTo(Result.FAILURE));
