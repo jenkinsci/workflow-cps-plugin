@@ -1,0 +1,11 @@
+<div>
+  Allows running NonCPS code within a wrapper without defining an extra variable.
+  <p/>
+  Usage example:<br/>
+  <pre>
+    nonCPS.exec() {
+      def formatter = new org.jfree.chart.axis.QuarterDateFormat()
+      echo "Current Time: " + formatter.format(new Date())
+    }
+  </pre>
+</div>
