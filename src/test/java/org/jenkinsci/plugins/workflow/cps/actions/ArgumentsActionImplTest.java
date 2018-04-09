@@ -18,6 +18,7 @@ import hudson.model.Action;
 import hudson.model.Result;
 import hudson.model.TaskListener;
 import hudson.tasks.ArtifactArchiver;
+import hudson.util.VersionNumber;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.RandomStringUtils;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
@@ -58,6 +59,9 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assume.assumeTrue;
+
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -235,7 +239,7 @@ public class ArgumentsActionImplTest {
     @Test
     @Issue("JENKINS-48644")
     public void testMissingDescriptionInsideStage() throws Exception {
-        Assume.assumeTrue(r.jenkins.getComputer("").isUnix()); // No need for windows-specific testing
+        assumeTrue(r.jenkins.getComputer("").isUnix()); // No need for windows-specific testing
         WorkflowJob j = r.jenkins.createProject(WorkflowJob.class, "HiddenStep");
         j.setDefinition(new CpsFlowDefinition("node{\n" +
                 "   stage ('Build') {\n" +
@@ -490,7 +494,7 @@ public class ArgumentsActionImplTest {
         ArgumentsAction act = testNode.getPersistentAction(ArgumentsAction.class);
         Assert.assertNotNull(act);
         Object delegate = act.getArgumentValue("delegate");
-        Assert.assertThat(delegate, instanceOf(ArtifactArchiver.class));
+        assertThat(delegate, instanceOf(ArtifactArchiver.class));
         Assert.assertEquals("msg.out", ((ArtifactArchiver) delegate).getArtifacts());
         Assert.assertFalse(((ArtifactArchiver) delegate).isFingerprint());
     }
@@ -510,18 +514,40 @@ public class ArgumentsActionImplTest {
         r.assertLogContains("Got argument foo. Timestamp=", run);
     }
 
+    //TODO: Uncomment once JENKINS-50670 is fixed
+    @Test
+    @Issue("JENKINS-50670")
+    @Ignore
+    public void testArgumentActionJEP200Propagation() throws Exception {
+        assumeTrue("Jenkins should be 2.102+ to reproduce JEP-200 issues",
+                Jenkins.getVersion().isNewerThan(new VersionNumber("2.102")));
+        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "argumentActionFiltering");
+        // TODO: apparently Pipeline does not fail if JEP-200 regression happens
+        // for ArgumentsActionImpl#arguments() within NonCPS
+        job.setDefinition(new CpsFlowDefinition(
+                "nonCPS.exec() {\n" +
+                        "   def formatter = new org.jfree.chart.axis.QuarterDateFormat()\n" +
+                        "   printTimestamp arg1: 'foo', formatter: formatter, persistFormatter: true\n" +
+                        "}", false));
+        WorkflowRun run = job.scheduleBuild2(0).get();
+        assertThat("Run should fail dues to the serialization of non-whitelisted variable",
+                run.getResult(), equalTo(Result.FAILURE));
+    }
+
 
     public static class ArgumentFilteringStep extends AbstractStepImpl {
         /**
          * Relative path of the script within the current workspace.
          */
         private final String arg1;
+        private final boolean persistFormatter;
         private final transient DateFormat formatter;
 
         @DataBoundConstructor
-        public ArgumentFilteringStep(String arg1, DateFormat formatter) {
+        public ArgumentFilteringStep(String arg1, boolean persistFormatter, DateFormat formatter) {
             this.arg1 = arg1;
             this.formatter = formatter;
+            this.persistFormatter = persistFormatter;
         }
 
         public String getArg1() {
@@ -542,14 +568,15 @@ public class ArgumentsActionImplTest {
 
             @Override
             public boolean start() throws Exception {
-                listener.getLogger().println("Got argument " + step.arg1 +
-                        ". Timestamp=" + step.formatter.format(new Date()));
+                listener.getLogger().println(
+                        String.format("Got argument %s(persist formatter: %s). Timestamp=%s",
+                                step.arg1, step.persistFormatter, step.formatter.format(new Date())));
                 getContext().onSuccess(Result.SUCCESS);
                 return true;
             }
         }
 
-        @TestExtension("testArgumentActionFiltering")
+        @TestExtension({"testArgumentActionFiltering", "testArgumentActionJEP200Propagation"})
         public static class DescriptorImpl extends AbstractStepDescriptorImpl implements ArgumentsActionFilteringStepDescriptor {
             public DescriptorImpl() {
                 super(ArgumentFilteringStepExecution.class);
@@ -569,7 +596,8 @@ public class ArgumentsActionImplTest {
             @Override
             public Map<String, Object> filterForAction(@Nonnull Step step, @Nonnull Map<String, Object> arguments) {
                 Map<String, Object> result = new HashMap<>(arguments);
-                if (result.containsKey("formatter")) {
+                ArgumentFilteringStep filteringStep = (ArgumentFilteringStep)step;
+                if (!filteringStep.persistFormatter && result.containsKey("formatter")) {
                     // TODO: add something better to NotStoredReason enum?
                     result.replace("formatter", ArgumentsAction.NotStoredReason.MASKED_VALUE);
                 }
