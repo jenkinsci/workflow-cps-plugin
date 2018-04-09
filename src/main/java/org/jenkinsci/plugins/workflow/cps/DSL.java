@@ -215,7 +215,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                     if (comp != null && allEnv != null) {
                         allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
                     }
-                    an.addAction(new ArgumentsActionImpl(ps.namedArgs, allEnv));
+                    an.addAction(new ArgumentsActionImpl(s, ps.namedArgs, allEnv));
                 }
             } catch (Exception e) {
                 // Avoid breaking execution because we can't store some sort of crazy Step argument

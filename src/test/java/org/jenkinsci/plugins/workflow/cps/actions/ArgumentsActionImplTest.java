@@ -9,10 +9,14 @@ import com.google.common.collect.Collections2;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.inject.Inject;
 import hudson.EnvVars;
+import hudson.Extension;
 import hudson.Functions;
 import hudson.XmlFile;
 import hudson.model.Action;
+import hudson.model.Result;
+import hudson.model.TaskListener;
 import hudson.tasks.ArtifactArchiver;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.RandomStringUtils;
@@ -21,9 +25,12 @@ import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.actions.StageAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
+import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
 import org.jenkinsci.plugins.workflow.cps.CpsThread;
 import org.jenkinsci.plugins.workflow.cps.DescriptorMatchPredicate;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
+import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
+import org.jenkinsci.plugins.workflow.cps.steps.LoadStepExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
@@ -33,8 +40,13 @@ import org.jenkinsci.plugins.workflow.graphanalysis.LinearScanner;
 import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepTypePredicate;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
+import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
+import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
 import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
 import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
@@ -53,14 +65,20 @@ import org.jvnet.hudson.test.JenkinsRule;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
+import org.jvnet.hudson.test.TestExtension;
+import org.kohsuke.stapler.DataBoundConstructor;
+
+import javax.annotation.Nonnull;
 
 /**
  * Tests the input sanitization and step persistence here
@@ -475,6 +493,90 @@ public class ArgumentsActionImplTest {
         Assert.assertThat(delegate, instanceOf(ArtifactArchiver.class));
         Assert.assertEquals("msg.out", ((ArtifactArchiver) delegate).getArtifacts());
         Assert.assertFalse(((ArtifactArchiver) delegate).isFingerprint());
+    }
+
+    @Test
+    @Issue("JENKINS-50665")
+    public void testArgumentActionFiltering() throws Exception {
+        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "argumentActionFiltering");
+        // TODO: apparently Pipeline does not fail if JEP-200 regression happens
+        // for ArgumentsActionImpl#arguments() within NonCPS
+        job.setDefinition(new CpsFlowDefinition(
+                "nonCPS.exec() {\n" +
+                        "   def formatter = new org.jfree.chart.axis.QuarterDateFormat()\n" +
+                        "   printTimestamp arg1: 'foo', formatter: formatter\n" +
+                        "}", false));
+        WorkflowRun run = r.buildAndAssertSuccess(job);
+        r.assertLogContains("Got argument foo. Timestamp=", run);
+    }
+
+
+    public static class ArgumentFilteringStep extends AbstractStepImpl {
+        /**
+         * Relative path of the script within the current workspace.
+         */
+        private final String arg1;
+        private final transient DateFormat formatter;
+
+        @DataBoundConstructor
+        public ArgumentFilteringStep(String arg1, DateFormat formatter) {
+            this.arg1 = arg1;
+            this.formatter = formatter;
+        }
+
+        public String getArg1() {
+            return arg1;
+        }
+
+        public DateFormat getFormatter() {
+            return formatter;
+        }
+
+        public static class ArgumentFilteringStepExecution extends AbstractStepExecutionImpl {
+
+            @Inject(optional=true)
+            private transient ArgumentFilteringStep step;
+
+            @StepContextParameter
+            private transient TaskListener listener;
+
+            @Override
+            public boolean start() throws Exception {
+                listener.getLogger().println("Got argument " + step.arg1 +
+                        ". Timestamp=" + step.formatter.format(new Date()));
+                getContext().onSuccess(Result.SUCCESS);
+                return true;
+            }
+        }
+
+        @TestExtension("testArgumentActionFiltering")
+        public static class DescriptorImpl extends AbstractStepDescriptorImpl implements ArgumentsActionFilteringStepDescriptor {
+            public DescriptorImpl() {
+                super(ArgumentFilteringStepExecution.class);
+            }
+
+            @Override
+            public String getFunctionName() {
+                return "printTimestamp";
+            }
+
+            @Override
+            public String getDisplayName() {
+                return "Prints timestamp using a custom formatter";
+            }
+
+            @Nonnull
+            @Override
+            public Map<String, Object> filterForAction(@Nonnull Step step, @Nonnull Map<String, Object> arguments) {
+                Map<String, Object> result = new HashMap<>(arguments);
+                if (result.containsKey("formatter")) {
+                    // TODO: add something better to NotStoredReason enum?
+                    result.replace("formatter", ArgumentsAction.NotStoredReason.MASKED_VALUE);
+                }
+                return result;
+            }
+        }
+
     }
 
 }

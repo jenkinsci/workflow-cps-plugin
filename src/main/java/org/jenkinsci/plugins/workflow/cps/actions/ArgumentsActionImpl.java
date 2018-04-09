@@ -29,6 +29,7 @@ import hudson.EnvVars;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -58,8 +59,21 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
     boolean isUnmodifiedBySanitization = true;
 
+    public ArgumentsActionImpl(@CheckForNull Step step, @Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars env) {
+        Map<String, Object> args = stepArguments;
+
+        // Here we do not use the sanitizeXAndRecordMutation() logic defined below,
+        // because this logic intends filtering parameter hierarchies and nested steps.
+        // We do not actually want Step logic to contradict with such behavior.
+        final StepDescriptor d = step != null ? step.getDescriptor() : null;
+        if(d instanceof ArgumentsActionFilteringStepDescriptor) {
+            args = ((ArgumentsActionFilteringStepDescriptor)d).filterForAction(step, args);
+        }
+        arguments = sanitizeMapAndRecordMutation(args, env);
+    }
+
     public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars env) {
-        arguments = sanitizeMapAndRecordMutation(stepArguments, env);
+        this(null, stepArguments, env);
     }
 
     /** Create a step, sanitizing strings for secured content */
