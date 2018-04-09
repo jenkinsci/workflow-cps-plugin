@@ -33,7 +33,7 @@
     </parent>
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
     <artifactId>workflow-cps</artifactId>
-    <version>2.47</version> <!-- Temp version to help separate this work, remove before merge -->
+    <version>2.48-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>Pipeline: Groovy</name>
     <url>https://wiki.jenkins.io/display/JENKINS/Pipeline+Groovy+Plugin</url>
