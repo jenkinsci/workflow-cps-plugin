@@ -80,7 +80,8 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <version>2.25</version>
+            <!-- Temp version until upstream PR released -->
+            <version>2.27-20180411.200653-14</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
