@@ -30,6 +30,7 @@ import hudson.EnvVars;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -46,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
@@ -62,6 +64,8 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
 
     boolean isUnmodifiedBySanitization = true;
+
+    private static final Logger LOGGER = Logger.getLogger(ArgumentsActionImpl.class.getName());
 
     public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars env) {
         arguments = serializationCheck(sanitizeMapAndRecordMutation(stepArguments, env));
@@ -281,7 +285,6 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     Map<String, Object> serializationCheck(@Nonnull Map<String, Object> arguments) {
         boolean isMutated = false;
         HashMap<String, Object> out = Maps.newHashMapWithExpectedSize(arguments.size());
-        NullOutputStream strm = new NullOutputStream();
         for (Map.Entry<String, Object> entry : arguments.entrySet()) {
             Object val = entry.getValue();
             try {
@@ -293,6 +296,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             } catch (Exception ex) {
                 out.put(entry.getKey(), NotStoredReason.UNSERIALIZABLE);
                 isMutated = true;
+                LOGGER.log(Level.FINE, "Failed to serialize argument "+entry.getKey(), ex);
             }
         }
         if (isMutated) {
