@@ -9,15 +9,20 @@ import com.google.common.collect.Collections2;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import groovy.lang.MissingMethodException;
 import hudson.EnvVars;
 import hudson.Functions;
 import hudson.XmlFile;
 import hudson.model.Action;
+import hudson.model.Result;
+import hudson.remoting.ProxyException;
 import hudson.tasks.ArtifactArchiver;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.RandomStringUtils;
+import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
+import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.actions.StageAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
@@ -46,6 +51,10 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -269,6 +278,22 @@ public class ArgumentsActionImplTest {
         arguments.put("text", RandomStringUtils.random(maxSize+1));
         argumentsActionImpl = new ArgumentsActionImpl(arguments);
         Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, argumentsActionImpl.getArgumentValueOrReason("text"));
+    }
+
+    @Test
+    @Issue("JENKINS-50752")
+    public void testHandleUnserializableArguments() throws Exception {
+        HashMap<String, Object> unserializable = new HashMap<String, Object>(3);
+        Object me = new Object() {
+            Object writeReplace() {
+                throw new RuntimeException("Can't serialize me nyah nyah!");
+            }
+        };
+        unserializable.put("ex", me);
+
+        ArgumentsActionImpl impl = new ArgumentsActionImpl(unserializable);
+        Assert.assertEquals(ArgumentsAction.NotStoredReason.UNSERIALIZABLE, impl.getArgumentValueOrReason("ex"));
+        Assert.assertFalse("Should show argument removed by sanitization", impl.isUnmodifiedArguments());
     }
 
     @Test

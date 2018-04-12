@@ -25,15 +25,19 @@
 package org.jenkinsci.plugins.workflow.cps.actions;
 
 import com.google.common.collect.Maps;
+import com.google.common.io.NullOutputStream;
 import hudson.EnvVars;
+import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,6 +46,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 
@@ -58,8 +65,10 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
     boolean isUnmodifiedBySanitization = true;
 
+    private static final Logger LOGGER = Logger.getLogger(ArgumentsActionImpl.class.getName());
+
     public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars env) {
-        arguments = sanitizeMapAndRecordMutation(stepArguments, env);
+        arguments = serializationCheck(sanitizeMapAndRecordMutation(stepArguments, env));
     }
 
     /** Create a step, sanitizing strings for secured content */
@@ -265,6 +274,35 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         } else {  // Any mutation was just from exploding step/uninstantiated describable, and we can just use the original
             return o;
         }
+    }
+
+    static final OutputStream NULL_STRM = new NullOutputStream();
+
+    /** Verify that all the arguments WILL serialize and if not replace with {@link org.jenkinsci.plugins.workflow.actions.ArgumentsAction.NotStoredReason#UNSERIALIZABLE}
+     *  See JENKINS-50752 for details, but the gist is we need to avoid problems before physical persistence to prevent data loss.
+     *  @return Arguments
+     */
+    Map<String, Object> serializationCheck(@Nonnull Map<String, Object> arguments) {
+        boolean isMutated = false;
+        HashMap<String, Object> out = Maps.newHashMapWithExpectedSize(arguments.size());
+        for (Map.Entry<String, Object> entry : arguments.entrySet()) {
+            Object val = entry.getValue();
+            try {
+                if (val != null && !(val instanceof String) && !(val instanceof Boolean) && !(val instanceof Number) && !(val instanceof NotStoredReason) && !(val instanceof TimeUnit)) {
+                    // We only need to check serialization for nontrivial types
+                    Jenkins.XSTREAM2.toXMLUTF8(entry.getValue(), NULL_STRM);  // Hacky but can't find a better way
+                }
+                out.put(entry.getKey(), entry.getValue());
+            } catch (Exception ex) {
+                out.put(entry.getKey(), NotStoredReason.UNSERIALIZABLE);
+                isMutated = true;
+                LOGGER.log(Level.FINE, "Failed to serialize argument "+entry.getKey(), ex);
+            }
+        }
+        if (isMutated) {
+            this.isUnmodifiedBySanitization = false;
+        }
+        return out;
     }
 
     /**
