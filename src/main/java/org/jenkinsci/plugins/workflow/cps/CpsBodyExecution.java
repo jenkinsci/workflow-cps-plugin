@@ -337,7 +337,6 @@ class CpsBodyExecution extends BodyExecution {
                 FlowHead h = CpsThread.current().head;
                 StepStartNode ssn = addBodyStartFlowNode(h);
                 h.setNewHead(ssn);
-                CpsFlowExecution.maybeAutoPersistNode(ssn);
             }
 
             StepEndNode en = addBodyEndFlowNode();

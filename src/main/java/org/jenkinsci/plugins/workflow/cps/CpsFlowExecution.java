@@ -134,7 +134,6 @@ import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -1482,7 +1481,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             @Override public void onSuccess(CpsThreadGroup g) {
                 if (v) {
                     g.pause();
-                    checkAndAbortNonresumableBuild();
+                    checkAndAbortNonresumableBuild();  // TODO Verify if we can rely on just killing paused builds at shutdown via checkAndAbortNonresumableBuild()
                     checkpoint();
                 } else {
                     g.unpause();
@@ -1510,12 +1509,16 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             LOGGER.fine("starting to suspend all executions");
             for (FlowExecution execution : FlowExecutionList.get()) {
                 if (execution instanceof CpsFlowExecution) {
+                    CpsFlowExecution cpsExec = (CpsFlowExecution)execution;
+                    cpsExec.checkAndAbortNonresumableBuild();
+
                     LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
                     exec = (CpsFlowExecution) execution;
                     // Like waitForSuspension but with a timeout:
                     if (exec.programPromise != null) {
                         exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
                     }
+                    cpsExec.checkpoint();
                 }
             }
             LOGGER.fine("finished suspending all executions");
@@ -1858,19 +1861,23 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 persistOk = false;
                 LOGGER.log(Level.FINE, "Error saving program, that should be handled elsewhere.", ex);
             }
+            try { // Flush node storage just in case the Program mutated it, just to be sure
+                storage.flush();
+            } catch (IOException ioe) {
+                persistOk=false;
+                LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before shutdown", ioe);
+            }
             persistedClean = persistOk;
             saveOwner();
         }
     }
 
-    /** Clean shutdown of build. */
+    /** Abort any running builds at Jenkins shutdown if they don't support resuming at next startup. */
     private void checkAndAbortNonresumableBuild() {
         if (isComplete() || this.getDurabilityHint().isPersistWithEveryStep() || !isResumeBlocked()) {
             return;
         }
         try {
-            // FIXME we need to actually kill the darn build
-
             owner.getListener().getLogger().println("Failing build: shutting down master and build is marked to not resume");
             final Throwable x = new FlowInterruptedException(Result.ABORTED);
             Futures.addCallback(this.getCurrentExecutions(/* cf. JENKINS-26148 */true), new FutureCallback<List<StepExecution>>() {
@@ -1901,8 +1908,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /** Ensures that even if we're limiting persistence of data for performance, we still write out data for shutdown. */
     @Override
     protected void notifyShutdown() {
-        checkAndAbortNonresumableBuild();
-        checkpoint();
+        // No-op, handled in the suspendAll terminator
     }
 
 }

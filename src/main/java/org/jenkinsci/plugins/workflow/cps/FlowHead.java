@@ -124,11 +124,14 @@ final class FlowHead implements Serializable {
         try {
             if (this.head != null) {
                 CpsFlowExecution.maybeAutoPersistNode(head);
+                assert execution.storage.getNode(this.head.getId()) != null;
             }
             execution.storage.storeNode(v, true);
+            assert execution.storage.getNode(v.getId()) != null;
             v.addAction(new TimingAction());
-        } catch (IOException e) {
-            LOGGER.log(Level.FINE, "Failed to record new head: " + v, e);
+            CpsFlowExecution.maybeAutoPersistNode(v); // Persist node before changing head, otherwise Program can have unpersisted nodes.
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, "Failed to record new head or persist old: " + v, e);
         }
         this.head = v;
         CpsThreadGroup c = CpsThreadGroup.current();
@@ -179,10 +182,16 @@ final class FlowHead implements Serializable {
 
     private Object readResolve() {
         execution = CpsFlowExecution.PROGRAM_STATE_SERIALIZATION.get();
-        if (execution!=null)
-            return execution.getFlowHead(id);
-        else
+        if (execution!=null) {
+            // See if parallel loading?
+            FlowHead myHead = execution.getFlowHead(id);
+            if (myHead == null) {
+                LOGGER.log(Level.WARNING, "FlowHead loading problem at deserialize: Null FlowHead with id "+id+" in execution "+execution);
+            }
+            return myHead;
+        } else {
             return this;
+        }
     }
 
     private static final Logger LOGGER = Logger.getLogger(FlowHead.class.getName());
