@@ -839,7 +839,7 @@ public class FlowDurabilityTest {
      * May fail rarely due to files being copied in a different order than they are modified as part of simulating a dirty restart.
      * See {@link RestartableJenkinsRule#simulateAbruptShutdown()} for why that copying happens. */
     @Test
-    @Ignore //Too long to run as part of main suite
+    //Too long to run as part of main suite
     @TimedRepeatRule.RepeatForTime(repeatMillis = 150_000)
     public void fuzzTimingDurable() throws Exception {
         final String jobName = "NestedParallelDurableJob";
@@ -874,6 +874,7 @@ public class FlowDurabilityTest {
                     } catch (AssertionError ase) {
                         throw new AssertionError("Build hung: "+run, ase);
                     }
+                    verifyCompletedCleanly(story.j.jenkins, run);
                     Assert.assertEquals(Result.SUCCESS, run.getResult());
                 } else {
                     verifyCompletedCleanly(story.j.jenkins, run);
@@ -889,7 +890,7 @@ public class FlowDurabilityTest {
      *  May fail rarely due to files being copied in a different order than they are modified as part of simulating a dirty restart.
      *  See {@link RestartableJenkinsRule#simulateAbruptShutdown()} for why that copying happens. */
     @Test
-    @Ignore //Too long to run as part of main suite
+    //Too long to run as part of main suite
     @TimedRepeatRule.RepeatForTime(repeatMillis = 150_000)
     public void fuzzTimingNonDurable() throws Exception {
         final String jobName = "NestedParallelDurableJob";
@@ -924,6 +925,65 @@ public class FlowDurabilityTest {
                 story.j.assertLogContains(logStart[0], run);
             }
         });
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                Assert.assertFalse(FlowExecutionList.get().iterator().hasNext());
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                Assert.assertFalse(run.isBuilding());
+                Assert.assertTrue(run.getExecution().isComplete());
+                if (run.getExecution() instanceof  CpsFlowExecution) {
+                    assert ((CpsFlowExecution)(run.getExecution())).done;
+                }
+            }
+        });
 
+    }
+
+    /** Test interrupting build by randomly restarting *cleanly* at unpredictable times and verify we stick pick up and resume. */
+    @Test
+    //Too long to run as part of main suite
+    @TimedRepeatRule.RepeatForTime(repeatMillis = 150_000)
+    public void fuzzTimingNonDurableWithCleanRestart() throws Exception {
+        final String jobName = "NestedParallelDurableJob";
+        final String[] logStart = new String[1];
+
+        // Create thread that eventually interrupts Jenkins with a hard shutdown at a random time interval
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = runFuzzerJob(story.j, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                logStart[0] = JenkinsRule.getLog(run);
+                if (run.getExecution() != null) {
+                    Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                }
+            }
+        });
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                if (run.getExecution() != null) {
+                    Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                }
+                if (run.isBuilding()) {
+                    try {
+                        story.j.waitUntilNoActivityUpTo(30_000);
+                    } catch (AssertionError ase) {
+                        throw new AssertionError("Build hung: "+run, ase);
+                    }
+                }
+                verifyCompletedCleanly(story.j.jenkins, run);
+                story.j.assertLogContains(logStart[0], run);
+                if (run.isBuilding()) {
+                    try {
+                        story.j.waitUntilNoActivityUpTo(30_000);
+                    } catch (AssertionError ase) {
+                        throw new AssertionError("Build hung: "+run, ase);
+                    }
+                }
+                Assert.assertEquals(Result.SUCCESS, run.getResult());
+            }
+        });
     }
 }
