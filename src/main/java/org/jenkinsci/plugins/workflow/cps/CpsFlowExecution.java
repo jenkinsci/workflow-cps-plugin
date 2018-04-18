@@ -1809,7 +1809,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 saveable.save();
             }
         } catch (IOException ex) {
-            LOGGER.log(Level.WARNING, "Error persisting Run before shutdown", ex);
+            LOGGER.log(Level.WARNING, "Error persisting Run "+owner, ex);
             persistedClean = false;
         }
     }
