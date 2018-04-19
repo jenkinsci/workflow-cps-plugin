@@ -53,7 +53,6 @@ import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
 import static org.hamcrest.Matchers.*;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
-import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
@@ -61,7 +60,6 @@ import static org.junit.Assert.*;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runners.model.Statement;
@@ -140,27 +138,41 @@ public class ReplayActionTest {
     @Test public void lazyLoadExecutionStillReplayable() throws Exception {
         story.then( r-> {
             WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+            WorkflowJob p2 = r.jenkins.createProject(WorkflowJob.class, "p2");
             p.setDefinition(new CpsFlowDefinition("echo 'I did a thing'", false));
+            p2.setDefinition(new CpsFlowDefinition("echo 'I did a thing'", true));
             // Start off with a simple run of the first script.
             r.buildAndAssertSuccess(p);
+            r.buildAndAssertSuccess(p2);
 
             r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
             GlobalMatrixAuthorizationStrategy gmas = new GlobalMatrixAuthorizationStrategy();
             gmas.add(Jenkins.ADMINISTER, "admin");
+            gmas.add(ReplayAction.REPLAY, "normal");
+            r.jenkins.setAuthorizationStrategy(gmas);
         });
         story.then( r-> {
             WorkflowJob job = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowJob job2 = r.jenkins.getItemByFullName("p2", WorkflowJob.class);
             WorkflowRun run = job.getLastBuild();
+            WorkflowRun run2 = job2.getLastBuild();
+
             JenkinsRule.WebClient wc = r.createWebClient();
             Assert.assertNull(run.asFlowExecutionOwner().getOrNull());
             Assert.assertTrue(canReplay(run, "admin"));
+            Assert.assertTrue(canReplay(run, "normal"));
             Assert.assertTrue(canRebuild(run, "admin"));
             Assert.assertNull(run.asFlowExecutionOwner().getOrNull());
 
-            FlowExecution exec = run.getExecution();
+            // After lazy-load we can do deeper checks easily, and the deep test triggers a full load of the execution
+            Assert.assertTrue(canReplayDeepTest(run, "admin"));
+            Assert.assertTrue(canReplayDeepTest(run2, "normal"));
+
             Assert.assertNotNull(run.asFlowExecutionOwner().getOrNull());
-            canReplay(run, "admin");
-            canRebuild(run, "admin");
+            Assert.assertTrue(canReplay(run, "admin"));
+            Assert.assertFalse(canReplay(run, "normal")); // Now we know to check if the user can run outside sandbox, and they can't
+            Assert.assertTrue(canReplay(run2, "normal")); // We can still run stuff inside sandbox
+            Assert.assertTrue(canRebuild(run, "admin"));
         });
     }
 
@@ -223,6 +235,15 @@ public class ReplayActionTest {
         return ACL.impersonate(User.get(user).impersonate(), new NotReallyRoleSensitiveCallable<Boolean,RuntimeException>() {
             @Override public Boolean call() throws RuntimeException {
                 return a.isEnabled();
+            }
+        });
+    }
+
+    private static boolean canReplayDeepTest(WorkflowRun b, String user) {
+        final ReplayAction a = b.getAction(ReplayAction.class);
+        return ACL.impersonate(User.get(user).impersonate(), new NotReallyRoleSensitiveCallable<Boolean,RuntimeException>() {
+            @Override public Boolean call() throws RuntimeException {
+                return a.isReplayableSandboxTest();
             }
         });
     }

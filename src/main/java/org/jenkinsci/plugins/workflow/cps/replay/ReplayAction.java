@@ -152,10 +152,26 @@ public class ReplayAction implements Action {
         }
 
         CpsFlowExecution exec = getExecutionLazy();
-        if (exec != null && exec.isSandbox() && !(Jenkins.getActiveInstance().hasPermission(Jenkins.ADMINISTER))) {
-            return false; // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-master code
+        if (exec != null) {
+            return exec.isSandbox() || Jenkins.getActiveInstance().hasPermission(Jenkins.ADMINISTER); // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-master code
+        } else {
+            // If the execution hasn't been lazy-loaded then we will wait to do deeper checks until someone tries to lazy load
+            // OR until isReplayableSandboxTest is invoked b/c they actually try to replay the build
+            return true;
         }
-        return true;  // If the execution hasn't been lazy-loaded then we will wait to do deeper checks until someone tries to lazy load.
+    }
+
+    /** Runs the extra tests for replayability beyond {@link #isEnabled()} that require a blocking load of the execution. */
+    /* accessible to Jelly */ public boolean isReplayableSandboxTest() {
+        CpsFlowExecution exec = getExecutionBlocking();
+        if (exec != null) {
+            if (!exec.isSandbox()) {
+                // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-master code
+                return Jenkins.getActiveInstance().hasPermission(Jenkins.ADMINISTER);
+            }
+            return true;
+        }
+        return false;
     }
 
     /** @see CpsFlowExecution#getScript */
@@ -184,7 +200,7 @@ public class ReplayAction implements Action {
     @Restricted(DoNotUse.class)
     @RequirePOST
     public void doRun(StaplerRequest req, StaplerResponse rsp) throws ServletException, IOException {
-        if (!isEnabled()) {
+        if (!isEnabled() || !(isReplayableSandboxTest())) {
             throw new AccessDeniedException("not allowed to replay"); // AccessDeniedException2 requires us to look up the specific Permission
         }
         JSONObject form = req.getSubmittedForm();
