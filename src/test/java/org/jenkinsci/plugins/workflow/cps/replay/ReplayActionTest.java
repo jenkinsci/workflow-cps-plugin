@@ -153,8 +153,8 @@ public class ReplayActionTest {
             WorkflowRun run = job.getLastBuild();
             JenkinsRule.WebClient wc = r.createWebClient();
             Assert.assertNull(run.asFlowExecutionOwner().getOrNull());
-            canReplay(run, "admin");
-            canRebuild(run, "admin");
+            Assert.assertTrue(canReplay(run, "admin"));
+            Assert.assertTrue(canRebuild(run, "admin"));
             Assert.assertNull(run.asFlowExecutionOwner().getOrNull());
 
             FlowExecution exec = run.getExecution();

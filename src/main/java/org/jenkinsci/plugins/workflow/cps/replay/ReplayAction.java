@@ -139,7 +139,7 @@ public class ReplayAction implements Action {
             return false;
         }
 
-        return getExecutionLazy() != null;
+        return true;
     }
 
     /* accessible to Jelly */ public boolean isEnabled() {
@@ -152,15 +152,10 @@ public class ReplayAction implements Action {
         }
 
         CpsFlowExecution exec = getExecutionLazy();
-        if (exec == null) {
-            return false;
+        if (exec != null && exec.isSandbox() && !(Jenkins.getActiveInstance().hasPermission(Jenkins.ADMINISTER))) {
+            return false; // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-master code
         }
-        if (exec.isSandbox()) {
-            return true;
-        } else {
-            // Whole-script approval mode. Can we submit an arbitrary script right here?
-            return Jenkins.getActiveInstance().hasPermission(Jenkins.RUN_SCRIPTS);
-        }
+        return true;  // If the execution hasn't been lazy-loaded then we will wait to do deeper checks until someone tries to lazy load.
     }
 
     /** @see CpsFlowExecution#getScript */
