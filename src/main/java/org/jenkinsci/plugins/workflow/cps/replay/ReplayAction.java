@@ -106,13 +106,29 @@ public class ReplayAction implements Action {
         return isEnabled() || isRebuildEnabled() ? "replay" : null;
     }
 
-    private @CheckForNull CpsFlowExecution getExecution() {
+    /** Poke for an execution without blocking - may be null if run is very fresh or has not lazy-loaded yet. */
+    private @CheckForNull CpsFlowExecution getExecutionLazy() {
         FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
         if (owner == null) {
             return null;
         }
         FlowExecution exec = owner.getOrNull();
         return exec instanceof CpsFlowExecution ? (CpsFlowExecution) exec : null;
+    }
+
+    /** Fetches execution, blocking if needed while we wait for some of the loading process. */
+    private @CheckForNull CpsFlowExecution getExecutionBlocking() {
+        FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
+        if (owner == null) {
+            return null;
+        }
+        try {
+            FlowExecution exec = owner.get();
+            return exec instanceof CpsFlowExecution ? (CpsFlowExecution) exec : null;
+        } catch (IOException ioe) {
+            LOGGER.log(Level.WARNING, "Error fetching execution for replay", ioe);
+        }
+        return null;
     }
 
     /* accessible to Jelly */ public boolean isRebuildEnabled() {
@@ -123,7 +139,7 @@ public class ReplayAction implements Action {
             return false;
         }
 
-        return getExecution() != null;
+        return getExecutionLazy() != null;
     }
 
     /* accessible to Jelly */ public boolean isEnabled() {
@@ -135,7 +151,7 @@ public class ReplayAction implements Action {
             return false;
         }
 
-        CpsFlowExecution exec = getExecution();
+        CpsFlowExecution exec = getExecutionLazy();
         if (exec == null) {
             return false;
         }
@@ -149,13 +165,13 @@ public class ReplayAction implements Action {
 
     /** @see CpsFlowExecution#getScript */
     /* accessible to Jelly */ public String getOriginalScript() {
-        CpsFlowExecution execution = getExecution();
+        CpsFlowExecution execution = getExecutionBlocking();
         return execution != null ? execution.getScript() : "???";
     }
 
     /** @see CpsFlowExecution#getLoadedScripts */
     /* accessible to Jelly */ public Map<String,String> getOriginalLoadedScripts() {
-        CpsFlowExecution execution = getExecution();
+        CpsFlowExecution execution = getExecutionBlocking();
         if (execution == null) { // ?
             return Collections.<String,String>emptyMap();
         }
@@ -228,7 +244,7 @@ public class ReplayAction implements Action {
      */
     public @CheckForNull Queue.Item run2(@Nonnull String replacementMainScript, @Nonnull Map<String,String> replacementLoadedScripts) {
         List<Action> actions = new ArrayList<Action>();
-        CpsFlowExecution execution = getExecution();
+        CpsFlowExecution execution = getExecutionBlocking();
         if (execution == null) {
             return null;
         }

@@ -53,10 +53,13 @@ import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
 import static org.hamcrest.Matchers.*;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.junit.Assert.*;
+
+import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -130,6 +133,34 @@ public class ReplayActionTest {
                 WorkflowRun b2 = (WorkflowRun) b1.getAction(ReplayAction.class).run("echo \"run again with ${param}\"", Collections.<String,String>emptyMap()).get();
                 story.j.assertLogContains("run again with some value", story.j.assertBuildStatusSuccess(b2));
             }
+        });
+    }
+
+    @Issue("JENKINS-50784")
+    @Test public void lazyLoadExecutionStillReplayable() throws Exception {
+        story.then( r-> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("echo 'I did a thing'", false));
+            // Start off with a simple run of the first script.
+            r.buildAndAssertSuccess(p);
+
+            r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
+            GlobalMatrixAuthorizationStrategy gmas = new GlobalMatrixAuthorizationStrategy();
+            gmas.add(Jenkins.ADMINISTER, "admin");
+        });
+        story.then( r-> {
+            WorkflowJob job = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun run = job.getLastBuild();
+            JenkinsRule.WebClient wc = r.createWebClient();
+            Assert.assertNull(run.asFlowExecutionOwner().getOrNull());
+            canReplay(run, "admin");
+            canRebuild(run, "admin");
+            Assert.assertNull(run.asFlowExecutionOwner().getOrNull());
+
+            FlowExecution exec = run.getExecution();
+            Assert.assertNotNull(run.asFlowExecutionOwner().getOrNull());
+            canReplay(run, "admin");
+            canRebuild(run, "admin");
         });
     }
 
