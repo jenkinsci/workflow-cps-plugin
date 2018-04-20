@@ -616,6 +616,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /** Handle failures where we can't load heads. */
     private void rebuildEmptyGraph() {
         synchronized (this) {
+            this.done = Boolean.TRUE;  // Ensures that the flow does not show as incomplete if the graph data is corrupt
             // something went catastrophically wrong and there's no live head. fake one
             LOGGER.log(Level.WARNING, "Failed to load pipeline heads/start nodes, so faking some up for execution " + this.toString());
             if (this.startNodes == null) {
@@ -689,6 +690,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             startNodesSerial = null;
 
         } catch (Exception ioe) {
+            this.done = Boolean.TRUE;
             LOGGER.log(Level.WARNING, "Error initializing storage and loading nodes for "+this, ioe);
             storageErrors = true;
         }
@@ -732,6 +734,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
             try {
                 if (!isComplete()) {
+                    // FOR SOME REASON we're arriving here even for *completed* builds sometimes, hopefully logging above helps
                     if (canResume()) {
                         loadProgramAsync(getProgramDataFile());
                     } else {
