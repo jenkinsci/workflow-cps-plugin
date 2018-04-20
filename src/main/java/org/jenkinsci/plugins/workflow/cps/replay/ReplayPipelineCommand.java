@@ -67,7 +67,7 @@ import org.kohsuke.args4j.spi.Setter;
             // which currently has no protected method allowing getItemByFullName to be replaced.
             throw new AbortException("Not a Pipeline build");
         }
-        if (!action.isEnabled()) {
+        if (!action.isEnabled() || !action.isReplayableSandboxTest()) {
             throw new AbortException("Not authorized to replay builds of this job");
         }
         String text = IOUtils.toString(stdin);

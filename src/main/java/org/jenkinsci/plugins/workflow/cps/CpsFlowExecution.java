@@ -1782,7 +1782,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             if (run instanceof FlowExecutionOwner.Executable) {
                                 FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
                                 if (owner != null) {
-                                    FlowExecution exec = owner.getOrNull();
+                                    FlowExecution exec = owner.get();
                                     if (exec instanceof CpsFlowExecution) {
                                         Map<String, Long> timings = ((CpsFlowExecution) exec).timings;
                                         if (timings != null) {

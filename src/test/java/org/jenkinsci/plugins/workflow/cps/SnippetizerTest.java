@@ -49,6 +49,7 @@ import org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Colorado;
 import org.jenkinsci.plugins.workflow.testMetaStep.EchoResultStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.EchoStringAndDoubleStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Hawaii;
 import org.jenkinsci.plugins.workflow.testMetaStep.Island;
 import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicData;
@@ -355,10 +356,10 @@ public class SnippetizerTest {
 
     @Issue("JENKINS-31967")
     @Test public void testStandardJavaTypes() throws Exception {
-        JUnitResultArchiver a = new JUnitResultArchiver("*.xml");
-        st.assertRoundTrip(new CoreStep(a), "junit '*.xml'");
-        a.setHealthScaleFactor(0.5);
-        st.assertRoundTrip(new CoreStep(a), "junit healthScaleFactor: 0.5, testResults: '*.xml'");
+        EchoStringAndDoubleStep a = new EchoStringAndDoubleStep("some string");
+        st.assertRoundTrip(a, "echoStringAndDouble 'some string'");
+        a.setNumber(0.5);
+        st.assertRoundTrip(a, "echoStringAndDouble number: 0.5, string: 'some string'");
     }
 
     @Test

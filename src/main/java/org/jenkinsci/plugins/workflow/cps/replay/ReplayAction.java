@@ -106,13 +106,29 @@ public class ReplayAction implements Action {
         return isEnabled() || isRebuildEnabled() ? "replay" : null;
     }
 
-    private @CheckForNull CpsFlowExecution getExecution() {
+    /** Poke for an execution without blocking - may be null if run is very fresh or has not lazy-loaded yet. */
+    private @CheckForNull CpsFlowExecution getExecutionLazy() {
         FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
         if (owner == null) {
             return null;
         }
         FlowExecution exec = owner.getOrNull();
         return exec instanceof CpsFlowExecution ? (CpsFlowExecution) exec : null;
+    }
+
+    /** Fetches execution, blocking if needed while we wait for some of the loading process. */
+    private @CheckForNull CpsFlowExecution getExecutionBlocking() {
+        FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
+        if (owner == null) {
+            return null;
+        }
+        try {
+            FlowExecution exec = owner.get();
+            return exec instanceof CpsFlowExecution ? (CpsFlowExecution) exec : null;
+        } catch (IOException ioe) {
+            LOGGER.log(Level.WARNING, "Error fetching execution for replay", ioe);
+        }
+        return null;
     }
 
     /* accessible to Jelly */ public boolean isRebuildEnabled() {
@@ -123,7 +139,7 @@ public class ReplayAction implements Action {
             return false;
         }
 
-        return getExecution() != null;
+        return true;
     }
 
     /* accessible to Jelly */ public boolean isEnabled() {
@@ -135,27 +151,38 @@ public class ReplayAction implements Action {
             return false;
         }
 
-        CpsFlowExecution exec = getExecution();
-        if (exec == null) {
-            return false;
-        }
-        if (exec.isSandbox()) {
-            return true;
+        CpsFlowExecution exec = getExecutionLazy();
+        if (exec != null) {
+            return exec.isSandbox() || Jenkins.getActiveInstance().hasPermission(Jenkins.RUN_SCRIPTS); // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-master code
         } else {
-            // Whole-script approval mode. Can we submit an arbitrary script right here?
-            return Jenkins.getActiveInstance().hasPermission(Jenkins.RUN_SCRIPTS);
+            // If the execution hasn't been lazy-loaded then we will wait to do deeper checks until someone tries to lazy load
+            // OR until isReplayableSandboxTest is invoked b/c they actually try to replay the build
+            return true;
         }
+    }
+
+    /** Runs the extra tests for replayability beyond {@link #isEnabled()} that require a blocking load of the execution. */
+    /* accessible to Jelly */ public boolean isReplayableSandboxTest() {
+        CpsFlowExecution exec = getExecutionBlocking();
+        if (exec != null) {
+            if (!exec.isSandbox()) {
+                // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-master code
+                return Jenkins.getActiveInstance().hasPermission(Jenkins.RUN_SCRIPTS);
+            }
+            return true;
+        }
+        return false;
     }
 
     /** @see CpsFlowExecution#getScript */
     /* accessible to Jelly */ public String getOriginalScript() {
-        CpsFlowExecution execution = getExecution();
+        CpsFlowExecution execution = getExecutionBlocking();
         return execution != null ? execution.getScript() : "???";
     }
 
     /** @see CpsFlowExecution#getLoadedScripts */
     /* accessible to Jelly */ public Map<String,String> getOriginalLoadedScripts() {
-        CpsFlowExecution execution = getExecution();
+        CpsFlowExecution execution = getExecutionBlocking();
         if (execution == null) { // ?
             return Collections.<String,String>emptyMap();
         }
@@ -173,7 +200,7 @@ public class ReplayAction implements Action {
     @Restricted(DoNotUse.class)
     @RequirePOST
     public void doRun(StaplerRequest req, StaplerResponse rsp) throws ServletException, IOException {
-        if (!isEnabled()) {
+        if (!isEnabled() || !(isReplayableSandboxTest())) {
             throw new AccessDeniedException("not allowed to replay"); // AccessDeniedException2 requires us to look up the specific Permission
         }
         JSONObject form = req.getSubmittedForm();
@@ -228,7 +255,7 @@ public class ReplayAction implements Action {
      */
     public @CheckForNull Queue.Item run2(@Nonnull String replacementMainScript, @Nonnull Map<String,String> replacementLoadedScripts) {
         List<Action> actions = new ArrayList<Action>();
-        CpsFlowExecution execution = getExecution();
+        CpsFlowExecution execution = getExecutionBlocking();
         if (execution == null) {
             return null;
         }
