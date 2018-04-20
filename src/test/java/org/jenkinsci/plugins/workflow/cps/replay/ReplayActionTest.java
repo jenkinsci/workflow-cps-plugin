@@ -147,6 +147,7 @@ public class ReplayActionTest {
 
             r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
             GlobalMatrixAuthorizationStrategy gmas = new GlobalMatrixAuthorizationStrategy();
+            gmas.add(Jenkins.RUN_SCRIPTS, "admin");
             gmas.add(Jenkins.ADMINISTER, "admin");
             gmas.add(ReplayAction.REPLAY, "normal");
             r.jenkins.setAuthorizationStrategy(gmas);
@@ -200,7 +201,7 @@ public class ReplayActionTest {
                 List<Permission> permissions = Run.PERMISSIONS.getPermissions();
                 assertThat(permissions, Matchers.hasItem(ReplayAction.REPLAY));
                 gmas.add(ReplayAction.REPLAY, "dev2");
-                gmas.add(Jenkins.READ, "dev3");
+                gmas.add(Jenkins.Rit gEAD, "dev3");
                 gmas.add(Item.BUILD, "dev3"); // does not imply REPLAY, does allow rebuilding
                 story.j.jenkins.setAuthorizationStrategy(gmas);
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
