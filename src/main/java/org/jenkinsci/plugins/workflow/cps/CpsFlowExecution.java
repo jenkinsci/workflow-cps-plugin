@@ -617,12 +617,14 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     private void rebuildEmptyGraph() {
         synchronized (this) {
             // something went catastrophically wrong and there's no live head. fake one
-            LOGGER.log(Level.WARNING, "Failed to load pipeline heads, so faking some up for execution " + this.toString());
+            LOGGER.log(Level.WARNING, "Failed to load pipeline heads/start nodes, so faking some up for execution " + this.toString());
             if (this.startNodes == null) {
                 this.startNodes = new Stack<BlockStartNode>();
             }
 
-            if (this.heads != null && this.heads.size() > 0) {
+            if (this.heads == null) {
+                this.heads = new TreeMap<Integer,FlowHead>();
+            } else if (!this.heads.isEmpty()) {
                 if (LOGGER.isLoggable(Level.INFO)) {
                     LOGGER.log(Level.INFO, "Resetting heads to rebuild the Pipeline structure, tossing existing heads: "+getHeadsAsString());
                 }
@@ -686,8 +688,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
             startNodesSerial = null;
 
-        } catch (IOException ioe) {
-            LOGGER.log(Level.WARNING, "Error initializing storage and loading nodes", ioe);
+        } catch (Exception ioe) {
+            LOGGER.log(Level.WARNING, "Error initializing storage and loading nodes for "+this, ioe);
             storageErrors = true;
         }
 
@@ -1519,7 +1521,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     exec = (CpsFlowExecution) execution;
                     // Like waitForSuspension but with a timeout:
                     if (exec.programPromise != null) {
-                        exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
+                        LOGGER.log(Level.FINER, "Waiting for Pipeline to go to sleep for shutdown: "+execution);
+                        try {
+                            exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
+                            LOGGER.log(Level.FINER, " Pipeline went to sleep OK: "+execution);
+                        } catch (InterruptedException | TimeoutException ex) {
+                            LOGGER.log(Level.WARNING, "Error waiting for Pipeline to suspend: "+exec, ex);
+                        }
                     }
                     cpsExec.checkpoint();
                 }
