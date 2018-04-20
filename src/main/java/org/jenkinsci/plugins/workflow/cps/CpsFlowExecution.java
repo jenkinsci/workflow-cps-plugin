@@ -719,6 +719,17 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this.owner = owner;
         try {
             initializeStorage();
+            if (heads == null) {
+                LOGGER.log(Level.WARNING, "Null Flow heads after initializing storage for FlowExecution "+this);
+            } else if (heads.isEmpty()) {
+                LOGGER.log(Level.INFO, "Empty flow heads after initializing storage - not necessarily an error, but odd - for FlowExecution "+this);
+            }
+            if (startNodes == null) {
+                LOGGER.log(Level.WARNING, "Null block start nodes after initializing storage for FlowExecution "+this);
+            } else if (startNodes.isEmpty()) {
+                LOGGER.log(Level.INFO, "Empty block start nodes after initializing storage - not necessarily an error, but odd - for FlowExecution "+this);
+            }
+
             try {
                 if (!isComplete()) {
                     if (canResume()) {
