@@ -45,6 +45,7 @@ import org.jenkinsci.plugins.workflow.graph.BlockEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 /**
@@ -116,6 +117,7 @@ final class FlowHead implements Serializable {
         execution.storage.storeNode(head, false);
     }
 
+    /** Could be better described as "append to Flow graph" except for parallel cases. */
     void setNewHead(@Nonnull FlowNode v) {
         if (v == null) {
             // Because Findbugs isn't 100% at catching cases where this can happen and we really need to fail hard-and-fast
@@ -133,7 +135,7 @@ final class FlowHead implements Serializable {
             // NOTE: we may also need to persist the FlowExecution by persisting its owner (which will be a WorkflowRun)
             // But this will be handled by the WorkflowRun GraphListener momentarily
         } catch (Exception e) {
-            LOGGER.log(Level.FINE, "Failed to record new head or persist old: " + v, e);
+            LOGGER.log(Level.WARNING, "Failed to record new head or persist old: " + v, e);
         }
         this.head = v;
         CpsThreadGroup c = CpsThreadGroup.current();
@@ -182,16 +184,18 @@ final class FlowHead implements Serializable {
         // we'll replace this with one of execution.heads()
     }
 
+    @Nonnull
     private Object readResolve() {
         execution = CpsFlowExecution.PROGRAM_STATE_SERIALIZATION.get();
         if (execution!=null) {
             // See if parallel loading?
             FlowHead myHead = execution.getFlowHead(id);
             if (myHead == null) {
-                LOGGER.log(Level.WARNING, "FlowHead loading problem at deserialize: Null FlowHead with id "+id+" in execution "+execution);
+                throw new IllegalStateException("FlowHead loading problem at deserialize: Null FlowHead with id "+id+" in execution "+execution);
             }
             return myHead;
         } else {
+            LOGGER.log(Level.WARNING, "Tried to load a FlowHead from program with no Execution in PROGRAM_STATE_SERIALIZTION");
             return this;
         }
     }

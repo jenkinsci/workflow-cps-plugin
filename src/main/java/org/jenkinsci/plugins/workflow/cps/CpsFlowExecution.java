@@ -1054,10 +1054,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     //
     synchronized void addHead(FlowHead h) {
         heads.put(h.getId(), h);
+        saveExecutionIfDurable(); // We need to save the mutated heads for the run
     }
 
     synchronized void removeHead(FlowHead h) {
         heads.remove(h.getId());
+        saveExecutionIfDurable(); // We need to save the mutated heads for the run
     }
 
     /**
@@ -1073,6 +1075,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         for (FlowHead h : _heads) {
             if (h.get()==n) {
                 h.remove();
+                saveExecutionIfDurable(); // We need to save the mutated heads for the run
                 return;
             }
         }
@@ -1801,11 +1804,28 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     }
 
+    /** Persist the execution if we are set up to save the execution with every step. */
+    void saveExecutionIfDurable() {
+        if (this.getDurabilityHint().isPersistWithEveryStep()) {
+            saveOwner();
+        }
+    }
+
     /** Save the owner that holds this execution. */
     void saveOwner() {
         try {
             if (this.owner != null && this.owner.getExecutable() instanceof Saveable) {  // Null-check covers some anomalous cases we've seen
                 Saveable saveable = (Saveable)(this.owner.getExecutable());
+                persistedClean = true;
+                if (storage != null && storage.delegate != null) {
+                    // Defensively flush FlowNodes to storage
+                    try {
+                        storage.flush();
+                    } catch (Exception ex) {
+                        LOGGER.log(Level.WARNING, "Error persisting FlowNodes for execution "+owner, ex);
+                        persistedClean = false;
+                    }
+                }
                 saveable.save();
             }
         } catch (IOException ex) {

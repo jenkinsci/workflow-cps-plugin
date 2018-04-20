@@ -577,6 +577,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // the first one can reuse the current thread, but other ones need to create new heads
             // we want to do this first before starting body so that the order of heads preserve
             // natural ordering.
+
+            // FIXME give this javadocs worth a darn, because this is how we create parallel branches and the docs are crypic.
+            // Also we need to double-check this logic because this might cause a failure of persistence
             FlowHead[] heads = new FlowHead[context.bodyInvokers.size()];
             for (int i = 0; i < heads.length; i++) {
                 heads[i] = i==0 ? cur.head : cur.head.fork();
