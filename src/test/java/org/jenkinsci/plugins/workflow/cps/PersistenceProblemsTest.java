@@ -39,7 +39,7 @@ public class PersistenceProblemsTest {
     static void assertCompletedCleanly(WorkflowRun run) throws Exception {
         if (run.isBuilding()) {
             System.out.println("Run initially building, going to wait a second to see if it finishes, run="+run);
-            Thread.sleep(1);
+            Thread.sleep(1000);
         }
         Assert.assertFalse(run.isBuilding());
         Assert.assertNotNull(run.getResult());
@@ -54,7 +54,7 @@ public class PersistenceProblemsTest {
         if (fe instanceof CpsFlowExecution) {
             CpsFlowExecution cpsExec = (CpsFlowExecution)fe;
             Assert.assertTrue(cpsExec.isComplete());
-//            Assert.assertEquals(Boolean.TRUE, cpsExec.persistedClean);
+            Assert.assertEquals(Boolean.TRUE, cpsExec.persistedClean);
             Assert.assertEquals(Boolean.TRUE, cpsExec.done);
             Assert.assertEquals(1, cpsExec.getCurrentHeads().size());
             Assert.assertTrue(cpsExec.getCurrentHeads().get(0) instanceof FlowEndNode);
