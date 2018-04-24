@@ -25,6 +25,7 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.Outcome;
+import com.google.common.annotations.VisibleForTesting;
 import hudson.model.Action;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -69,7 +70,8 @@ final class FlowHead implements Serializable {
     private /*almost final except for serialization*/ int id;
     private /*almost final except for serialization*/ transient CpsFlowExecution execution;
 
-    private FlowNode head; // TODO: rename to node
+    @VisibleForTesting
+    FlowNode head; // TODO: rename to node
 
     FlowHead(CpsFlowExecution execution, int id) {
         this.id = id;
