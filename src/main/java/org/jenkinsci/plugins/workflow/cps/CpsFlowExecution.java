@@ -610,43 +610,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         } else if (myHeads.size() == 0) {
             return "empty-heads";
         } else {
-            return myHeads.entrySet().stream().map(h->h.getKey()+"::"+h.getValue()).collect(Collectors.joining(","));
-        }
-
-    }
-
-    /** Handle failures where we can't load heads. */
-    private void rebuildEmptyGraph() {
-        synchronized (this) {
-            this.done = Boolean.TRUE;  // Ensures that the flow does not show as incomplete if the graph data is corrupt
-            // something went catastrophically wrong and there's no live head. fake one
-            LOGGER.log(Level.WARNING, "Failed to load pipeline heads/start nodes, so faking some up for execution " + this.toString());
-            if (this.startNodes == null) {
-                this.startNodes = new Stack<BlockStartNode>();
-            }
-
-            if (this.heads == null) {
-                this.heads = new TreeMap<Integer,FlowHead>();
-            } else if (!this.heads.isEmpty()) {
-                if (LOGGER.isLoggable(Level.INFO)) {
-                    LOGGER.log(Level.INFO, "Resetting heads to rebuild the Pipeline structure, tossing existing heads: "+getHeadsAsString());
-                }
-                this.heads.clear();
-            }
-
-            this.startNodes.clear();
-            FlowHead head = new FlowHead(this);
-            heads.put(head.getId(), head);
-            try {
-                FlowStartNode start = new FlowStartNode(this, iotaStr());
-                startNodes.push(start);
-                head.newStartNode(start);
-            } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "Failed to persist FlowNode", e);
-            }
-            persistedClean = false;
-            startNodesSerial = null;
-            headsSerial = null;
+            return myHeads.entrySet().stream().map(h -> h.getKey() + "::" + h.getValue()).collect(Collectors.joining(","));
         }
     }
 
@@ -697,10 +661,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             storageErrors = true;
         }
 
-        if (storageErrors) {  //
-            this.storageDir = (this.storageDir != null) ? this.storageDir+"-fallback" : "workflow-fallback";  // Avoid overwriting data
-            this.storage = createStorage();  // Empty storage
-            rebuildEmptyGraph();  // Mimic up some basic flowGraph data as much as we can.
+        if (storageErrors) {
             throw new IOException("Failed to load FlowNodes for build, see errors in Jenkins log");
         }
     }
@@ -723,18 +684,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this.owner = owner;
 
         try {
-            initializeStorage();
-            if (heads == null) {
-                LOGGER.log(Level.WARNING, "Null Flow heads after initializing storage for FlowExecution "+this);
-            } else if (heads.isEmpty()) {
-                LOGGER.log(Level.INFO, "Empty flow heads after initializing storage - probably an error, but odd - for FlowExecution "+this);
-            }
-            if (startNodes == null) {
-                LOGGER.log(Level.WARNING, "Null block start nodes after initializing storage for FlowExecution "+this);
-            } else if (startNodes.isEmpty() && heads != null && !(heads.isEmpty())) {
-                LOGGER.log(Level.INFO, "Empty block start nodes after initializing storage - not necessarily an error, but odd - for FlowExecution "+this);
-            }
+            initializeStorage();  // Throws exception and bombs out if we can't load FlowNodes
+        } catch (Exception ex) {
+            programPromise = Futures.immediateFailedFuture(ex);
+            throw ex;
+        }
 
+        try {
             if (!isComplete()) {
                 // FOR SOME REASON we're arriving here even for *completed* builds sometimes, hopefully logging above helps
                 if (canResume()) {
@@ -747,7 +703,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 }
             } else if (done && !super.isComplete()) {
                 LOGGER.log(Level.WARNING, "Completed flow without FlowEndNode: "+this+" heads:"+getHeadsAsString());
-
             }
         } catch (Exception e) {  // Multicatch ensures that failure to load does not nuke the master
             SettableFuture<CpsThreadGroup> p = SettableFuture.create();
@@ -756,7 +711,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         } finally {
             if (programPromise == null) {
                 programPromise = Futures.immediateFailedFuture(new IllegalStateException("completed or broken execution"));
-
             }
         }
     }

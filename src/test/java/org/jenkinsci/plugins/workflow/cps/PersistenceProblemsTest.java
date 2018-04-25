@@ -3,6 +3,7 @@ package org.jenkinsci.plugins.workflow.cps;
 import com.google.common.util.concurrent.ListenableFuture;
 import hudson.model.Queue;
 import hudson.model.Result;
+import org.apache.commons.io.FileUtils;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
@@ -21,8 +22,10 @@ import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
+import sun.misc.IOUtils;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -35,6 +38,18 @@ public class PersistenceProblemsTest {
 
     @Rule
     public RestartableJenkinsRule story = new RestartableJenkinsRule();
+
+    /** Execution bombed out due to some sort of irrecoverable persistence issue. */
+    static void assertNulledExecution(WorkflowRun run) throws Exception {
+        if (run.isBuilding()) {
+            System.out.println("Run initially building, going to wait a second to see if it finishes, run="+run);
+            Thread.sleep(1000);
+        }
+        Assert.assertFalse(run.isBuilding());
+        Assert.assertNotNull(run.getResult());
+        FlowExecution fe = run.getExecution();
+        Assert.assertNull(fe);
+    }
 
     /** Verifies all the assumptions about a cleanly finished build. */
     static void assertCompletedCleanly(WorkflowRun run) throws Exception {
@@ -147,7 +162,7 @@ public class PersistenceProblemsTest {
         story.then(j-> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
-            assertCompletedCleanly(run);
+            assertNulledExecution(run);
             Assert.assertEquals(Result.SUCCESS, run.getResult());
         });
     }
@@ -157,15 +172,12 @@ public class PersistenceProblemsTest {
         final int[] build = new int[1];
         story.thenWithHardShutdown( j -> {
             WorkflowRun run = runBasicBuild(j, DEFAULT_JOBNAME, build);
-
-            // Hack but deletes the FlowNodeStorage from disk
-            CpsFlowExecution cpsExec = (CpsFlowExecution)(run.getExecution());
-            cpsExec.getStorageDir().delete();
+            FileUtils.deleteDirectory(((CpsFlowExecution)(run.getExecution())).getStorageDir());
         });
         story.then(j-> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
-            assertCompletedCleanly(run);
+            assertNulledExecution(run);
             Assert.assertEquals(Result.SUCCESS, run.getResult());
         });
     }
@@ -262,7 +274,7 @@ public class PersistenceProblemsTest {
         story.thenWithHardShutdown( j -> {
             WorkflowRun run = runBasicPauseOnInput(j, DEFAULT_JOBNAME, build);
             CpsFlowExecution cpsExec = (CpsFlowExecution)(run.getExecution());
-            cpsExec.getStorageDir().delete();
+            FileUtils.deleteDirectory(((CpsFlowExecution)(run.getExecution())).getStorageDir());
         });
         story.then( j->{
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
