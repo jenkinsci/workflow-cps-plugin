@@ -35,6 +35,7 @@ import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
 import com.cloudbees.jenkins.support.api.Component;
 import com.cloudbees.jenkins.support.api.Container;
 import com.cloudbees.jenkins.support.api.Content;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.FutureCallback;
@@ -231,6 +232,7 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
  * @author Kohsuke Kawaguchi
  */
 @PersistIn(RUN)
+@SuppressFBWarnings(value = "IS_FIELD_NOT_GUARDED", justification = "temporary only")
 public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /**
      * Groovy script of the main source file (that the user enters in the GUI)
@@ -640,7 +642,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 startNodes.push(start);
                 head.newStartNode(start);
             } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "Failed to persist", e);
+                LOGGER.log(Level.WARNING, "Failed to persist FlowNode", e);
             }
             persistedClean = false;
             startNodesSerial = null;
@@ -698,8 +700,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         if (storageErrors) {  //
             this.storageDir = (this.storageDir != null) ? this.storageDir+"-fallback" : "workflow-fallback";  // Avoid overwriting data
             this.storage = createStorage();  // Empty storage
-            // Need to find a way to mimic up the heads and fail cleanly, far enough to let the canResume do its thing
-            rebuildEmptyGraph();
+            rebuildEmptyGraph();  // Mimic up some basic flowGraph data as much as we can.
+            throw new IOException("Failed to load FlowNodes for build, see errors in Jenkins log");
         }
     }
 
@@ -719,41 +721,42 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     @SuppressFBWarnings(value = "RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN", justification = "We want to explicitly check for boolean not-null and true")
     public void onLoad(FlowExecutionOwner owner) throws IOException {
         this.owner = owner;
+
         try {
             initializeStorage();
             if (heads == null) {
                 LOGGER.log(Level.WARNING, "Null Flow heads after initializing storage for FlowExecution "+this);
             } else if (heads.isEmpty()) {
-                LOGGER.log(Level.INFO, "Empty flow heads after initializing storage - not necessarily an error, but odd - for FlowExecution "+this);
+                LOGGER.log(Level.INFO, "Empty flow heads after initializing storage - probably an error, but odd - for FlowExecution "+this);
             }
             if (startNodes == null) {
                 LOGGER.log(Level.WARNING, "Null block start nodes after initializing storage for FlowExecution "+this);
-            } else if (startNodes.isEmpty()) {
+            } else if (startNodes.isEmpty() && heads != null && !(heads.isEmpty())) {
                 LOGGER.log(Level.INFO, "Empty block start nodes after initializing storage - not necessarily an error, but odd - for FlowExecution "+this);
             }
 
-            try {
-                if (!isComplete()) {
-                    // FOR SOME REASON we're arriving here even for *completed* builds sometimes, hopefully logging above helps
-                    if (canResume()) {
-                        loadProgramAsync(getProgramDataFile());
-                    } else {
-                        // TODO if possible, consider trying to close out unterminated blocks to keep existing graph history
-                        // That way we can visualize the graph in some error cases.
-                        LOGGER.log(Level.WARNING, "Pipeline state not properly persisted, cannot resume "+owner.getUrl());
-                        throw new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down.");
-                    }
-                } else if (done && !super.isComplete()) {
-                    LOGGER.log(Level.WARNING, "Completed flow without FlowEndNode: "+this+" heads:"+getHeadsAsString());
+            if (!isComplete()) {
+                // FOR SOME REASON we're arriving here even for *completed* builds sometimes, hopefully logging above helps
+                if (canResume()) {
+                    loadProgramAsync(getProgramDataFile());
+                } else {
+                    // TODO if possible, consider trying to close out unterminated blocks to keep existing graph history
+                    // That way we can visualize the graph in some error cases.
+                    LOGGER.log(Level.WARNING, "Pipeline state not properly persisted, cannot resume "+owner.getUrl());
+                    throw new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down.");
                 }
-            } catch (Exception e) {  // Multicatch ensures that failure to load does not nuke the master
-                SettableFuture<CpsThreadGroup> p = SettableFuture.create();
-                programPromise = p;
-                loadProgramFailed(e, p);
+            } else if (done && !super.isComplete()) {
+                LOGGER.log(Level.WARNING, "Completed flow without FlowEndNode: "+this+" heads:"+getHeadsAsString());
+
             }
+        } catch (Exception e) {  // Multicatch ensures that failure to load does not nuke the master
+            SettableFuture<CpsThreadGroup> p = SettableFuture.create();
+            programPromise = p;
+            loadProgramFailed(e, p);
         } finally {
             if (programPromise == null) {
                 programPromise = Futures.immediateFailedFuture(new IllegalStateException("completed or broken execution"));
+
             }
         }
     }
@@ -1240,7 +1243,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
         } catch (Exception ex) {
             done = Boolean.TRUE;
-            throw ex;
+            LOGGER.log(Level.WARNING, "Error trying to end execution "+this, ex);
         }
 
         try {
@@ -1248,6 +1251,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         } catch (IOException ioe) {
             LOGGER.log(Level.WARNING, "Error flushing FlowNodeStorage to disk at end of run", ioe);
         }
+
+        this.persistedClean = Boolean.TRUE;
+        saveOwner();
     }
 
     void cleanUpHeap() {
@@ -1875,12 +1881,15 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             // Try to ensure we've saved the appropriate things -- the program is the last stumbling block.
             try {
                 final SettableFuture<Void> myOutcome = SettableFuture.create();
+                LOGGER.log(Level.INFO, "About to try to checkpoint the program for build"+this);
                 if (programPromise != null && programPromise.isDone()) {
                     runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
                         @Override
                         public void onSuccess(CpsThreadGroup result) {
                             try {
+                                LOGGER.log(Level.INFO, "Trying to save program before shutdown "+this);
                                 result.saveProgramIfPossible(true);
+                                LOGGER.log(Level.INFO, "Finished saving program before shutdown "+this);
                                 myOutcome.set(null);
                             } catch (Exception ex) {
                                 LOGGER.log(Level.WARNING, "Error persisting program: "+ex);
@@ -1890,10 +1899,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
                         @Override
                         public void onFailure(Throwable t) {
+                            LOGGER.log(Level.WARNING, "Failed trying to save program before shutdown "+this);
                             myOutcome.setException(t);
                         }
                     });
                     myOutcome.get(30, TimeUnit.SECONDS);
+                    LOGGER.log(Level.FINE, "Successfully saved program for "+this);
                 }
 
             } catch (TimeoutException te) {
@@ -1905,12 +1916,18 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
             try { // Flush node storage just in case the Program mutated it, just to be sure
                 storage.flush();
+                LOGGER.log(Level.FINE, "Successfully did final flush of storage for "+this);
             } catch (IOException ioe) {
                 persistOk=false;
                 LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before shutdown", ioe);
             }
             persistedClean = persistOk;
-            saveOwner();
+            try {
+                saveOwner();
+            } catch (Exception ex) {
+                LOGGER.log(Level.WARNING, "Error saving build for "+this, ex);
+            }
+
         }
     }
 
