@@ -22,10 +22,8 @@ import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
-import sun.misc.IOUtils;
 
 import java.io.File;
-import java.nio.file.Files;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -126,10 +124,15 @@ public class PersistenceProblemsTest {
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
         ListenableFuture<FlowExecution> listener = run.getExecutionPromise();
         FlowExecution exec = listener.get();
-        while(run.getAction(InputAction.class) != null) {  // Wait until input step starts
+        while(exec.getCurrentHeads().isEmpty() || (exec.getCurrentHeads().get(0) instanceof FlowStartNode)) {  // Wait until input step starts
+            System.out.println("Waiting for input step to begin");
             Thread.sleep(50);
         }
-        Thread.sleep(1000L);
+        while(run.getAction(InputAction.class) == null) {  // Wait until input step starts
+            System.out.println("Waiting for input action to get attached to run");
+            Thread.sleep(50);
+        }
+        Thread.sleep(100L);  // A little extra buffer for persistence etc
         jobIdNumber[0] = run.getNumber();
         return run;
     }
@@ -275,26 +278,6 @@ public class PersistenceProblemsTest {
             WorkflowRun run = runBasicPauseOnInput(j, DEFAULT_JOBNAME, build);
             CpsFlowExecution cpsExec = (CpsFlowExecution)(run.getExecution());
             FileUtils.deleteDirectory(((CpsFlowExecution)(run.getExecution())).getStorageDir());
-        });
-        story.then( j->{
-            WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
-            WorkflowRun run = r.getBuildByNumber(build[0]);
-            assertCompletedCleanly(run);
-        });
-    }
-
-    /** Failed to save the Execution after the Program bumped the FlowHeads */
-    @Test
-    public void inProgressButProgramAheadOfExecutionLost() throws Exception {
-        final int[] build = new int[1];
-        story.thenWithHardShutdown( j -> {
-            WorkflowRun run = runBasicPauseOnInput(j, DEFAULT_JOBNAME, build);
-            CpsFlowExecution cpsExec = (CpsFlowExecution)(run.getExecution());
-            FlowHead currHead = cpsExec.heads.firstEntry().getValue();
-
-            // Set the head to the previous value and SAVE
-            currHead.head = cpsExec.getCurrentHeads().get(0).getParents().get(0);
-            run.save();
         });
         story.then( j->{
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
