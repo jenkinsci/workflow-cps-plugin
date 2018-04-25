@@ -691,8 +691,16 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         try {
-            if (!isComplete()) {
-                // FOR SOME REASON we're arriving here even for *completed* builds sometimes, hopefully logging above helps
+            if (isComplete()) {
+                if (done == Boolean.TRUE && !super.isComplete()) {
+                    LOGGER.log(Level.WARNING, "Completed flow without FlowEndNode: "+this+" heads:"+getHeadsAsString());
+                }
+                if (super.isComplete() && done != Boolean.TRUE) {
+                    LOGGER.log(Level.WARNING, "Flow has FlowEndNode, but is not marked as done, fixing this for"+this);
+                    done = true;
+                    saveOwner();
+                }
+            } else {  // See if we can/should resume build
                 if (canResume()) {
                     loadProgramAsync(getProgramDataFile());
                 } else {
@@ -701,8 +709,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     LOGGER.log(Level.WARNING, "Pipeline state not properly persisted, cannot resume "+owner.getUrl());
                     throw new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down.");
                 }
-            } else if (done && !super.isComplete()) {
-                LOGGER.log(Level.WARNING, "Completed flow without FlowEndNode: "+this+" heads:"+getHeadsAsString());
             }
         } catch (Exception e) {  // Multicatch ensures that failure to load does not nuke the master
             SettableFuture<CpsThreadGroup> p = SettableFuture.create();
@@ -878,15 +884,19 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         });
     }
 
+    /** See JENKINS-22941 for why this exists. */
     @Override public boolean blocksRestart() {
         if (programPromise == null || !programPromise.isDone()) {
+            // Can't restart cleanly while trying to set up the build
             return true;
         }
         CpsThreadGroup g;
         try {
             g = programPromise.get();
         } catch (Exception x) {
-            return true;
+            // FIXME check this won't cause issues due to depickling delays etc
+            LOGGER.log(Level.FINE, "Not blocking restart due to exception in ProgramPromise: "+this, x);
+            return false;
         }
         return g.busy;
     }
