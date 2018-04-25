@@ -616,41 +616,30 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification="Storage does not actually NEED to be synchronized but the rest does.")
     protected synchronized void initializeStorage() throws IOException {
-        boolean storageErrors = false;  // Maybe storage didn't get to persist properly or files were deleted.
         try {
             storage = createStorage();
+            heads = new TreeMap<Integer,FlowHead>();
+            for (Map.Entry<Integer,String> entry : headsSerial.entrySet()) {
+                FlowHead h = new FlowHead(this, entry.getKey());
 
-                heads = new TreeMap<Integer,FlowHead>();
-                for (Map.Entry<Integer,String> entry : headsSerial.entrySet()) {
-                    FlowHead h = new FlowHead(this, entry.getKey());
-
-                    FlowNode n = storage.getNode(entry.getValue());
-                    if (n != null) {
-                        h.setForDeserialize(storage.getNode(entry.getValue()));
-                        heads.put(h.getId(), h);
-                    } else {
-                        LOGGER.log(Level.WARNING, "Tried to load head FlowNodes for execution "+this.owner+" but FlowNode was not found in storage for head id:FlowNodeId "+entry.getKey()+":"+entry.getValue());
-                        storageErrors = true;
-                        break;
-                    }
+                FlowNode n = storage.getNode(entry.getValue());
+                if (n != null) {
+                    h.setForDeserialize(storage.getNode(entry.getValue()));
+                    heads.put(h.getId(), h);
+                } else {
+                    throw new IOException("Tried to load head FlowNodes for execution "+this.owner+" but FlowNode was not found in storage for head id:FlowNodeId "+entry.getKey()+":"+entry.getValue());
                 }
-
+            }
             headsSerial = null;
 
-            if (!storageErrors) {
-                // Same for startNodes:
-                storageErrors = false;
-                startNodes = new Stack<BlockStartNode>();
-                for (String id : startNodesSerial) {
-                    FlowNode node = storage.getNode(id);
-                    if (node != null) {
-                        startNodes.add((BlockStartNode) storage.getNode(id));
-                    } else {
-                        // TODO if possible, consider trying to close out unterminated blocks using heads, to keep existing graph history
-                        LOGGER.log(Level.WARNING, "Tried to load startNode FlowNodes for execution "+this.owner+" but FlowNode was not found in storage for FlowNode Id "+id);
-                        storageErrors = true;
-                        break;
-                    }
+            startNodes = new Stack<BlockStartNode>();
+            for (String id : startNodesSerial) {
+                FlowNode node = storage.getNode(id);
+                if (node != null) {
+                    startNodes.add((BlockStartNode) storage.getNode(id));
+                } else {
+                    // TODO if possible, consider trying to close out unterminated blocks using heads, to keep existing graph history
+                    throw  new IOException( "Tried to load startNode FlowNodes for execution "+this.owner+" but FlowNode was not found in storage for FlowNode Id "+id);
                 }
             }
             startNodesSerial = null;
@@ -658,10 +647,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         } catch (Exception ioe) {
             this.done = Boolean.TRUE;
             LOGGER.log(Level.WARNING, "Error initializing storage and loading nodes for "+this, ioe);
-            storageErrors = true;
-        }
-
-        if (storageErrors) {
             throw new IOException("Failed to load FlowNodes for build, see errors in Jenkins log");
         }
     }
@@ -685,6 +670,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
         try {
             initializeStorage();  // Throws exception and bombs out if we can't load FlowNodes
+            // TODO attempt to mock out the remaining bits of the FlowGraph and terminate cleanly as needed
+            // This includes setting done, persistedClean, programPromise values
+            // Creating new start/end nodes in a new storage directory and updating heads + starts appropriately.
+            // Plus invoking graphListeners potentially and setting build result explicitly by fetching the Executable runs
+            // WHY?  This lets us retain scripts etc
         } catch (Exception ex) {
             programPromise = Futures.immediateFailedFuture(ex);
             throw ex;
