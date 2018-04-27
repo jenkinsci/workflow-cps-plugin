@@ -622,6 +622,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     @GuardedBy("this")
     void createPlaceholderNodes(Throwable failureReason) throws Exception {
         this.done = true;
+
+        if (this.owner != null && this.owner.getExecutable() instanceof Run) {
+            Run r = (Run)(owner.getExecutable());
+            setResult(r.getResult() != null ? r.getResult() : Result.FAILURE);
+        }
+
         try {
             programPromise = Futures.immediateFailedFuture(new IllegalStateException("Failed loading heads", failureReason));
             LOGGER.log(Level.INFO, "Creating placeholder flownodes for execution: "+this);
@@ -649,10 +655,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             FlowNode end = new FlowEndNode(this, iotaStr(), (FlowStartNode)startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
             end.addAction(new ErrorAction(failureReason));
             head.setNewHead(end);
-
-            if (this.result == null) {
-                setResult(Result.FAILURE);
-            }
             saveOwner();
 
         } catch (Exception ex) {
