@@ -99,6 +99,11 @@ public class PersistenceProblemsTest {
         Assert.assertTrue(cpsExec.startNodes != null && !cpsExec.startNodes.isEmpty());
     }
 
+    static void assertResultMatchExecutionAndRun(WorkflowRun run, Result[] executionAndBuildResult) throws Exception {
+        Assert.assertEquals(executionAndBuildResult[0], ((CpsFlowExecution)(run.getExecution())).getResult());
+        Assert.assertEquals(executionAndBuildResult[1], run.getResult());
+    }
+
     /** Create and run a basic build before we mangle its persisted contents.  Stores job number to jobIdNumber index 0. */
     private static WorkflowRun runBasicBuild(JenkinsRule j, String jobName, int[] jobIdNumber, FlowDurabilityHint hint) throws Exception {
         WorkflowJob job = j.jenkins.createProject(WorkflowJob.class, jobName);
@@ -153,6 +158,7 @@ public class PersistenceProblemsTest {
     @Test
     public void completedFinalFlowNodeNotPersisted() throws Exception {
         final int[] build = new int[1];
+        final Result[] executionAndBuildResult = new Result[2];
         story.thenWithHardShutdown( j -> {
             WorkflowRun run = runBasicBuild(j, DEFAULT_JOBNAME, build);
             String finalId = run.getExecution().getCurrentHeads().get(0).getId();
@@ -161,27 +167,36 @@ public class PersistenceProblemsTest {
             CpsFlowExecution cpsExec = (CpsFlowExecution)(run.getExecution());
             File f = new File(cpsExec.getStorageDir(), finalId+".xml");
             f.delete();
+            executionAndBuildResult[0] = ((CpsFlowExecution)(run.getExecution())).getResult();
+            executionAndBuildResult[1] = run.getResult();
         });
         story.then(j-> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
-            assertNulledExecution(run);
+            assertCompletedCleanly(run);
+            //            assertNulledExecution(run);
             Assert.assertEquals(Result.SUCCESS, run.getResult());
+            assertResultMatchExecutionAndRun(run, executionAndBuildResult);
         });
     }
     /** Perhaps there was a serialization error breaking the FlowGraph persistence for non-durable mode. */
     @Test
     public void completedNoNodesPersisted() throws Exception {
         final int[] build = new int[1];
+        final Result[] executionAndBuildResult = new Result[2];
         story.thenWithHardShutdown( j -> {
             WorkflowRun run = runBasicBuild(j, DEFAULT_JOBNAME, build);
             FileUtils.deleteDirectory(((CpsFlowExecution)(run.getExecution())).getStorageDir());
+            executionAndBuildResult[0] = ((CpsFlowExecution)(run.getExecution())).getResult();
+            executionAndBuildResult[1] = run.getResult();
         });
         story.then(j-> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
-            assertNulledExecution(run);
+            assertCompletedCleanly(run);
+            // assertNulledExecution(run);
             Assert.assertEquals(Result.SUCCESS, run.getResult());
+            assertResultMatchExecutionAndRun(run, executionAndBuildResult);
         });
     }
 
@@ -189,6 +204,7 @@ public class PersistenceProblemsTest {
     @Test
     public void completedButWrongDoneStatus() throws Exception {
         final int[] build = new int[1];
+        final Result[] executionAndBuildResult = new Result[2];
         story.thenWithHardShutdown( j -> {
             WorkflowRun run = runBasicBuild(j, DEFAULT_JOBNAME, build);
             String finalId = run.getExecution().getCurrentHeads().get(0).getId();
@@ -197,12 +213,15 @@ public class PersistenceProblemsTest {
             CpsFlowExecution cpsExec = (CpsFlowExecution)(run.getExecution());
             cpsExec.done = false;
             cpsExec.saveOwner();
+            executionAndBuildResult[0] = ((CpsFlowExecution)(run.getExecution())).getResult();
+            executionAndBuildResult[1] = run.getResult();
         });
         story.then(j-> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
             assertCompletedCleanly(run);
             Assert.assertEquals(Result.SUCCESS, run.getResult());
+            assertResultMatchExecutionAndRun(run, executionAndBuildResult);
         });
     }
 
