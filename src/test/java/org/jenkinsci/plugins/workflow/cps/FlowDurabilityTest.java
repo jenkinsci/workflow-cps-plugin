@@ -877,6 +877,9 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                if (run == null) {
+                    return;
+                }
                 if (run.getExecution() != null) {
                     Assert.assertEquals(FlowDurabilityHint.MAX_SURVIVABILITY, run.getExecution().getDurabilityHint());
                 }
@@ -922,6 +925,9 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                if (run == null) {
+                    return;
+                }
                 if (run.getExecution() != null) {
                     Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
                 }
@@ -936,6 +942,9 @@ public class FlowDurabilityTest {
                 // Verify build doesn't resume at next restart, see JENKINS-50199
                 Assert.assertFalse(FlowExecutionList.get().iterator().hasNext());
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                if (run == null) {
+                    return;
+                }
                 Assert.assertFalse(run.isBuilding());
                 Assert.assertTrue(run.getExecution().isComplete());
                 if (run.getExecution() instanceof  CpsFlowExecution) {
@@ -974,6 +983,9 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                if (run == null) {
+                    return;
+                }
                 if (run.getExecution() != null) {
                     Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
                 }
