@@ -141,8 +141,8 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-job</artifactId>
-            <!-- Snapshot for better handling of onLoad error -->
-            <version>2.21-20180427.163721-4</version>
+            <!-- Snapshot for better handling of onLoad errors -->
+            <version>2.21-20180427.223321-5</version>
             <scope>test</scope>
         </dependency>
         <dependency>
