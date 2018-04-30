@@ -1538,23 +1538,27 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         try (Timeout t = Timeout.limit(3, TimeUnit.MINUTES)) { // TODO some complicated sequence of calls to Futures could allow all of them to run in parallel
             LOGGER.fine("starting to suspend all executions");
             for (FlowExecution execution : FlowExecutionList.get()) {
-                if (execution instanceof CpsFlowExecution) {
-                    CpsFlowExecution cpsExec = (CpsFlowExecution)execution;
-                    cpsExec.checkAndAbortNonresumableBuild();
+                try {
+                    if (execution instanceof CpsFlowExecution) {
+                        CpsFlowExecution cpsExec = (CpsFlowExecution)execution;
+                        cpsExec.checkAndAbortNonresumableBuild();
 
-                    LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
-                    exec = (CpsFlowExecution) execution;
-                    // Like waitForSuspension but with a timeout:
-                    if (exec.programPromise != null) {
-                        LOGGER.log(Level.FINER, "Waiting for Pipeline to go to sleep for shutdown: "+execution);
-                        try {
-                            exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
-                            LOGGER.log(Level.FINER, " Pipeline went to sleep OK: "+execution);
-                        } catch (InterruptedException | TimeoutException ex) {
-                            LOGGER.log(Level.WARNING, "Error waiting for Pipeline to suspend: "+exec, ex);
+                        LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
+                        exec = (CpsFlowExecution) execution;
+                        // Like waitForSuspension but with a timeout:
+                        if (exec.programPromise != null) {
+                            LOGGER.log(Level.FINER, "Waiting for Pipeline to go to sleep for shutdown: "+execution);
+                            try {
+                                exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
+                                LOGGER.log(Level.FINER, " Pipeline went to sleep OK: "+execution);
+                            } catch (InterruptedException | TimeoutException ex) {
+                                LOGGER.log(Level.WARNING, "Error waiting for Pipeline to suspend: "+exec, ex);
+                            }
                         }
+                        cpsExec.checkpoint();
                     }
-                    cpsExec.checkpoint();
+                } catch (Exception ex) {
+                    LOGGER.log(Level.WARNING, "Error persisting Pipeline execution at shutdown: "+((CpsFlowExecution) execution).owner, ex);
                 }
             }
             LOGGER.fine("finished suspending all executions");
