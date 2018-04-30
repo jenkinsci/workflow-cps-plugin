@@ -3,11 +3,11 @@
 # Data Model
 Running pipelines persist in 3 pieces:
 
-1. The FlowNodes - stored by a FlowNodeStorage - this holds the FlowNodes created to map to Steps, and for block scoped Steps, start and end of blocks
-2. The CpsFlowExecution - this is currently stored in the WorkflowRun, and the primary pieces of interest are:
+1. The `FlowNode`s - stored by a `FlowNodeStorage` - this holds the FlowNodes created to map to `Step`s, and for block scoped Steps, start and end of blocks
+2. The `CpsFlowExecution` - this is currently stored in the WorkflowRun, and the primary pieces of interest are:
     * heads - the current "tips" of the Flow Graph, i.e. the FlowNodes that represent running steps and are appended to
-        - A head maps to a CpsThread in the Pipeline program, within the CPSThreadGroup
-    * starts - the BlockStartNodes marking the start(s) of the currently executing blocks
+        - A head maps to a `CpsThread` in the Pipeline program, within the `CpsThreadGroup`
+    * starts - the `BlockStartNode`s marking the start(s) of the currently executing blocks
     * scripts - the loaded Pipeline script files (text)
     * persistedClean
         - If true, Pipeline saved its execution cleanly to disk and we *might* be able to resume it
@@ -18,7 +18,8 @@ Running pipelines persist in 3 pieces:
     *
     * various other boolean flags & settings for the execution (durability setting, user that started the build, is it sandboxed, etc)
 3. The Program -- this is the current execution state of the Pipeline
-    * This holds the Groovy state (transformed by CPS) plus the CPSThreadGroup for the running branches of the Pipeline
+    * This holds the Groovy state - the `CpsThreadGroup` - with runtime calls transformed by CPS so they can persist
+        * The `CpsThread`s map to the running branches of the Pipeline
     * The program depends on the FlowNodes from the FlowNodeStorage, since it reads them by ID rather than storing them in the program
     * This also depends on the heads in the CpsFlowExecution, because its FlowHeads are loaded from the heads of the CpsFlowExecution
     * Also holds the CpsStepContext, i.e. the variables such as EnvVars, Executor and Workspace uses (the latter stored as Pickles)
