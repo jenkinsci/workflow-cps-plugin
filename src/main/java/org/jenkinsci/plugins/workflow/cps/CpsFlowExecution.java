@@ -623,9 +623,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     void createPlaceholderNodes(Throwable failureReason) throws Exception {
         this.done = true;
 
-        if (this.owner != null && this.owner.getExecutable() instanceof Run) {
-            Run r = (Run)(owner.getExecutable());
-            setResult(r.getResult() != null ? r.getResult() : Result.FAILURE);
+        if (this.owner != null) {
+            Queue.Executable ex = owner.getExecutable();
+            if (ex instanceof Run) {
+                Result res = ((Run)ex).getResult();
+                setResult(res != null ? res : Result.FAILURE);
+            }
         }
 
         try {
