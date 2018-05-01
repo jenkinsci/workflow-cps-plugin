@@ -99,6 +99,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -1742,60 +1744,86 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     class TimingFlowNodeStorage extends FlowNodeStorage {
         private final FlowNodeStorage delegate;
+        ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+
         TimingFlowNodeStorage(FlowNodeStorage delegate) {
             this.delegate = delegate;
         }
 
         @Override
         public FlowNode getNode(String string) throws IOException {
+            readWriteLock.readLock().lock();
             try (Timing t = time(TimingKind.flowNode)) {
                 return delegate.getNode(string);
+            } finally {
+                readWriteLock.readLock().unlock();
             }
         }
 
         @Override
         public void storeNode(@Nonnull FlowNode n) throws IOException {
+            readWriteLock.writeLock().lock();
             try (Timing t = time(TimingKind.flowNode)) {
                 delegate.storeNode(n);
+            } finally {
+                readWriteLock.writeLock().unlock();
             }
         }
 
         @Override
         public void storeNode(@Nonnull FlowNode n, boolean delayWritingActions) throws IOException {
+            readWriteLock.writeLock().lock();
             try (Timing t = time(TimingKind.flowNode)) {
                 delegate.storeNode(n, delayWritingActions);
+            } finally {
+                readWriteLock.writeLock().unlock();
             }
         }
 
         @Override
         public void flush() throws IOException {
+            readWriteLock.writeLock().lock();
             try (Timing t = time(TimingKind.flowNode)) {
                 delegate.flush();
+            } finally {
+                readWriteLock.writeLock().unlock();
             }
         }
 
         @Override
         public void flushNode(FlowNode node) throws IOException {
+            readWriteLock.writeLock().lock();
             try (Timing t = time(TimingKind.flowNode)) {
                 delegate.flushNode(node);
+            } finally {
+                readWriteLock.writeLock().unlock();
             }
         }
 
         @Override
         public void autopersist(@Nonnull FlowNode n) throws IOException {
+            readWriteLock.writeLock().lock();
             try (Timing t = time(TimingKind.flowNode)) {
                 delegate.autopersist(n);
+            }  finally {
+                readWriteLock.writeLock().unlock();
             }
         }
 
         @Override public List<Action> loadActions(FlowNode node) throws IOException {
+            readWriteLock.readLock().lock();
             try (Timing t = time(TimingKind.flowNode)) {
                 return delegate.loadActions(node);
+            } finally {
+                readWriteLock.readLock().unlock();
             }
         }
         @Override public void saveActions(FlowNode node, List<Action> actions) throws IOException {
+            readWriteLock.writeLock().lock();
             try (Timing t = time(TimingKind.flowNode)) {
                 delegate.saveActions(node, actions);
+            } finally {
+                readWriteLock.writeLock().unlock();
             }
         }
     }
