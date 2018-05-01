@@ -794,11 +794,7 @@ public class FlowDurabilityTest {
 
     private static void assertBuildNotHung(@Nonnull RestartableJenkinsRule story, @Nonnull  WorkflowRun run, int timeOutMillis) throws Exception {
         if (run.isBuilding()) {
-            try {
-                story.j.waitUntilNoActivityUpTo(timeOutMillis);
-            } catch (AssertionError ase) {  // Allows attaching a debugger here
-                throw new AssertionError("Build hung: " + run, ase);
-            }
+            story.j.waitUntilNoActivityUpTo(timeOutMillis);
         }
     }
 
@@ -877,7 +873,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                if (run == null) {
+                if (run == null) {   // Build killed so early the Run did not get to persist
                     return;
                 }
                 if (run.getExecution() != null) {
@@ -925,7 +921,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                if (run == null) {
+                if (run == null) {   // Build killed so early the Run did not get to persist
                     return;
                 }
                 if (run.getExecution() != null) {
@@ -983,7 +979,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                if (run == null) {
+                if (run == null) {   // Build killed so early the Run did not get to persist
                     return;
                 }
                 if (run.getExecution() != null) {

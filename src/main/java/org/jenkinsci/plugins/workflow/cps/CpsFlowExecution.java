@@ -624,6 +624,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this.done = true;
 
         if (this.owner != null) {
+            // Ensure that the Run is marked as completed (failed) if it isn't already so it won't show as running
             Queue.Executable ex = owner.getExecutable();
             if (ex instanceof Run) {
                 Result res = ((Run)ex).getResult();
@@ -746,7 +747,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     throw new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down.");
                 }
             }
-        } catch (Exception e) {  // Multicatch ensures that failure to load does not nuke the master
+        } catch (Exception e) {  // Broad catch ensures that failure to load do NOT nuke the master
             SettableFuture<CpsThreadGroup> p = SettableFuture.create();
             programPromise = p;
             loadProgramFailed(e, p);
@@ -930,7 +931,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         try {
             g = programPromise.get();
         } catch (Exception x) {
-            // FIXME check this won't cause issues due to depickling delays etc
+            // TODO Check this won't cause issues due to depickling delays etc
             LOGGER.log(Level.FINE, "Not blocking restart due to exception in ProgramPromise: "+this, x);
             return false;
         }
@@ -1228,7 +1229,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         // shrink everything into a single new head
         try {
             if (heads != null) {
-                // Below does not look correct to me
                 FlowHead first = getFirstHead();
                 first.setNewHead(head);
                 done = true;  // After setting the final head
