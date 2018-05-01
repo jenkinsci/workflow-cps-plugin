@@ -197,7 +197,7 @@ final class FlowHead implements Serializable {
             }
             return myHead;
         } else {
-            LOGGER.log(Level.WARNING, "Tried to load a FlowHead from program with no Execution in PROGRAM_STATE_SERIALIZTION");
+            LOGGER.log(Level.WARNING, "Tried to load a FlowHead from program with no Execution in PROGRAM_STATE_SERIALIZATION");
             return this;
         }
     }
