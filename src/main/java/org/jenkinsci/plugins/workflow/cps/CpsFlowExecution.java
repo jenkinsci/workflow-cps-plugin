@@ -730,10 +730,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         try {
             if (isComplete()) {
                 if (done == Boolean.TRUE && !super.isComplete()) {
-                    LOGGER.log(Level.WARNING, "Completed flow without FlowEndNode: "+this+" heads:"+getHeadsAsString());
+                    LOGGER.log(Level.INFO, "Completed flow without FlowEndNode: "+this+" heads:"+getHeadsAsString());
                 }
                 if (super.isComplete() && done != Boolean.TRUE) {
-                    LOGGER.log(Level.WARNING, "Flow has FlowEndNode, but is not marked as done, fixing this for"+this);
+                    LOGGER.log(Level.FINE, "Flow has FlowEndNode, but is not marked as done, fixing this for"+this);
                     done = true;
                     saveOwner();
                 }
