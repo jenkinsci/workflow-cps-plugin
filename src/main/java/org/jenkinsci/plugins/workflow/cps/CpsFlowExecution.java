@@ -620,7 +620,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * Bypasses {@link #croak(Throwable)} and {@link #onProgramEnd(Outcome)} to guarantee a clean path.
      */
     @GuardedBy("this")
-    void createPlaceholderNodes(Throwable failureReason) throws Exception {
+    synchronized void createPlaceholderNodes(Throwable failureReason) throws Exception {
         this.done = true;
 
         if (this.owner != null) {
