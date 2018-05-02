@@ -120,7 +120,6 @@ class CpsBodyExecution extends BodyExecution {
         }
 
         head.setNewHead(sn);
-        CpsFlowExecution.maybeAutoPersistNode(sn);
 
         StepContext sc = new CpsBodySubContext(context, sn);
         for (BodyExecutionCallback c : callbacks) {
@@ -337,7 +336,6 @@ class CpsBodyExecution extends BodyExecution {
                 FlowHead h = CpsThread.current().head;
                 StepStartNode ssn = addBodyStartFlowNode(h);
                 h.setNewHead(ssn);
-                CpsFlowExecution.maybeAutoPersistNode(ssn);
             }
 
             StepEndNode en = addBodyEndFlowNode();
@@ -367,7 +365,6 @@ class CpsBodyExecution extends BodyExecution {
             for (BodyExecutionCallback c : callbacks) {
                 c.onSuccess(sc, o);
             }
-
             return Next.terminate(null);
         }
 

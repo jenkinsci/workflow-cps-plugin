@@ -436,7 +436,6 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                                 g.getExecution().subsumeHead(parents.get(i));
                             StepEndNode en = new StepEndNode(flow, (StepStartNode) n, parents);
                             thread.head.setNewHead(en);
-                            CpsFlowExecution.maybeAutoPersistNode(en);
                         }
                         thread.head.markIfFail(getOutcome());
                         thread.setStep(null);
