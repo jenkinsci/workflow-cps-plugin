@@ -20,6 +20,7 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
@@ -335,6 +336,27 @@ public class PersistenceProblemsTest {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
             assertCompletedCleanly(run);
+        });
+    }
+
+    @Issue("JENKINS-50888")  // Tried to modify build without lazy load being triggered
+    @Test public void modifyBeforeLazyLoad() {
+        story.thenWithHardShutdown(r -> {  // Normal build
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("echo 'dosomething'", true));
+            r.buildAndAssertSuccess(p);
+        });
+        story.then(r -> {  // But wait, we try to modify the build without loading the execution
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getBuildByNumber(1);
+            b.setDescription("Bob");
+            b.save();  // Will trigger an IOException potentially
+        });
+        story.then( r-> {  // Verify that the FlowExecutionOwner can trigger lazy-load correctly
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getBuildByNumber(1);
+            Assert.assertEquals("Bob", b.getDescription());
+            Assert.assertEquals("4", b.getExecution().getCurrentHeads().get(0).getId());
         });
     }
 }
