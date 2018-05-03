@@ -1611,7 +1611,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             writeChild(w, context, "iota", e.iota.get(), Integer.class);
             synchronized (e) {
                 if (e.headsSerial != null && (e.heads == null || e.heads.isEmpty())) { // Persisting before onLoad has called to load up the real heads
-                    // Note: heads should not be empty
+                    // Note: unlike start nodes, heads should not be empty once onLoad loading has happened
                     for (Entry<Integer, String> entry : e.headsSerial.entrySet()) {
                         writeChild(w, context, "head", entry.getKey() + ":" + entry.getValue(), String.class);
                     }
