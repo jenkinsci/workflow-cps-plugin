@@ -341,7 +341,7 @@ public class PersistenceProblemsTest {
 
     @Issue("JENKINS-50888")  // Tried to modify build without lazy load being triggered
     @Test public void modifyBeforeLazyLoad() {
-        story.thenWithHardShutdown(r -> {  // Normal build
+        story.then(r -> {  // Normal build
             WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
             p.setDefinition(new CpsFlowDefinition("echo 'dosomething'", true));
             r.buildAndAssertSuccess(p);
@@ -350,7 +350,7 @@ public class PersistenceProblemsTest {
             WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
             WorkflowRun b = p.getBuildByNumber(1);
             b.setDescription("Bob");
-            b.save();  // Will trigger an IOException potentially
+            b.save();  // Before the JENKINS-50888 fix this would trigger an IOException
         });
         story.then( r-> {  // Verify that the FlowExecutionOwner can trigger lazy-load correctly
             WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
