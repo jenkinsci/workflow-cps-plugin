@@ -1915,8 +1915,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    /** Save the owner that holds this execution. Note: to avoid deadlocks we need to ensure we are never
-     *  holding a lock on the Execution when running this. */
+    /** Save the owner that holds this execution.
+     *  Key note: to avoid deadlocks we need to ensure that we don't hold a lock on this CpsFlowExecution when running saveOwner
+     *   or pre-emptively lock the run before locking the execution and saving. */
     void saveOwner() {
         try {
             if (this.owner != null && this.owner.getExecutable() instanceof Saveable) {  // Null-check covers some anomalous cases we've seen
