@@ -18,6 +18,7 @@ import org.codehaus.groovy.control.CompilationFailedException;
 import org.codehaus.groovy.control.CompilationUnit;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.SourceUnit;
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 
 /**
  * {@link GroovyShell} with additional tweaks necessary to run {@link CpsScript}
@@ -109,9 +110,10 @@ class CpsGroovyShell extends GroovyShell {
     @Override
     public Script parse(GroovyCodeSource codeSource) throws CompilationFailedException {
         Script s = doParse(codeSource);
-        if (execution!=null)
+        if (execution!=null) {
             execution.loadedScripts.put(s.getClass().getSimpleName(), codeSource.getScriptText());
-        this.execution.saveExecutionIfDurable();
+            execution.saveExecutionIfDurable();
+        }
         prepareScript(s);
         return s;
     }
