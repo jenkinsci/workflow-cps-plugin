@@ -620,47 +620,52 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * Bypasses {@link #croak(Throwable)} and {@link #onProgramEnd(Outcome)} to guarantee a clean path.
      */
     @GuardedBy("this")
-    synchronized void createPlaceholderNodes(Throwable failureReason) throws Exception {
-        this.done = true;
+    void createPlaceholderNodes(Throwable failureReason) throws Exception {
+        synchronized (this) {
+            this.done = true;
 
-        if (this.owner != null) {
-            // Ensure that the Run is marked as completed (failed) if it isn't already so it won't show as running
-            Queue.Executable ex = owner.getExecutable();
-            if (ex instanceof Run) {
-                Result res = ((Run)ex).getResult();
-                setResult(res != null ? res : Result.FAILURE);
-            }
-        }
-
-        try {
-            programPromise = Futures.immediateFailedFuture(new IllegalStateException("Failed loading heads", failureReason));
-            LOGGER.log(Level.INFO, "Creating placeholder flownodes for execution: "+this);
             if (this.owner != null) {
-                try {
-                    owner.getListener().getLogger().println("Creating placeholder flownodes because failed loading originals.");
-                } catch (Exception ex) {
-                    // It's okay to fail to log
+                // Ensure that the Run is marked as completed (failed) if it isn't already so it won't show as running
+                Queue.Executable ex = owner.getExecutable();
+                if (ex instanceof Run) {
+                    Result res = ((Run) ex).getResult();
+                    setResult(res != null ? res : Result.FAILURE);
                 }
             }
 
-            // Switch to fallback storage so we don't delete original node data
-            this.storageDir = (this.storageDir != null) ? this.storageDir+"-fallback" : "workflow-fallback";
-            this.storage = createStorage();  // Empty storage
+            try {
+                programPromise = Futures.immediateFailedFuture(new IllegalStateException("Failed loading heads", failureReason));
+                LOGGER.log(Level.INFO, "Creating placeholder flownodes for execution: " + this);
+                if (this.owner != null) {
+                    try {
+                        owner.getListener().getLogger().println("Creating placeholder flownodes because failed loading originals.");
+                    } catch (Exception ex) {
+                        // It's okay to fail to log
+                    }
+                }
 
-            // Clear out old start nodes and heads
-            this.startNodes = new Stack<BlockStartNode>();
-            FlowHead head = new FlowHead(this);
-            this.heads = new TreeMap<Integer, FlowHead>();
-            heads.put(head.getId(), head);
-            FlowStartNode start = new FlowStartNode(this, iotaStr());
-            head.newStartNode(start);
+                // Switch to fallback storage so we don't delete original node data
+                this.storageDir = (this.storageDir != null) ? this.storageDir + "-fallback" : "workflow-fallback";
+                this.storage = createStorage();  // Empty storage
 
-            // Create end
-            FlowNode end = new FlowEndNode(this, iotaStr(), (FlowStartNode)startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
-            end.addAction(new ErrorAction(failureReason));
-            head.setNewHead(end);
+                // Clear out old start nodes and heads
+                this.startNodes = new Stack<BlockStartNode>();
+                FlowHead head = new FlowHead(this);
+                this.heads = new TreeMap<Integer, FlowHead>();
+                heads.put(head.getId(), head);
+                FlowStartNode start = new FlowStartNode(this, iotaStr());
+                head.newStartNode(start);
+
+                // Create end
+                FlowNode end = new FlowEndNode(this, iotaStr(), (FlowStartNode) startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
+                end.addAction(new ErrorAction(failureReason));
+                head.setNewHead(end);
+            } catch (Exception ex) {
+                throw ex;
+            }
+        }
+        try {
             saveOwner();
-
         } catch (Exception ex) {
             throw ex;
         }
@@ -1072,13 +1077,17 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * of a FlowNode and thereby joining an another thread.
      */
     //
-    synchronized void addHead(FlowHead h) {
-        heads.put(h.getId(), h);
-        saveExecutionIfDurable(); // We need to save the mutated heads for the run
+    void addHead(FlowHead h) {
+        synchronized (this) {
+            heads.put(h.getId(), h);
+        }
+        saveExecutionIfDurable();
     }
 
-    synchronized void removeHead(FlowHead h) {
-        heads.remove(h.getId());
+    void removeHead(FlowHead h) {
+        synchronized (this) {
+            heads.remove(h.getId());
+        }
         saveExecutionIfDurable(); // We need to save the mutated heads for the run
     }
 
@@ -1217,7 +1226,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     /**
-     * Record the end of the build.
+     * Record the end of the build.  Note: we should always follow this with a call to saveOwner to persist the result.
      * @param outcome success; or a normal failure (uncaught exception); or a fatal error in VM machinery
      */
     synchronized void onProgramEnd(Outcome outcome) {
@@ -1254,7 +1263,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         this.persistedClean = Boolean.TRUE;
-        saveOwner();
     }
 
     void cleanUpHeap() {
@@ -1907,7 +1915,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    /** Save the owner that holds this execution. */
+    /** Save the owner that holds this execution. Note: to avoid deadlocks we need to ensure we are never
+     *  holding a lock on the Execution when running this. */
     void saveOwner() {
         try {
             if (this.owner != null && this.owner.getExecutable() instanceof Saveable) {  // Null-check covers some anomalous cases we've seen
