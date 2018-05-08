@@ -633,36 +633,32 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 }
             }
 
-            try {
-                programPromise = Futures.immediateFailedFuture(new IllegalStateException("Failed loading heads", failureReason));
-                LOGGER.log(Level.INFO, "Creating placeholder flownodes for execution: " + this);
-                if (this.owner != null) {
-                    try {
-                        owner.getListener().getLogger().println("Creating placeholder flownodes because failed loading originals.");
-                    } catch (Exception ex) {
-                        // It's okay to fail to log
-                    }
+            programPromise = Futures.immediateFailedFuture(new IllegalStateException("Failed loading heads", failureReason));
+            LOGGER.log(Level.INFO, "Creating placeholder flownodes for execution: " + this);
+            if (this.owner != null) {
+                try {
+                    owner.getListener().getLogger().println("Creating placeholder flownodes because failed loading originals.");
+                } catch (Exception ex) {
+                    // It's okay to fail to log
                 }
-
-                // Switch to fallback storage so we don't delete original node data
-                this.storageDir = (this.storageDir != null) ? this.storageDir + "-fallback" : "workflow-fallback";
-                this.storage = createStorage();  // Empty storage
-
-                // Clear out old start nodes and heads
-                this.startNodes = new Stack<BlockStartNode>();
-                FlowHead head = new FlowHead(this);
-                this.heads = new TreeMap<Integer, FlowHead>();
-                heads.put(head.getId(), head);
-                FlowStartNode start = new FlowStartNode(this, iotaStr());
-                head.newStartNode(start);
-
-                // Create end
-                FlowNode end = new FlowEndNode(this, iotaStr(), (FlowStartNode) startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
-                end.addAction(new ErrorAction(failureReason));
-                head.setNewHead(end);
-            } catch (Exception ex) {
-                throw ex;
             }
+
+            // Switch to fallback storage so we don't delete original node data
+            this.storageDir = (this.storageDir != null) ? this.storageDir + "-fallback" : "workflow-fallback";
+            this.storage = createStorage();  // Empty storage
+
+            // Clear out old start nodes and heads
+            this.startNodes = new Stack<BlockStartNode>();
+            FlowHead head = new FlowHead(this);
+            this.heads = new TreeMap<Integer, FlowHead>();
+            heads.put(head.getId(), head);
+            FlowStartNode start = new FlowStartNode(this, iotaStr());
+            head.newStartNode(start);
+
+            // Create end
+            FlowNode end = new FlowEndNode(this, iotaStr(), (FlowStartNode) startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
+            end.addAction(new ErrorAction(failureReason));
+            head.setNewHead(end);
         }
         saveOwner();
     }
