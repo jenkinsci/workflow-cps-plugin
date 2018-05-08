@@ -353,6 +353,11 @@ public final class CpsThreadGroup implements Serializable {
                     threads.remove(t.id);
                     if (threads.isEmpty()) {
                         execution.onProgramEnd(o);
+                        try {
+                            this.execution.saveOwner();
+                        } catch (Exception ex) {
+                            LOGGER.log(Level.WARNING, "Error saving execution for "+this.getExecution(), ex);
+                        }
                         ending = true;
                     }
                 } else {
