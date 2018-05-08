@@ -664,11 +664,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 throw ex;
             }
         }
-        try {
-            saveOwner();
-        } catch (Exception ex) {
-            throw ex;
-        }
+        saveOwner();
     }
 
     @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification="Storage does not actually NEED to be synchronized but the rest does.")
@@ -964,11 +960,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     @Override
     public synchronized List<FlowNode> getCurrentHeads() {
-        List<FlowNode> r = new ArrayList<FlowNode>();
         if (heads == null) {
             LOGGER.log(Level.WARNING, null, new IllegalStateException("List of flow heads unset for " + this));
-            return r;
+            return Collections.emptyList();
         }
+        List<FlowNode> r = new ArrayList<FlowNode>(heads.size());
         for (FlowHead h : heads.values()) {
             r.add(h.get());
         }

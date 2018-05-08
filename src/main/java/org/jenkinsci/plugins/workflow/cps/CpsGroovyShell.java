@@ -18,7 +18,6 @@ import org.codehaus.groovy.control.CompilationFailedException;
 import org.codehaus.groovy.control.CompilationUnit;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.SourceUnit;
-import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 
 /**
  * {@link GroovyShell} with additional tweaks necessary to run {@link CpsScript}

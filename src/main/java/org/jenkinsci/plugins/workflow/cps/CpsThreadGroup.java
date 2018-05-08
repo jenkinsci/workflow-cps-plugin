@@ -356,7 +356,7 @@ public final class CpsThreadGroup implements Serializable {
                         try {
                             this.execution.saveOwner();
                         } catch (Exception ex) {
-                            LOGGER.log(Level.WARNING, "Error saving execution for "+this, ex);
+                            LOGGER.log(Level.WARNING, "Error saving execution for "+this.getExecution(), ex);
                         }
                         ending = true;
                     }
