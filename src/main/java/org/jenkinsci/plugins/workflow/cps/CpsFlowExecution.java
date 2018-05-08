@@ -1218,7 +1218,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     /**
-     * Record the end of the build.  Note: we should always follow this with a call to saveOwner to persist the result.
+     * Record the end of the build.  Note: we should always follow this with a call to {@link #saveOwner()} to persist the result.
      * @param outcome success; or a normal failure (uncaught exception); or a fatal error in VM machinery
      */
     synchronized void onProgramEnd(Outcome outcome) {
