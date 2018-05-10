@@ -140,7 +140,7 @@ import org.kohsuke.args4j.spi.Setter;
                     outStream.write(data, 0, count);
                 }
                 outStream.flush();
-                String scriptContent = new String(byteStream.toByteArray());
+                String scriptContent = byteStream.toString("UTF-8");
 
                 SimpleEntry<String, String> entry = new SimpleEntry<>(scriptName, scriptContent);
                 list.add(entry);
