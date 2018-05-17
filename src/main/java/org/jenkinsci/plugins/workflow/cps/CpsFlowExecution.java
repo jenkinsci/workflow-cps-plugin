@@ -134,6 +134,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -384,6 +385,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     @GuardedBy("this")
     @CheckForNull Map<String, Long> timings;
 
+    @GuardedBy("this")
+    private @CheckForNull Set<String> internalCalls;
+
     @Deprecated
     public CpsFlowExecution(String script, FlowExecutionOwner owner) throws IOException {
         this(script, false, owner);
@@ -453,6 +457,17 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
             TIMING_LOGGER.log(Level.FINE, "timings for {0}: {1}", new Object[] {owner, formatted});
         }
+    }
+
+    /**
+     * Mark a call to an internal API made by this build.
+     * @param call a representation of the call site; for example, {@code hudson.model.Run.setDescription}
+     */
+    synchronized void recordInternalCall(String call) {
+        if (internalCalls == null) {
+            internalCalls = new TreeSet<>();
+        }
+        internalCalls.add(call);
     }
 
     /**
@@ -547,7 +562,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
              * During sandbox execution, we need to call sandbox interceptor while executing asynchronous code.
              */
             private Env createInitialEnv() {
-                return Envs.empty( isSandbox() ? new SandboxInvoker() : new DefaultInvoker());
+                return Envs.empty(new LoggingInvoker(isSandbox() ? new SandboxInvoker() : new DefaultInvoker()));
             }
         });
     }
@@ -1603,6 +1618,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 if (e.timings != null) {
                     writeChild(w, context, "timings", e.timings, Map.class);
                 }
+                if (e.internalCalls != null) {
+                    writeChild(w, context, "internalCalls", e.internalCalls, Set.class);
+                }
             }
             writeChild(w, context, "sandbox", e.sandbox, Boolean.class);
             if (e.user != null) {
@@ -1681,6 +1699,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         } else if (nodeName.equals("timings")) {
                             Map timings = readChild(reader, context, Map.class, result);
                             setField(result, "timings", timings);
+                        } else if (nodeName.equals("internalCalls")) {
+                            Set internalCalls = readChild(reader, context, Set.class, result);
+                            setField(result, "internalCalls", internalCalls);
                         } else if (nodeName.equals("sandbox")) {
                             boolean sandbox = readChild(reader, context, Boolean.class, result);
                             setField(result, "sandbox", sandbox);
@@ -1885,6 +1906,49 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                             pw.println("Timings for " + run + ":");
                                             for (Map.Entry<String, Long> entry : new TreeMap<>(timings).entrySet()) {
                                                 pw.println("  " + entry.getKey() + "\t" + entry.getValue() / 1000 / 1000 + "ms");
+                                            }
+                                            pw.println();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    pw.flush();
+                }
+            });
+        }
+
+    }
+
+    @Extension(optional=true) public static class PipelineInternalCalls extends Component {
+
+        @Override public Set<Permission> getRequiredPermissions() {
+            return Collections.singleton(Jenkins.ADMINISTER);
+        }
+
+        @Override public String getDisplayName() {
+            return "List of internal API calls made by Pipeline builds (typically from trusted libraries)";
+        }
+
+        @Override public void addContents(Container container) {
+            container.add(new Content("nodes/master/pipeline-internal-calls.txt") {
+                @Override public void writeTo(OutputStream outputStream) throws IOException {
+                    PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, Charsets.UTF_8));
+                    for (Job<?, ?> job : Jenkins.getActiveInstance().getAllItems(Job.class)) {
+                        // TODO as above
+                        if (job instanceof Queue.FlyweightTask) {
+                            Run<?, ?> run = job.getLastCompletedBuild();
+                            if (run instanceof FlowExecutionOwner.Executable) {
+                                FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
+                                if (owner != null) {
+                                    FlowExecution exec = owner.get();
+                                    if (exec instanceof CpsFlowExecution) {
+                                        Set<String> calls = ((CpsFlowExecution) exec).internalCalls;
+                                        if (calls != null) {
+                                            pw.println("Internal calls for " + run + ":");
+                                            for (String call : calls) {
+                                                pw.println("  " + call);
                                             }
                                             pw.println();
                                         }

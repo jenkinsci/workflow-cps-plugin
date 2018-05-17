@@ -171,7 +171,7 @@ class CpsBodyExecution extends BodyExecution {
 
         FunctionCallEnv caller = new FunctionCallEnv(null, onSuccess, null, null);
         if (currentThread.getExecution().isSandbox())
-            caller.setInvoker(new SandboxInvoker());
+            caller.setInvoker(new LoggingInvoker(new SandboxInvoker()));
 
         // catch an exception thrown from body and treat that as a failure
         TryBlockEnv env = new TryBlockEnv(caller, null);
