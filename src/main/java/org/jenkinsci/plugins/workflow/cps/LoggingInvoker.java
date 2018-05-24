@@ -25,7 +25,9 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.impl.CallSiteBlock;
+import com.cloudbees.groovy.cps.sandbox.DefaultInvoker;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
+import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
 import java.util.function.Supplier;
 
 /**
@@ -33,9 +35,13 @@ import java.util.function.Supplier;
  */
 final class LoggingInvoker implements Invoker {
 
+    public static Invoker create(boolean sandbox) {
+        return new LoggingInvoker(sandbox ? new SandboxInvoker() : new DefaultInvoker());
+    }
+
     private final Invoker delegate;
 
-    LoggingInvoker(Invoker delegate) {
+    private LoggingInvoker(Invoker delegate) {
         this.delegate = delegate;
     }
 

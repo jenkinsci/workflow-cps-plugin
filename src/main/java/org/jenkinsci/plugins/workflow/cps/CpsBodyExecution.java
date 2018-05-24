@@ -7,7 +7,6 @@ import com.cloudbees.groovy.cps.Outcome;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import com.cloudbees.groovy.cps.impl.TryBlockEnv;
-import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.SettableFuture;
@@ -170,8 +169,7 @@ class CpsBodyExecution extends BodyExecution {
         // TODO: we need to capture the surrounding calling context to capture variables, and switch to ClosureCallEnv
 
         FunctionCallEnv caller = new FunctionCallEnv(null, onSuccess, null, null);
-        if (currentThread.getExecution().isSandbox())
-            caller.setInvoker(new LoggingInvoker(new SandboxInvoker()));
+        caller.setInvoker(currentThread.getExecution().createInvoker());
 
         // catch an exception thrown from body and treat that as a failure
         TryBlockEnv env = new TryBlockEnv(caller, null);

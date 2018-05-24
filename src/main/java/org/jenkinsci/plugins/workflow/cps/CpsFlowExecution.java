@@ -30,8 +30,7 @@ import com.cloudbees.groovy.cps.Envs;
 import com.cloudbees.groovy.cps.Outcome;
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.ThrowBlock;
-import com.cloudbees.groovy.cps.sandbox.DefaultInvoker;
-import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
+import com.cloudbees.groovy.cps.sandbox.Invoker;
 import com.cloudbees.jenkins.support.api.Component;
 import com.cloudbees.jenkins.support.api.Container;
 import com.cloudbees.jenkins.support.api.Content;
@@ -562,9 +561,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
              * During sandbox execution, we need to call sandbox interceptor while executing asynchronous code.
              */
             private Env createInitialEnv() {
-                return Envs.empty(new LoggingInvoker(isSandbox() ? new SandboxInvoker() : new DefaultInvoker()));
+                return Envs.empty();
             }
         });
+    }
+
+    Invoker createInvoker() {
+        return LoggingInvoker.create(isSandbox());
     }
 
     private CpsScript parseScript() throws IOException {
