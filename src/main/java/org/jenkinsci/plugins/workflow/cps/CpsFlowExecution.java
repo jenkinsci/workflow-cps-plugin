@@ -561,7 +561,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
              * During sandbox execution, we need to call sandbox interceptor while executing asynchronous code.
              */
             private Env createInitialEnv() {
-                return Envs.empty();
+                return Envs.empty(createInvoker());
             }
         });
     }
