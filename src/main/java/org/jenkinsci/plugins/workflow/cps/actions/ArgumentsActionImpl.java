@@ -286,7 +286,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             try {
                 if (val != null && !(val instanceof String) && !(val instanceof Boolean) && !(val instanceof Number) && !(val instanceof NotStoredReason) && !(val instanceof TimeUnit)) {
                     // We only need to check serialization for nontrivial types
-                    Jenkins.XSTREAM2.toXMLUTF8(entry.getValue(), new NullOutputStream());  // Hacky but can't find a better way
+                    Jenkins.XSTREAM2.toXMLUTF8(entry.getValue(), NullOutputStream.NULL_OUTPUT_STREAM);  // Hacky but can't find a better way
                 }
                 out.put(entry.getKey(), entry.getValue());
             } catch (Exception ex) {
