@@ -25,19 +25,17 @@
 package org.jenkinsci.plugins.workflow.cps.actions;
 
 import com.google.common.collect.Maps;
-import com.google.common.io.NullOutputStream;
 import hudson.EnvVars;
 import jenkins.model.Jenkins;
+import org.apache.commons.io.output.NullOutputStream;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
-import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -276,8 +274,6 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         }
     }
 
-    static final OutputStream NULL_STRM = new NullOutputStream();
-
     /** Verify that all the arguments WILL serialize and if not replace with {@link org.jenkinsci.plugins.workflow.actions.ArgumentsAction.NotStoredReason#UNSERIALIZABLE}
      *  See JENKINS-50752 for details, but the gist is we need to avoid problems before physical persistence to prevent data loss.
      *  @return Arguments
@@ -290,7 +286,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             try {
                 if (val != null && !(val instanceof String) && !(val instanceof Boolean) && !(val instanceof Number) && !(val instanceof NotStoredReason) && !(val instanceof TimeUnit)) {
                     // We only need to check serialization for nontrivial types
-                    Jenkins.XSTREAM2.toXMLUTF8(entry.getValue(), NULL_STRM);  // Hacky but can't find a better way
+                    Jenkins.XSTREAM2.toXMLUTF8(entry.getValue(), new NullOutputStream());  // Hacky but can't find a better way
                 }
                 out.put(entry.getKey(), entry.getValue());
             } catch (Exception ex) {
