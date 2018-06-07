@@ -535,7 +535,7 @@ import org.kohsuke.stapler.StaplerRequest;
         return ExtensionList.lookup(SnippetizerLink.class);
     }
 
-    @Restricted(DoNotUse.class)
+    @Restricted(NoExternalUse.class)
     @Extension public static class PerJobAdder extends TransientActionFactory<Job> {
 
         @Override public Class<Job> type() {
