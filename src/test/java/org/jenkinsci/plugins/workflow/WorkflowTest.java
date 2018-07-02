@@ -74,7 +74,6 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockQueueItemAuthenticator;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
-import sun.jvm.hotspot.utilities.Assert;
 
 /**
  * Tests of workflows that involve restarting Jenkins in the middle.
