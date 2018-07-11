@@ -1440,7 +1440,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     }
                 }
             } finally {
-                if (synchronous) {
+                if (synchronous || !(getDurabilityHint().isPersistWithEveryStep())) {
                     bc.abort(); // hack to skip save—we are holding a lock
                 } else {
                     try {
