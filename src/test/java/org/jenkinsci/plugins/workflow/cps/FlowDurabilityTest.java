@@ -860,6 +860,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = runFuzzerJob(story.j, jobName, FlowDurabilityHint.MAX_SURVIVABILITY);
+                buildNumber[0] = run.getNumber();
                 logStart[0] = JenkinsRule.getLog(run);
                 nodesOut.clear();
                 nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
@@ -872,10 +873,13 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                if (run == null) {   // Build killed so early the Run did not get to persist
+                WorkflowJob j = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class);
+                WorkflowRun run;
+                if (j == null || j.getBuildByNumber(buildNumber[0]) == null) {
+                    // Issues with test framework or build killed so early Run not created
                     return;
                 }
+                run = j.getBuildByNumber(buildNumber[0]);
                 if (run.getExecution() != null) {
                     Assert.assertEquals(FlowDurabilityHint.MAX_SURVIVABILITY, run.getExecution().getDurabilityHint());
                 }
@@ -900,6 +904,7 @@ public class FlowDurabilityTest {
     public void fuzzTimingNonDurableWithDirtyRestart() throws Exception {
         final String jobName = "NestedParallelDurableJob";
         final String[] logStart = new String[1];
+        final int[] buildNum = new int[1];
 
         // Create thread that eventually interrupts Jenkins with a hard shutdown at a random time interval
         story.addStepWithDirtyShutdown(new Statement() {
@@ -915,12 +920,13 @@ public class FlowDurabilityTest {
                 } else {
                     Assert.assertEquals(Boolean.TRUE, ((CpsFlowExecution)run.getExecution()).persistedClean);
                 }
+                buildNum[0] = run.getNumber();
             }
         });
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getBuildByNumber(buildNum[0]);
                 if (run == null) {   // Build killed so early the Run did not get to persist
                     return;
                 }
@@ -960,12 +966,14 @@ public class FlowDurabilityTest {
         final String jobName = "NestedParallelDurableJob";
         final String[] logStart = new String[1];
         final List<FlowNode> nodesOut = new ArrayList<FlowNode>();
+        final int[] buildNum = new int[1];
 
         // Create thread that eventually interrupts Jenkins with a hard shutdown at a random time interval
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = runFuzzerJob(story.j, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                buildNum[0] = run.getNumber();
                 logStart[0] = JenkinsRule.getLog(run);
                 if (run.getExecution() != null) {
                     Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
@@ -978,7 +986,7 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getBuildByNumber(buildNum[0]);
                 if (run == null) {   // Build killed so early the Run did not get to persist
                     return;
                 }
