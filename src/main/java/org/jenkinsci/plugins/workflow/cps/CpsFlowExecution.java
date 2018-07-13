@@ -1440,8 +1440,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     }
                 }
             } finally {
-                if (synchronous || !(getDurabilityHint().isPersistWithEveryStep())) {
-                    bc.abort(); // hack to skip save—we are holding a lock
+                if (synchronous) {
+                    bc.abort(); //// hack to skip save—we are holding a lock
+                } else if (!(getDurabilityHint().isPersistWithEveryStep()) && !(nodes.stream().anyMatch(x->x instanceof FlowEndNode))) {
+                    // We do not want to invoke gratuitous save calls if we aren't set to persist with every step
+                    // Except that we MUST trigger a persistence call at the very end of the execution
+                    bc.abort();
                 } else {
                     try {
                         bc.commit();
