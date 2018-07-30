@@ -28,7 +28,7 @@ THE SOFTWARE.
     <j:set var="original" value="${it.original}"/>
     <j:choose>
         <j:when test="${original != null}">
-            ${%Replayed_by_build(rootURL/original.url,it.originalNumber)} (<a href="${rootURL}/${it.run.url}replay/diff">${%diff}</a>)
+            ${%Replayed_by_build(rootURL + "/" + original.url,it.originalNumber)} (<a href="${rootURL}/${it.run.url}replay/diff">${%diff}</a>)
         </j:when>
         <j:otherwise>
             ${%Replayed_by(it.originalNumber)}
