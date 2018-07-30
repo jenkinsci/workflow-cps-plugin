@@ -67,7 +67,7 @@ public class ReplayCause extends Cause {
     }
 
     @Override public String getShortDescription() {
-        return "Replayed #" + originalNumber;
+        return Messages.Replayed_by(originalNumber);
     }
 
     @Override public void print(TaskListener listener) {

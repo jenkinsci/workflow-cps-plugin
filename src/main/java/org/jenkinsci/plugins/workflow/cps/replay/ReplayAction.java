@@ -95,7 +95,7 @@ public class ReplayAction implements Action {
     }
 
     @Override public String getDisplayName() {
-        return "Replay";
+        return Messages.Replay();
     }
 
     @Override public String getIconFileName() {
