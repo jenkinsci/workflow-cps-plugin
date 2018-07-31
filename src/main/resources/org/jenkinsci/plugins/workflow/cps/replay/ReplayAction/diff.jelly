@@ -25,7 +25,7 @@ THE SOFTWARE.
 
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:st="jelly:stapler" xmlns:f="/lib/form">
-    <l:layout title="Replay Diff" permission="${it.REPLAY}">
+    <l:layout title="${%Replay Diff}" permission="${it.REPLAY}">
         <st:include page="sidepanel.jelly" it="${it.owner}"/>
         <l:main-panel>
             <f:textarea value="${it.diff}" readonly="true" codemirror-mode="diff" codemirror-config=""/>
