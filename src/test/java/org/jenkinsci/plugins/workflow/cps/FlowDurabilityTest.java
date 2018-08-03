@@ -57,6 +57,7 @@ import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -507,7 +508,7 @@ public class FlowDurabilityTest {
     /** Verify that our flag for whether or not a build was cleanly persisted gets reset when things happen.
      */
     @Test
-    public void testDurableAgainstCleanRestartResetsCleanlyPersistedFlag() throws Exception {
+    public void testNondurableResetsCleanlyPersistedFlag() throws Exception {
         final String jobName = "durableAgainstClean";
         story.addStep(new Statement() {
             @Override
@@ -531,18 +532,24 @@ public class FlowDurabilityTest {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
                 assert run.isBuilding();
                 assert run.getResult() != Result.FAILURE;
-                Thread.sleep(35000);  // Step completes
+                Thread.sleep(35000);  // First sleep completes
                 if (run.getExecution() instanceof  CpsFlowExecution) {
                     CpsFlowExecution exec = (CpsFlowExecution)run.getExecution();
-                    assert exec.persistedClean == null;
-                }
+                    assert exec.persistedClean == null || exec.persistedClean == false;
+                }  // Flow still in running though, so shouldn't persist cleanly
             }
         });
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
                 Thread.sleep(2000L);  // Just to allow time for basic async processes to finish.
-               verifyFailedCleanly(story.j.jenkins, story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild());
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                CpsFlowExecution exec = (CpsFlowExecution)(run.getExecution());
+//                Assert.assertTrue(exec.isComplete());
+//                Assert.assertThat(exec.getCurrentHeads().get(0), Matchers.instanceOf(FlowEndNode.class));
+//                Assert.assertEquals(Result.FAILURE, run.getResult());
+
+                verifyFailedCleanly(story.j.jenkins, run);
             }
         });
     }
@@ -847,7 +854,7 @@ public class FlowDurabilityTest {
      * May fail rarely due to files being copied in a different order than they are modified as part of simulating a dirty restart.
      * See {@link RestartableJenkinsRule#simulateAbruptShutdown()} for why that copying happens. */
     @Test
-    @Ignore //Too long to run as part of main suite
+     //Too long to run as part of main suite
     @TimedRepeatRule.RepeatForTime(repeatMillis = 150_000)
     public void fuzzTimingDurable() throws Exception {
         final String jobName = "NestedParallelDurableJob";
@@ -899,7 +906,7 @@ public class FlowDurabilityTest {
      *  May fail rarely due to files being copied in a different order than they are modified as part of simulating a dirty restart.
      *  See {@link RestartableJenkinsRule#simulateAbruptShutdown()} for why that copying happens. */
     @Test
-    @Ignore //Too long to run as part of main suite
+     //Too long to run as part of main suite
     @TimedRepeatRule.RepeatForTime(repeatMillis = 150_000)
     public void fuzzTimingNonDurableWithDirtyRestart() throws Exception {
         final String jobName = "NestedParallelDurableJob";
@@ -959,7 +966,7 @@ public class FlowDurabilityTest {
 
     /** Test interrupting build by randomly restarting *cleanly* at unpredictable times and verify we stick pick up and resume. */
     @Test
-    @Ignore //Too long to run as part of main suite
+    //Too long to run as part of main suite
     @TimedRepeatRule.RepeatForTime(repeatMillis = 150_000)
     public void fuzzTimingNonDurableWithCleanRestart() throws Exception {
 
