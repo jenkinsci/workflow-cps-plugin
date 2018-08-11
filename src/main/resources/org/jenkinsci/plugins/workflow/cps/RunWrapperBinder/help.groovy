@@ -10,4 +10,5 @@ ul {
     li {code {b('result')}}
     li {code {b('displayName')}}
     li {code {b('description')}}
+    li {code {b('keepLog')}}
 }
