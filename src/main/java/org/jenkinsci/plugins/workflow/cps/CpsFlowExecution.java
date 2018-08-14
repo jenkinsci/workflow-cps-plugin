@@ -1212,9 +1212,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     @Override
-    @SuppressFBWarnings(value = "RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN", justification = "We want to explicitly check for boolean not-null and true")
     public boolean isComplete() {
-        return done || super.isComplete(); // Compare to Boolean.TRUE so null == false.
+        return done || super.isComplete();
     }
 
     /**
