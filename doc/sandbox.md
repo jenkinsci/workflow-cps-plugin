@@ -10,7 +10,7 @@ in CPS.
 To do this, groovy-cps has some optional components (`SandboxInvoker` and `SandboxCpsTransformer`) that combines
 Groovy sandbox with groovy-cps.
 
-#How to use it
+# How to use it
 Use `SandboxCpsTransformer` instead of `CpsTransformer` to translate the source code, then use `SandboxInvoker`
 instead of `DefaultInvoker` during runtime to perform checks.
 
@@ -19,7 +19,7 @@ To mix trusted code and untrusted code, use two `GroovyShell`, one with `Sandbox
 In this way, the portion of the code compiled with `CpsTransformer` will run without security check, while the
 other portion compiled with `SandboxCpsTransformer` will be sandboxed.
 
-#How this works
+# How this works
 
 ## Tagging call site
 As `CpsTransformer` translates the program, it adds some metadata to each AST node indicating
