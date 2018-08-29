@@ -95,6 +95,13 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     private final FlowExecutionOwner handle;
     private transient CpsFlowExecution exec;
     private transient Map<String,StepDescriptor> functions;
+    /**
+     * Allows steps to be referenced using their fully qualified class name in case the same
+     * function name is used for multiple steps. We keep them separate from {@link #functions} so
+     * that they are not included in the error message thrown by {@link #invokeMethod} when a
+     * matching DSL method is not found.
+     */
+    private transient Map<String,StepDescriptor> stepClassNames;
 
     private static final Logger LOGGER = Logger.getLogger(DSL.class.getName());
 
@@ -136,6 +143,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         if (functions == null) {
             functions = new TreeMap<>();
+            stepClassNames = new TreeMap<>();
             while (StepDescriptor.all().isEmpty()) {
                 LOGGER.warning("Jenkins does not seem to be fully started yet, waiting…");
                 try {
@@ -146,9 +154,10 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             }
             for (StepDescriptor d : StepDescriptor.all()) {
                 functions.put(d.getFunctionName(), d);
+                stepClassNames.put(d.clazz.getName(), d);
             }
         }
-        final StepDescriptor sd = functions.get(name);
+        final StepDescriptor sd = functions.getOrDefault(name, stepClassNames.get(name));
         if (sd != null) {
             return invokeStep(sd,args);
         }
