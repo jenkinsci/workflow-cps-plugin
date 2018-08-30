@@ -264,12 +264,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>command-launcher</artifactId>
-            <version>1.2</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>com.cloudbees</groupId>
             <artifactId>groovy-cps</artifactId>
             <version>${groovy-cps.version}</version>
