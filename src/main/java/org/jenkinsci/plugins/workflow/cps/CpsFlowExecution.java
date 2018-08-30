@@ -1497,10 +1497,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         return false;
     }
 
-    private void setPersistedClean(boolean persistedClean) {  // Workaround for some issues with anonymous classes.
-        this.persistedClean = persistedClean;
-    }
-
     /**
      * Pause or unpause the execution.
      *
