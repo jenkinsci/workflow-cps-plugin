@@ -367,10 +367,6 @@ public final class CpsThreadGroup implements Serializable {
             }
         }
 
-        if (changed && !stillRunnable) {
-            execution.persistedClean = null;
-            saveProgramIfPossible(false);
-        }
         if (ending) {
             execution.cleanUpHeap();
             if (scripts != null) {
@@ -382,6 +378,9 @@ public final class CpsThreadGroup implements Serializable {
             } catch (IOException x) {
                 LOGGER.log(Level.WARNING, "Failed to delete program.dat in " + execution, x);
             }
+        } else if (changed && !stillRunnable) {
+            execution.persistedClean = null;
+            saveProgramIfPossible(false);
         }
 
         return stillRunnable;
