@@ -64,7 +64,7 @@
     <properties>
         <revision>2.54</revision>
         <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.62</jenkins.version>
+        <jenkins.version>2.73.3</jenkins.version>
         <java.level>8</java.level>
         <no-test-jar>false</no-test-jar>
         <git-plugin.version>3.1.0</git-plugin.version>
