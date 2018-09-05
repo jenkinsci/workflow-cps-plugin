@@ -97,7 +97,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1.46-20180905.113030-1</version> <!-- TODO: Switch to release once https://github.com/jenkinsci/script-security-plugin/pull/223 is merged and released -->
+            <version>1.46</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
