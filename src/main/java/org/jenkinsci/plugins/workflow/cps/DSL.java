@@ -45,6 +45,7 @@ import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,8 +53,10 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.groovy.reflection.CachedClass;
@@ -102,6 +105,16 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * matching DSL method is not found.
      */
     private transient Map<String,StepDescriptor> stepClassNames;
+    /**
+     * Map from ambiguous function names to fully qualified Step class names. Only contains
+     * ambiguous functions. Used to provide context in the warning message logged when invoking an
+     * an ambiguous step.
+     */
+    private transient Map<String,List<String>> ambiguousFunctions;
+    /**
+     * Set of ambiguous functions for which we have already logged a warning.
+     */
+    private transient Set<String> ambiguousFunctionsLogged;
 
     private static final Logger LOGGER = Logger.getLogger(DSL.class.getName());
 
@@ -152,13 +165,33 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                     throw new GroovyRuntimeException(x);
                 }
             }
+            Set<String> ambiguousFunctionNames = new HashSet<>(0);
             for (StepDescriptor d : StepDescriptor.all()) {
-                functions.put(d.getFunctionName(), d);
+                String functionName = d.getFunctionName();
+                if (functions.containsKey(functionName)) {
+                    ambiguousFunctionNames.add(functionName);
+                }
+                // TODO: Switch we switch to putIfAbsent so that the descriptor with the highest ordinal value is preferred for ambiguous functions?
+                functions.put(functionName, d);
                 stepClassNames.put(d.clazz.getName(), d);
             }
+            ambiguousFunctions = functions.keySet().stream()
+                    .filter(ambiguousFunctionNames::contains)
+                    .collect(Collectors.groupingBy(Function.identity(),
+                            Collectors.mapping(n -> functions.get(n).clazz.getName(), Collectors.toList())));
+            ambiguousFunctionsLogged = new HashSet<>(0);
         }
         final StepDescriptor sd = functions.getOrDefault(name, stepClassNames.get(name));
         if (sd != null) {
+            List<String> ambiguousClassNames = ambiguousFunctions.get(name);
+            if (ambiguousClassNames != null && ambiguousFunctionsLogged.add(name)) {
+                LOGGER.log(Level.WARNING, "Invoking ambiguous Pipeline Step ‘{0}’ ({1}) in {3}. " + 
+                    "The function name could refer to any of the following steps: {2}. " + 
+                    "To avoid ambiguity, you can invoke steps by class name. " +
+                    "For example: steps.''{1}''(... args ...)", new Object[] {
+                        sd.getFunctionName(), sd.clazz.getName(), ambiguousClassNames, handle
+                });
+            }
             return invokeStep(sd,args);
         }
         if (SymbolLookup.get().findDescriptor(Describable.class, name) != null) {

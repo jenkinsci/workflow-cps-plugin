@@ -47,6 +47,8 @@ import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
+import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoLowerStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoUpperStep;
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
@@ -421,6 +423,14 @@ public class DSLTest {
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("hello", b);
         r.assertLogContains("GOODBYE", b);
+    }
+
+    @Ignore("Extension ordering is reversed with respect to Extension#ordinal, see DSL#invokeMethod")
+    @Test public void ambiguousStepsRespectOrdinal() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("ambiguousEcho 'HeLlO'\n", true));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("HELLO", b);
     }
 
     public static class CLStep extends Step {

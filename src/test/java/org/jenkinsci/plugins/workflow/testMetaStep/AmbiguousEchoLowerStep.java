@@ -51,7 +51,7 @@ public class AmbiguousEchoLowerStep extends Step implements Serializable {
         return new Execution(message, context);
     }
 
-    @Extension
+    @Extension(ordinal = -1) // Invoking `ambiguousEcho` should execute AmbiguousEchoUpperStep instead of this step.
     public static class DescriptorImpl extends StepDescriptor {
 
         @Override
