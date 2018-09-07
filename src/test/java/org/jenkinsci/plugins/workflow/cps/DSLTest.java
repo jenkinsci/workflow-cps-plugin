@@ -423,6 +423,7 @@ public class DSLTest {
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("hello", b);
         r.assertLogContains("GOODBYE", b);
+        r.assertLogNotContains("Warning: Invoking ambiguous Pipeline Step", b);
     }
 
     @Test public void ambiguousStepsRespectOrdinal() throws Exception {
@@ -430,6 +431,8 @@ public class DSLTest {
         p.setDefinition(new CpsFlowDefinition("ambiguousEcho 'HeLlO'\n", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("HELLO", b);
+        r.assertLogContains("Warning: Invoking ambiguous Pipeline Step", b);
+        r.assertLogContains("any of the following steps: [" + AmbiguousEchoUpperStep.class.getName() + ", " + AmbiguousEchoLowerStep.class.getName() + "]", b);
     }
 
     public static class CLStep extends Step {
