@@ -425,7 +425,6 @@ public class DSLTest {
         r.assertLogContains("GOODBYE", b);
     }
 
-    @Ignore("Extension ordering is reversed with respect to Extension#ordinal, see DSL#invokeMethod")
     @Test public void ambiguousStepsRespectOrdinal() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("ambiguousEcho 'HeLlO'\n", true));

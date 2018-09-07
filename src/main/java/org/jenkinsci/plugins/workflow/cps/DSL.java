@@ -171,8 +171,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 if (functions.containsKey(functionName)) {
                     ambiguousFunctionNames.add(functionName);
                 }
-                // TODO: Switch we switch to putIfAbsent so that the descriptor with the highest ordinal value is preferred for ambiguous functions?
-                functions.put(functionName, d);
+                // The step descriptor with the highest value for Extension#ordinal() is used in the case of ambiguity.
+                functions.putIfAbsent(functionName, d);
                 stepClassNames.put(d.clazz.getName(), d);
             }
             ambiguousFunctions = functions.keySet().stream()
