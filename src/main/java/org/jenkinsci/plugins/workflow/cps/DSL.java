@@ -444,6 +444,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                         "For example: steps.'%2$s'(...)",
                         d.getFunctionName(), d.clazz.getName(), ambiguousClassNames);
                 listener.getLogger().println(message);
+                return;
             }
         } catch (InterruptedException | IOException temp) {
             e = temp;
