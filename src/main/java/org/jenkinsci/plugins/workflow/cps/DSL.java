@@ -32,6 +32,7 @@ import groovy.lang.GroovyObject;
 import groovy.lang.GroovyObjectSupport;
 import groovy.lang.GroovyRuntimeException;
 import hudson.EnvVars;
+import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
@@ -45,6 +46,7 @@ import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +56,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.groovy.reflection.CachedClass;
@@ -95,6 +98,18 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     private final FlowExecutionOwner handle;
     private transient CpsFlowExecution exec;
     private transient Map<String,StepDescriptor> functions;
+    /**
+     * Allows steps to be referenced using their fully qualified class name in case the same
+     * function name is used for multiple steps. We keep them separate from {@link #functions} so
+     * that they are not included in the error message thrown by {@link #invokeMethod} when a
+     * matching DSL method is not found.
+     */
+    private transient Map<String,StepDescriptor> stepClassNames;
+    /**
+     * Set of function names that are reused by distinct {@link StepDescriptor}s and for which
+     * we have not yet warned the user about the ambiguity.
+     */
+    private transient Set<String> unreportedAmbiguousFunctions;
 
     private static final Logger LOGGER = Logger.getLogger(DSL.class.getName());
 
@@ -136,6 +151,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         if (functions == null) {
             functions = new TreeMap<>();
+            stepClassNames = new TreeMap<>();
             while (StepDescriptor.all().isEmpty()) {
                 LOGGER.warning("Jenkins does not seem to be fully started yet, waiting…");
                 try {
@@ -144,13 +160,24 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                     throw new GroovyRuntimeException(x);
                 }
             }
+            unreportedAmbiguousFunctions = new HashSet<>(0);
             for (StepDescriptor d : StepDescriptor.all()) {
-                functions.put(d.getFunctionName(), d);
+                String functionName = d.getFunctionName();
+                if (functions.containsKey(functionName)) {
+                    unreportedAmbiguousFunctions.add(functionName);
+                }
+                // The step descriptor with the highest value for Extension#ordinal() is used in the case of ambiguity.
+                functions.putIfAbsent(functionName, d);
+                stepClassNames.put(d.clazz.getName(), d);
             }
         }
-        final StepDescriptor sd = functions.get(name);
+        final StepDescriptor sd = functions.getOrDefault(name, stepClassNames.get(name));
         if (sd != null) {
-            return invokeStep(sd,args);
+            if (Util.isOverridden(DSL.class, getClass(), "invokeStep", StepDescriptor.class, Object.class) &&
+                    !Util.isOverridden(DSL.class, getClass(), "invokeStep", StepDescriptor.class, String.class, Object.class)) {
+                return invokeStep(sd, args);
+            }
+            return invokeStep(sd, name, args);
         }
         if (SymbolLookup.get().findDescriptor(Describable.class, name) != null) {
             return invokeDescribable(name,args);
@@ -178,8 +205,19 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
     /**
      * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
+     * @deprecated Prefer {@link #invokeStep(StepDescriptor, String, Object)}
      */
     protected Object invokeStep(StepDescriptor d, Object args) {
+        return invokeStep(d, d.getFunctionName(), args);
+    }
+
+    /**
+     * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
+     * @param d The {@link StepDescriptor} being invoked.
+     * @param name The name used to invoke the step. Will be either {@code d.getFunctionName()} or {@code d.clazz.getName()}.
+     * @param args The arguments passed to the step.
+     */
+    protected Object invokeStep(StepDescriptor d, String name, Object args) {
         final NamedArgsAndClosure ps = parseArgs(args, d);
 
         CpsThread thread = CpsThread.current();
@@ -203,6 +241,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         boolean sync;
         ClassLoader originalLoader = Thread.currentThread().getContextClassLoader();
         try {
+            if (unreportedAmbiguousFunctions.remove(name)) {
+                reportAmbiguousStepInvocation(context, d);
+            }
             d.checkContextAvailability(context);
             Thread.currentThread().setContextClassLoader(CpsVmExecutorService.ORIGINAL_CONTEXT_CLASS_LOADER.get());
             s = d.newInstance(ps.namedArgs);
@@ -386,6 +427,29 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         logger.println(e.getMessage());
         if (names.length()>0)
             logger.println("Perhaps you forgot to surround the code with a step that provides this, such as: "+names);
+    }
+
+    private void reportAmbiguousStepInvocation(CpsStepContext context, StepDescriptor d) {
+        Exception e = null;
+        try {
+            TaskListener listener = context.get(TaskListener.class);
+            if (listener != null) {
+                List<String> ambiguousClassNames = StepDescriptor.all().stream()
+                        .filter(sd -> sd.getFunctionName().equals(d.getFunctionName()))
+                        .map(sd -> sd.clazz.getName())
+                        .collect(Collectors.toList());
+                String message = String.format("Warning: Invoking ambiguous Pipeline Step ‘%1$s’ (%2$s). " +
+                        "‘%1$s’ could refer to any of the following steps: %3$s. " +
+                        "You can invoke steps by class name instead to avoid ambiguity. " +
+                        "For example: steps.'%2$s'(...)",
+                        d.getFunctionName(), d.clazz.getName(), ambiguousClassNames);
+                listener.getLogger().println(message);
+                return;
+            }
+        } catch (InterruptedException | IOException temp) {
+            e = temp;
+        }
+        LOGGER.log(Level.FINE, "Unable to report ambiguous step invocation for: " + d.getFunctionName(), e);
     }
 
     /** Returns the capacity we need to allocate for a HashMap so it will hold all elements without needing to resize. */

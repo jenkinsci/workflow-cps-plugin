@@ -101,7 +101,7 @@ public class SnippetizerTester {
         s.o = new DSL(new DummyOwner()) {
             // for testing, instead of executing the step just return an instantiated Step
             @Override
-            protected Object invokeStep(StepDescriptor d, Object args) {
+            protected Object invokeStep(StepDescriptor d, String name, Object args) {
                 try {
                     return d.newInstance(parseArgs(args, d).namedArgs);
                 } catch (Exception e) {
