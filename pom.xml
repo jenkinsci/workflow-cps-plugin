@@ -72,6 +72,7 @@
         <scm-api-plugin.version>2.0.8</scm-api-plugin.version>
         <groovy-cps.version>1.24</groovy-cps.version>
         <jenkins-test-harness.version>2.37</jenkins-test-harness.version>
+        <structs-plugin.version>1.15-rc147.5d8e1edb9e35</structs-plugin.version>
     </properties>
     <dependencies>
         <dependency>
@@ -107,7 +108,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>structs</artifactId>
-            <version>1.14</version>
+            <version>${structs-plugin.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
