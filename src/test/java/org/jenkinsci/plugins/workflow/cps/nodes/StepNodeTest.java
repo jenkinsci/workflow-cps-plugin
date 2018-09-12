@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.workflow.cps.nodes;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import hudson.model.BallColor;
 import hudson.model.Result;
 import hudson.tasks.ArtifactArchiver;
 import hudson.tasks.junit.JUnitResultArchiver;
@@ -167,4 +168,24 @@ public class StepNodeTest {
         r.assertLogContains("[Pipeline] // configFileProvider", b);
     }
 
+    @Test public void useAbortedStatusWhenFailFast() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        String spaces = StringUtils.repeat(" ", 1025); // cf. ArgumentsAction.MAX_RETAINED_LENGTH
+        p.setDefinition(new CpsFlowDefinition(
+            "jobs = [failFast:true]\n" +
+            "jobs['one'] = {\n" +
+            "  sleep 5\n" +
+            "}\n" +
+            "jobs['two'] = {\n" +
+            "  error 'failing'\n" +
+            "}\n" +
+            "parallel jobs", true));
+        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        List<FlowNode> coreStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), new NodeStepTypePredicate("sleep"));
+        assertThat(coreStepNodes, hasSize(1));
+        assertEquals("sleep", coreStepNodes.get(0).getDisplayFunctionName());
+        assertNotNull(coreStepNodes.get(0).getError());
+        assertNotNull(coreStepNodes.get(0).getError().getError());
+        assertEquals(BallColor.ABORTED, coreStepNodes.get(0).getIconColor());
+    }
 }

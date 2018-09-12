@@ -25,13 +25,17 @@
 package org.jenkinsci.plugins.workflow.cps.nodes;
 
 import hudson.model.Action;
+import hudson.model.BallColor;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
+import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.graph.AtomNode;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+
 
 import java.io.ObjectStreamException;
 import java.util.Collections;
@@ -143,4 +147,18 @@ public class StepAtomNode extends AtomNode implements StepNode {
         return null;
     }
 
+    /**
+     * Override default method to return proper icon color for interrupted steps.
+     */
+    @Override
+    public BallColor getIconColor() {
+        ErrorAction error = getError();
+        if(error != null) {
+            if(error.getError() instanceof FlowInterruptedException) {
+                return BallColor.ABORTED;
+
+            }
+        }
+        return super.getIconColor();
+    }
 }
