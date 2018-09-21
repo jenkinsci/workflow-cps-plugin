@@ -42,7 +42,6 @@ import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.model.User;
 import hudson.security.ACL;
-import hudson.security.GlobalMatrixAuthorizationStrategy;
 import hudson.security.Permission;
 import java.io.File;
 import java.util.Collections;
@@ -66,6 +65,7 @@ import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
 public class ReplayActionTest {
@@ -146,11 +146,9 @@ public class ReplayActionTest {
             r.buildAndAssertSuccess(p2);
 
             r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
-            GlobalMatrixAuthorizationStrategy gmas = new GlobalMatrixAuthorizationStrategy();
-            gmas.add(Jenkins.RUN_SCRIPTS, "admin");
-            gmas.add(Jenkins.ADMINISTER, "admin");
-            gmas.add(ReplayAction.REPLAY, "normal");
-            r.jenkins.setAuthorizationStrategy(gmas);
+            r.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
+                    grant(Jenkins.ADMINISTER).everywhere().to("admin").
+                    grant(ReplayAction.REPLAY).everywhere().to("normal"));
         });
         story.then( r-> {
             WorkflowJob job = r.jenkins.getItemByFullName("p", WorkflowJob.class);
@@ -192,18 +190,14 @@ public class ReplayActionTest {
             @Override public void evaluate() throws Throwable {
                 // assertPermissionId should have been run before we get here
                 story.j.jenkins.setSecurityRealm(story.j.createDummySecurityRealm());
-                GlobalMatrixAuthorizationStrategy gmas = new GlobalMatrixAuthorizationStrategy();
                 // Set up an administrator, and three developer users with varying levels of access.
-                gmas.add(Jenkins.ADMINISTER, "admin");
-                gmas.add(Jenkins.READ, "dev1");
-                gmas.add(Item.CONFIGURE, "dev1"); // implies REPLAY
-                gmas.add(Jenkins.READ, "dev2");
                 List<Permission> permissions = Run.PERMISSIONS.getPermissions();
                 assertThat(permissions, Matchers.hasItem(ReplayAction.REPLAY));
-                gmas.add(ReplayAction.REPLAY, "dev2");
-                gmas.add(Jenkins.READ, "dev3");
-                gmas.add(Item.BUILD, "dev3"); // does not imply REPLAY, does allow rebuilding
-                story.j.jenkins.setAuthorizationStrategy(gmas);
+                story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
+                        grant(Jenkins.ADMINISTER).everywhere().to("admin").
+                        grant(Jenkins.READ, /* implies REPLAY */ Item.CONFIGURE).everywhere().to("dev1").
+                        grant(Jenkins.READ, ReplayAction.REPLAY).everywhere().to("dev2").
+                        grant(Jenkins.READ, /* does not imply REPLAY, does allow rebuilding */Item.BUILD).everywhere().to("dev3"));
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("", /* whole-script approval */ false));
                 WorkflowRun b1 = p.scheduleBuild2(0).get();
@@ -346,12 +340,8 @@ public class ReplayActionTest {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 story.j.jenkins.setSecurityRealm(story.j.createDummySecurityRealm());
-                GlobalMatrixAuthorizationStrategy gmas = new GlobalMatrixAuthorizationStrategy();
-                gmas.add(Jenkins.READ, "dev3");
-                gmas.add(Item.BUILD, "dev3");
-                gmas.add(Item.READ, "dev3");
-
-                story.j.jenkins.setAuthorizationStrategy(gmas);
+                story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
+                        grant(Jenkins.READ, Item.BUILD, Item.READ).everywhere().to("dev3"));
 
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("echo 'script to rebuild'", true));

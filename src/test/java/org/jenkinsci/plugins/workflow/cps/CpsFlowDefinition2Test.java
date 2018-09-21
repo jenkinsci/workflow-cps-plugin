@@ -36,7 +36,6 @@ import hudson.model.Result;
 
 import java.util.logging.Level;
 
-import hudson.security.GlobalMatrixAuthorizationStrategy;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -56,6 +55,7 @@ import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.MockAuthorizationStrategy;
 
 public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
@@ -181,14 +181,9 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Test
     public void sandboxInvokerUsed() throws Exception {
         jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
-        GlobalMatrixAuthorizationStrategy gmas = new GlobalMatrixAuthorizationStrategy();
-        // Set up a user with RUN_SCRIPTS and one without..
-        gmas.add(Jenkins.RUN_SCRIPTS, "runScriptsUser");
-        gmas.add(Jenkins.READ, "runScriptsUser");
-        gmas.add(Item.READ, "runScriptsUser");
-        gmas.add(Jenkins.READ, "otherUser");
-        gmas.add(Item.READ, "otherUser");
-        jenkins.jenkins.setAuthorizationStrategy(gmas);
+        jenkins.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
+                grant(Jenkins.RUN_SCRIPTS, Jenkins.READ, Item.READ).everywhere().to("runScriptsUser").
+                grant(Jenkins.READ, Item.READ).everywhere().to("otherUser"));
         WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
         job.setDefinition(new CpsFlowDefinition("[a: 1, b: 2].collectEntries { k, v ->\n" +
                 "  Jenkins.getInstance()\n" +
