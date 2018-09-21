@@ -31,19 +31,23 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.NONE;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
 
 /**
  * @author Kohsuke Kawaguchi
  */
 @Immutable
-@PersistIn(NONE)
+@PersistIn(PROGRAM)
 final class ContextVariableSet implements Serializable {
     private final ContextVariableSet parent;
     private final List<Object> values = new ArrayList<Object>();
 
     ContextVariableSet(ContextVariableSet parent) {
         this.parent = parent;
+    }
+
+    ContextVariableSet getParent() {
+        return parent;
     }
 
     <T> T get(Class<T> type) {
