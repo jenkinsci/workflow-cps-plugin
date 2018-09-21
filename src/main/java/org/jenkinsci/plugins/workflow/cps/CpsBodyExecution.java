@@ -348,7 +348,9 @@ class CpsBodyExecution extends BodyExecution {
             for (BodyExecutionCallback c : callbacks) {
                 c.onFailure(sc, t);
             }
-            thread.popContextVariables();
+            synchronized (this) {
+                thread.popContextVariables();
+            }
             return Next.terminate(null);
         }
 
@@ -365,7 +367,9 @@ class CpsBodyExecution extends BodyExecution {
             for (BodyExecutionCallback c : callbacks) {
                 c.onSuccess(sc, o);
             }
-            thread.popContextVariables();
+            synchronized (this) {
+                thread.popContextVariables();
+            }
             return Next.terminate(null);
         }
 
