@@ -28,7 +28,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>3.23-20180921.200005-1</version> <!-- TODO https://github.com/jenkinsci/plugin-pom/pull/123 -->
+        <version>3.23</version>
         <relativePath />
     </parent>
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
