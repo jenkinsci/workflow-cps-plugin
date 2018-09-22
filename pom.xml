@@ -64,13 +64,14 @@
     <properties>
         <revision>2.56</revision>
         <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.62</jenkins.version>
+        <jenkins.version>2.142-rc27324.96b862f319a5</jenkins.version>
         <java.level>8</java.level>
         <no-test-jar>false</no-test-jar>
         <git-plugin.version>3.1.0</git-plugin.version>
-        <workflow-support-plugin.version>2.17</workflow-support-plugin.version>
-        <scm-api-plugin.version>2.0.8</scm-api-plugin.version>
+        <workflow-support-plugin.version>2.21-rc591.43d37d4d080a</workflow-support-plugin.version>
+        <scm-api-plugin.version>2.2.6</scm-api-plugin.version>
         <groovy-cps.version>1.24</groovy-cps.version>
+        <maven.enforcer.fail>false</maven.enforcer.fail>
     </properties>
     <dependencies>
         <dependency>
@@ -307,6 +308,25 @@
                 <configuration>
                     <reuseForks>false</reuseForks> <!-- TODO reuse seems to cause problems in CpsFlowExecutionMemoryTest -->
                 </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>display-info</id>
+                        <configuration>
+                            <rules>
+                                <enforceBytecodeVersion>
+                                    <excludes combine.children="append">
+                                        <!-- Prevents enforcer complaining about multi-release JAR -->
+                                        <exclude>org.jboss.marshalling:jboss-marshalling-river</exclude>
+                                        <exclude>org.jboss.marshalling:jboss-marshalling</exclude>
+                                    </excludes>
+                                </enforceBytecodeVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
