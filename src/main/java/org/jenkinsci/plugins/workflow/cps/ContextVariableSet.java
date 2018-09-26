@@ -46,10 +46,6 @@ final class ContextVariableSet implements Serializable {
         this.parent = parent;
     }
 
-    ContextVariableSet getParent() {
-        return parent;
-    }
-
     <T> T get(Class<T> type) {
         for (ContextVariableSet s=this; s!=null; s=s.parent) {
             for (Object v : s.values) {

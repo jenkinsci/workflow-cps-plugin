@@ -140,9 +140,7 @@ public final class CpsThread implements Serializable {
      * that those variables will no longer be persisted as part of the program. See JENKINS-53709.
      */
     void popContextVariables() {
-        if (contextVariables != null) {
-            contextVariables = contextVariables.getParent();
-        }
+        contextVariables = null;
     }
 
     boolean isRunnable() {

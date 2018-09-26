@@ -203,7 +203,7 @@ public class CpsBodyExecutionTest {
                     "    echo '" + s.getNodeName() + "'\n" +
                     "  }\n" +
                     "}\n" +
-                    "semaphore 'wait'\n", false));
+                    "semaphore 'wait'\n", true));
             WorkflowRun b = p.scheduleBuild2(0).waitForStart();
             SemaphoreStep.waitForStart("wait/1", b);
             r.jenkins.removeNode(s);
