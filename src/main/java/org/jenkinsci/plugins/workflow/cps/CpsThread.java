@@ -97,7 +97,7 @@ public final class CpsThread implements Serializable {
     final FlowHead head;
 
     @Nullable
-    private final ContextVariableSet contextVariables;
+    private ContextVariableSet contextVariables;
 
     /**
      * If this thread is waiting for a {@link StepExecution} to complete (by invoking our callback),
@@ -133,6 +133,14 @@ public final class CpsThread implements Serializable {
 
     public ContextVariableSet getContextVariables() {
         return contextVariables;
+    }
+
+    /**
+     * Used to remove context variables after a {@link CpsBodyExecution} finishes executing so
+     * that those variables will no longer be persisted as part of the program. See JENKINS-53709.
+     */
+    void popContextVariables() {
+        contextVariables = null;
     }
 
     boolean isRunnable() {
