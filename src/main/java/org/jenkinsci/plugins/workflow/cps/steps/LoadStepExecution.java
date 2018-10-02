@@ -4,6 +4,8 @@ import com.google.inject.Inject;
 import groovy.lang.Script;
 import hudson.FilePath;
 import hudson.model.TaskListener;
+import org.codehaus.groovy.control.MultipleCompilationErrorsException;
+import org.jenkinsci.plugins.workflow.cps.CpsCompilationErrorsException;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
 import org.jenkinsci.plugins.workflow.cps.CpsThread;
@@ -42,7 +44,13 @@ public class LoadStepExecution extends AbstractStepExecutionImpl {
             text = newText;
         }
 
-        Script script = execution.getShell().parse(text);
+        Script script;
+        try {
+            script = execution.getShell().parse(text);
+        } catch (MultipleCompilationErrorsException e) {
+            // Convert to a serializable exception, see JENKINS-40109.
+            throw new CpsCompilationErrorsException(e);
+        }
 
         // execute body as another thread that shares the same head as this thread
         // as the body can pause.
