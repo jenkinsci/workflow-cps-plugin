@@ -75,6 +75,7 @@ public class PersistenceProblemsTest {
             Assert.assertTrue(cpsExec.getCurrentHeads().get(0) instanceof FlowEndNode);
             Assert.assertTrue(cpsExec.startNodes == null || cpsExec.startNodes.isEmpty());
             Assert.assertFalse(cpsExec.blocksRestart());
+            Assert.assertEquals(Boolean.TRUE, cpsExec.persistedClean);
         } else {
             System.out.println("WARNING: no FlowExecutionForBuild");
         }
