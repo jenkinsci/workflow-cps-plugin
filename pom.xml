@@ -71,7 +71,7 @@
         <workflow-support-plugin.version>2.21-rc630.d5d1f46255b6</workflow-support-plugin.version> <!-- TODO https://github.com/jenkinsci/workflow-support-plugin/pull/15 -->
         <scm-api-plugin.version>2.2.6</scm-api-plugin.version>
         <groovy-cps.version>1.24</groovy-cps.version>
-        <structs-plugin.version>1.15</structs-plugin.version>
+        <structs-plugin.version>1.16-rc255.d20c4d2367b4</structs-plugin.version> <!-- TODO https://github.com/jenkinsci/structs-plugin/pull/41 -->
     </properties>
     <dependencies>
         <dependency>
