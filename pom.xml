@@ -64,7 +64,7 @@
     <properties>
         <revision>2.58</revision>
         <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.62</jenkins.version>
+        <jenkins.version>2.121.1</jenkins.version>
         <java.level>8</java.level>
         <no-test-jar>false</no-test-jar>
         <git-plugin.version>3.1.0</git-plugin.version>
@@ -78,11 +78,6 @@
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
             <version>2.13</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jboss.marshalling</groupId>
-            <artifactId>jboss-marshalling-river</artifactId>
-            <version>1.4.12.jenkins-3</version> <!-- https://github.com/jglick/jboss-marshalling/compare/1.4.12.Final...1.4.12.jenkins-3 -->
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
