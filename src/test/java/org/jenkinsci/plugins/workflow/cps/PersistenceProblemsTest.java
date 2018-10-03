@@ -52,11 +52,9 @@ public class PersistenceProblemsTest {
 
     /** Verifies all the assumptions about a cleanly finished build. */
     static void assertCompletedCleanly(WorkflowRun run) throws Exception {
-        if (run.isBuilding()) {
-            System.out.println("Run initially building, going to wait a second to see if it finishes, run="+run);
-            Thread.sleep(1000);
+        while (run.isBuilding()) {
+            Thread.sleep(100); // TODO seems to be unpredictable
         }
-        Assert.assertFalse(run.isBuilding());
         Assert.assertNotNull(run.getResult());
         FlowExecution fe = run.getExecution();
         FlowExecutionList.get().forEach(f -> {
@@ -74,7 +72,9 @@ public class PersistenceProblemsTest {
             Assert.assertTrue(cpsExec.isComplete());
             Assert.assertTrue(cpsExec.getCurrentHeads().get(0) instanceof FlowEndNode);
             Assert.assertTrue(cpsExec.startNodes == null || cpsExec.startNodes.isEmpty());
-            Assert.assertFalse(cpsExec.blocksRestart());
+            while (cpsExec.blocksRestart()) {
+                Thread.sleep(100); // TODO ditto
+            }
         } else {
             System.out.println("WARNING: no FlowExecutionForBuild");
         }
