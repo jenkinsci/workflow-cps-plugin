@@ -1,1 +1,2 @@
-buildPlugin(platforms: ['linux']) // TODO temporary; Windows Maven cache seems to be bad?
+node('linux') {deleteDir "${pwd tmp: true}/m2repo"} // TODO seems to be busted?
+buildPlugin(platforms: ['linux'])
