@@ -329,14 +329,14 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Test
     public void curriedClosuresInParallel() throws Exception {
         WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
-        job.setDefinition(new CpsFlowDefinition("def example_c = { input -> node { echo \"$input\" } }\n" +
+        job.setDefinition(new CpsFlowDefinition("def example_c = { input -> node { echo \"ate $input\" } }\n" +
                 "def map = [:]\n" +
                 "map['spam'] = example_c.curry('spam')\n" +
                 "map['eggs'] = example_c.curry('eggs')\n" +
                 "parallel map\n", true));
         WorkflowRun b = jenkins.buildAndAssertSuccess(job);
-        jenkins.assertLogContains("[spam] spam", b);
-        jenkins.assertLogContains("[eggs] eggs", b);
+        jenkins.assertLogContains("ate spam", b);
+        jenkins.assertLogContains("ate eggs", b);
     }
 
     @Issue("JENKINS-27916")
