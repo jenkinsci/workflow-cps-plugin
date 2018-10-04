@@ -68,7 +68,6 @@ import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.*;
 
-import org.jenkinsci.plugins.workflow.actions.TimingAction;
 import org.jenkinsci.plugins.workflow.cps.actions.ArgumentsActionImpl;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
@@ -78,7 +77,6 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
-import org.jenkinsci.plugins.workflow.graph.AtomNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.MissingContextVariableException;
@@ -229,14 +227,31 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         if (ps.body == null && !hack) {
             an = new StepAtomNode(exec, d, thread.head.get());
-            // TODO: use CPS call stack to obtain the current call site source location. See JENKINS-23013
-            thread.head.setNewHead(an);
         } else {
             an = new StepStartNode(exec, d, thread.head.get());
-            thread.head.setNewHead(an);
         }
 
-        final CpsStepContext context = new CpsStepContext(d,thread,handle,an,ps.body);
+        // Ensure ArgumentsAction is attached before we notify even synchronous listeners:
+        final CpsStepContext context = new CpsStepContext(d, thread, handle, an, ps.body);
+        try {
+            // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
+            if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepArguments() && !(d instanceof ParallelStep.DescriptorImpl)) {
+                // Get the environment variables to find ones that might be credentials bindings
+                Computer comp = context.get(Computer.class);
+                EnvVars allEnv = new EnvVars(context.get(EnvVars.class));
+                if (comp != null && allEnv != null) {
+                    allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
+                }
+                an.addAction(new ArgumentsActionImpl(ps.namedArgs, allEnv));
+            }
+        } catch (Exception e) {
+            // Avoid breaking execution because we can't store some sort of crazy Step argument
+            LOGGER.log(Level.WARNING, "Error storing the arguments for step: " + d.getFunctionName(), e);
+        }
+
+        // TODO: use CPS call stack to obtain the current call site source location. See JENKINS-23013
+        thread.head.setNewHead(an);
+
         Step s;
         boolean sync;
         ClassLoader originalLoader = Thread.currentThread().getContextClassLoader();
@@ -247,21 +262,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             d.checkContextAvailability(context);
             Thread.currentThread().setContextClassLoader(CpsVmExecutorService.ORIGINAL_CONTEXT_CLASS_LOADER.get());
             s = d.newInstance(ps.namedArgs);
-            try {
-                // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
-                if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepArguments() && !(s instanceof ParallelStep)) {
-                    // Get the environment variables to find ones that might be credentials bindings
-                    Computer comp = context.get(Computer.class);
-                    EnvVars allEnv = new EnvVars(context.get(EnvVars.class));
-                    if (comp != null && allEnv != null) {
-                        allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
-                    }
-                    an.addAction(new ArgumentsActionImpl(ps.namedArgs, allEnv));
-                }
-            } catch (Exception e) {
-                // Avoid breaking execution because we can't store some sort of crazy Step argument
-                LOGGER.log(Level.WARNING, "Error storing the arguments for step: "+d.getFunctionName(), e);
-            }
 
             // Persist the node - block start and end nodes do their own persistence.
             CpsFlowExecution.maybeAutoPersistNode(an);

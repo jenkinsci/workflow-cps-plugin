@@ -68,8 +68,8 @@
         <java.level>8</java.level>
         <no-test-jar>false</no-test-jar>
         <git-plugin.version>3.1.0</git-plugin.version>
-        <workflow-support-plugin.version>2.17</workflow-support-plugin.version>
-        <scm-api-plugin.version>2.0.8</scm-api-plugin.version>
+        <workflow-support-plugin.version>2.21-rc578.95f4df4d2c32</workflow-support-plugin.version> <!-- TODO https://github.com/jenkinsci/workflow-support-plugin/pull/75 -->
+        <scm-api-plugin.version>2.2.6</scm-api-plugin.version>
         <groovy-cps.version>1.24</groovy-cps.version>
         <structs-plugin.version>1.15</structs-plugin.version>
     </properties>
