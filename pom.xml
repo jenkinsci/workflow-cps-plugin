@@ -71,7 +71,7 @@
         <workflow-support-plugin.version>2.21-beta-1</workflow-support-plugin.version>
         <scm-api-plugin.version>2.2.6</scm-api-plugin.version>
         <groovy-cps.version>1.24</groovy-cps.version>
-        <structs-plugin.version>1.15</structs-plugin.version>
+        <structs-plugin.version>1.17</structs-plugin.version>
     </properties>
     <dependencies>
         <dependency>
