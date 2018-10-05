@@ -20,9 +20,6 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
-import org.junit.rules.TestRule;
-import org.junit.runner.Description;
-import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import javax.annotation.CheckForNull;
@@ -35,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.jenkinsci.plugins.workflow.util.StaplerReferer;
-import org.kohsuke.stapler.NoStaplerConstructorException;
 
 import static org.junit.Assert.*;
 
@@ -132,16 +128,21 @@ public class SnippetizerTester {
 
     }
 
-    private static void recurseOnTypes(ParameterType type) throws Exception {
+    private static void recurseOnTypes(DescribableModel<?> model, ParameterType type) throws Exception {
         if (type instanceof ErrorType) {
-            throw ((ErrorType)type).getError();
+            throw new Exception("could not describe " + model, ((ErrorType) type).getError());
         }
 
         if (type instanceof ArrayType) {
-            recurseOnTypes(((ArrayType)type).getElementType());
+            recurseOnTypes(model, ((ArrayType)type).getElementType());
         } else if (type instanceof HomogeneousObjectType) {
             recurseOnModel(((HomogeneousObjectType) type).getSchemaType());
         } else if (type instanceof HeterogeneousObjectType) {
+            if (((HeterogeneousObjectType) type).getActualType() == Object.class) {
+                // See html.groovy#describeType. For example, JENKINS-53917 ChoiceParameterDefinition.choices.
+                System.err.println("Ignoring " + model.getType().getName() + " since a parameter is not enumerable");
+                return;
+            }
             for (Map.Entry<String, DescribableModel<?>> entry : ((HeterogeneousObjectType) type).getTypes().entrySet()) {
                 recurseOnModel(entry.getValue());
             }
@@ -150,7 +151,7 @@ public class SnippetizerTester {
 
     private static void recurseOnModel(DescribableModel<?> model) throws Exception {
         for (DescribableParameter param : model.getParameters()) {
-            recurseOnTypes(param.getType());
+            recurseOnTypes(model, param.getType());
         }
     }
 
