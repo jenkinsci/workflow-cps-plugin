@@ -482,13 +482,13 @@ import org.kohsuke.stapler.StaplerRequest;
         Class<?> c = j.getPluginManager().uberClassLoader.loadClass(jsonO.getString("stapler-class"));
         Descriptor descriptor = j.getDescriptor(c.asSubclass(Describable.class));
         if (descriptor == null) {
-            return HttpResponses.plainText("<could not find " + c.getName() + ">");
+            return HttpResponses.text("<could not find " + c.getName() + ">");
         }
         Object o;
         try {
             o = descriptor.newInstance(req, jsonO);
         } catch (RuntimeException x) { // e.g. IllegalArgumentException
-            return HttpResponses.plainText(Functions.printThrowable(x));
+            return HttpResponses.text(Functions.printThrowable(x));
         }
         try {
             Step step = null;
@@ -508,17 +508,17 @@ import org.kohsuke.stapler.StaplerRequest;
                 }
             }
             if (step == null) {
-                return HttpResponses.plainText("Cannot find a step corresponding to " + o.getClass().getName());
+                return HttpResponses.text("Cannot find a step corresponding to " + o.getClass().getName());
             }
             String groovy = step2Groovy(step);
             if (descriptor instanceof StepDescriptor && ((StepDescriptor) descriptor).isAdvanced()) {
                 String warning = Messages.Snippetizer_this_step_should_not_normally_be_used_in();
                 groovy = "// " + warning + "\n" + groovy;
             }
-            return HttpResponses.plainText(groovy);
+            return HttpResponses.text(groovy);
         } catch (UnsupportedOperationException x) {
             Logger.getLogger(CpsFlowExecution.class.getName()).log(Level.WARNING, "failed to render " + json, x);
-            return HttpResponses.plainText(x.getMessage());
+            return HttpResponses.text(x.getMessage());
         }
     }
 
