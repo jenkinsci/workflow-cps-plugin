@@ -1464,7 +1464,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             return ACL.SYSTEM;
         }
         try {
-            return User.get(user).impersonate();
+            User u = User.getById(user, true);
+            if (u == null) {
+                return Jenkins.ANONYMOUS;
+            } else {
+                return u.impersonate();
+            }
         } catch (UsernameNotFoundException x) {
             LOGGER.log(Level.WARNING, "could not restore authentication", x);
             // Should not expose this to callers.

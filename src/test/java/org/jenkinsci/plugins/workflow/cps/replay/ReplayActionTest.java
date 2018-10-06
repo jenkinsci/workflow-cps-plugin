@@ -227,7 +227,7 @@ public class ReplayActionTest {
     }
     private static boolean canReplay(WorkflowRun b, String user) {
         final ReplayAction a = b.getAction(ReplayAction.class);
-        return ACL.impersonate(User.get(user).impersonate(), new NotReallyRoleSensitiveCallable<Boolean,RuntimeException>() {
+        return ACL.impersonate(User.getById(user, true).impersonate(), new NotReallyRoleSensitiveCallable<Boolean,RuntimeException>() {
             @Override public Boolean call() throws RuntimeException {
                 return a.isEnabled();
             }
@@ -236,7 +236,7 @@ public class ReplayActionTest {
 
     private static boolean canReplayDeepTest(WorkflowRun b, String user) {
         final ReplayAction a = b.getAction(ReplayAction.class);
-        return ACL.impersonate(User.get(user).impersonate(), new NotReallyRoleSensitiveCallable<Boolean,RuntimeException>() {
+        return ACL.impersonate(User.getById(user, true).impersonate(), new NotReallyRoleSensitiveCallable<Boolean,RuntimeException>() {
             @Override public Boolean call() throws RuntimeException {
                 return a.isReplayableSandboxTest();
             }
@@ -245,7 +245,7 @@ public class ReplayActionTest {
 
     private static boolean canRebuild(WorkflowRun b, String user) {
         final ReplayAction a = b.getAction(ReplayAction.class);
-        return ACL.impersonate(User.get(user).impersonate(), new NotReallyRoleSensitiveCallable<Boolean,RuntimeException>() {
+        return ACL.impersonate(User.getById(user, true).impersonate(), new NotReallyRoleSensitiveCallable<Boolean,RuntimeException>() {
             @Override public Boolean call() throws RuntimeException {
                 return a.isRebuildEnabled();
             }

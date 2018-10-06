@@ -155,7 +155,7 @@ public class WorkflowTest extends SingleJobTestBase {
             @Override public void evaluate() throws Throwable {
                 jenkins().setSecurityRealm(story.j.createDummySecurityRealm());
                 jenkins().save();
-                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("demo", User.get("someone").impersonate())));
+                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("demo", User.getById("someone", true).impersonate())));
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition("checkAuth()"));
                 ScriptApproval.get().preapproveAll();
@@ -233,7 +233,7 @@ public class WorkflowTest extends SingleJobTestBase {
             @Override public void evaluate() throws Throwable {
                 jenkins().setSecurityRealm(story.j.createDummySecurityRealm());
                 jenkins().save();
-                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("demo", User.get("someone").impersonate())));
+                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("demo", User.getById("someone", true).impersonate())));
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition("echo \"ran as ${auth()}\"", true));
                 b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
