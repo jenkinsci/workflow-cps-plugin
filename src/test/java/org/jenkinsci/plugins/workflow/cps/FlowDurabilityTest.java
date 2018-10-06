@@ -160,7 +160,7 @@ public class FlowDurabilityTest {
                 "semaphore 'halt' \n" +
                 "} \n" +
                 "echo 'I like cheese'\n", false);
-        TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
+        TestDurabilityHintProvider provider = Jenkins.get().getExtensionList(TestDurabilityHintProvider.class).get(0);
         provider.registerHint(jobName, durabilityHint);
         job.setDefinition(def);
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
@@ -188,7 +188,7 @@ public class FlowDurabilityTest {
                 "sleep 30 \n" +
                 "} \n" +
                 "echo 'I like cheese'\n", false);
-        TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
+        TestDurabilityHintProvider provider = Jenkins.get().getExtensionList(TestDurabilityHintProvider.class).get(0);
         provider.registerHint(jobName, durabilityHint);
         job.setDefinition(def);
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
@@ -518,7 +518,7 @@ public class FlowDurabilityTest {
                         "  dir('nothing'){sleep 30;}\n"+
                         "} \n" +
                         "echo 'I like chese'\n", false);
-                TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
+                TestDurabilityHintProvider provider = Jenkins.get().getExtensionList(TestDurabilityHintProvider.class).get(0);
                 provider.registerHint(jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
                 job.setDefinition(def);
                 WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();

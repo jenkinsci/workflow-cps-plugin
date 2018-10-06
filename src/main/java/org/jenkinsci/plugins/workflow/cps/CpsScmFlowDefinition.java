@@ -118,7 +118,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             }
         }
         FilePath dir;
-        Node node = Jenkins.getActiveInstance();
+        Node node = Jenkins.get();
         if (build.getParent() instanceof TopLevelItem) {
             FilePath baseWorkspace = node.getWorkspaceFor((TopLevelItem) build.getParent());
             if (baseWorkspace == null) {
@@ -139,7 +139,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         delegate.setChangelog(true);
         FilePath acquiredDir;
         try (WorkspaceList.Lease lease = computer.getWorkspaceList().acquire(dir)) {
-            for (int retryCount = Jenkins.getInstance().getScmCheckoutRetryCount(); retryCount >= 0; retryCount--) {
+            for (int retryCount = Jenkins.get().getScmCheckoutRetryCount(); retryCount >= 0; retryCount--) {
                 try {
                     delegate.checkout(build, dir, listener, node.createLauncher(listener));
                     break;

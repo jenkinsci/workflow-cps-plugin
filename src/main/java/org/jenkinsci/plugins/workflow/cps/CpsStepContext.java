@@ -195,7 +195,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      */
     @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")
     public @CheckForNull StepDescriptor getStepDescriptor() {
-        Jenkins j = Jenkins.getInstance();
+        Jenkins j = Jenkins.getInstanceOrNull();
         if (j == null) {
             return null;
         }

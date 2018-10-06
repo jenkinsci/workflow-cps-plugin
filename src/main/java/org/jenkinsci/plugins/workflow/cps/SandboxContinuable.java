@@ -97,7 +97,7 @@ class SandboxContinuable extends Continuable {
 
         @Override
         public ConsoleAnnotator annotate(Object context, MarkupText text, int charPos) {
-            if (Jenkins.getActiveInstance().hasPermission(Jenkins.RUN_SCRIPTS)) {
+            if (Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS)) {
                 String url = "/" + ScriptApproval.get().getUrlName();
 
                 StaplerRequest req = Stapler.getCurrentRequest();
@@ -107,7 +107,7 @@ class SandboxContinuable extends Continuable {
                     url = req.getContextPath()+url;
                 } else {
                     // otherwise presumably this is rendered for e-mails and other non-HTTP stuff
-                    url = Jenkins.getInstance().getRootUrl()+url.substring(1);
+                    url = Jenkins.get().getRootUrl()+url.substring(1);
                 }
 
                 text.addMarkup(charPos, charPos + length, "<a href='" + url + "'>", "</a>");
