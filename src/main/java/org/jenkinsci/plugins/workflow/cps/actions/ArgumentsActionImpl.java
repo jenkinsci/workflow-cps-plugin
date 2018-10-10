@@ -340,4 +340,9 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     public boolean isUnmodifiedArguments() {
         return isUnmodifiedBySanitization;
     }
+
+    /** Do a shallow check on whether or not we have stored some real and displayable arguments, or everything is empty/masked-out. */
+    public boolean isPopulatedWithRealArguments() {
+        return arguments.isEmpty() || !(arguments.entrySet().stream().filter(x->!(x.getValue() instanceof NotStoredReason)).findFirst().isPresent());
+    }
 }
