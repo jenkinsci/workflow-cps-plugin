@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.workflow.cps.actions;
 
 import com.google.common.collect.Maps;
 import hudson.EnvVars;
+import hudson.model.Result;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.output.NullOutputStream;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
@@ -36,6 +37,8 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.io.Serializable;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -101,6 +104,22 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         return (count > 0)
                 ? !Pattern.compile(pattern.toString()).matcher(input).find()
                 : true;
+    }
+
+    /** Restrict stored arguments to a reasonable subset of types so we don't retain totally arbitrary objects
+     *  in memory. Generally we aim to allow storing anything that maps correctly to an {@link UninstantiatedDescribable}
+     *  But we may allow a few extras doesn't address, if they're safe to store.
+     */
+    boolean isStoreableType(Object ob) {
+        if (ob == null) {
+            return true;
+        } else if (ob instanceof CharSequence || ob instanceof Number || ob instanceof Boolean
+                || ob instanceof Map || ob instanceof List || ob instanceof UninstantiatedDescribable
+                || ob instanceof URL || ob instanceof Result || ob instanceof Exception) {
+            return true;
+        }
+        Class c = ob.getClass();
+        return c.isPrimitive() || c.isEnum() || c.isArray();
     }
 
     /** Normal environment variables, as opposed to ones that might come from credentials bindings */
@@ -246,6 +265,11 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         if (isOversized(tempVal)) {
             this.isUnmodifiedBySanitization = false;
             return NotStoredReason.OVERSIZE_VALUE;
+        }
+
+        if (!isStoreableType(tempVal)) {  // If we're not a legal type to store, then don't.
+            this.isUnmodifiedBySanitization = false;
+            return NotStoredReason.UNSERIALIZABLE;
         }
 
         Object modded = tempVal;

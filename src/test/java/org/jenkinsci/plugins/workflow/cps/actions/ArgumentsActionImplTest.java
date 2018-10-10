@@ -19,7 +19,9 @@ import hudson.remoting.ProxyException;
 import hudson.tasks.ArtifactArchiver;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.RandomStringUtils;
+import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
+import org.hamcrest.collection.IsMapContaining;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
@@ -59,6 +61,7 @@ import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import java.io.Serializable;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -296,6 +299,56 @@ public class ArgumentsActionImplTest {
         Assert.assertFalse("Should show argument removed by sanitization", impl.isUnmodifiedArguments());
     }
 
+    static class SuperSpecialThing implements Serializable {
+        int value = 5;
+        String component = "heh";
+
+        public SuperSpecialThing() {
+
+        }
+
+        public SuperSpecialThing(int value, String str) {
+            this.value = value;
+            this.component = str;
+        }
+
+        @Override
+        public boolean equals(Object ob) {
+            if (ob instanceof SuperSpecialThing) {
+                SuperSpecialThing other = (SuperSpecialThing)ob;
+                return this.value == other.value && this.component.equals(other.component);
+            }
+            return false;
+        }
+    }
+
+
+    @Test
+    public void testAvoidStoringSpecialTypes() throws Exception {
+        HashMap<String, Object> testMap = new HashMap<String, Object>();
+        testMap.put("safe", 5);
+        testMap.put("maskme", new SuperSpecialThing());
+        testMap.put("maskMyMapValue", Collections.singletonMap("bob", new SuperSpecialThing(-5, "testing")));
+        testMap.put("maskAnElement", Arrays.asList("cheese", new SuperSpecialThing(5, "pi"), -8,
+                Arrays.asList("nested", new SuperSpecialThing())));
+
+        ArgumentsActionImpl argsAction = new ArgumentsActionImpl(testMap);
+        Map<String, Object> maskedArgs = argsAction.getArguments();
+        Assert.assertThat(maskedArgs, IsMapContaining.hasEntry("maskme", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
+        Assert.assertThat(maskedArgs, IsMapContaining.hasEntry("safe", 5));
+
+        // Sub-map sanitization
+        Map<String, Object> subMap = (Map<String,Object>)(maskedArgs.get("maskMyMapValue"));
+        Assert.assertThat(subMap, IsMapContaining.hasEntry("bob", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
+
+        // Nested list masking too!
+        List<Serializable> sublist = (List<Serializable>)(maskedArgs.get("maskAnElement"));
+        Assert.assertThat(sublist, Matchers.hasItem("cheese"));
+        Assert.assertThat(sublist, Matchers.hasItems("cheese", ArgumentsAction.NotStoredReason.UNSERIALIZABLE, -8));
+        List<Serializable> subSubList = (List<Serializable>)(sublist.get(3));
+        Assert.assertThat(subSubList, Matchers.contains("nested", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
+    }
+
     @Test
     public void testBasicCredentials() throws Exception {
         String username = "bob";
@@ -501,5 +554,4 @@ public class ArgumentsActionImplTest {
         Assert.assertEquals("msg.out", ((ArtifactArchiver) delegate).getArtifacts());
         Assert.assertFalse(((ArtifactArchiver) delegate).isFingerprint());
     }
-
 }
