@@ -26,9 +26,11 @@ package org.jenkinsci.plugins.workflow.cps.actions;
 
 import com.google.common.collect.Maps;
 import hudson.EnvVars;
+import hudson.model.Describable;
 import hudson.model.Result;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.output.NullOutputStream;
+import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.steps.Step;
@@ -255,11 +257,16 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     Object sanitizeObjectAndRecordMutation(@CheckForNull Object o, @CheckForNull EnvVars vars) {
         // Package scoped so we can test it directly
         Object tempVal = o;
+        DescribableModel m = null;
         if (tempVal instanceof Step) {
             // Ugly but functional used for legacy syntaxes with metasteps
+            m = DescribableModel.of(tempVal.getClass());
             tempVal = ((Step)tempVal).getDescriptor().defineArguments((Step)tempVal);
         } else if (tempVal instanceof UninstantiatedDescribable) {
             tempVal = ((UninstantiatedDescribable)tempVal).toMap();
+        } else if (tempVal instanceof Describable) {  // Raw Describables may not be safe to store, so we should explode it
+            m = DescribableModel.of(tempVal.getClass());
+            tempVal = m.uninstantiate2(o).toMap();
         }
 
         if (isOversized(tempVal)) {
@@ -286,13 +293,20 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         if (modded != tempVal) {
             // Sanitization stripped out some values, so we need to record that and return modified version
             this.isUnmodifiedBySanitization = false;
-            if (o instanceof UninstantiatedDescribable) {
+            if (o instanceof Describable && !(o instanceof Step)) { // Return an UninstantiatedDescribable for the input Describable with masking applied to arguments
+                // We're skipping steps because for those we want to return the raw arguments anyway...
+                UninstantiatedDescribable rawUd = m.uninstantiate2(o);
+                return new UninstantiatedDescribable(rawUd.getSymbol(), rawUd.getKlass(), (Map<String, ?>) modded);
+            } else if (o instanceof UninstantiatedDescribable) {
                 // Need to retain the symbol.
                 UninstantiatedDescribable ud = (UninstantiatedDescribable) o;
                 return new UninstantiatedDescribable(ud.getSymbol(), ud.getKlass(), (Map<String, ?>) modded);
             } else {
                 return modded;
             }
+        } else if (o instanceof Describable && tempVal instanceof Map) {  // Handle oddball cases where Describable is passed in directly and we need to uninstantiate.
+            UninstantiatedDescribable rawUd = m.uninstantiate2(o);
+            return rawUd;
         } else {  // Any mutation was just from exploding step/uninstantiated describable, and we can just use the original
             return o;
         }

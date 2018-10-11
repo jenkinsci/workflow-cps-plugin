@@ -424,8 +424,6 @@ public class ArgumentsActionImplTest {
             Object stateValue = argsMap.get("state");
             if (stateValue instanceof Map) {
                 Assert.assertEquals("Oregon", ((Map<String,Object>)stateValue).get("$class"));
-            } else {
-                Assert.assertEquals(Oregon.class, stateValue.getClass());
             }
         }
     }
@@ -538,8 +536,12 @@ public class ArgumentsActionImplTest {
         ArgumentsAction act = testNode.getPersistentAction(ArgumentsAction.class);
         Assert.assertNotNull(act);
         Object delegate = act.getArgumentValue("delegate");
-        Assert.assertThat(delegate, instanceOf(ArtifactArchiver.class));
-        Assert.assertEquals("msg.out", ((ArtifactArchiver) delegate).getArtifacts());
-        Assert.assertFalse(((ArtifactArchiver) delegate).isFingerprint());
+
+        // Test that for a raw Describable we explode it into its arguments Map
+        Assert.assertThat(delegate, instanceOf(UninstantiatedDescribable.class));
+        UninstantiatedDescribable ud = (UninstantiatedDescribable)delegate;
+        Map<String, ?> args = (Map<String,?>)(((UninstantiatedDescribable)delegate).getArguments());
+        Assert.assertThat(args, IsMapContaining.hasEntry("artifacts", "msg.out"));
+        Assert.assertEquals(ArtifactArchiver.class.getName(), ud.getModel().getType().getName());
     }
 }
