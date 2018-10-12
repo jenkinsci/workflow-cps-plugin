@@ -245,6 +245,24 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         return (isMutated) ? output : objects; // Throw away copies and use originals wherever possible
     }
 
+    /** For object arrays, we sanitize recursively, as with Lists */
+    @CheckForNull
+    Object sanitizeArrayAndRecordMutation(@Nonnull Object[] objects, @CheckForNull EnvVars variables) {
+        if (isOversized(objects)) {
+            this.isUnmodifiedBySanitization = false;
+            return NotStoredReason.OVERSIZE_VALUE;
+        }
+        List inputList = Arrays.asList(objects);
+        Object sanitized = sanitizeListAndRecordMutation(inputList, variables);
+        if (sanitized == inputList) { // Works because if not mutated, we return original input instance
+            return objects;
+        } else if (sanitized instanceof List) {
+            return ((List) sanitized).toArray();
+        } else { // Enum or null or whatever.
+            return sanitized;
+        }
+    }
+
     /** Recursively sanitize a single object by:
      *   - Exploding {@link Step}s and {@link UninstantiatedDescribable}s into their Maps to sanitize
      *   - Removing unsafe strings using {@link #isStringSafe(String, EnvVars, Set)} and replace with {@link NotStoredReason#MASKED_VALUE}
@@ -285,6 +303,11 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             modded = sanitizeMapAndRecordMutation((Map)modded, vars);
         } else if (modded instanceof List) {
             modded = sanitizeListAndRecordMutation((List) modded, vars);
+        } else if (modded != null && modded.getClass().isArray()) {
+            Class componentType = modded.getClass().getComponentType();
+            if (!componentType.isPrimitive()) {  // Object arrays get recursively sanitized, primitives just get the lengthcheck above
+                modded = sanitizeArrayAndRecordMutation((Object[])modded, vars);
+            }
         } else if (modded instanceof String && vars != null && !vars.isEmpty() && !isStringSafe((String)modded, vars, SAFE_ENVIRONMENT_VARIABLES)) {
             this.isUnmodifiedBySanitization = false;
             return NotStoredReason.MASKED_VALUE;

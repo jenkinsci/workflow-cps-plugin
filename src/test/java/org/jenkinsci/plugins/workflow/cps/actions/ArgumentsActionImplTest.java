@@ -215,6 +215,25 @@ public class ArgumentsActionImplTest {
     }
 
     @Test
+    public void testArraySanitization() {
+        EnvVars env = new EnvVars();
+        String secretUsername = "IAmA";
+        env.put("USERVARIABLE", secretUsername); // assume secretuser is a bound credential
+
+        HashMap<String, Object> args = new HashMap<>();
+        args.put("ints", new int[]{1,2,3});
+        args.put("strings", new String[]{"heh",secretUsername,"lumberjack"});
+        ArgumentsActionImpl filtered = new ArgumentsActionImpl(args, env);
+
+        Map<String, Object> filteredArgs = filtered.getArguments();
+        Assert.assertEquals(2, filteredArgs.size());
+        Assert.assertThat(filteredArgs, IsMapContaining.hasEntry("ints", args.get("ints")));
+        Assert.assertThat(filteredArgs, IsMapContaining.hasKey("strings"));
+        Object[] contents = (Object[])(filteredArgs.get("strings"));
+        Assert.assertArrayEquals(new Object[]{"heh", ArgumentsAction.NotStoredReason.MASKED_VALUE, "lumberjack"}, (Object[])(filteredArgs.get("strings")));
+    }
+
+    @Test
     @Issue("JENKINS-48644")
     public void testMissingDescriptionInsideStage() throws Exception {
         Assume.assumeTrue(r.jenkins.getComputer("").isUnix()); // No need for windows-specific testing
@@ -312,6 +331,7 @@ public class ArgumentsActionImplTest {
 
 
     @Test
+    @Issue("JENKINS-54032")
     public void testAvoidStoringSpecialTypes() throws Exception {
         HashMap<String, Object> testMap = new HashMap<String, Object>();
         testMap.put("safe", 5);
