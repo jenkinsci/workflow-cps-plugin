@@ -39,7 +39,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import java.io.Serializable;
+import java.lang.reflect.Type;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -110,18 +110,26 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
     /** Restrict stored arguments to a reasonable subset of types so we don't retain totally arbitrary objects
      *  in memory. Generally we aim to allow storing anything that maps correctly to an {@link UninstantiatedDescribable}
-     *  But we may allow a few extras doesn't address, if they're safe to store.
+     *  argument type, but we may allow a few extras it doesn't address, if they're safe & easy to store to store.
+     *
+     *  See {@link DescribableModel}, and specifically note that many types are handled via {@link DescribableModel#coerce(String, Type, Object)}
+     *  to create more advanced types (i.e. Result, URL, etc) from Strings or simple types. For convenience and to ensure
+     *  we can deal with idiosyncratic or legacy syntaxes, we store original or partially-processed forms if viable.
+     *
+     *  Note also that Map is reserved for the arguments derived from exploded {@link Describable} instances, and Lists/Arrays may have a coercion applied and are supposed
+     *  to just be collections of Describables. We pass these through because they're used in parts of the recursive sanitization routines, and are themselves recursively
+     *  filtered.
      */
-    boolean isStoreableType(Object ob) {
+    boolean isStorableType(Object ob) {
         if (ob == null) {
             return true;
         } else if (ob instanceof CharSequence || ob instanceof Number || ob instanceof Boolean
                 || ob instanceof Map || ob instanceof List || ob instanceof UninstantiatedDescribable
-                || ob instanceof URL || ob instanceof Result || ob instanceof Exception) {
+                || ob instanceof URL || ob instanceof Result) {
             return true;
         }
         Class c = ob.getClass();
-        return c.isPrimitive() || c.isEnum() || c.isArray();
+        return c.isPrimitive() || c.isEnum() || (c.isArray() && !(c.getComponentType().isPrimitive()));  // Primitive arrays are not legal here
     }
 
     /** Normal environment variables, as opposed to ones that might come from credentials bindings */
@@ -292,7 +300,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             return NotStoredReason.OVERSIZE_VALUE;
         }
 
-        if (!isStoreableType(tempVal)) {  // If we're not a legal type to store, then don't.
+        if (!isStorableType(tempVal)) {  // If we're not a legal type to store, then don't.
             this.isUnmodifiedBySanitization = false;
             return NotStoredReason.UNSERIALIZABLE;
         }
@@ -305,8 +313,11 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             modded = sanitizeListAndRecordMutation((List) modded, vars);
         } else if (modded != null && modded.getClass().isArray()) {
             Class componentType = modded.getClass().getComponentType();
-            if (!componentType.isPrimitive()) {  // Object arrays get recursively sanitized, primitives just get the lengthcheck above
+            if (!componentType.isPrimitive()) {  // Object arrays get recursively sanitized
                 modded = sanitizeArrayAndRecordMutation((Object[])modded, vars);
+            } else {  // Primitive arrays aren't a valid type here
+                this.isUnmodifiedBySanitization = true;
+                return NotStoredReason.UNSERIALIZABLE;
             }
         } else if (modded instanceof String && vars != null && !vars.isEmpty() && !isStringSafe((String)modded, vars, SAFE_ENVIRONMENT_VARIABLES)) {
             this.isUnmodifiedBySanitization = false;

@@ -37,7 +37,6 @@ import org.jenkinsci.plugins.workflow.steps.EchoStep;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
-import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -227,7 +226,7 @@ public class ArgumentsActionImplTest {
 
         Map<String, Object> filteredArgs = filtered.getArguments();
         Assert.assertEquals(2, filteredArgs.size());
-        Assert.assertThat(filteredArgs, IsMapContaining.hasEntry("ints", args.get("ints")));
+        Assert.assertThat(filteredArgs, IsMapContaining.hasEntry("ints", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
         Assert.assertThat(filteredArgs, IsMapContaining.hasKey("strings"));
         Object[] contents = (Object[])(filteredArgs.get("strings"));
         Assert.assertArrayEquals(new Object[]{"heh", ArgumentsAction.NotStoredReason.MASKED_VALUE, "lumberjack"}, (Object[])(filteredArgs.get("strings")));
