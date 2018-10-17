@@ -26,8 +26,11 @@ package org.jenkinsci.plugins.workflow.cps.actions;
 
 import com.google.common.collect.Maps;
 import hudson.EnvVars;
+import hudson.model.Describable;
+import hudson.model.Result;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.output.NullOutputStream;
+import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.steps.Step;
@@ -36,6 +39,8 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.lang.reflect.Type;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -101,6 +106,30 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         return (count > 0)
                 ? !Pattern.compile(pattern.toString()).matcher(input).find()
                 : true;
+    }
+
+    /** Restrict stored arguments to a reasonable subset of types so we don't retain totally arbitrary objects
+     *  in memory. Generally we aim to allow storing anything that maps correctly to an {@link UninstantiatedDescribable}
+     *  argument type, but we may allow a few extras it doesn't address, if they're safe & easy to store to store.
+     *
+     *  See {@link DescribableModel}, and specifically note that many types are handled via {@link DescribableModel#coerce(String, Type, Object)}
+     *  to create more advanced types (i.e. Result, URL, etc) from Strings or simple types. For convenience and to ensure
+     *  we can deal with idiosyncratic or legacy syntaxes, we store original or partially-processed forms if viable.
+     *
+     *  Note also that Map is reserved for the arguments derived from exploded {@link Describable} instances, and Lists/Arrays may have a coercion applied and are supposed
+     *  to just be collections of Describables. We pass these through because they're used in parts of the recursive sanitization routines, and are themselves recursively
+     *  filtered.
+     */
+    boolean isStorableType(Object ob) {
+        if (ob == null) {
+            return true;
+        } else if (ob instanceof CharSequence || ob instanceof Number || ob instanceof Boolean
+                || ob instanceof Map || ob instanceof List || ob instanceof UninstantiatedDescribable
+                || ob instanceof URL || ob instanceof Result) {
+            return true;
+        }
+        Class c = ob.getClass();
+        return c.isPrimitive() || c.isEnum() || (c.isArray() && !(c.getComponentType().isPrimitive()));  // Primitive arrays are not legal here
     }
 
     /** Normal environment variables, as opposed to ones that might come from credentials bindings */
@@ -224,6 +253,24 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         return (isMutated) ? output : objects; // Throw away copies and use originals wherever possible
     }
 
+    /** For object arrays, we sanitize recursively, as with Lists */
+    @CheckForNull
+    Object sanitizeArrayAndRecordMutation(@Nonnull Object[] objects, @CheckForNull EnvVars variables) {
+        if (isOversized(objects)) {
+            this.isUnmodifiedBySanitization = false;
+            return NotStoredReason.OVERSIZE_VALUE;
+        }
+        List inputList = Arrays.asList(objects);
+        Object sanitized = sanitizeListAndRecordMutation(inputList, variables);
+        if (sanitized == inputList) { // Works because if not mutated, we return original input instance
+            return objects;
+        } else if (sanitized instanceof List) {
+            return ((List) sanitized).toArray();
+        } else { // Enum or null or whatever.
+            return sanitized;
+        }
+    }
+
     /** Recursively sanitize a single object by:
      *   - Exploding {@link Step}s and {@link UninstantiatedDescribable}s into their Maps to sanitize
      *   - Removing unsafe strings using {@link #isStringSafe(String, EnvVars, Set)} and replace with {@link NotStoredReason#MASKED_VALUE}
@@ -236,16 +283,26 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     Object sanitizeObjectAndRecordMutation(@CheckForNull Object o, @CheckForNull EnvVars vars) {
         // Package scoped so we can test it directly
         Object tempVal = o;
+        DescribableModel m = null;
         if (tempVal instanceof Step) {
             // Ugly but functional used for legacy syntaxes with metasteps
+            m = DescribableModel.of(tempVal.getClass());
             tempVal = ((Step)tempVal).getDescriptor().defineArguments((Step)tempVal);
         } else if (tempVal instanceof UninstantiatedDescribable) {
             tempVal = ((UninstantiatedDescribable)tempVal).toMap();
+        } else if (tempVal instanceof Describable) {  // Raw Describables may not be safe to store, so we should explode it
+            m = DescribableModel.of(tempVal.getClass());
+            tempVal = m.uninstantiate2(o).toMap();
         }
 
         if (isOversized(tempVal)) {
             this.isUnmodifiedBySanitization = false;
             return NotStoredReason.OVERSIZE_VALUE;
+        }
+
+        if (!isStorableType(tempVal)) {  // If we're not a legal type to store, then don't.
+            this.isUnmodifiedBySanitization = false;
+            return NotStoredReason.UNSERIALIZABLE;
         }
 
         Object modded = tempVal;
@@ -254,6 +311,14 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             modded = sanitizeMapAndRecordMutation((Map)modded, vars);
         } else if (modded instanceof List) {
             modded = sanitizeListAndRecordMutation((List) modded, vars);
+        } else if (modded != null && modded.getClass().isArray()) {
+            Class componentType = modded.getClass().getComponentType();
+            if (!componentType.isPrimitive()) {  // Object arrays get recursively sanitized
+                modded = sanitizeArrayAndRecordMutation((Object[])modded, vars);
+            } else {  // Primitive arrays aren't a valid type here
+                this.isUnmodifiedBySanitization = true;
+                return NotStoredReason.UNSERIALIZABLE;
+            }
         } else if (modded instanceof String && vars != null && !vars.isEmpty() && !isStringSafe((String)modded, vars, SAFE_ENVIRONMENT_VARIABLES)) {
             this.isUnmodifiedBySanitization = false;
             return NotStoredReason.MASKED_VALUE;
@@ -262,13 +327,20 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         if (modded != tempVal) {
             // Sanitization stripped out some values, so we need to record that and return modified version
             this.isUnmodifiedBySanitization = false;
-            if (o instanceof UninstantiatedDescribable) {
+            if (o instanceof Describable && !(o instanceof Step)) { // Return an UninstantiatedDescribable for the input Describable with masking applied to arguments
+                // We're skipping steps because for those we want to return the raw arguments anyway...
+                UninstantiatedDescribable rawUd = m.uninstantiate2(o);
+                return new UninstantiatedDescribable(rawUd.getSymbol(), rawUd.getKlass(), (Map<String, ?>) modded);
+            } else if (o instanceof UninstantiatedDescribable) {
                 // Need to retain the symbol.
                 UninstantiatedDescribable ud = (UninstantiatedDescribable) o;
                 return new UninstantiatedDescribable(ud.getSymbol(), ud.getKlass(), (Map<String, ?>) modded);
             } else {
                 return modded;
             }
+        } else if (o instanceof Describable && tempVal instanceof Map) {  // Handle oddball cases where Describable is passed in directly and we need to uninstantiate.
+            UninstantiatedDescribable rawUd = m.uninstantiate2(o);
+            return rawUd;
         } else {  // Any mutation was just from exploding step/uninstantiated describable, and we can just use the original
             return o;
         }
