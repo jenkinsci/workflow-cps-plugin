@@ -522,4 +522,18 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         WorkflowRun r = jenkins.buildAndAssertSuccess(job);
         jenkins.assertLogContains("OUTPUT: ybase", r);
     }
+
+    @Issue("SECURITY-1186")
+    @Test
+    public void finalizer() throws Exception {
+        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("class Foo {\n" +
+                "    @Override public void finalize() {\n" +
+                "    }\n" +
+                "}\n" +
+                "echo 'Should never get here'", true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("Object.finalize()", b);
+        jenkins.assertLogNotContains("Should never get here", b);
+    }
 }
