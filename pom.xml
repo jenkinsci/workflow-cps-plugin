@@ -9,7 +9,7 @@
     </parent>
 
     <artifactId>groovy-cps-parent</artifactId>
-    <version>1.25</version>
+    <version>1.26-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Groovy CPS Execution Parent</name>
@@ -22,7 +22,7 @@
     <scm>
         <connection>scm:git:git@github.com/cloudbees/groovy-cps.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/cloudbees/groovy-cps.git</developerConnection>
-        <tag>groovy-cps-parent-1.25</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <licenses>
