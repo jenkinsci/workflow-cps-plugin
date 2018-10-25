@@ -75,6 +75,11 @@
     </properties>
     <dependencies>
         <dependency>
+            <groupId>io.jenkins.plugins</groupId>
+            <artifactId>workflow-commons-cps-plugin</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
             <version>2.13</version>

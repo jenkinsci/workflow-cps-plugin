@@ -4,7 +4,6 @@ import hudson.Extension;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
 import org.jenkinsci.Symbol;
-import org.jenkinsci.plugins.workflow.cps.SnippetizerTest;
 import org.jenkinsci.plugins.workflow.testMetaStep.Colorado;
 import org.kohsuke.stapler.DataBoundConstructor;
 

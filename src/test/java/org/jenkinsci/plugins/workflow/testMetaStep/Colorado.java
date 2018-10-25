@@ -5,7 +5,6 @@ import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
 import org.jenkinsci.Symbol;
-import org.jenkinsci.plugins.workflow.cps.SnippetizerTest;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.CarbonMonoxide;
 import org.kohsuke.stapler.DataBoundConstructor;
 

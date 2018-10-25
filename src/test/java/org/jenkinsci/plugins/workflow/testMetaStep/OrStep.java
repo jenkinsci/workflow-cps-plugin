@@ -1,7 +1,6 @@
 package org.jenkinsci.plugins.workflow.testMetaStep;
 
 import hudson.Extension;
-import org.jenkinsci.plugins.workflow.cps.SnippetizerTest;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousStepExecution;
