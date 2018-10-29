@@ -21,7 +21,7 @@
                                 </f:entry>
                             </j:forEach>
                             <f:block>
-                                <a href="${rootURL}/${it.owner.parent.url}/pipeline-syntax" target="_blank">${%Pipeline Syntax}</a>
+                                <a href="${rootURL}/pipeline-syntax" target="_blank">${%Pipeline Syntax}</a>
                             </f:block>
                             <f:bottomButtonBar>
                                 <f:submit value="${%Run}"/>
