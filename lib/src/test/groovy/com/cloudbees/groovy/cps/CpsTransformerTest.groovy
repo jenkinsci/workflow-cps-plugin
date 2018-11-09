@@ -762,6 +762,25 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         ''')=="ybase"
     }
 
+    @NotYetImplemented
+    @Issue("JENKINS-52395")
+    @Test
+    void transformedSuperSuperClass() {
+        assert evalCPS('''
+            class Foo extends CpsTransformerTest.Base {
+                public String toString() {
+                    return "x"+super.toString()
+                }
+            }
+            class Bar extends Foo {
+                public String toString() {
+                    return "y"+super.toString()
+                }
+            }
+            new Bar().toString();
+        ''')=="yxbase"
+    }
+
     @Test
     @Issue("https://github.com/cloudbees/groovy-cps/issues/42")
     void abstractMethod() {
