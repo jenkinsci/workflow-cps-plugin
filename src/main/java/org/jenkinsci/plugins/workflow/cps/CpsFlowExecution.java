@@ -1437,7 +1437,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             try {
                                 listener.onNewHead(node);
                             } catch ( Exception e ) {
-                                LOGGER.fine( "skip error with listener " + listener.getClass().getName()
+                                LOGGER.log( Level.WARNING , "skip error with listener " + listener.getClass().getName() //
                                                  + ": " + e.getMessage() );
                             }
                         }
