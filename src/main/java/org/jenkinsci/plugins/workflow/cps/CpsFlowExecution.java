@@ -1436,7 +1436,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 for (FlowNode node : nodes) {
                     for (GraphListener listener : toRun) {
                         if (listener instanceof GraphListener.Synchronous == synchronous) {
-                            listener.onNewHead(node);
+                            try {
+                                listener.onNewHead(node);
+                            } catch ( Exception e ) {
+                                LOGGER.log( Level.WARNING , "skip error with listener " + listener.getClass().getName() //
+                                                 + ": " + e.getMessage() );
+                            }
                         }
                     }
                 }
