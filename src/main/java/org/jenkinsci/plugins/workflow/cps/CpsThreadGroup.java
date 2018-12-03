@@ -79,7 +79,7 @@ import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
  * @author Kohsuke Kawaguchi
  */
 @PersistIn(PROGRAM)
-@edu.umd.cs.findbugs.annotations.SuppressWarnings("SE_BAD_FIELD") // bogus warning about closures
+@SuppressFBWarnings("SE_BAD_FIELD") // bogus warning about closures
 public final class CpsThreadGroup implements Serializable {
     /**
      * {@link CpsThreadGroup} always belong to the same {@link CpsFlowExecution}.

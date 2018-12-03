@@ -93,7 +93,7 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
  * @see Step#start(StepContext)
  */
 @PersistIn(ANYWHERE)
-@edu.umd.cs.findbugs.annotations.SuppressWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED") // bodyInvokers, syncMode handled specially
+@SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED") // bodyInvokers, syncMode handled specially
 public class CpsStepContext extends DefaultStepContext { // TODO add XStream class mapper
 
     private static final Logger LOGGER = Logger.getLogger(CpsStepContext.class.getName());
@@ -582,7 +582,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     private static final long serialVersionUID = 1L;
 
-    @edu.umd.cs.findbugs.annotations.SuppressWarnings("SE_INNER_CLASS")
+    @SuppressFBWarnings("SE_INNER_CLASS")
     private class ScheduleNextRun implements FutureCallback<Object>, Serializable {
         public void onSuccess(Object _)    { scheduleNextRun(); }
         public void onFailure(Throwable _) { scheduleNextRun(); }
