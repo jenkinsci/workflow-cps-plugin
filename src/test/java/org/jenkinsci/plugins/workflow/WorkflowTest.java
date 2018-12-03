@@ -30,13 +30,11 @@ import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Executor;
-import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.Slave;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.slaves.ComputerLauncher;
-import hudson.slaves.NodeProperty;
 import hudson.slaves.RetentionStrategy;
 import hudson.slaves.SlaveComputer;
 import java.io.File;
@@ -339,7 +337,11 @@ public class WorkflowTest extends SingleJobTestBase {
     private static class SpecialEnvSlave extends Slave {
         private final Map<String,String> env;
         SpecialEnvSlave(File remoteFS, ComputerLauncher launcher, String nodeName, @Nonnull String labels, Map<String,String> env) throws Descriptor.FormException, IOException {
-            super(nodeName, nodeName, remoteFS.getAbsolutePath(), 1, Node.Mode.NORMAL, labels, launcher, RetentionStrategy.NOOP, Collections.<NodeProperty<?>>emptyList());
+            super(nodeName, remoteFS.getAbsolutePath(), launcher);
+            setNumExecutors(1);
+            setLabelString(labels);
+            setMode(Mode.NORMAL);
+            setRetentionStrategy(RetentionStrategy.NOOP);
             this.env = env;
         }
         @Override public Computer createComputer() {
