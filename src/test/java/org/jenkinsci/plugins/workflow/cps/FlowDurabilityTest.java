@@ -825,7 +825,7 @@ public class FlowDurabilityTest {
                             "    parallel nested\n" +
                             "}\n" +
                             "parallel steps\n" +
-                            "echo 'final'"
+                            "echo 'final'", false
             ));
         }
 

@@ -81,7 +81,7 @@ public class WorkflowTest extends SingleJobTestBase {
             @Override
             public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition("semaphore 'wait'"));
+                p.setDefinition(new CpsFlowDefinition("semaphore 'wait'", false));
                 startBuilding();
                 SemaphoreStep.waitForStart("wait/1", b);
                 assertTrue(b.isBuilding());
@@ -127,7 +127,7 @@ public class WorkflowTest extends SingleJobTestBase {
                     "    if (count++ < 2) {\n" + // forcing retry
                     "        error 'died'\n" +
                     "    }\n" +
-                    "}"));
+                    "}", false));
 
                 startBuilding();
                 SemaphoreStep.waitForStart("wait/1", b);
@@ -157,7 +157,7 @@ public class WorkflowTest extends SingleJobTestBase {
                 jenkins().save();
                 QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("demo", User.getById("someone", true).impersonate())));
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition("checkAuth()"));
+                p.setDefinition(new CpsFlowDefinition("checkAuth()", false));
                 ScriptApproval.get().preapproveAll();
                 startBuilding();
                 waitForWorkflowToSuspend();

@@ -48,14 +48,14 @@ class CpsFlowDefinitionTest extends AbstractCpsFlowTest {
     @Test
     public void simplestPossibleTest() {
         def flow = new CpsFlowDefinition("""
-def sqrt(int x) {
-    return Math.sqrt(x);
-}
+            def sqrt(int x) {
+                return Math.sqrt(x);
+            }
 
-for (int i=0; i<10; i++)
-    sqrt(i);
+            for (int i=0; i<10; i++)
+                sqrt(i);
 
-""")
+        """, false)
 
         createExecution(flow)
         exec.start()
@@ -68,7 +68,7 @@ for (int i=0; i<10; i++)
     void exceptionInWorkflowShouldBreakFlowExecution() throws Exception {
         def flow = new CpsFlowDefinition("""
             throw new Throwable('This is a fire drill, not a real fire');
-        """)
+        """, false)
 
         // get this going...
         createExecution(flow)
