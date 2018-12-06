@@ -72,6 +72,7 @@
         <scm-api-plugin.version>2.2.6</scm-api-plugin.version>
         <groovy-cps.version>1.25</groovy-cps.version>
         <structs-plugin.version>1.17</structs-plugin.version>
+	<frontend-version>1.6</frontend-version>
     </properties>
     <dependencies>
         <dependency>
