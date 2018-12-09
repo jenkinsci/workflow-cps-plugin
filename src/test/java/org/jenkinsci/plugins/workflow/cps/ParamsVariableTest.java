@@ -34,14 +34,27 @@ import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.Rule;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import javax.inject.Inject;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.Map;
+
 public class ParamsVariableTest {
 
     @Rule public JenkinsRule r = new JenkinsRule();
+
+    @Inject private GlobalVariableSet.GlobalVariableProvider globalVariables;
+
+    @Before public void setup() {
+        r.jenkins.getInjector().injectMembers(this);
+    }
 
     @Issue("JENKINS-27295")
     @Test public void smokes() throws Exception {
@@ -68,4 +81,16 @@ public class ParamsVariableTest {
         r.assertLogContains("TEXT=null", r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("TEXT", /* not possible via UI, but to simulate other ParameterValue impls */null)))));
     }
 
+    @Issue("JENKINS-55091")
+    @Test public void resultType() throws Exception {
+        for (GlobalVariable globalVar : globalVariables.forJob(null)) {
+            if (globalVar.getName().equals("params")) {
+                Type type = globalVar.getType();
+                Assert.assertTrue(type instanceof ParameterizedType);
+                Assert.assertEquals(((ParameterizedType) type).getRawType(), Map.class);
+                Assert.assertArrayEquals(((ParameterizedType)type).getActualTypeArguments(), new Type[] { String.class, Object.class });
+                break;
+            }
+        }
+    }
 }

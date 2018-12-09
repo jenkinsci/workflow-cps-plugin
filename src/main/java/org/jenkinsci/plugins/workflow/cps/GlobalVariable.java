@@ -33,6 +33,7 @@ import hudson.util.Iterators.FlattenIterator;
 import jenkins.model.RunAction2;
 
 import javax.annotation.Nonnull;
+import java.lang.reflect.Type;
 import java.util.Iterator;
 import javax.annotation.CheckForNull;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
@@ -69,12 +70,25 @@ public abstract class GlobalVariable implements ExtensionPoint {
      * Gets or creates the singleton value of the variable.
      * If the object is stateful, and the state should not be managed externally (such as with a {@link RunAction2}),
      * then the implementation is responsible for saving it in the {@link CpsScript#getBinding}.
+     * <p>Implementors should specify a more concrete return type (making use of return type covariance).</p>
      * @param script the script we are running
      * @return a POJO or {@link GroovyObject}
      * @throws Exception if there was any problem creating it (will be thrown up to the script)
      * @see CpsScript#getProperty
      */
     public abstract @Nonnull Object getValue(@Nonnull CpsScript script) throws Exception;
+
+    /**
+     * Gets the logical type of this global variable - that is, the type returned by {@link #getValue}.
+     * @implSpec The default implementation returns the return type of {@link #getValue}, as implemented in the subclass.
+     */
+    public Type getType() {
+        try {
+            return getClass().getMethod("getValue", CpsScript.class).getGenericReturnType();
+        } catch (NoSuchMethodException e) { //this should never happen
+            return Object.class;
+        }
+    }
 
     /**
      * @deprecated use {@link #forRun} instead

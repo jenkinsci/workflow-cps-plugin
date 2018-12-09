@@ -47,7 +47,7 @@ import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
     }
 
     @SuppressWarnings("unchecked")
-    @Override public Object getValue(CpsScript script) throws Exception {
+    @Override public Map<String,Object> getValue(CpsScript script) throws Exception {
         Run<?,?> b = script.$build();
         if (b == null) {
             throw new IllegalStateException("cannot find owning build");
