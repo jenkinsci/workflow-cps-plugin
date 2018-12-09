@@ -196,6 +196,22 @@ public abstract class SnippetizerLink implements ExtensionPoint {
     }
 
     @Extension(ordinal = 600L)
+    public static class ExamplesLink extends SnippetizerLink {
+
+        @Nonnull
+        @Override
+        public String getUrl() {
+            return "https://github.com/jenkinsci/pipeline-examples";
+        }
+
+        @Nonnull
+        @Override
+        public String getDisplayName() {
+            return Messages.SnippetizerLink_ExamplesLink_displayName();
+        }
+    }
+
+    @Extension(ordinal = 500L)
     public static class GDSLLink extends SnippetizerLink {
         @Override
         @Nonnull
