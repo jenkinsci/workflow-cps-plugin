@@ -80,7 +80,7 @@ public abstract class GlobalVariable implements ExtensionPoint {
 
     /**
      * Gets the logical type of this global variable - that is, the type returned by {@link #getValue}.
-     * @implSpec The default implementation returns the return type of {@link #getValue}, as implemented in the subclass.
+     * <p>The default implementation returns the return type of {@link #getValue}, as implemented in the subclass.</p>
      */
     public Type getType() {
         try {
