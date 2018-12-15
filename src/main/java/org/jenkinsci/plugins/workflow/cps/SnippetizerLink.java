@@ -201,7 +201,7 @@ public abstract class SnippetizerLink implements ExtensionPoint {
         @Nonnull
         @Override
         public String getUrl() {
-            return "https://github.com/jenkinsci/pipeline-examples";
+            return "https://jenkins.io/doc/pipeline/examples/";
         }
 
         @Nonnull
