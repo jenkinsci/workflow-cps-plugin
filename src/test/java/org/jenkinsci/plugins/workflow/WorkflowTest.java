@@ -30,13 +30,11 @@ import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Executor;
-import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.Slave;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.slaves.ComputerLauncher;
-import hudson.slaves.NodeProperty;
 import hudson.slaves.RetentionStrategy;
 import hudson.slaves.SlaveComputer;
 import java.io.File;
@@ -81,7 +79,7 @@ public class WorkflowTest extends SingleJobTestBase {
             @Override
             public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition("semaphore 'wait'"));
+                p.setDefinition(new CpsFlowDefinition("semaphore 'wait'", false));
                 startBuilding();
                 SemaphoreStep.waitForStart("wait/1", b);
                 assertTrue(b.isBuilding());
@@ -127,7 +125,7 @@ public class WorkflowTest extends SingleJobTestBase {
                     "    if (count++ < 2) {\n" + // forcing retry
                     "        error 'died'\n" +
                     "    }\n" +
-                    "}"));
+                    "}", false));
 
                 startBuilding();
                 SemaphoreStep.waitForStart("wait/1", b);
@@ -155,9 +153,9 @@ public class WorkflowTest extends SingleJobTestBase {
             @Override public void evaluate() throws Throwable {
                 jenkins().setSecurityRealm(story.j.createDummySecurityRealm());
                 jenkins().save();
-                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("demo", User.get("someone").impersonate())));
+                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("demo", User.getById("someone", true).impersonate())));
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition("checkAuth()"));
+                p.setDefinition(new CpsFlowDefinition("checkAuth()", false));
                 ScriptApproval.get().preapproveAll();
                 startBuilding();
                 waitForWorkflowToSuspend();
@@ -233,7 +231,7 @@ public class WorkflowTest extends SingleJobTestBase {
             @Override public void evaluate() throws Throwable {
                 jenkins().setSecurityRealm(story.j.createDummySecurityRealm());
                 jenkins().save();
-                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("demo", User.get("someone").impersonate())));
+                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("demo", User.getById("someone", true).impersonate())));
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition("echo \"ran as ${auth()}\"", true));
                 b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
@@ -339,7 +337,11 @@ public class WorkflowTest extends SingleJobTestBase {
     private static class SpecialEnvSlave extends Slave {
         private final Map<String,String> env;
         SpecialEnvSlave(File remoteFS, ComputerLauncher launcher, String nodeName, @Nonnull String labels, Map<String,String> env) throws Descriptor.FormException, IOException {
-            super(nodeName, nodeName, remoteFS.getAbsolutePath(), 1, Node.Mode.NORMAL, labels, launcher, RetentionStrategy.NOOP, Collections.<NodeProperty<?>>emptyList());
+            super(nodeName, remoteFS.getAbsolutePath(), launcher);
+            setNumExecutors(1);
+            setLabelString(labels);
+            setMode(Mode.NORMAL);
+            setRetentionStrategy(RetentionStrategy.NOOP);
             this.env = env;
         }
         @Override public Computer createComputer() {

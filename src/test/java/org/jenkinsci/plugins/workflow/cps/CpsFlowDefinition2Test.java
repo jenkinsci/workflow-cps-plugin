@@ -66,9 +66,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
      * I should be able to have DSL call into async step and then bring it to the completion.
      */
     @Test public void suspendExecutionAndComeBack() throws Exception {
-        CpsFlowDefinition flow = new CpsFlowDefinition(
-                "semaphore 'watch'\n" +
-                "println 'Yo'");
+        CpsFlowDefinition flow = new CpsFlowDefinition("semaphore 'watch'\nprintln 'Yo'", false);
 
         // get this going...
         createExecution(flow);
@@ -149,7 +147,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
     @Test public void configRoundTrip() throws Exception {
         WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
-        job.setDefinition(new CpsFlowDefinition("echo 'whatever'"));
+        job.setDefinition(new CpsFlowDefinition("echo 'whatever'", false));
         jenkins.configRoundtrip(job);
     }
 

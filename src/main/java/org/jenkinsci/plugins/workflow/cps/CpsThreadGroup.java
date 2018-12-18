@@ -79,7 +79,7 @@ import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
  * @author Kohsuke Kawaguchi
  */
 @PersistIn(PROGRAM)
-@edu.umd.cs.findbugs.annotations.SuppressWarnings("SE_BAD_FIELD") // bogus warning about closures
+@SuppressFBWarnings("SE_BAD_FIELD") // bogus warning about closures
 public final class CpsThreadGroup implements Serializable {
     /**
      * {@link CpsThreadGroup} always belong to the same {@link CpsFlowExecution}.
@@ -232,7 +232,7 @@ public final class CpsThreadGroup implements Serializable {
             runner.submit(new Callable<Void>() {
                 @SuppressFBWarnings(value="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE", justification="runner.submit() result")
                 public Void call() throws Exception {
-                    Jenkins j = Jenkins.getInstance();
+                    Jenkins j = Jenkins.getInstanceOrNull();
                     if (paused.get() || j == null || (execution != null && j.isQuietingDown())) {
                         // by doing the pause check inside, we make sure that scheduleRun() returns a
                         // future that waits for any previously scheduled tasks to be completed.

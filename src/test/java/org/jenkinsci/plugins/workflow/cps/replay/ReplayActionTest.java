@@ -42,12 +42,12 @@ import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.model.User;
 import hudson.security.ACL;
+import hudson.security.ACLContext;
 import hudson.security.Permission;
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import jenkins.model.Jenkins;
-import jenkins.security.NotReallyRoleSensitiveCallable;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
 import static org.hamcrest.Matchers.*;
@@ -56,7 +56,6 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.junit.Assert.*;
-
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -226,30 +225,24 @@ public class ReplayActionTest {
         });
     }
     private static boolean canReplay(WorkflowRun b, String user) {
-        final ReplayAction a = b.getAction(ReplayAction.class);
-        return ACL.impersonate(User.get(user).impersonate(), new NotReallyRoleSensitiveCallable<Boolean,RuntimeException>() {
-            @Override public Boolean call() throws RuntimeException {
-                return a.isEnabled();
-            }
-        });
+        ReplayAction a = b.getAction(ReplayAction.class);
+        try (ACLContext context = ACL.as(User.getById(user, true))) {
+            return a.isEnabled();
+        }
     }
 
     private static boolean canReplayDeepTest(WorkflowRun b, String user) {
-        final ReplayAction a = b.getAction(ReplayAction.class);
-        return ACL.impersonate(User.get(user).impersonate(), new NotReallyRoleSensitiveCallable<Boolean,RuntimeException>() {
-            @Override public Boolean call() throws RuntimeException {
-                return a.isReplayableSandboxTest();
-            }
-        });
+        ReplayAction a = b.getAction(ReplayAction.class);
+        try (ACLContext context = ACL.as(User.getById(user, true))) {
+            return a.isReplayableSandboxTest();
+        }
     }
 
     private static boolean canRebuild(WorkflowRun b, String user) {
-        final ReplayAction a = b.getAction(ReplayAction.class);
-        return ACL.impersonate(User.get(user).impersonate(), new NotReallyRoleSensitiveCallable<Boolean,RuntimeException>() {
-            @Override public Boolean call() throws RuntimeException {
-                return a.isRebuildEnabled();
-            }
-        });
+        ReplayAction a = b.getAction(ReplayAction.class);
+        try (ACLContext context = ACL.as(User.getById(user, true))) {
+            return a.isRebuildEnabled();
+        }
     }
 
     @Test public void loadStep() throws Exception {

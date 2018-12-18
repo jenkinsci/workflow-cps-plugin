@@ -374,7 +374,8 @@ public class ArgumentsActionImplTest {
                 "} }\n" +
                 "withCredentials([usernamePassword(credentialsId: 'test', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"+
                 "  echo \"${env.USERNAME} ${env.PASSWORD}\"\n"+
-                "}"
+                "}",
+                false
         ));
         WorkflowRun run  = job.scheduleBuild2(0).getStartCondition().get();
         r.waitForCompletion(run);
@@ -413,7 +414,8 @@ public class ArgumentsActionImplTest {
         WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "meta");
         job.setDefinition(new CpsFlowDefinition(
                 // Need to do some customization to load me
-                "state(moderate: true, state:[$class: 'Oregon']) \n"
+                "state(moderate: true, state:[$class: 'Oregon']) \n",
+                false
         ));
         WorkflowRun run  = r.buildAndAssertSuccess(job);
         LinearScanner scan = new LinearScanner();
@@ -431,7 +433,8 @@ public class ArgumentsActionImplTest {
         job.setDefinition(new CpsFlowDefinition(
                 // Need to do some customization to load me
                 "state(state:[$class: 'Oregon']) \n"+
-                "state(new org.jenkinsci.plugins.workflow.testMetaStep.Oregon()) \n"
+                "state(new org.jenkinsci.plugins.workflow.testMetaStep.Oregon()) \n",
+                false
         ));
         run  = r.buildAndAssertSuccess(job);
         List<FlowNode> nodes = scan.filteredNodes(run.getExecution(), new DescriptorMatchPredicate(StateMetaStep.DescriptorImpl.class));
@@ -450,9 +453,7 @@ public class ArgumentsActionImplTest {
     @Test
     public void simpleSemaphoreStep() throws Exception {
         WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "p");
-        job.setDefinition(new CpsFlowDefinition(
-                "semaphore 'wait'"
-        ));
+        job.setDefinition(new CpsFlowDefinition("semaphore 'wait'", false));
         WorkflowRun run  = job.scheduleBuild2(0).getStartCondition().get();
         SemaphoreStep.waitForStart("wait/1", run);
         FlowNode semaphoreNode = run.getExecution().getCurrentHeads().get(0);
@@ -467,15 +468,17 @@ public class ArgumentsActionImplTest {
         WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "argumentDescription");
         job.setDefinition(new CpsFlowDefinition(
                 "echo 'test' \n " +
-                        " node('master') { \n" +
-                        "   retry(3) {\n"+
-                        "     if (isUnix()) { \n" +
-                        "       sh 'whoami' \n" +
-                        "     } else { \n"+
-                        "       bat 'echo %USERNAME%' \n"+
-                        "     }\n"+
-                        "   } \n"+
-                        "}"
+                " node('master') { \n" +
+                "   retry(3) {\n"+
+                "     if (isUnix()) { \n" +
+                "       sh 'whoami' \n" +
+                "     } else { \n"+
+                "       bat 'echo %USERNAME%' \n"+
+                "     }\n"+
+                "   } \n"+
+                "}",
+                false
+
         ));
         WorkflowRun run = r.buildAndAssertSuccess(job);
         LinearScanner scan = new LinearScanner();
@@ -513,7 +516,8 @@ public class ArgumentsActionImplTest {
                 "   withEnv(['CUSTOM=val']) {\n"+  //Symbol-based, because withEnv is a metastep; TODO huh? no it is not
                 "     echo env.CUSTOM\n"+
                 "   }\n"+
-                "}"
+                "}",
+                false
         ));
         WorkflowRun run = r.buildAndAssertSuccess(job);
         LinearScanner scan = new LinearScanner();

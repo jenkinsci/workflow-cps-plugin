@@ -185,7 +185,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         Set<String> globals = new TreeSet<>();
         // TODO SymbolLookup only lets us find a particular symbol, not enumerate them
         try {
-            for (Class<?> e : Index.list(Symbol.class, Jenkins.getActiveInstance().pluginManager.uberClassLoader, Class.class)) {
+            for (Class<?> e : Index.list(Symbol.class, Jenkins.get().pluginManager.uberClassLoader, Class.class)) {
                 if (Descriptor.class.isAssignableFrom(e)) {
                     symbols.addAll(SymbolLookup.getSymbolValue(e));
                 }
