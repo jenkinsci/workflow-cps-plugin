@@ -27,6 +27,7 @@ package org.jenkinsci.plugins.workflow.cps;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.Item;
+import hudson.model.Job;
 import hudson.model.Queue;
 import hudson.model.Run;
 import hudson.model.TaskListener;
@@ -39,11 +40,13 @@ import org.jenkinsci.plugins.workflow.flow.FlowDefinitionDescriptor;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.flow.GlobalDefaultFlowDurabilityLevel;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+
 import net.sf.json.JSON;
 import net.sf.json.JSONArray;
 import org.codehaus.groovy.control.CompilationFailedException;
@@ -57,6 +60,7 @@ import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -125,14 +129,19 @@ public class CpsFlowDefinition extends FlowDefinition {
             return "Pipeline script";
         }
 
+        @RequirePOST
         public FormValidation doCheckScript(@QueryParameter String value, @QueryParameter boolean sandbox) {
             return sandbox ? FormValidation.ok() : ScriptApproval.get().checking(value, GroovyLanguage.get());
         }
 
-        public JSON doCheckScriptCompile(@QueryParameter String value) {
+        @RequirePOST
+        public JSON doCheckScriptCompile(@AncestorInPath Item job, @QueryParameter String value) {
+            if (!job.hasPermission(Job.CONFIGURE)) {
+                return CpsFlowDefinitionValidator.CheckStatus.SUCCESS.asJSON();
+            }
             try {
                 CpsGroovyShell trusted = new CpsGroovyShellFactory(null).forTrusted().build();
-                new CpsGroovyShellFactory(null).withParent(trusted).build().getClassLoader().parseClass(value);
+                new CpsGroovyShellFactory(null).withParent(trusted).withSandbox(true).build().getClassLoader().parseClass(value);
             } catch (CompilationFailedException x) {
                 return JSONArray.fromObject(CpsFlowDefinitionValidator.toCheckStatus(x).toArray());
             }

@@ -536,4 +536,20 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         jenkins.assertLogContains("Object.finalize()", b);
         jenkins.assertLogNotContains("Should never get here", b);
     }
+
+    @Issue("SECURITY-266")
+    @Test
+    public void sandboxRejectsASTTransforms() throws Exception {
+        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("import groovy.transform.*\n" +
+                "import jenkins.model.Jenkins\n" +
+                "import org.jenkinsci.plugins.workflow.job.WorkflowJob\n" +
+                "@ASTTest(value={ assert Jenkins.get().createProject(WorkflowJob.class, \"should-not-exist\") })\n" +
+                "@Field int x\n" +
+                "echo 'hello'\n", true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("Annotation ASTTest cannot be used in the sandbox", b);
+
+        assertNull(jenkins.jenkins.getItem("should-not-exist"));
+    }
 }
