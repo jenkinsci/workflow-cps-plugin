@@ -73,6 +73,7 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -346,12 +347,14 @@ public class ReplayAction implements Action {
     }
 
     // Stub, we do not need to do anything here.
+    @RequirePOST
     public FormValidation doCheckScript() {
         return FormValidation.ok();
     }
 
-    public JSON doCheckScriptCompile(@QueryParameter String value) {
-        return Jenkins.get().getDescriptorByType(CpsFlowDefinition.DescriptorImpl.class).doCheckScriptCompile(value);
+    @RequirePOST
+    public JSON doCheckScriptCompile(@AncestorInPath Item job, @QueryParameter String value) {
+        return Jenkins.get().getDescriptorByType(CpsFlowDefinition.DescriptorImpl.class).doCheckScriptCompile(job, value);
     }
 
     public static final Permission REPLAY = new Permission(Run.PERMISSIONS, "Replay", Messages._Replay_permission_description(), Item.CONFIGURE, PermissionScope.RUN);
