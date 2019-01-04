@@ -45,7 +45,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class StepDescriptorCache implements ExtensionPoint {
 
     public static StepDescriptorCache getPublicCache() {
-        return Jenkins.getActiveInstance().getExtensionList(StepDescriptorCache.class).get(0);
+        return Jenkins.get().getExtensionList(StepDescriptorCache.class).get(0);
     }
 
     public StepDescriptorCache() {}
@@ -71,7 +71,7 @@ public class StepDescriptorCache implements ExtensionPoint {
         if (v != null) {
             return v;
         } else {
-            Jenkins j = Jenkins.getActiveInstance();
+            Jenkins j = Jenkins.get();
             Descriptor d = j.getDescriptor(descriptorId);
             if (d instanceof StepDescriptor) {
                 store.put(descriptorId, (StepDescriptor)d);

@@ -48,7 +48,7 @@ public class LoadStepTest {
                 "  writeFile text: '21*2', file: 'test.groovy'\n" +
                 "  def o = load('test.groovy')\n" +
                 "  println 'output=' + o\n" +
-                "}"));
+                "}", false));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("output=42", b);
     }

@@ -36,7 +36,7 @@ public class CpsThreadDumpTest {
                 "   semaphore 'x'",
                 "}",
                 "foo()"
-        ), "\n")));
+        ), "\n"), false));
         WorkflowRun b = p.scheduleBuild2(0).waitForStart();
         SemaphoreStep.waitForStart("x/1", b);
         CpsThreadDumpAction action = b.getAction(CpsThreadDumpAction.class);
@@ -80,7 +80,7 @@ public class CpsThreadDumpTest {
                 "    b2:{ bar('y') });",
                 "}",
                 "zot()"                 // 10
-        ), "\n")));
+        ), "\n"), false));
         WorkflowRun b = p.scheduleBuild2(0).waitForStart();
         SemaphoreStep.waitForStart("x/1", b);
         SemaphoreStep.waitForStart("y/1", b);
@@ -120,7 +120,7 @@ public class CpsThreadDumpTest {
         p.setDefinition(new CpsFlowDefinition(
             "@NonCPS def untransformed() {Thread.sleep(Long.MAX_VALUE)}\n" +
             "def helper() {echo 'sleeping'; /* flush output */ sleep 1; untransformed()}\n" +
-            "helper()"));
+            "helper()", false));
         WorkflowRun b = p.scheduleBuild2(0).waitForStart();
         CpsFlowExecution e = (CpsFlowExecution) b.getExecutionPromise().get();
         j.waitForMessage("sleeping", b);
