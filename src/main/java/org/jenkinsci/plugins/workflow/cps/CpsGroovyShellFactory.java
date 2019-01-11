@@ -84,10 +84,11 @@ class CpsGroovyShellFactory {
     }
 
     private CompilerConfiguration makeConfig() {
-        CompilerConfiguration cc = new CompilerConfiguration();
+        CompilerConfiguration cc = sandbox ? GroovySandbox.createBaseCompilerConfiguration() : new CompilerConfiguration();
 
         cc.addCompilationCustomizers(makeImportCustomizer());
         cc.addCompilationCustomizers(makeCpsTransformer());
+
         cc.setScriptBaseClass(CpsScript.class.getName());
 
         for (GroovyShellDecorator d : decorators) {
