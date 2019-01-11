@@ -258,22 +258,19 @@ public class ParallelStepTest extends SingleJobTestBase {
     public void localMethodCallWithinBranch() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
-                FilePath aa = jenkins().getRootPath().child("a");
-                FilePath bb = jenkins().getRootPath().child("b");
-
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(join(
                     "def touch(f) { writeFile text: '', file: f }",
                     "node {",
-                    "  parallel(aa: {touch($/" + aa + "/$)}, bb: {touch($/" + bb + "/$)})",
+                    "  parallel(aa: {touch('a')}, bb: {touch('b')})",
                     "}"
                 ), false));
 
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();
 
-                assertTrue(aa.exists());
-                assertTrue(bb.exists());
+                assertTrue(jenkins().getWorkspaceFor(p).child("a").exists());
+                assertTrue(jenkins().getWorkspaceFor(p).child("b").exists());
             }
         });
     }
