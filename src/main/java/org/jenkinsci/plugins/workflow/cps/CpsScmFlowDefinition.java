@@ -73,7 +73,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
 
     @DataBoundConstructor public CpsScmFlowDefinition(SCM scm, String scriptPath) {
         this.scm = scm;
-        this.scriptPath = scriptPath;
+        this.scriptPath = scriptPath.trim();
     }
 
     public SCM getScm() {
