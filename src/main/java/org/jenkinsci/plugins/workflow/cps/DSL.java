@@ -40,7 +40,6 @@ import hudson.model.Queue;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -79,7 +78,6 @@ import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
-import org.jenkinsci.plugins.workflow.steps.MissingContextVariableException;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -269,8 +267,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             thread.setStep(e);
             sync = e.start();
         } catch (Exception e) {
-            if (e instanceof MissingContextVariableException)
-                reportMissingContextVariableException(context, (MissingContextVariableException)e);
             context.onFailure(e);
             s = null;
             sync = true;
@@ -401,32 +397,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 throw new IllegalArgumentException("Failed to prepare "+symbol+" step",e);
             }
         }
-    }
-
-    /**
-     * Reports a user-friendly error message for {@link MissingContextVariableException}.
-     */
-    private void reportMissingContextVariableException(CpsStepContext context, MissingContextVariableException e) {
-        TaskListener tl;
-        try {
-            tl = context.get(TaskListener.class);
-            if (tl==null)       return; // if we can't report an error, give up
-        } catch (IOException _) {
-            return;
-        } catch (InterruptedException _) {
-            return;
-        }
-
-        StringBuilder names = new StringBuilder();
-        for (StepDescriptor p : e.getProviders()) {
-            if (names.length()>0)   names.append(',');
-            names.append(p.getFunctionName());
-        }
-
-        PrintStream logger = tl.getLogger();
-        logger.println(e.getMessage());
-        if (names.length()>0)
-            logger.println("Perhaps you forgot to surround the code with a step that provides this, such as: "+names);
     }
 
     private void reportAmbiguousStepInvocation(CpsStepContext context, StepDescriptor d) {

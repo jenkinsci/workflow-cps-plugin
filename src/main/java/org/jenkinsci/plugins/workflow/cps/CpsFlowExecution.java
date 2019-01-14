@@ -932,7 +932,17 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             LOGGER.log(Level.FINE, "Not blocking restart due to exception in ProgramPromise: "+this, x);
             return false;
         }
-        return g.busy;
+        if (g.busy) {
+            return true;
+        } else {
+            try {
+                return getCurrentExecutions(false).get(1, TimeUnit.SECONDS).stream().anyMatch(StepExecution::blocksRestart);
+            } catch (Exception x) {
+                // TODO RestartListener.Default.isReadyToRestart can throw checked exceptions, but AsynchronousExecution.blocksRestart does not currently allow it
+                LOGGER.log(Level.WARNING, "Not blocking restart due to problem checking running steps in " + this, x);
+                return false;
+            }
+        }
     }
 
     /**
