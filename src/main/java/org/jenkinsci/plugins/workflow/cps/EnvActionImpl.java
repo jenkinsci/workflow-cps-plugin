@@ -64,6 +64,10 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
     }
 
     @Override public EnvVars getEnvironment() throws IOException, InterruptedException {
+      return getEnvironment(getListener());
+    }
+
+    private TaskListener getListener() throws IOException {
         TaskListener listener;
         if (owner instanceof FlowExecutionOwner.Executable) {
             FlowExecutionOwner executionOwner = ((FlowExecutionOwner.Executable) owner).asFlowExecutionOwner();
@@ -75,6 +79,10 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
         } else {
             listener = new LogTaskListener(LOGGER, Level.INFO);
         }
+        return listener;
+    }
+
+    private EnvVars getEnvironment(TaskListener listener) throws IOException, InterruptedException {
         EnvVars e = owner.getEnvironment(listener);
         e.putAll(env);
         return e;
@@ -88,7 +96,12 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
     @Override public String getProperty(String propertyName) {
         try {
             CpsThread t = CpsThread.current();
-            return EnvironmentExpander.getEffectiveEnvironment(getEnvironment(), t.getContextVariable(EnvVars.class), t.getContextVariable(EnvironmentExpander.class)).get(propertyName);
+            TaskListener listener = getListener();
+
+            return EnvironmentExpander.getEffectiveEnvironment(
+                    getEnvironment(listener), t.getContextVariable(EnvVars.class),
+                    t.getContextVariable(EnvironmentExpander.class), null, listener)
+                .get(propertyName);
         } catch (Exception x) {
             LOGGER.log(Level.WARNING, null, x);
             return null;

@@ -24,14 +24,20 @@
 
 package org.jenkinsci.plugins.workflow;
 
+import com.google.common.collect.ImmutableSet;
 import hudson.EnvVars;
 import hudson.model.EnvironmentContributor;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
@@ -39,7 +45,9 @@ import org.jenkinsci.plugins.workflow.steps.EnvironmentExpander;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepEnvironmentContributor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -142,6 +150,61 @@ public class DynamicEnvironmentExpanderTest {
         @Override public void buildEnvironmentFor(Run r, EnvVars envs, TaskListener listener) throws IOException, InterruptedException {
             listener.getLogger().println("buildEnvironmentFor #" + count++);
             envs.put("VAR", value);
+        }
+    }
+
+    @Issue("JENKINS-51170")
+    @Test public void perStepEnvironment() {
+        story.then(r -> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("printEnv \"VAR\"; printEnv \"VAR\"", true));
+            WorkflowRun b = story.j.buildAndAssertSuccess(p);
+            r.assertLogContains("VAR=1", b);
+            r.assertLogContains("VAR=2", b);
+        });
+    }
+
+    @TestExtension("perStepEnvironment") public static class StepEnvAdder extends StepEnvironmentContributor {
+        private Map<String, Integer> stepNumbers = new HashMap<>();
+
+        @Override
+        public void buildEnvironmentFor(@CheckForNull StepContext stepContext,
+            @Nonnull EnvVars envs,
+            @CheckForNull TaskListener listener) throws IOException, InterruptedException {
+
+            FlowNode node = stepContext.get(FlowNode.class);
+            int stepNumber = stepNumbers.computeIfAbsent(node.getId(), (k) -> stepNumbers.size() + 1);
+            envs.override("VAR", String.valueOf(stepNumber));
+        }
+    }
+
+    public static class PrintEnvStep extends Step {
+        private final String var;
+        @DataBoundConstructor
+        public PrintEnvStep(String var) {
+            this.var = var;
+        }
+
+        @Override
+        public StepExecution start(StepContext context) throws Exception { return new Execution(context, var); }
+
+        private static class Execution extends SynchronousStepExecution<Void> {
+            private final String var;
+
+            Execution(StepContext context, String var) { super(context); this.var = var; }
+
+            @Override
+            protected Void run() throws Exception {
+                StepContext context = getContext();
+                String message = this.var + "=" + context.get(EnvVars.class).get(var);
+                context.get(TaskListener.class).getLogger().println(message);
+                return null;
+            }
+        }
+
+        @TestExtension("perStepEnvironment") public static class DescriptorImpl extends StepDescriptor {
+            @Override public String getFunctionName() { return "printEnv"; }
+            @Override public Set<? extends Class<?>> getRequiredContext() { return ImmutableSet.of(EnvVars.class, TaskListener.class); }
         }
     }
 
