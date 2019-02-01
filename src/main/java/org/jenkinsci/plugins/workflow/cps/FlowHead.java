@@ -117,6 +117,19 @@ final class FlowHead implements Serializable {
             this.head = execution.startNodes.push(n);
         }
         execution.storage.storeNode(head, false);
+
+        CpsThreadGroup c = CpsThreadGroup.current();
+        if (c !=null) {
+            // if the manipulation is from within the program executing thread, then
+            // defer the notification till we get to a safe point.
+            c.notifyNewHead(head);
+        } else {
+            // in recovering from error and such situation, we sometimes need to grow the graph
+            // without running the program.
+            // TODO can CpsThreadGroup.notifyNewHead be used instead to notify both kinds of listeners?
+            execution.notifyListeners(Collections.singletonList(head), true);
+            execution.notifyListeners(Collections.singletonList(head), false);
+        }
     }
 
     /** Could be better described as "append to Flow graph" except for parallel cases. */

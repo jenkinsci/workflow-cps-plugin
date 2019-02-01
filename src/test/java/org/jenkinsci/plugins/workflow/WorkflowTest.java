@@ -39,8 +39,10 @@ import hudson.slaves.RetentionStrategy;
 import hudson.slaves.SlaveComputer;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -49,7 +51,11 @@ import jenkins.security.QueueItemAuthenticatorConfiguration;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.flow.GraphListener;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
@@ -255,6 +261,30 @@ public class WorkflowTest extends SingleJobTestBase {
         public static final class Execution extends AbstractSynchronousNonBlockingStepExecution<String> {
             @Override protected String run() throws Exception {
                 return Jenkins.getAuthentication().getName();
+            }
+        }
+    }
+
+    @Issue("JENKINS-52189")
+    @Test
+    public void notifyFlowStartNode() {
+        story.then(s->{
+            WorkflowJob j = jenkins().createProject(WorkflowJob.class, "bob");
+            j.setDefinition(new CpsFlowDefinition("echo 'I did a thing'", true));
+            WorkflowRun r = story.j.buildAndAssertSuccess(j);
+            FlowStartNodeListener listener = jenkins().getExtensionList(FlowStartNodeListener.class).get(0);
+            assertTrue(listener.execNames.contains(r.getExecution().toString()));
+        });
+    }
+
+    @TestExtension("notifyFlowStartNode")
+    public static class FlowStartNodeListener implements GraphListener {
+        List<String> execNames = new ArrayList<String>();
+
+        @Override
+        public void onNewHead(FlowNode node) {
+            if (node instanceof FlowStartNode) {
+                execNames.add(node.getExecution().toString());
             }
         }
     }
