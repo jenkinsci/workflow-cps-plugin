@@ -3,6 +3,7 @@ package com.cloudbees.groovy.cps
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import groovy.transform.NotYetImplemented
 import org.codehaus.groovy.control.MultipleCompilationErrorsException
+import org.junit.Ignore
 import org.junit.Test
 import org.jvnet.hudson.test.Issue
 
@@ -603,6 +604,13 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     void fieldViaGetter() {
         assert evalCPS('class C {private int x = 33; int getX() {2 * this.@x}}; new C().x') == 66
         assert evalCPS('class C {private int x = 33; int getX() {2 * x}}; new C().x') == 66
+    }
+
+    @Issue("JENKINS-31484")
+    @Ignore("Currently throws StackOverflowError")
+    @Test
+    void fieldViaGetterWithThis() {
+        assert evalCPS('class C {private int x = 33; int getX() {2 * this.x}}; new C().x') == 66
     }
 
     @Issue("JENKINS-31484")
