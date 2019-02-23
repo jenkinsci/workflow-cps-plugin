@@ -31,6 +31,7 @@ import hudson.model.User;
 import hudson.security.ACL;
 import hudson.security.ACLContext;
 import jenkins.model.Jenkins;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.SecureGroovyScript;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -97,4 +98,21 @@ public class CpsFlowDefinitionValidatorTest {
             assertThat(d.doCheckScriptCompile(job, "echo 'hello").toString(), containsString("success"));
         }
     }
+
+    @Issue("SECURITY-1336")
+    @Test
+    public void blockConstructorInvocationInCheck() throws Exception {
+        CpsFlowDefinition.DescriptorImpl d = r.jenkins.getDescriptorByType(CpsFlowDefinition.DescriptorImpl.class);
+        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "w");
+        assertThat(d.doCheckScriptCompile(job, "import jenkins.model.Jenkins\n" +
+                "import hudson.model.FreeStyleProject\n" +
+                "public class DoNotRunConstructor {\n" +
+                "  public DoNotRunConstructor() {\n" +
+                "    assert Jenkins.getInstance().createProject(FreeStyleProject.class, \"should-not-exist\")\n" +
+                "  }\n" +
+                "}\n").toString(), containsString("success"));
+
+        assertNull(r.jenkins.getItem("should-not-exist"));
+    }
+
 }
