@@ -550,4 +550,22 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
         assertNull(jenkins.jenkins.getItem("should-not-exist"));
     }
+
+    @Issue("SECURITY-1336")
+    @Test
+    public void blockConstructorInvocationAtRuntime() throws Exception {
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "w");
+        job.setDefinition(new CpsFlowDefinition(
+            "class DoNotRunConstructor extends org.jenkinsci.plugins.workflow.cps.CpsScript {\n" +
+            "  DoNotRunConstructor() {\n" +
+            "    assert jenkins.model.Jenkins.instance.createProject(hudson.model.FreeStyleProject, 'should-not-exist')\n" +
+            "  }\n" +
+            "  Object run() {null}\n" +
+            "}\n", true));
+        WorkflowRun b = job.scheduleBuild2(0).get();
+        assertNull(jenkins.jenkins.getItem("should-not-exist"));
+        jenkins.assertBuildStatus(Result.FAILURE, b);
+        jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b);
+    }
+
 }
