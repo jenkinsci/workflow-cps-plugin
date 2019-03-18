@@ -75,32 +75,30 @@ public class SandboxCpsTransformer extends CpsTransformer {
 
     @Override
     public void visitCastExpression(final CastExpression exp) {
-        if (exp.isCoerce()) {
-            makeNode("sandboxCast", new Runnable() {
-                @Override
-                public void run() {
-                    loc(exp);
-                    visit(exp.getExpression());
-                    literal(exp.getType());
-                    literal(exp.isIgnoringAutoboxing());
-                    literal(exp.isStrict());
-                }
-            });
-        } else {
-            super.visitCastExpression(exp);
-        }
+        makeNode("sandboxCastOrCoerce", new Runnable() {
+            @Override
+            public void run() {
+                loc(exp);
+                visit(exp.getExpression());
+                literal(exp.getType());
+                literal(exp.isIgnoringAutoboxing());
+                literal(exp.isCoerce());
+                literal(exp.isStrict());
+            }
+        });
     }
 
     @Override
     protected void visitAssignmentOrCast(final VariableExpression varExp, final Expression rhs) {
         if (SandboxTransformer.mightBePositionalArgumentConstructor(varExp)) {
-            makeNode("sandboxCast", new Runnable() {
+            makeNode("sandboxCastOrCoerce", new Runnable() {
                 @Override
                 public void run() {
                     loc(varExp);
                     visit(rhs);
                     literal(varExp.getType());
                     literal(false);
+                    literal(true);
                     literal(false);
                 }
             });
@@ -112,7 +110,7 @@ public class SandboxCpsTransformer extends CpsTransformer {
     @Override
     protected void getMultipleAssignmentValueOrCast(final VariableExpression varExp, final Expression rhs, final Expression index) {
         if (SandboxTransformer.mightBePositionalArgumentConstructor(varExp)) {
-            makeNode("sandboxCast", new Runnable() {
+            makeNode("sandboxCastOrCoerce", new Runnable() {
                 @Override
                 public void run() {
                     loc(varExp);
@@ -126,6 +124,7 @@ public class SandboxCpsTransformer extends CpsTransformer {
                     });
                     literal(varExp.getType());
                     literal(false);
+                    literal(true);
                     literal(false);
                 }
             });

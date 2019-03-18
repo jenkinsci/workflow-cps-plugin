@@ -105,7 +105,7 @@
   </build>
 
   <properties>
-      <groovy-sandbox.version>1.20</groovy-sandbox.version>
+      <groovy-sandbox.version>1.21</groovy-sandbox.version>
   </properties>
   <dependencies>
     <dependency>
