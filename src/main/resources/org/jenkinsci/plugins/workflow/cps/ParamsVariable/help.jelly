@@ -32,7 +32,7 @@ THE SOFTWARE.
     <p>
         or to supply a nontrivial default value:
     </p>
-    <pre><code>if (params.get('BOOLEAN_PARAM_NAME', true)) {doSomething()}</code></pre>
+    <pre><code>if (params.getOrDefault('BOOLEAN_PARAM_NAME', true)) {doSomething()}</code></pre>
     <p>
         Note for multibranch (<code>Jenkinsfile</code>) usage: the <code>properties</code> step allows you to define job properties,
         but these take effect when the step is run, whereas build parameter definitions are generally consulted before the build begins.
