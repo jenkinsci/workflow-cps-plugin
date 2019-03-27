@@ -562,7 +562,7 @@ import org.kohsuke.stapler.StaplerRequest;
     public static class LocalAction extends Snippetizer {
 
         @Override public String getDisplayName() {
-            return "Pipeline Syntax";
+            return Messages.Pipeline_Syntax();
         }
 
         public String getIconClassName() {
