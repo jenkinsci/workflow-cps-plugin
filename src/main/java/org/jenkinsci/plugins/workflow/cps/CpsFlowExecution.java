@@ -135,6 +135,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
@@ -939,7 +940,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 return getCurrentExecutions(false).get(1, TimeUnit.SECONDS).stream().anyMatch(StepExecution::blocksRestart);
             } catch (Exception x) {
                 // TODO RestartListener.Default.isReadyToRestart can throw checked exceptions, but AsynchronousExecution.blocksRestart does not currently allow it
-                LOGGER.log(Level.WARNING, "Not blocking restart due to problem checking running steps in " + this, x);
+                Level level = x.getCause() instanceof RejectedExecutionException ? /* stray Executor past program end? */ Level.FINE : Level.WARNING;
+                LOGGER.log(level, "Not blocking restart due to problem checking running steps in " + this, x);
                 return false;
             }
         }
