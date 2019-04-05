@@ -34,7 +34,6 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.ClassRule;
 import org.junit.Test;
 import static org.junit.Assert.*;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
@@ -46,8 +45,7 @@ public class SandboxContinuableTest {
 
     @Rule public JenkinsRule r = new JenkinsRule();
 
-    @Ignore("TODO no aporovals, and no approval link")
-    @Issue("JENKINS-40333")
+    @Issue("JENKINS-34973")
     @Test public void scriptApproval() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("catchError {Jenkins.instance}", true));
@@ -55,7 +53,7 @@ public class SandboxContinuableTest {
         r.assertLogContains(RejectedAccessException.class.getName() + ": Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
         assertEquals(Collections.singleton("staticMethod jenkins.model.Jenkins getInstance"),
             ScriptApproval.get().getPendingSignatures().stream().map(ps -> ps.signature).collect(Collectors.toSet()));
-        r.assertLogContains(Messages.SandboxContinuable_ScriptApprovalLink(), b);
+        r.assertLogContains(org.jenkinsci.plugins.scriptsecurity.scripts.Messages.ScriptApprovalNote_message(), b);
     }
 
 }

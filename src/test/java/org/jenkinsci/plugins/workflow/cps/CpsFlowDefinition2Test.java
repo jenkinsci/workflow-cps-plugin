@@ -192,8 +192,9 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
         WorkflowRun r = jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
         jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", r);
-        jenkins.assertLogContains("Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance. " + Messages.SandboxContinuable_ScriptApprovalLink(), r);
+        jenkins.assertLogContains("Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance. " + org.jenkinsci.plugins.scriptsecurity.scripts.Messages.ScriptApprovalNote_message(), r);
 
+        // TODO push these tests down into script-security
         JenkinsRule.WebClient wc = jenkins.createWebClient();
 
         wc.login("runScriptsUser");
@@ -203,7 +204,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
         // make sure raw console output doesn't include the garbage and has the right message.
         TextPage raw = (TextPage)wc.goTo(r.getUrl()+"consoleText","text/plain");
-        assertThat(raw.getContent(), containsString(" getInstance. " + Messages.SandboxContinuable_ScriptApprovalLink()));
+        assertThat(raw.getContent(), containsString(" getInstance. " + org.jenkinsci.plugins.scriptsecurity.scripts.Messages.ScriptApprovalNote_message()));
 
         wc.login("otherUser");
         // make sure we don't see the link for the other user.
@@ -212,7 +213,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
         // make sure raw console output doesn't include the garbage and has the right message.
         TextPage raw2 = (TextPage)wc.goTo(r.getUrl()+"consoleText","text/plain");
-        assertThat(raw2.getContent(), containsString(" getInstance. " + Messages.SandboxContinuable_ScriptApprovalLink()));
+        assertThat(raw2.getContent(), containsString(" getInstance. " + org.jenkinsci.plugins.scriptsecurity.scripts.Messages.ScriptApprovalNote_message()));
     }
 
     @Issue("SECURITY-551")
