@@ -4,15 +4,7 @@ import com.cloudbees.jenkins.support.api.Component;
 import com.cloudbees.jenkins.support.api.Container;
 import com.cloudbees.jenkins.support.api.Content;
 import com.google.common.util.concurrent.FutureCallback;
-import com.thoughtworks.xstream.XStream;
-import com.thoughtworks.xstream.converters.Converter;
-import com.thoughtworks.xstream.converters.MarshallingContext;
-import com.thoughtworks.xstream.converters.UnmarshallingContext;
-import com.thoughtworks.xstream.io.HierarchicalStreamReader;
-import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 import hudson.Extension;
-import hudson.ExtensionList;
-import hudson.Functions;
 import hudson.model.Action;
 import hudson.security.Permission;
 import java.io.IOException;
@@ -28,8 +20,6 @@ import jenkins.model.Jenkins;
 import org.apache.commons.io.Charsets;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
-import org.jenkinsci.plugins.workflow.pickles.Pickle;
-import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
 import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -76,35 +66,11 @@ public final class CpsThreadDumpAction implements Action {
 
     @WebMethod(name = "program.xml") public void doProgramDotXml(StaplerRequest req, StaplerResponse rsp) throws Exception {
         Jenkins.get().checkPermission(Jenkins.RUN_SCRIPTS);
-        XStream xs = new XStream();
-        // Could not handle a general PickleFactory without doing something weird with XStream
-        // and there is no apparent way to make a high-priority generic Convertor delegate to others.
-        // Anyway the only known exceptions are ThrowablePickle, which we are unlikely to need,
-        // and RealtimeJUnitStep.Pickler which could probably be replaced by a DescribablePickleFactory
-        // (and anyway these Describable objects would be serialized fine by XStream, just not JBoss Marshalling).
-        for (SingleTypedPickleFactory<?> stpf : ExtensionList.lookup(SingleTypedPickleFactory.class)) {
-            Class<?> factoryType = Functions.getTypeParameter(stpf.getClass(), SingleTypedPickleFactory.class, 0);
-            xs.registerConverter(new Converter() {
-                @Override public void marshal(Object source, HierarchicalStreamWriter writer, MarshallingContext context) {
-                    Pickle p = stpf.writeReplace(source);
-                    assert p != null : "failed to pickle " + source + " using " + stpf;
-                    context.convertAnother(p);
-                }
-                @Override public Object unmarshal(HierarchicalStreamReader reader, UnmarshallingContext context) {
-                    throw new UnsupportedOperationException(); // unused
-                }
-                @SuppressWarnings("rawtypes")
-                @Override public boolean canConvert(Class type) {
-                    return factoryType.isAssignableFrom(type);
-                }
-            });
-        }
-        // Could also register a convertor for FlowExecutionOwner, though it seems harmless.
         CompletableFuture<String> f = new CompletableFuture<>();
         execution.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
             @Override public void onSuccess(CpsThreadGroup g) {
                 try {
-                    f.complete(xs.toXML(g));
+                    f.complete(g.asXml());
                 } catch (Throwable t) {
                     f.completeExceptionally(t);
                 }
