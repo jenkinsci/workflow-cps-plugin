@@ -12,7 +12,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
-import org.hamcrest.Matchers;
+import static org.hamcrest.Matchers.*;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepNode;
@@ -122,7 +122,7 @@ public class CpsBodyExecutionTest {
                 Closure body = ScriptBytecodeAdapter.getMethodPointer(this, "bodyBlock");
                 CpsStepContext cps = (CpsStepContext) getContext();
                 CpsThread t = CpsThread.current();
-                cps.newBodyInvoker(t.getGroup().export(body))
+                cps.newBodyInvoker(t.getGroup().export(body), /* ? */false)
                         .withCallback(BodyExecutionCallback.wrap(cps))
                         .start();
                 return false;
@@ -159,12 +159,12 @@ public class CpsBodyExecutionTest {
                 return null;
             }
         }).get();
-        assertThat(semaphores, Matchers.<SemaphoreStep.Execution>iterableWithSize(2));
+        assertThat(semaphores, iterableWithSize(2));
         Collection<StepExecution> currentExecutions1 = execs[1].body.getCurrentExecutions(); // A or B, does not matter
         assertThat(/* irritatingly, iterableWithSize does not show the collection in its mismatch message */currentExecutions1.toString(),
-            currentExecutions1, Matchers.<StepExecution>iterableWithSize(1));
+            currentExecutions1, iterableWithSize(1));
         Collection<StepExecution> currentExecutions2 = execs[2].body.getCurrentExecutions();
-        assertThat(currentExecutions2, Matchers.<StepExecution>iterableWithSize(1));
+        assertThat(currentExecutions2, iterableWithSize(1));
         assertEquals(semaphores, Sets.union(Sets.newLinkedHashSet(currentExecutions1), Sets.newLinkedHashSet(currentExecutions2)));
         assertEquals(semaphores, Sets.newLinkedHashSet(execs[0].body.getCurrentExecutions())); // the top-level one
         execs[0].body.cancel();
@@ -193,7 +193,7 @@ public class CpsBodyExecutionTest {
         }
     }
 
-    @Issue("JENKINS-53709")
+    @Issue({"JENKINS-53709", "JENKINS-41791"})
     @Test public void popContextVarsOnBodyCompletion() {
         rr.then(r -> {
             DumbSlave s = r.createOnlineSlave();
@@ -206,6 +206,10 @@ public class CpsBodyExecutionTest {
                     "semaphore 'wait'\n", true));
             WorkflowRun b = p.scheduleBuild2(0).waitForStart();
             SemaphoreStep.waitForStart("wait/1", b);
+            String xml = ((CpsFlowExecution) b.getExecution()).programPromise.get().asXml();
+            System.out.print(xml);
+            assertThat(xml, not(containsString(s.getWorkspaceFor(p).getRemote())));
+            assertThat(xml, not(containsString("ExecutorStepExecution")));
             r.jenkins.removeNode(s);
         });
         rr.then(r -> {

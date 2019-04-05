@@ -54,7 +54,7 @@ public class LoadStepExecution extends AbstractStepExecutionImpl {
 
         // execute body as another thread that shares the same head as this thread
         // as the body can pause.
-        cps.newBodyInvoker(t.getGroup().export(script))
+        cps.newBodyInvoker(t.getGroup().export(script), true)
                 .withDisplayName(step.getPath())
                 .withCallback(BodyExecutionCallback.wrap(cps))
                 .start(); // when the body is done, the load step is done

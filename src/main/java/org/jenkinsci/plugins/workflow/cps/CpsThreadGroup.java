@@ -386,7 +386,10 @@ public final class CpsThreadGroup implements Serializable {
             if (scripts != null) {
                 scripts.clear();
             }
-            closures.clear();
+            if (!closures.isEmpty()) {
+                LOGGER.log(WARNING, "Stale closures in {0}", execution);
+                closures.clear();
+            }
             try {
                 Util.deleteFile(execution.getProgramDataFile());
             } catch (IOException x) {
