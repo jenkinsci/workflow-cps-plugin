@@ -209,6 +209,7 @@ public final class CpsThreadGroup implements Serializable {
         assertVmThread();
         int id = iota++;
         closures.put(id, body);
+        LOGGER.log(FINE, "exporting {0}", id);
         return new StaticBodyReference(id,body);
     }
 
@@ -227,7 +228,11 @@ public final class CpsThreadGroup implements Serializable {
     public void unexport(BodyReference ref) {
         assertVmThread();
         if (ref==null)      return;
-        closures.remove(ref.id);
+        if (closures.remove(ref.id) != null) {
+            LOGGER.log(FINE, "unexporting {0}", ref.id);
+        } else {
+            LOGGER.log(WARNING, "double unexport of {0}", ref.id);
+        }
     }
 
     /**
@@ -387,7 +392,7 @@ public final class CpsThreadGroup implements Serializable {
                 scripts.clear();
             }
             if (!closures.isEmpty()) {
-                LOGGER.log(WARNING, "Stale closures in {0}", execution);
+                LOGGER.log(WARNING, "Stale closures in {0}: {1}", new Object[] {execution, closures.keySet()});
                 closures.clear();
             }
             try {
