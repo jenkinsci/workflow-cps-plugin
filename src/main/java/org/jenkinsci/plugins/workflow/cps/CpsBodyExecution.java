@@ -324,10 +324,10 @@ class CpsBodyExecution extends BodyExecution {
     }
 
     private void setOutcome(Outcome o) {
-        if (bodyToUnexport != null && thread != null) {
-            thread.group.unexport(bodyToUnexport);
-        }
         synchronized (this) {
+            if (bodyToUnexport != null && thread != null) {
+                thread.group.unexport(bodyToUnexport);
+            }
             if (outcome!=null)
                 throw new IllegalStateException("Outcome is already set");
             this.outcome = o;
@@ -360,8 +360,8 @@ class CpsBodyExecution extends BodyExecution {
             for (BodyExecutionCallback c : callbacks) {
                 c.onFailure(sc, t);
             }
-            if (thread != null) {
-                synchronized (CpsBodyExecution.this) {
+            synchronized (CpsBodyExecution.this) {
+                if (thread != null) {
                     thread.popContextVariables();
                 }
             }
