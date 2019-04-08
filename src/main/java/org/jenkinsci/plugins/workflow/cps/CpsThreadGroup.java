@@ -518,6 +518,7 @@ public final class CpsThreadGroup implements Serializable {
         }
     }
 
+    @CpsVmThreadOnly
     String asXml() {
         XStream xs = new XStream();
         // Could not handle a general PickleFactory without doing something weird with XStream
