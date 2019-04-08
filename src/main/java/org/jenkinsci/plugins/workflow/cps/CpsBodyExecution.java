@@ -360,11 +360,6 @@ class CpsBodyExecution extends BodyExecution {
             for (BodyExecutionCallback c : callbacks) {
                 c.onFailure(sc, t);
             }
-            synchronized (CpsBodyExecution.this) {
-                if (thread != null) {
-                    thread.popContextVariables();
-                }
-            }
             return Next.terminate(null);
         }
 
@@ -380,9 +375,6 @@ class CpsBodyExecution extends BodyExecution {
             StepContext sc = new CpsBodySubContext(context, en);
             for (BodyExecutionCallback c : callbacks) {
                 c.onSuccess(sc, o);
-            }
-            synchronized (CpsBodyExecution.this) {
-                thread.popContextVariables();
             }
             return Next.terminate(null);
         }
