@@ -39,6 +39,8 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
+import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
 
 /**
  * Builder pattern for accumulating configuration for executing the body.
@@ -70,9 +72,19 @@ public final class CpsBodyInvoker extends BodyInvoker {
      */
     private CpsBodyExecution execution;
 
-    CpsBodyInvoker(CpsStepContext owner, BodyReference body) {
+    /**
+     * If true, {@link CpsThreadGroup#unexport} ought to be called when the body completes.
+     * When deserialized from old builds this will be false.
+     * @see CpsBodyExecution#bodyToUnexport
+     * @see ParallelStep
+     * @see LoadStep
+     */
+    private final boolean unexport;
+
+    CpsBodyInvoker(CpsStepContext owner, BodyReference body, boolean unexport) {
         this.owner = owner;
         this.body = body;
+        this.unexport = unexport;
     }
 
     @Override
@@ -112,7 +124,7 @@ public final class CpsBodyInvoker extends BodyInvoker {
     @Override
     public CpsBodyExecution start() {
         if (execution!=null)    throw new IllegalStateException("Already started");
-        execution = new CpsBodyExecution(owner, callbacks);
+        execution = new CpsBodyExecution(owner, callbacks, unexport ? body : null);
 
         if (displayName!=null)
             startNodeActions.add(new LabelAction(displayName));

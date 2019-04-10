@@ -28,10 +28,18 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
+import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.converters.Converter;
+import com.thoughtworks.xstream.converters.MarshallingContext;
+import com.thoughtworks.xstream.converters.UnmarshallingContext;
+import com.thoughtworks.xstream.io.HierarchicalStreamReader;
+import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
+import hudson.ExtensionList;
+import hudson.Functions;
 import hudson.Util;
 import hudson.model.Result;
 import jenkins.model.Jenkins;
@@ -67,7 +75,9 @@ import static java.util.logging.Level.*;
 import javax.annotation.CheckForNull;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import org.jenkinsci.plugins.workflow.pickles.Pickle;
 import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
+import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
 import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
 
 /**
@@ -199,6 +209,7 @@ public final class CpsThreadGroup implements Serializable {
         assertVmThread();
         int id = iota++;
         closures.put(id, body);
+        LOGGER.log(FINE, "exporting {0}", id);
         return new StaticBodyReference(id,body);
     }
 
@@ -217,7 +228,11 @@ public final class CpsThreadGroup implements Serializable {
     public void unexport(BodyReference ref) {
         assertVmThread();
         if (ref==null)      return;
-        closures.remove(ref.id);
+        if (closures.remove(ref.id) != null) {
+            LOGGER.log(FINE, "unexporting {0}", ref.id);
+        } else {
+            LOGGER.log(WARNING, "double unexport of {0}", ref.id);
+        }
     }
 
     /**
@@ -376,7 +391,10 @@ public final class CpsThreadGroup implements Serializable {
             if (scripts != null) {
                 scripts.clear();
             }
-            closures.clear();
+            if (!closures.isEmpty()) {
+                LOGGER.log(WARNING, "Stale closures in {0}: {1}", new Object[] {execution, closures.keySet()});
+                closures.clear();
+            }
             try {
                 Util.deleteFile(execution.getProgramDataFile());
             } catch (IOException x) {
@@ -498,6 +516,35 @@ public final class CpsThreadGroup implements Serializable {
             PROGRAM_STATE_SERIALIZATION.set(old);
             Util.deleteFile(tmpFile);
         }
+    }
+
+    @CpsVmThreadOnly
+    String asXml() {
+        XStream xs = new XStream();
+        // Could not handle a general PickleFactory without doing something weird with XStream
+        // and there is no apparent way to make a high-priority generic Convertor delegate to others.
+        // Anyway the only known exceptions are ThrowablePickle, which we are unlikely to need,
+        // and RealtimeJUnitStep.Pickler which could probably be replaced by a DescribablePickleFactory
+        // (and anyway these Describable objects would be serialized fine by XStream, just not JBoss Marshalling).
+        for (SingleTypedPickleFactory<?> stpf : ExtensionList.lookup(SingleTypedPickleFactory.class)) {
+            Class<?> factoryType = Functions.getTypeParameter(stpf.getClass(), SingleTypedPickleFactory.class, 0);
+            xs.registerConverter(new Converter() {
+                @Override public void marshal(Object source, HierarchicalStreamWriter writer, MarshallingContext context) {
+                    Pickle p = stpf.writeReplace(source);
+                    assert p != null : "failed to pickle " + source + " using " + stpf;
+                    context.convertAnother(p);
+                }
+                @Override public Object unmarshal(HierarchicalStreamReader reader, UnmarshallingContext context) {
+                    throw new UnsupportedOperationException(); // unused
+                }
+                @SuppressWarnings("rawtypes")
+                @Override public boolean canConvert(Class type) {
+                    return factoryType.isAssignableFrom(type);
+                }
+            });
+        }
+        // Could also register a convertor for FlowExecutionOwner, though it seems harmless.
+        return xs.toXML(this);
     }
 
     /**
