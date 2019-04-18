@@ -151,9 +151,9 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                     }
                 } catch (InterruptedIOException e) {
                     throw e;
-                } catch (IOException e) {
+                } catch (Exception e) {
                     // checkout error not yet reported
-                    listener.error("Checkout failed").println(Functions.printThrowable(e).trim()); // TODO 2.43+ use Functions.printStackTrace
+                    Functions.printStackTrace(e, listener.error("Checkout failed"));
                 }
 
                 if (retryCount == 0)   // all attempts failed
