@@ -69,10 +69,9 @@ abstract class ContinuationGroup implements Serializable {
                     if (methodName.equals("evaluate")) { // Script.evaluate → GroovyShell.evaluate → Script.run
                         expectedMethodNames.add("run");
                     }
-                    // Do not check receiver.binding.variables.containsKey(methodName) like invokePropertyOrMissing:
                     // CpsScript.invokeMethod e.g. on a UserDefinedGlobalVariable cannot be predicted from here.
                     expectedMethodNames.add(/* CLOSURE_CALL_METHOD */"call");
-                    laxCall = true;
+                    laxCall = !((Script) receiver).getBinding().getVariables().containsKey(methodName); // lax unless like invokePropertyOrMissing
                 } else if (receiver instanceof CpsBooleanClosureWrapper && methodName.equals("callForMap")) {
                     expectedMethodNames.add("call");
                 } else if (receiver instanceof CpsClosure && methodName.equals("evaluate")) { // similar to above, but from a call site inside a closure
