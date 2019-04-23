@@ -9,6 +9,8 @@ import static com.cloudbees.groovy.cps.impl.SourceLocation.*;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 import groovy.lang.GroovyCodeSource;
 import groovy.lang.GroovyShell;
+import groovy.lang.ListWithDefault;
+import groovy.lang.MapWithDefault;
 import groovy.lang.MetaClassImpl;
 import groovy.lang.Script;
 import java.io.Serializable;
@@ -45,6 +47,9 @@ abstract class ContinuationGroup implements Serializable {
      * Evaluates a function (possibly a workflow function), then pass the result to the given continuation.
      * @see MetaClassImpl#invokePropertyOrMissing
      * @see GroovyShell#evaluate(GroovyCodeSource)
+     * @see CpsBooleanClosureWrapper#callForMap
+     * @see ListWithDefault#get
+     * @see MapWithDefault#get
      */
     protected Next methodCall(final Env e, final SourceLocation loc, final Continuation k, final CallSiteBlock callSite, final Object receiver, final String methodName, final Object... args) {
         List<String> expectedMethodNames = new ArrayList<>(2);
@@ -69,6 +74,8 @@ abstract class ContinuationGroup implements Serializable {
                     expectedMethodNames.add("call");
                 } else if (receiver instanceof CpsClosure && methodName.equals("evaluate")) { // similar to above, but from a call site inside a closure
                     expectedMethodNames.add("run");
+                } else if ((receiver instanceof ListWithDefault || receiver instanceof MapWithDefault) && methodName.equals("get")) {
+                    expectedMethodNames.add("call");
                 }
                 // TODO: spread
                 v = inv.methodCall(receiver, methodName, args);
