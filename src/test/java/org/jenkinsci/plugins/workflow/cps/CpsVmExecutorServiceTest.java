@@ -55,7 +55,7 @@ public class CpsVmExecutorServiceTest {
             WorkflowJob p = r.createProject(WorkflowJob.class, "p");
             errors.checkSucceeds(() -> {
                 p.setDefinition(new CpsFlowDefinition("def ok() {sleep 1}; @NonCPS def bad() {for (int i = 0; i < 10; i++) {sleep 1}; assert false : 'never gets here'}; node {ok(); bad()}", true));
-                r.assertLogContains(CpsVmExecutorService.mismatchMessage("org.jenkinsci.plugins.workflow.cps.CpsClosure2", "bad", null, "sleep"), r.buildAndAssertSuccess(p));
+                r.assertLogContains(CpsVmExecutorService.mismatchMessage("WorkflowScript", "bad", null, "sleep"), r.buildAndAssertSuccess(p));
                 return null;
             });
             errors.checkSucceeds(() -> {
@@ -86,6 +86,13 @@ public class CpsVmExecutorServiceTest {
                 return null;
             });
             errors.checkSucceeds(() -> {
+                p.setDefinition(new CpsFlowDefinition("node {echo(/see what ${-> 'this'} does/)}", true));
+                WorkflowRun b = r.buildAndAssertSuccess(p);
+                r.assertLogContains(CpsVmExecutorService.mismatchMessage("WorkflowScript", "echo", "org.jenkinsci.plugins.workflow.cps.CpsClosure2", "call"), b);
+                r.assertLogNotContains("see what", b);
+                return null;
+            });
+            errors.checkSucceeds(() -> {
                 p.setDefinition(new CpsFlowDefinition(
                     "@NonCPS def shouldBomb() {\n" +
                     "  def text = ''\n" +
@@ -95,7 +102,7 @@ public class CpsVmExecutorServiceTest {
                     "node {\n" +
                     "  echo shouldBomb()\n" +
                     "}\n", true));
-                r.assertLogContains(CpsVmExecutorService.mismatchMessage("org.jenkinsci.plugins.workflow.cps.CpsClosure2", "shouldBomb", null, "writeFile"), r.buildAndAssertSuccess(p));
+                r.assertLogContains(CpsVmExecutorService.mismatchMessage("WorkflowScript", "shouldBomb", null, "writeFile"), r.buildAndAssertSuccess(p));
                 return null;
             });
             errors.checkSucceeds(() -> {
