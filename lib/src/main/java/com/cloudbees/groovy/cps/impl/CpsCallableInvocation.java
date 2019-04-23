@@ -56,11 +56,11 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
      * @param expectedMethodNames possible values for {@link #methodName}
      * @see <a href="https://issues.jenkins-ci.org/browse/JENKINS-31314">JENKINS-31314</a>
      */
-    void checkMismatch(List<String> expectedMethodNames) {
+    void checkMismatch(Object expectedReceiver, List<String> expectedMethodNames) {
         if (!expectedMethodNames.contains(methodName)) {
             MismatchHandler handler = handlers.get();
             if (handler != null) {
-                handler.handle(expectedMethodNames.get(0), methodName);
+                handler.handle(expectedReceiver, expectedMethodNames.get(0), receiver, methodName);
             }
         }
     }
@@ -68,7 +68,7 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
     /** @see #registerMismatchHandler */
     @FunctionalInterface
     public interface MismatchHandler {
-        void handle(String expectedMethodName, String actualMethodName);
+        void handle(Object expectedReceiver, String expectedMethodName, Object actualReceiver, String actualMethodName);
     }
 
     private static final ThreadLocal<MismatchHandler> handlers = new ThreadLocal<>();
