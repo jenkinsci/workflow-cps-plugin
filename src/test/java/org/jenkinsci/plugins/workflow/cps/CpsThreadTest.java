@@ -106,7 +106,7 @@ public class CpsThreadTest {
         r.assertLogContains("no problem got 3", b);
         r.assertLogNotContains("expected to call", b);
         p.setDefinition(new CpsFlowDefinition("class C {@Override String toString() {'never used'}}; def gstring = /embedding ${new C()}/; echo(/oops got $gstring/)", true));
-        b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)); // JENKINS-27306: unclassified new org.codehaus.groovy.runtime.GStringImpl java.lang.String java.lang.String[]
+        b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)); // JENKINS-27306: No such constructor found: new org.codehaus.groovy.runtime.GStringImpl java.lang.String java.lang.String[]
         r.assertLogContains("expected to call asType but wound up catching toString", b);
         p.setDefinition(new CpsFlowDefinition("echo(/see what ${-> 'this'} does/)", true));
         b = r.buildAndAssertSuccess(p);
@@ -122,6 +122,10 @@ public class CpsThreadTest {
             "  echo shouldBomb()\n" +
             "}\n", true));
         r.assertLogContains("expected to call shouldBomb but wound up catching writeFile", r.buildAndAssertSuccess(p));
+        p.setDefinition(new CpsFlowDefinition("@NonCPS def bad() {polygon(17) {}}; bad()", true));
+        b = r.buildAndAssertSuccess(p);
+        r.assertLogContains("wrapping in a 17-gon", b);
+        r.assertLogContains("expected to call bad but wound up catching polygon", b);
     }
 
 }
