@@ -67,6 +67,8 @@ abstract class ContinuationGroup implements Serializable {
                     }
                 } else if (receiver instanceof CpsBooleanClosureWrapper && methodName.equals("callForMap")) {
                     expectedMethodNames.add("call");
+                } else if (receiver instanceof CpsClosure && methodName.equals("evaluate")) { // similar to above, but from a call site inside a closure
+                    expectedMethodNames.add("run");
                 }
                 // TODO: spread
                 v = inv.methodCall(receiver, methodName, args);
