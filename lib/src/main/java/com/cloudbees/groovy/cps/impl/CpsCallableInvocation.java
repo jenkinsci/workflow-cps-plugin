@@ -3,14 +3,13 @@ package com.cloudbees.groovy.cps.impl;
 import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
-import com.cloudbees.groovy.cps.Logging;
 import com.cloudbees.groovy.cps.Next;
-import java.io.PrintStream;
 
 import java.util.List;
 
 import static java.util.Arrays.*;
 import java.util.Collections;
+import javax.annotation.CheckForNull;
 
 /**
  * When an CPS-interpreted method is invoked, it immediately throws this error
@@ -38,8 +37,11 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
         this("?", call, receiver, arguments);
     }
 
-    public CpsCallableInvocation(String description, CpsCallable call, Object receiver, Object... arguments) {
-        this.methodName = description;
+    /**
+     * @param methodName see {@link #invoke(String, Env, SourceLocation, Continuation)}
+     */
+    public CpsCallableInvocation(String methodName, CpsCallable call, Object receiver, Object... arguments) {
+        this.methodName = methodName;
         this.call = call;
         this.receiver = receiver;
         this.arguments = arguments != null ? asList(arguments) : Collections.emptyList();
@@ -49,25 +51,32 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
         return call.invoke(caller, loc, receiver,arguments,k);
     }
 
+    /**
+     * @param expectedMethodName when not matching that passed to {@link CpsCallableInvocation#CpsCallableInvocation(String, CpsCallable, Object, Object...)}, will use logic from {@link #registerMismatchHandler}
+     */
     public Next invoke(String expectedMethodName, Env caller, SourceLocation loc, Continuation k) {
         if (isMismatch(expectedMethodName, methodName)) {
-            PrintStream ps = Logging.current();
-            if (ps != null) {
-                ps.println(mismatchMessage(expectedMethodName, methodName));
+            MismatchHandler handler = handlers.get();
+            if (handler != null) {
+                handler.handle(expectedMethodName, methodName);
             }
         }
         return invoke(caller, loc, k);
     }
+
+    /** @see #registerMismatchHandler */
+    @FunctionalInterface
+    public interface MismatchHandler {
+        void handle(String expectedMethodName, String actualMethodName);
+    }
+
+    private static final ThreadLocal<MismatchHandler> handlers = new ThreadLocal<>();
+
+    /** @see #invoke(String, Env, SourceLocation, Continuation) */
+    public static void registerMismatchHandler(@CheckForNull MismatchHandler handler) {
+        handlers.set(handler);
+    }
     
-    public static String mismatchMessage(String expectedMethodName, String actualMethodName) {
-        // TODO reference something like https://jenkins.io/redirects/pipeline-cps-method-mismatches/ sending you to a wiki page with commonly attempted idioms and the working equivalents
-        return mismatchMessageFragment() + expectedMethodName + " but wound up catching " + actualMethodName;
-    }
-
-    public static String mismatchMessageFragment() {
-        return "expected to call ";
-    }
-
     /**
      * Creates a {@link Block} that performs this invocation and pass the result to the given {@link Continuation}.
      */
