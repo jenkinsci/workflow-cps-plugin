@@ -29,6 +29,8 @@ import com.cloudbees.groovy.cps.sandbox.DefaultInvoker;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
 import java.util.function.Supplier;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 
 /**
  * Captures CPS-transformed events.
@@ -60,6 +62,9 @@ final class LoggingInvoker implements Invoker {
     }
 
     private static boolean isInternal(Class<?> clazz) {
+        if (clazz == Safepoint.class) {
+            return false;
+        }
         // TODO more precise would be the logic in jenkins.security.ClassFilterImpl.isLocationWhitelisted
         // (simply checking whether the class loader can “see”, say, jenkins/model/Jenkins.class
         // would falsely mark third-party libs bundled in Jenkins plugins)
@@ -74,14 +79,19 @@ final class LoggingInvoker implements Invoker {
         }
     }
 
-    private void maybeRecord(Object o, Supplier<String> message) {
-        if (o != null && isInternal(o.getClass())) {
-            record(message.get());
+    private static @Nonnull Class<?> classOf(@CheckForNull Object receiver) {
+        if (receiver == null) {
+            return Void.class;
+        } else if (receiver instanceof Class) {
+            return (Class<?>) receiver;
+        } else {
+            return receiver.getClass();
         }
     }
 
     @Override public Object methodCall(Object receiver, String method, Object[] args) throws Throwable {
-        maybeRecord(receiver, () -> receiver.getClass().getName() + "." + method);
+        Class<?> clazz = classOf(receiver);
+        maybeRecord(clazz, () -> clazz.getName() + "." + method);
         return delegate.methodCall(receiver, method, args);
     }
 
@@ -96,22 +106,26 @@ final class LoggingInvoker implements Invoker {
     }
 
     @Override public Object getProperty(Object lhs, String name) throws Throwable {
-        maybeRecord(lhs, () -> lhs.getClass().getName() + "." + name);
+        Class<?> clazz = classOf(lhs);
+        maybeRecord(clazz, () -> clazz.getName() + "." + name);
         return delegate.getProperty(lhs, name);
     }
 
     @Override public void setProperty(Object lhs, String name, Object value) throws Throwable {
-        maybeRecord(lhs, () -> lhs.getClass().getName() + "." + name);
+        Class<?> clazz = classOf(lhs);
+        maybeRecord(clazz, () -> clazz.getName() + "." + name);
         delegate.setProperty(lhs, name, value);
     }
 
     @Override public Object getAttribute(Object lhs, String name) throws Throwable {
-        maybeRecord(lhs, () -> lhs.getClass().getName() + "." + name);
+        Class<?> clazz = classOf(lhs);
+        maybeRecord(clazz, () -> clazz.getName() + "." + name);
         return delegate.getAttribute(lhs, name);
     }
 
     @Override public void setAttribute(Object lhs, String name, Object value) throws Throwable {
-        maybeRecord(lhs, () -> lhs.getClass().getName() + "." + name);
+        Class<?> clazz = classOf(lhs);
+        maybeRecord(clazz, () -> clazz.getName() + "." + name);
         delegate.setAttribute(lhs, name, value);
     }
 
@@ -124,7 +138,8 @@ final class LoggingInvoker implements Invoker {
     }
 
     @Override public Object methodPointer(Object lhs, String name) {
-        maybeRecord(lhs, () -> lhs.getClass().getName() + "." + name);
+        Class<?> clazz = classOf(lhs);
+        maybeRecord(clazz, () -> clazz.getName() + "." + name);
         return delegate.methodPointer(lhs, name);
     }
 
