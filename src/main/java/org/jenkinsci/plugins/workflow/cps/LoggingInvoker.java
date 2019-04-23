@@ -63,7 +63,7 @@ final class LoggingInvoker implements Invoker {
     }
 
     private static boolean isInternal(Class<?> clazz) {
-        if (clazz == Safepoint.class) {
+        if (clazz == Safepoint.class || clazz == CpsClosure2.class) {
             return false;
         }
         if (clazz.getClassLoader() instanceof GroovyClassLoader) { // similar to GroovyClassLoaderWhitelist

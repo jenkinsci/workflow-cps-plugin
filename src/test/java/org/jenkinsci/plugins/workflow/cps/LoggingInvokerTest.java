@@ -30,12 +30,12 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.Test;
 import static org.junit.Assert.*;
-import org.junit.Rule;
+import org.junit.ClassRule;
 import org.jvnet.hudson.test.JenkinsRule;
 
 public class LoggingInvokerTest {
 
-    @Rule public JenkinsRule r = new JenkinsRule();
+    @ClassRule public static JenkinsRule r = new JenkinsRule();
 
     @Test public void smokes() throws Exception {
         assertInternalCalls("currentBuild.rawBuild.description = 'XXX'; Jenkins.instance.systemMessage = 'XXX'", false,
@@ -47,6 +47,10 @@ public class LoggingInvokerTest {
 
     @Test public void groovyCalls() throws Exception {
         assertInternalCalls("class jenkinsHacks {}; echo(/created ${new jenkinsHacks()}/)", true);
+    }
+
+    @Test public void closures() throws Exception {
+        assertInternalCalls("node {echo 'hello'}", true);
     }
 
     private void assertInternalCalls(String script, boolean sandbox, String... calls) throws Exception {
