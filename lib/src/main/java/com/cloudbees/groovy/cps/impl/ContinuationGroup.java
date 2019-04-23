@@ -54,6 +54,7 @@ abstract class ContinuationGroup implements Serializable {
     protected Next methodCall(final Env e, final SourceLocation loc, final Continuation k, final CallSiteBlock callSite, final Object receiver, final String methodName, final Object... args) {
         List<String> expectedMethodNames = new ArrayList<>(2);
         expectedMethodNames.add(methodName);
+        boolean laxCall = false;
         try {
             Caller.record(receiver,methodName,args);
 
@@ -67,9 +68,11 @@ abstract class ContinuationGroup implements Serializable {
                 if (receiver instanceof Script) {
                     if (methodName.equals("evaluate")) { // Script.evaluate → GroovyShell.evaluate → Script.run
                         expectedMethodNames.add("run");
-                    } else if (((Script) receiver).getBinding().getVariables().get(methodName) != null) { // like invokePropertyOrMissing
-                        expectedMethodNames.add(/* CLOSURE_CALL_METHOD */"call");
                     }
+                    // Do not check receiver.binding.variables.containsKey(methodName) like invokePropertyOrMissing:
+                    // CpsScript.invokeMethod e.g. on a UserDefinedGlobalVariable cannot be predicted from here.
+                    expectedMethodNames.add(/* CLOSURE_CALL_METHOD */"call");
+                    laxCall = true;
                 } else if (receiver instanceof CpsBooleanClosureWrapper && methodName.equals("callForMap")) {
                     expectedMethodNames.add("call");
                 } else if (receiver instanceof CpsClosure && methodName.equals("evaluate")) { // similar to above, but from a call site inside a closure
@@ -84,6 +87,10 @@ abstract class ContinuationGroup implements Serializable {
             return k.receive(v);
         } catch (CpsCallableInvocation inv) {
             if (!methodName.startsWith("$")) { // see TODO comment in Translator w.r.t. overloadsResolved
+                if (laxCall && inv.receiver instanceof CpsClosure) {
+                    // Potential false negative from overly lax addition above.
+                    expectedMethodNames.remove("call");
+                }
                 inv.checkMismatch(receiver, expectedMethodNames);
             }
             return inv.invoke(e, loc, k);
