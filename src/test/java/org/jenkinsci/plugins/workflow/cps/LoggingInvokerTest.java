@@ -45,6 +45,10 @@ public class LoggingInvokerTest {
             "org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper.rawBuild");
     }
 
+    @Test public void groovyCalls() throws Exception {
+        assertInternalCalls("class jenkinsHacks {}; echo(/created ${new jenkinsHacks()}/)", true);
+    }
+
     private void assertInternalCalls(String script, boolean sandbox, String... calls) throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(script, sandbox));

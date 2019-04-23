@@ -28,6 +28,7 @@ import com.cloudbees.groovy.cps.impl.CallSiteBlock;
 import com.cloudbees.groovy.cps.sandbox.DefaultInvoker;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
+import groovy.lang.GroovyClassLoader;
 import java.util.function.Supplier;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -63,6 +64,9 @@ final class LoggingInvoker implements Invoker {
 
     private static boolean isInternal(Class<?> clazz) {
         if (clazz == Safepoint.class) {
+            return false;
+        }
+        if (clazz.getClassLoader() instanceof GroovyClassLoader) { // similar to GroovyClassLoaderWhitelist
             return false;
         }
         // TODO more precise would be the logic in jenkins.security.ClassFilterImpl.isLocationWhitelisted
