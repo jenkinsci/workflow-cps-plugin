@@ -55,6 +55,7 @@ abstract class ContinuationGroup implements Serializable {
         List<String> expectedMethodNames = new ArrayList<>(2);
         expectedMethodNames.add(methodName);
         boolean laxCall = false;
+        Object effectiveReceiver = receiver instanceof CpsClosure ? ((CpsClosure) receiver).getOwner() : receiver;
         try {
             Caller.record(receiver,methodName,args);
 
@@ -65,18 +66,16 @@ abstract class ContinuationGroup implements Serializable {
                 Super s = (Super) receiver;
                 v = inv.superCall(s.senderType, s.receiver, methodName, args);
             } else {
-                if (receiver instanceof Script) {
+                if (effectiveReceiver instanceof Script) {
                     if (methodName.equals("evaluate")) { // Script.evaluate → GroovyShell.evaluate → Script.run
                         expectedMethodNames.add("run");
                     }
                     // CpsScript.invokeMethod e.g. on a UserDefinedGlobalVariable cannot be predicted from here.
-                    expectedMethodNames.add(/* CLOSURE_CALL_METHOD */"call");
-                    laxCall = !((Script) receiver).getBinding().getVariables().containsKey(methodName); // lax unless like invokePropertyOrMissing
-                } else if (receiver instanceof CpsBooleanClosureWrapper && methodName.equals("callForMap")) {
                     expectedMethodNames.add("call");
-                } else if (receiver instanceof CpsClosure && methodName.equals("evaluate")) { // similar to above, but from a call site inside a closure
-                    expectedMethodNames.add("run");
-                } else if ((receiver instanceof ListWithDefault || receiver instanceof MapWithDefault) && methodName.equals("get")) {
+                    laxCall = !((Script) effectiveReceiver).getBinding().getVariables().containsKey(methodName); // lax unless like invokePropertyOrMissing
+                } else if (effectiveReceiver instanceof CpsBooleanClosureWrapper && methodName.equals("callForMap")) {
+                    expectedMethodNames.add("call");
+                } else if ((effectiveReceiver instanceof ListWithDefault || effectiveReceiver instanceof MapWithDefault) && methodName.equals("get")) {
                     expectedMethodNames.add("call");
                 }
                 // TODO: spread
@@ -90,7 +89,7 @@ abstract class ContinuationGroup implements Serializable {
                     // Potential false negative from overly lax addition above.
                     expectedMethodNames.remove("call");
                 }
-                inv.checkMismatch(receiver, expectedMethodNames);
+                inv.checkMismatch(effectiveReceiver, expectedMethodNames);
             }
             return inv.invoke(e, loc, k);
         } catch (Throwable t) {
