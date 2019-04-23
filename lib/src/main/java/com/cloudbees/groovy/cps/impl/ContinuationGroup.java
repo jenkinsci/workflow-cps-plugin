@@ -5,16 +5,18 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
+import static com.cloudbees.groovy.cps.impl.SourceLocation.*;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
-import org.codehaus.groovy.runtime.callsite.CallSite;
-
-import javax.annotation.CheckReturnValue;
+import groovy.lang.GroovyCodeSource;
+import groovy.lang.GroovyShell;
+import groovy.lang.MetaClassImpl;
+import groovy.lang.Script;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import static com.cloudbees.groovy.cps.impl.SourceLocation.*;
+import javax.annotation.CheckReturnValue;
+import org.codehaus.groovy.runtime.callsite.CallSite;
 
 /**
  * Base class for defining a series of {@link Continuation} methods that share the same set of contextual values.
@@ -41,8 +43,12 @@ abstract class ContinuationGroup implements Serializable {
 
     /**
      * Evaluates a function (possibly a workflow function), then pass the result to the given continuation.
+     * @see MetaClassImpl#invokePropertyOrMissing
+     * @see GroovyShell#evaluate(GroovyCodeSource)
      */
     protected Next methodCall(final Env e, final SourceLocation loc, final Continuation k, final CallSiteBlock callSite, final Object receiver, final String methodName, final Object... args) {
+        List<String> expectedMethodNames = new ArrayList<>(2);
+        expectedMethodNames.add(methodName);
         try {
             Caller.record(receiver,methodName,args);
 
@@ -53,13 +59,21 @@ abstract class ContinuationGroup implements Serializable {
                 Super s = (Super) receiver;
                 v = inv.superCall(s.senderType, s.receiver, methodName, args);
             } else {
+                if (receiver instanceof Script) {
+                    if (methodName.equals("evaluate")) { // Script.evaluate → GroovyShell.evaluate → Script.run
+                        expectedMethodNames.add("run");
+                    } else if (((Script) receiver).getBinding().getVariables().get(methodName) != null) { // like invokePropertyOrMissing
+                        expectedMethodNames.add(/* CLOSURE_CALL_METHOD */"call");
+                    }
+                }
                 // TODO: spread
                 v = inv.methodCall(receiver, methodName, args);
             }
             // if this was a normal function, the method had just executed synchronously
             return k.receive(v);
         } catch (CpsCallableInvocation inv) {
-            return inv.invoke(methodName, e, loc, k);
+            inv.checkMismatch(expectedMethodNames);
+            return inv.invoke(e, loc, k);
         } catch (Throwable t) {
             return throwException(e, t, loc, new ReferenceStackTrace());
         }

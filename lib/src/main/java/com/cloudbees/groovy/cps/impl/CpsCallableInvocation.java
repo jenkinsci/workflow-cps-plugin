@@ -38,7 +38,7 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
     }
 
     /**
-     * @param methodName see {@link #invoke(String, Env, SourceLocation, Continuation)}
+     * @param methodName see {@link #checkMismatch}
      */
     public CpsCallableInvocation(String methodName, CpsCallable call, Object receiver, Object... arguments) {
         this.methodName = methodName;
@@ -52,16 +52,20 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
     }
 
     /**
-     * @param expectedMethodName when not matching that passed to {@link CpsCallableInvocation#CpsCallableInvocation(String, CpsCallable, Object, Object...)}, will use logic from {@link #registerMismatchHandler}
+     * To be called prior to {@link #invoke}.
+     * @param expectedMethodNames possible values for {@link #methodName}
      */
-    public Next invoke(String expectedMethodName, Env caller, SourceLocation loc, Continuation k) {
-        if (isMismatch(expectedMethodName, methodName)) {
-            MismatchHandler handler = handlers.get();
-            if (handler != null) {
-                handler.handle(expectedMethodName, methodName);
+    void checkMismatch(List<String> expectedMethodNames) {
+        assert !expectedMethodNames.isEmpty();
+        for (String expectedMethodName : expectedMethodNames) {
+            if (!isMismatch(expectedMethodName, methodName)) {
+                return;
             }
         }
-        return invoke(caller, loc, k);
+        MismatchHandler handler = handlers.get();
+        if (handler != null) {
+            handler.handle(expectedMethodNames.get(0), methodName);
+        }
     }
 
     /** @see #registerMismatchHandler */
@@ -72,7 +76,7 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
 
     private static final ThreadLocal<MismatchHandler> handlers = new ThreadLocal<>();
 
-    /** @see #invoke(String, Env, SourceLocation, Continuation) */
+    /** @see #checkMismatch */
     public static void registerMismatchHandler(@CheckForNull MismatchHandler handler) {
         handlers.set(handler);
     }
@@ -105,9 +109,6 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
         }
         if (expected.startsWith("$")) {
             // see TODO comment in Translator w.r.t. overloadsResolved
-            return false;
-        }
-        if (expected.equals("evaluate") && caught.equals("run")) {
             return false;
         }
         return true;
