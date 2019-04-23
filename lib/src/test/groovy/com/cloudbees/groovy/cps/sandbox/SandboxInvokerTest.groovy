@@ -2,6 +2,7 @@ package com.cloudbees.groovy.cps.sandbox
 
 import com.cloudbees.groovy.cps.*
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv
+import groovy.transform.NotYetImplemented
 import org.codehaus.groovy.runtime.ProxyGeneratorAdapter
 import org.junit.Before
 import org.junit.Test
@@ -9,6 +10,11 @@ import org.jvnet.hudson.test.Issue
 import org.kohsuke.groovy.sandbox.ClassRecorder
 
 import java.awt.Point
+import org.codehaus.groovy.control.MultipleCompilationErrorsException
+
+import static org.hamcrest.CoreMatchers.containsString
+import static org.hamcrest.CoreMatchers.equalTo
+import static org.hamcrest.CoreMatchers.instanceOf
 
 /**
  * @author Kohsuke Kawaguchi
@@ -210,6 +216,26 @@ String.plus(String)
 ''')
     }
 
+    @Issue("JENKINS-45982")
+    @Test
+    void transformedSuperClass() {
+        assert evalCpsSandbox('''
+            class Foo extends SandboxInvokerTest.Base {
+                public String other() {
+                    return "base"
+                }
+            }
+            class Bar extends Foo {
+                public String other() {
+                    return "y"+super.other()
+                }
+            }
+            new Bar().other();
+        ''')=="ybase"
+
+        // TODO: add assertIntercept once this can actually work and we know the call tree.
+    }
+
     @Issue("SECURITY-551")
     @Test public void constructors() {
         evalCpsSandbox('''
@@ -357,12 +383,10 @@ Script1.runit(SandboxedMethodClosure)
 SandboxedMethodClosure.call()
 SandboxInvokerTest$Base.noArg()
 Checker:checkedCast(Class,CpsClosure,Boolean,Boolean,Boolean)
-CpsClosure.call()
 Script1.runit(CpsClosure)
 CpsClosure.call()
 SandboxInvokerTest$Base.noArg()
 Checker:checkedCast(Class,SandboxedMethodClosure,Boolean,Boolean,Boolean)
-SandboxedMethodClosure.call()
 Script1.runit(SandboxedMethodClosure)
 SandboxedMethodClosure.call()
 SandboxInvokerTest$Base.noArg()
@@ -452,6 +476,34 @@ def c, d
 
 return a + b + c + d
 ''') == 'firstsecondthirdfourth'
+    }
+
+    @Issue("SECURITY-1186")
+    @Test
+    void finalizerForbidden() {
+        try {
+            evalCpsSandbox('class Test { @Override public void finalize() { } }; null');
+            fail("Finalizers should be rejected");
+        } catch (MultipleCompilationErrorsException e) {
+            assertThat(e.getErrorCollector().getErrorCount(), equalTo(1));
+            Exception innerE = e.getErrorCollector().getException(0);
+            assertThat(innerE, instanceOf(SecurityException.class));
+            assertThat(innerE.getMessage(), containsString("Object.finalize()"));
+        }
+    }
+
+    @Issue("SECURITY-1186")
+    @Test
+    void nonCpsfinalizerForbidden() {
+        try {
+            evalCpsSandbox('class Test { @Override @NonCPS public void finalize() { } }; null');
+            fail("Finalizers should be rejected");
+        } catch (MultipleCompilationErrorsException e) {
+            assertThat(e.getErrorCollector().getErrorCount(), equalTo(1));
+            Exception innerE = e.getErrorCollector().getException(0);
+            assertThat(innerE, instanceOf(SecurityException.class));
+            assertThat(innerE.getMessage(), containsString("Object.finalize()"));
+        }
     }
 
 }

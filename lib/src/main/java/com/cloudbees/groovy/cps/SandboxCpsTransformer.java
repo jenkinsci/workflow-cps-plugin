@@ -6,17 +6,12 @@ import org.codehaus.groovy.ast.ClassNode;
 import org.codehaus.groovy.ast.FieldNode;
 import org.codehaus.groovy.ast.MethodNode;
 import org.codehaus.groovy.ast.expr.CastExpression;
-import org.codehaus.groovy.ast.expr.ConstantExpression;
-import org.codehaus.groovy.ast.expr.DeclarationExpression;
 import org.codehaus.groovy.ast.expr.Expression;
-import org.codehaus.groovy.ast.expr.TupleExpression;
 import org.codehaus.groovy.ast.expr.VariableExpression;
 import org.codehaus.groovy.ast.stmt.Statement;
 import org.codehaus.groovy.classgen.GeneratorContext;
 import org.codehaus.groovy.control.SourceUnit;
 import org.kohsuke.groovy.sandbox.SandboxTransformer;
-
-import java.util.List;
 
 /**
  * {@link CpsTransformer} + {@link SandboxTransformer}
@@ -47,6 +42,7 @@ public class SandboxCpsTransformer extends CpsTransformer {
      */
     @Override
     protected void visitNontransformedMethod(MethodNode m) {
+        st.forbidIfFinalizer(m);
         stv.visitMethod(m);
     }
 
@@ -68,34 +64,41 @@ public class SandboxCpsTransformer extends CpsTransformer {
         s.visit(stv);
     }
 
+    /**
+     * Overriding to allow for rejecting {@code finalize} methods when sandboxed.
+     */
+    @Override
+    public void visitMethod(MethodNode m) {
+        st.forbidIfFinalizer(m);
+        super.visitMethod(m);
+    }
+
     @Override
     public void visitCastExpression(final CastExpression exp) {
-        if (exp.isCoerce()) {
-            makeNode("sandboxCast", new Runnable() {
-                @Override
-                public void run() {
-                    loc(exp);
-                    visit(exp.getExpression());
-                    literal(exp.getType());
-                    literal(exp.isIgnoringAutoboxing());
-                    literal(exp.isStrict());
-                }
-            });
-        } else {
-            super.visitCastExpression(exp);
-        }
+        makeNode("sandboxCastOrCoerce", new Runnable() {
+            @Override
+            public void run() {
+                loc(exp);
+                visit(exp.getExpression());
+                literal(exp.getType());
+                literal(exp.isIgnoringAutoboxing());
+                literal(exp.isCoerce());
+                literal(exp.isStrict());
+            }
+        });
     }
 
     @Override
     protected void visitAssignmentOrCast(final VariableExpression varExp, final Expression rhs) {
         if (SandboxTransformer.mightBePositionalArgumentConstructor(varExp)) {
-            makeNode("sandboxCast", new Runnable() {
+            makeNode("sandboxCastOrCoerce", new Runnable() {
                 @Override
                 public void run() {
                     loc(varExp);
                     visit(rhs);
                     literal(varExp.getType());
                     literal(false);
+                    literal(true);
                     literal(false);
                 }
             });
@@ -107,7 +110,7 @@ public class SandboxCpsTransformer extends CpsTransformer {
     @Override
     protected void getMultipleAssignmentValueOrCast(final VariableExpression varExp, final Expression rhs, final Expression index) {
         if (SandboxTransformer.mightBePositionalArgumentConstructor(varExp)) {
-            makeNode("sandboxCast", new Runnable() {
+            makeNode("sandboxCastOrCoerce", new Runnable() {
                 @Override
                 public void run() {
                     loc(varExp);
@@ -121,6 +124,7 @@ public class SandboxCpsTransformer extends CpsTransformer {
                     });
                     literal(varExp.getType());
                     literal(false);
+                    literal(true);
                     literal(false);
                 }
             });

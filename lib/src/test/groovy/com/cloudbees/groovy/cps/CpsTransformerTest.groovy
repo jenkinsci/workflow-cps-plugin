@@ -731,6 +731,7 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             return "base";
         }
     }
+
     @Test
     void superClass() {
         assert evalCPS('''
@@ -741,6 +742,43 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             }
             new Foo().toString();
         ''')=="xbase"
+    }
+
+    @Issue("JENKINS-45982")
+    @Test
+    void transformedSuperClass() {
+        assert evalCPS('''
+            class Foo extends CpsTransformerTest.Base {
+                public String other() {
+                    return "base"
+                }
+            }
+            class Bar extends Foo {
+                public String other() {
+                    return "y"+super.other()
+                }
+            }
+            new Bar().other();
+        ''')=="ybase"
+    }
+
+    @NotYetImplemented
+    @Issue("JENKINS-52395")
+    @Test
+    void transformedSuperSuperClass() {
+        assert evalCPS('''
+            class Foo extends CpsTransformerTest.Base {
+                public String toString() {
+                    return "x"+super.toString()
+                }
+            }
+            class Bar extends Foo {
+                public String toString() {
+                    return "y"+super.toString()
+                }
+            }
+            new Bar().toString();
+        ''')=="yxbase"
     }
 
     @Test

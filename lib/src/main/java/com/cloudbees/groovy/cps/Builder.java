@@ -590,14 +590,22 @@ public class Builder {
     }
 
     /**
+     * @deprecated Just for compatibility with old scripts; prefer {@link #sandboxCastOrCoerce}
+     */
+    @Deprecated
+    public Block sandboxCast(int line, Block block, Class<?> type, boolean ignoreAutoboxing, boolean strict) {
+        return sandboxCastOrCoerce(line, block, type, ignoreAutoboxing, true, strict);
+    }
+
+    /**
      * Cast to type when {@link CastExpression#isCoerce} from {@link SandboxCpsTransformer}.
      */
     // TODO should ideally be defined in some sandbox-specific subtype of Builder
-    public Block sandboxCast(int line, Block block, Class<?> type, boolean ignoreAutoboxing, boolean strict) {
+    public Block sandboxCastOrCoerce(int line, Block block, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict) {
         return staticCall(line, Checker.class,
                 "checkedCast",
                 constant(type), block,
-                constant(ignoreAutoboxing), constant(true), constant(strict));
+                constant(ignoreAutoboxing), constant(coerce), constant(strict));
     }
 
     public Block instanceOf(int line, Block value, Block type) {
