@@ -54,17 +54,14 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
     /**
      * To be called prior to {@link #invoke}.
      * @param expectedMethodNames possible values for {@link #methodName}
+     * @see <a href="https://issues.jenkins-ci.org/browse/JENKINS-31314">JENKINS-31314</a>
      */
     void checkMismatch(List<String> expectedMethodNames) {
-        assert !expectedMethodNames.isEmpty();
-        for (String expectedMethodName : expectedMethodNames) {
-            if (!isMismatch(expectedMethodName, methodName)) {
-                return;
+        if (!expectedMethodNames.contains(methodName)) {
+            MismatchHandler handler = handlers.get();
+            if (handler != null) {
+                handler.handle(expectedMethodNames.get(0), methodName);
             }
-        }
-        MismatchHandler handler = handlers.get();
-        if (handler != null) {
-            handler.handle(expectedMethodNames.get(0), methodName);
         }
     }
 
@@ -100,18 +97,6 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
     @Override
     public String toString() {
         return "CpsCallableInvocation{methodName=" + methodName + ", call=" + call + ", receiver=" + receiver + ", arguments=" + arguments + '}';
-    }
-
-    /** @see <a href="https://issues.jenkins-ci.org/browse/JENKINS-31314">JENKINS-31314</a> */
-    private static boolean isMismatch(String expected, String caught) {
-        if (expected.equals(caught)) {
-            return false;
-        }
-        if (expected.startsWith("$")) {
-            // see TODO comment in Translator w.r.t. overloadsResolved
-            return false;
-        }
-        return true;
     }
 
 }

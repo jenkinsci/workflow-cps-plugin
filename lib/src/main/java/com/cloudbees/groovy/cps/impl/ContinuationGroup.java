@@ -72,7 +72,9 @@ abstract class ContinuationGroup implements Serializable {
             // if this was a normal function, the method had just executed synchronously
             return k.receive(v);
         } catch (CpsCallableInvocation inv) {
-            inv.checkMismatch(expectedMethodNames);
+            if (!methodName.startsWith("$")) { // see TODO comment in Translator w.r.t. overloadsResolved
+                inv.checkMismatch(expectedMethodNames);
+            }
             return inv.invoke(e, loc, k);
         } catch (Throwable t) {
             return throwException(e, t, loc, new ReferenceStackTrace());
