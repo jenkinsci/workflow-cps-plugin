@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow;
 
+import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -48,6 +49,7 @@ public class CpsDefaultGroovyMethodsTest {
         WorkflowJob j = r.createProject(WorkflowJob.class, testName);
         j.setDefinition(new CpsFlowDefinition(testCode, true));
 
-        r.buildAndAssertSuccess(j);
+        WorkflowRun b = r.buildAndAssertSuccess(j);
+        r.assertLogNotContains(CpsCallableInvocation.mismatchMessageFragment(), b);
     }
 }

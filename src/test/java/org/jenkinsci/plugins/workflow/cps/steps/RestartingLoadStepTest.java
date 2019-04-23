@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps.steps;
 
+import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import javax.inject.Inject;
 
 import hudson.FilePath;
@@ -138,10 +139,12 @@ public class RestartingLoadStepTest {
                 // SandboxInterceptor.onMethodCall is given Script2 as the receiver and "a" as the method, when really it should be asked about onGetProperty(Script2.a) followed by onMethodCall(Script1.call).
                 // Works fine if you use a.call(…) rather than a(…).
                 p.setDefinition(new CpsFlowDefinition("a = 0; node {a = load 'a.groovy'}; def b; node {b = load 'b.groovy'}; echo \"${this} binding=${binding.variables}\"; b.m('value')", false));
-                story.j.assertLogContains("a ran on value from b", story.j.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+                WorkflowRun b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
+                story.j.assertLogContains("a ran on value from b", b);
+                story.j.assertLogNotContains(CpsCallableInvocation.mismatchMessageFragment(), b);
                 // Test case:
                 p.setDefinition(new CpsFlowDefinition("a = 0; node {a = load 'a.groovy'}; semaphore 'wait'; def b; node {b = load 'b.groovy'}; echo \"${this} binding=${binding.variables}\"; b.m('value')", /* TODO ditto */false));
-                WorkflowRun b = p.scheduleBuild2(0).getStartCondition().get();
+                b = p.scheduleBuild2(0).getStartCondition().get();
                 SemaphoreStep.waitForStart("wait/1", b);
             }
         });
@@ -151,10 +154,13 @@ public class RestartingLoadStepTest {
                 WorkflowRun b = p.getBuildByNumber(2);
                 SemaphoreStep.success("wait/1", null);
                 story.j.assertLogContains("a ran on value from b", story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b)));
+                story.j.assertLogNotContains(CpsCallableInvocation.mismatchMessageFragment(), b);
                 // Better case:
                 jenkins.getWorkspaceFor(p).child("b.groovy").write("def m(a, arg) {a(\"${arg} from b\")}; this", null);
                 p.setDefinition(new CpsFlowDefinition("def a; def b; node {a = load 'a.groovy'; b = load 'b.groovy'}; b.m(a, 'value')", true));
-                story.j.assertLogContains("a ran on value from b", story.j.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+                b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
+                story.j.assertLogContains("a ran on value from b", b);
+                story.j.assertLogNotContains(CpsCallableInvocation.mismatchMessageFragment(), b);
             }
         });
     }
