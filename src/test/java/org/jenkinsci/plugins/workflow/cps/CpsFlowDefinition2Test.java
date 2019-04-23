@@ -29,11 +29,14 @@ import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Result;
+
 import java.util.logging.Level;
+
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
+
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
@@ -42,6 +45,7 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ErrorCollector;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.LoggerRule;
@@ -50,14 +54,13 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public LoggerRule logging = new LoggerRule();
+    @Rule public ErrorCollector errors = new ErrorCollector();
 
     /**
      * I should be able to have DSL call into async step and then bring it to the completion.
      */
     @Test public void suspendExecutionAndComeBack() throws Exception {
-        CpsFlowDefinition flow = new CpsFlowDefinition(
-                "semaphore 'watch'\n" +
-                "println 'Yo'");
+        CpsFlowDefinition flow = new CpsFlowDefinition("semaphore 'watch'\nprintln 'Yo'", false);
 
         // get this going...
         createExecution(flow);
@@ -138,7 +141,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
     @Test public void configRoundTrip() throws Exception {
         WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
-        job.setDefinition(new CpsFlowDefinition("echo 'whatever'"));
+        job.setDefinition(new CpsFlowDefinition("echo 'whatever'", false));
         jenkins.configRoundtrip(job);
     }
 
@@ -177,6 +180,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
         WorkflowRun r = jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
         jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", r);
+        jenkins.assertLogContains("Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance. " + org.jenkinsci.plugins.scriptsecurity.scripts.Messages.ScriptApprovalNote_message(), r);
     }
 
     @Issue("SECURITY-551")
@@ -248,35 +252,87 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Test public void typeCoercion() throws Exception {
         logging.record(CpsTransformer.class, Level.FINEST);
         WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
-        job.setDefinition(new CpsFlowDefinition("interface I {Object getInstance()}; println((Jenkins as I).instance)", true));
-        WorkflowRun b = job.scheduleBuild2(0).get();
-        assertNull(jenkins.jenkins.getSystemMessage());
-        jenkins.assertBuildStatus(Result.FAILURE, b);
-        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
+        errors.checkSucceeds(() -> {
+            job.setDefinition(new CpsFlowDefinition("interface I {Object getInstance()}; println((Jenkins as I).instance)", true));
+            WorkflowRun b = job.scheduleBuild2(0).get();
+            assertNull(jenkins.jenkins.getSystemMessage());
+            jenkins.assertBuildStatus(Result.FAILURE, b);
+            jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
+            return null;
+        });
         // Not really the same but just checking:
-        job.setDefinition(new CpsFlowDefinition("interface I {Object getInstance()}; I i = {Jenkins.instance}; println(i.instance)", true));
-        b = job.scheduleBuild2(0).get();
-        assertNull(jenkins.jenkins.getSystemMessage());
-        jenkins.assertBuildStatus(Result.FAILURE, b);
-        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
+        errors.checkSucceeds(() -> {
+            job.setDefinition(new CpsFlowDefinition("interface I {Object getInstance()}; I i = {Jenkins.instance}; println(i.instance)", true));
+            WorkflowRun b = job.scheduleBuild2(0).get();
+            assertNull(jenkins.jenkins.getSystemMessage());
+            jenkins.assertBuildStatus(Result.FAILURE, b);
+            jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
+            return null;
+        });
+        // Some safe idioms:
+        errors.checkSucceeds(() -> {
+            job.setDefinition(new CpsFlowDefinition("def x = (double) Math.max(2, 3); echo(/max is $x/)", true));
+            jenkins.assertLogContains("max is 3", jenkins.buildAndAssertSuccess(job));
+            return null;
+        });
+        errors.checkSucceeds(() -> {
+            job.setDefinition(new CpsFlowDefinition("def x = Math.max(2, 3) as double; echo(/max is $x/)", true));
+            jenkins.assertLogContains("max is 3", jenkins.buildAndAssertSuccess(job));
+            return null;
+        });
+        errors.checkSucceeds(() -> {
+            job.setDefinition(new CpsFlowDefinition("double x = Math.max(2, 3); echo(/max is $x/)", true));
+            jenkins.assertLogContains("max is 3", jenkins.buildAndAssertSuccess(job));
+            return null;
+        });
     }
 
-    @Issue("SECURITY-580")
+    @Issue({"SECURITY-580", "SECURITY-1353"})
     @Test public void positionalConstructors() throws Exception {
         logging.record(CpsTransformer.class, Level.FINEST);
         WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
         // Control cases:
-        p.setDefinition(new CpsFlowDefinition("def u = ['http://nowhere.net/'] as URL; echo(/$u/)", true));
-        jenkins.buildAndAssertSuccess(p);
-        p.setDefinition(new CpsFlowDefinition("URL u = ['http://nowhere.net/']; echo(/$u/)", true));
-        jenkins.buildAndAssertSuccess(p);
-        p.setDefinition(new CpsFlowDefinition("def f = new File('/tmp'); echo(/$f/)", true));
-        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use new java.io.File java.lang.String", jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)));
+        errors.checkSucceeds(() -> {
+            p.setDefinition(new CpsFlowDefinition("def u = ['http://nowhere.net/'] as URL; echo(/$u/)", true));
+            jenkins.buildAndAssertSuccess(p);
+            return null;
+        });
+        errors.checkSucceeds(() -> {
+            p.setDefinition(new CpsFlowDefinition("URL u = ['http://nowhere.net/']; echo(/$u/)", true));
+            jenkins.buildAndAssertSuccess(p);
+            return null;
+        });
+        errors.checkSucceeds(() -> {
+            p.setDefinition(new CpsFlowDefinition("def f = new File('/tmp'); echo(/$f/)", true));
+            jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use new java.io.File java.lang.String", jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)));
+            return null;
+        });
         // Test cases:
-        p.setDefinition(new CpsFlowDefinition("def f = ['/tmp'] as File; echo(/$f/)", true));
-        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use new java.io.File java.lang.String", jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)));
-        p.setDefinition(new CpsFlowDefinition("File f = ['/tmp']; echo(/$f/)", true));
-        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use new java.io.File java.lang.String", jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)));
+        errors.checkSucceeds(() -> {
+            p.setDefinition(new CpsFlowDefinition("def f = ['/tmp'] as File; echo(/$f/)", true));
+            jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use new java.io.File java.lang.String", jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)));
+            return null;
+        });
+        errors.checkSucceeds(() -> {
+            p.setDefinition(new CpsFlowDefinition("File f = ['/tmp']; echo(/$f/)", true));
+            jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use new java.io.File java.lang.String", jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)));
+            return null;
+        });
+        errors.checkSucceeds(() -> {
+            p.setDefinition(new CpsFlowDefinition("def f = org.codehaus.groovy.runtime.ScriptBytecodeAdapter.asType(['/tmp'], File); echo(/$f/)", true));
+            jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use new java.io.File java.lang.String", jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)));
+            return null;
+        });
+        errors.checkSucceeds(() -> {
+            p.setDefinition(new CpsFlowDefinition("def f = org.codehaus.groovy.runtime.ScriptBytecodeAdapter.castToType(['/tmp'], File); echo(/$f/)", true));
+            jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod org.codehaus.groovy.runtime.ScriptBytecodeAdapter castToType java.lang.Object java.lang.Class", jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)));
+            return null;
+        });
+        errors.checkSucceeds(() -> {
+            p.setDefinition(new CpsFlowDefinition("def f = org.kohsuke.groovy.sandbox.impl.Checker.checkedCast(File, ['/tmp'], true, false, false); echo(/$f/)", true));
+            jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use new java.io.File java.lang.String", jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)));
+            return null;
+        });
     }
 
     @Issue("SECURITY-567")
@@ -293,14 +349,14 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Test
     public void curriedClosuresInParallel() throws Exception {
         WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
-        job.setDefinition(new CpsFlowDefinition("def example_c = { input -> node { echo \"$input\" } }\n" +
+        job.setDefinition(new CpsFlowDefinition("def example_c = { input -> node { echo \"ate $input\" } }\n" +
                 "def map = [:]\n" +
                 "map['spam'] = example_c.curry('spam')\n" +
                 "map['eggs'] = example_c.curry('eggs')\n" +
                 "parallel map\n", true));
         WorkflowRun b = jenkins.buildAndAssertSuccess(job);
-        jenkins.assertLogContains("[spam] spam", b);
-        jenkins.assertLogContains("[eggs] eggs", b);
+        jenkins.assertLogContains("ate spam", b);
+        jenkins.assertLogContains("ate eggs", b);
     }
 
     @Issue("JENKINS-27916")
@@ -465,4 +521,73 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
                 "assert a+b+c+d == 'firstsecondthirdfourth'\n", true));
         jenkins.buildAndAssertSuccess(job);
     }
+
+    @Issue("JENKINS-45982")
+    @Test
+    public void transformedSuperClass() throws Exception {
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("class Foo {\n" +
+                "    public String other() {\n" +
+                "        return 'base'\n" +
+                "    }\n" +
+                "}\n" +
+                "class Bar extends Foo {\n" +
+                "    public String other() {\n" +
+                "        return 'y'+super.other()\n" +
+                "    }\n" +
+                "}\n" +
+                "String output = new Bar().other()\n" +
+                "echo 'OUTPUT: ' + output\n" +
+                "assert output == 'ybase'\n", true));
+        WorkflowRun r = jenkins.buildAndAssertSuccess(job);
+        jenkins.assertLogContains("OUTPUT: ybase", r);
+    }
+
+    @Issue("SECURITY-1186")
+    @Test
+    public void finalizer() throws Exception {
+        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("class Foo {\n" +
+                "    @Override public void finalize() {\n" +
+                "    }\n" +
+                "}\n" +
+                "echo 'Should never get here'", true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("Object.finalize()", b);
+        jenkins.assertLogNotContains("Should never get here", b);
+    }
+
+    @Issue("SECURITY-266")
+    @Test
+    public void sandboxRejectsASTTransforms() throws Exception {
+        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("import groovy.transform.*\n" +
+                "import jenkins.model.Jenkins\n" +
+                "import org.jenkinsci.plugins.workflow.job.WorkflowJob\n" +
+                "@ASTTest(value={ assert Jenkins.get().createProject(WorkflowJob.class, \"should-not-exist\") })\n" +
+                "@Field int x\n" +
+                "echo 'hello'\n", true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("Annotation ASTTest cannot be used in the sandbox", b);
+
+        assertNull(jenkins.jenkins.getItem("should-not-exist"));
+    }
+
+    @Issue("SECURITY-1336")
+    @Test
+    public void blockConstructorInvocationAtRuntime() throws Exception {
+        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "w");
+        job.setDefinition(new CpsFlowDefinition(
+            "class DoNotRunConstructor extends org.jenkinsci.plugins.workflow.cps.CpsScript {\n" +
+            "  DoNotRunConstructor() {\n" +
+            "    assert jenkins.model.Jenkins.instance.createProject(hudson.model.FreeStyleProject, 'should-not-exist')\n" +
+            "  }\n" +
+            "  Object run() {null}\n" +
+            "}\n", true));
+        WorkflowRun b = job.scheduleBuild2(0).get();
+        assertNull(jenkins.jenkins.getItem("should-not-exist"));
+        jenkins.assertBuildStatus(Result.FAILURE, b);
+        jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b);
+    }
+
 }

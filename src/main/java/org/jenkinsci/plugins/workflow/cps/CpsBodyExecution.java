@@ -42,6 +42,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -94,9 +95,17 @@ class CpsBodyExecution extends BodyExecution {
     @GuardedBy("this")
     private Outcome outcome;
 
-    CpsBodyExecution(CpsStepContext context, List<BodyExecutionCallback> callbacks) {
+    /**
+     * If set, unexport this when the body closes.
+     * When deserialized from old builds this will be null.
+     * @see CpsBodyInvoker#unexport
+     */
+    private final @CheckForNull BodyReference bodyToUnexport;
+
+    CpsBodyExecution(CpsStepContext context, List<BodyExecutionCallback> callbacks, @CheckForNull BodyReference bodyToUnexport) {
         this.context = context;
         this.callbacks = callbacks;
+        this.bodyToUnexport = bodyToUnexport;
     }
 
     /**
@@ -120,7 +129,6 @@ class CpsBodyExecution extends BodyExecution {
         }
 
         head.setNewHead(sn);
-        CpsFlowExecution.maybeAutoPersistNode(sn);
 
         StepContext sc = new CpsBodySubContext(context, sn);
         for (BodyExecutionCallback c : callbacks) {
@@ -317,6 +325,9 @@ class CpsBodyExecution extends BodyExecution {
 
     private void setOutcome(Outcome o) {
         synchronized (this) {
+            if (bodyToUnexport != null && thread != null) {
+                thread.group.unexport(bodyToUnexport);
+            }
             if (outcome!=null)
                 throw new IllegalStateException("Outcome is already set");
             this.outcome = o;
@@ -337,7 +348,6 @@ class CpsBodyExecution extends BodyExecution {
                 FlowHead h = CpsThread.current().head;
                 StepStartNode ssn = addBodyStartFlowNode(h);
                 h.setNewHead(ssn);
-                CpsFlowExecution.maybeAutoPersistNode(ssn);
             }
 
             StepEndNode en = addBodyEndFlowNode();
@@ -350,7 +360,6 @@ class CpsBodyExecution extends BodyExecution {
             for (BodyExecutionCallback c : callbacks) {
                 c.onFailure(sc, t);
             }
-
             return Next.terminate(null);
         }
 
@@ -367,7 +376,6 @@ class CpsBodyExecution extends BodyExecution {
             for (BodyExecutionCallback c : callbacks) {
                 c.onSuccess(sc, o);
             }
-
             return Next.terminate(null);
         }
 

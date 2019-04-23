@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2016 CloudBees, Inc.
+ * Copyright 2019 CloudBees, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,26 +22,38 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.workflow;
+package org.jenkinsci.plugins.workflow.cps;
 
-import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import hudson.model.Result;
+import java.util.Collections;
+import java.util.stream.Collectors;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.junit.ClassRule;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.junit.Rule;
+import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
-public class SubtypeInjectingStepTest {
+public class SandboxContinuableTest {
+
+    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
 
     @Rule public JenkinsRule r = new JenkinsRule();
 
-    @Test @Issue("JENKINS-25630")
-    public void contextInjectionOfSubParameters() throws Exception {
-        // see SubtypeInjectingStep
+    @Issue("JENKINS-34973")
+    @Test public void scriptApproval() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("node('master') { injectSubtypesAsContext() }", false));
-        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        p.setDefinition(new CpsFlowDefinition("catchError {Jenkins.instance}", true));
+        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        r.assertLogContains(RejectedAccessException.class.getName() + ": Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
+        assertEquals(Collections.singleton("staticMethod jenkins.model.Jenkins getInstance"),
+            ScriptApproval.get().getPendingSignatures().stream().map(ps -> ps.signature).collect(Collectors.toSet()));
+        r.assertLogContains(org.jenkinsci.plugins.scriptsecurity.scripts.Messages.ScriptApprovalNote_message(), b);
     }
 
 }

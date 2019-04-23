@@ -73,7 +73,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
 
     @DataBoundConstructor public CpsScmFlowDefinition(SCM scm, String scriptPath) {
         this.scm = scm;
-        this.scriptPath = scriptPath;
+        this.scriptPath = scriptPath.trim();
     }
 
     public SCM getScm() {
@@ -103,11 +103,12 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             throw new IOException("can only check out SCM into a Run");
         }
         Run<?,?> build = (Run<?,?>) _build;
+        String expandedScriptPath = build.getEnvironment(listener).expand(scriptPath);
         if (isLightweight()) {
             try (SCMFileSystem fs = SCMFileSystem.of(build.getParent(), scm)) {
                 if (fs != null) {
-                    String script = fs.child(scriptPath).contentAsString();
-                    listener.getLogger().println("Obtained " + scriptPath + " from " + scm.getKey());
+                    String script = fs.child(expandedScriptPath).contentAsString();
+                    listener.getLogger().println("Obtained " + expandedScriptPath + " from " + scm.getKey());
                     Queue.Executable exec = owner.getExecutable();
                     FlowDurabilityHint hint = (exec instanceof Item) ? DurabilityHintProvider.suggestedFor((Item)exec) : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
                     return new CpsFlowExecution(script, true, owner, hint);
@@ -117,7 +118,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             }
         }
         FilePath dir;
-        Node node = Jenkins.getActiveInstance();
+        Node node = Jenkins.get();
         if (build.getParent() instanceof TopLevelItem) {
             FilePath baseWorkspace = node.getWorkspaceFor((TopLevelItem) build.getParent());
             if (baseWorkspace == null) {
@@ -127,7 +128,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         } else { // should not happen, but just in case:
             dir = new FilePath(owner.getRootDir());
         }
-        listener.getLogger().println("Checking out " + scm.getKey() + " into " + dir + " to read " + scriptPath);
+        listener.getLogger().println("Checking out " + scm.getKey() + " into " + dir + " to read " + expandedScriptPath);
         String script = null;
         Computer computer = node.toComputer();
         if (computer == null) {
@@ -138,7 +139,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         delegate.setChangelog(true);
         FilePath acquiredDir;
         try (WorkspaceList.Lease lease = computer.getWorkspaceList().acquire(dir)) {
-            for (int retryCount = Jenkins.getInstance().getScmCheckoutRetryCount(); retryCount >= 0; retryCount--) {
+            for (int retryCount = Jenkins.get().getScmCheckoutRetryCount(); retryCount >= 0; retryCount--) {
                 try {
                     delegate.checkout(build, dir, listener, node.createLauncher(listener));
                     break;
@@ -150,9 +151,9 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                     }
                 } catch (InterruptedIOException e) {
                     throw e;
-                } catch (IOException e) {
+                } catch (Exception e) {
                     // checkout error not yet reported
-                    listener.error("Checkout failed").println(Functions.printThrowable(e).trim()); // TODO 2.43+ use Functions.printStackTrace
+                    Functions.printStackTrace(e, listener.error("Checkout failed"));
                 }
 
                 if (retryCount == 0)   // all attempts failed
@@ -161,8 +162,8 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                 listener.getLogger().println("Retrying after 10 seconds");
                 Thread.sleep(10000);
             }
-            
-            FilePath scriptFile = dir.child(scriptPath);
+
+            FilePath scriptFile = dir.child(expandedScriptPath);
             if (!scriptFile.absolutize().getRemote().replace('\\', '/').startsWith(dir.absolutize().getRemote().replace('\\', '/') + '/')) { // TODO JENKINS-26838
                 throw new IOException(scriptFile + " is not inside " + dir);
             }

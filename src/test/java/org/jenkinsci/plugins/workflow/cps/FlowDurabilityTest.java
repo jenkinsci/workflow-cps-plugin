@@ -28,6 +28,7 @@ import org.jenkinsci.plugins.workflow.graphanalysis.FlowScanningUtils;
 import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepNamePredicate;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.job.properties.DurabilityHintJobProperty;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
 import org.jenkinsci.plugins.workflow.support.storage.BulkFlowNodeStorage;
@@ -46,6 +47,7 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.lang.annotation.ElementType;
@@ -56,6 +58,7 @@ import java.lang.reflect.Field;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -82,7 +85,7 @@ public class FlowDurabilityTest {
     @Rule
     public TimedRepeatRule repeater = new TimedRepeatRule();
 
-    // Used in testing
+    // Used in Race-condition/persistence fuzzing where we need to run repeatedly
     static class TimedRepeatRule implements TestRule {
 
         @Target({ElementType.METHOD})
@@ -157,12 +160,14 @@ public class FlowDurabilityTest {
                 "semaphore 'halt' \n" +
                 "} \n" +
                 "echo 'I like cheese'\n", false);
-        TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
+        TestDurabilityHintProvider provider = Jenkins.get().getExtensionList(TestDurabilityHintProvider.class).get(0);
         provider.registerHint(jobName, durabilityHint);
         job.setDefinition(def);
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
         SemaphoreStep.waitForStart("halt/"+semaphoreIndex, run);
         Assert.assertEquals(durabilityHint, run.getExecution().getDurabilityHint());
+        Assert.assertFalse(run.getExecution().isComplete());
+        Assert.assertFalse(((CpsFlowExecution)(run.getExecution())).done);
         if (durabilityHint.isPersistWithEveryStep()) {
             assertBaseStorageType(run.getExecution(), SimpleXStreamFlowNodeStorage.class);
         } else {
@@ -183,11 +188,13 @@ public class FlowDurabilityTest {
                 "sleep 30 \n" +
                 "} \n" +
                 "echo 'I like cheese'\n", false);
-        TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
+        TestDurabilityHintProvider provider = Jenkins.get().getExtensionList(TestDurabilityHintProvider.class).get(0);
         provider.registerHint(jobName, durabilityHint);
         job.setDefinition(def);
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
         Thread.sleep(4000L);  // Hacky but we just need to ensure this can start up
+        Assert.assertFalse(run.getExecution().isComplete());
+        Assert.assertFalse(((CpsFlowExecution)(run.getExecution())).done);
         Assert.assertEquals(durabilityHint, run.getExecution().getDurabilityHint());
         Assert.assertEquals("sleep", run.getExecution().getCurrentHeads().get(0).getDisplayFunctionName());
         return run;
@@ -333,6 +340,12 @@ public class FlowDurabilityTest {
             Assert.assertFalse("Should always be able to retrieve script", StringUtils.isEmpty(cpsFlow.getScript()));
             Assert.assertNull("We should have no Groovy shell left or that's a memory leak", cpsFlow.getShell());
             Assert.assertNull("We should have no Groovy shell left or that's a memory leak", cpsFlow.getTrustedShell());
+            Assert.assertTrue(cpsFlow.done);
+            assert cpsFlow.isComplete();
+            assert cpsFlow.heads.size() == 1;
+            Map.Entry<Integer, FlowHead> finalHead = cpsFlow.heads.entrySet().iterator().next();
+            assert finalHead.getValue().get() instanceof FlowEndNode;
+            Assert.assertEquals(cpsFlow.storage.getNode(finalHead.getValue().get().getId()), finalHead.getValue().get());
         }
 
         verifyExecutionRemoved(run);
@@ -505,7 +518,7 @@ public class FlowDurabilityTest {
                         "  dir('nothing'){sleep 30;}\n"+
                         "} \n" +
                         "echo 'I like chese'\n", false);
-                TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
+                TestDurabilityHintProvider provider = Jenkins.get().getExtensionList(TestDurabilityHintProvider.class).get(0);
                 provider.registerHint(jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
                 job.setDefinition(def);
                 WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
@@ -592,7 +605,8 @@ public class FlowDurabilityTest {
 
     /** Verify that if we bomb out because we cannot resume, we at least try to finish the flow graph if we have something to work with. */
     @Test
-    @Ignore // Can be fleshed out later if we have a valid need for it.
+    @Ignore
+    // Can be fleshed out later if we have a valid need for it.
     public void testPipelineFinishesFlowGraph() throws Exception {
         final String[] logStart = new String[1];
         final List<FlowNode> nodesOut = new ArrayList<FlowNode>();
@@ -723,10 +737,10 @@ public class FlowDurabilityTest {
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
                 WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY);
+                run.getParent().setResumeBlocked(true);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
-                    ((CpsFlowExecution)exec).setResumeBlocked(true);
                 }
                 logStart[0] = JenkinsRule.getLog(run);
                 nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
@@ -744,75 +758,248 @@ public class FlowDurabilityTest {
         });
     }
 
-    /** Test interrupting build by randomly dying at unpredictable times. */
+    @Test
+    @Issue("JENKINS-49961")
+    public void testResumeBlockedAddedAfterRunStart() throws Exception {
+        final String jobName = "survivesEverything";
+        final String[] logStart = new String[1];
+        final List<FlowNode> nodesOut = new ArrayList<FlowNode>();
+
+        story.addStepWithDirtyShutdown(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                Jenkins jenkins = story.j.jenkins;
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY);
+                run.getParent().setResumeBlocked(false);
+                FlowExecution exec = run.getExecution();
+                if (exec instanceof CpsFlowExecution) {
+                    assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
+                }
+                logStart[0] = JenkinsRule.getLog(run);
+                nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
+                nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
+                run.getParent().setResumeBlocked(true);
+            }
+        });
+
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                verifyFailedCleanly(story.j.jenkins, run);
+                assertIncludesNodes(nodesOut, run);
+            }
+        });
+    }
+
+    private static void assertBuildNotHung(@Nonnull RestartableJenkinsRule story, @Nonnull  WorkflowRun run, int timeOutMillis) throws Exception {
+        if (run.isBuilding()) {
+            story.j.waitUntilNoActivityUpTo(timeOutMillis);
+        }
+    }
+
+    /** Launches the job used for fuzzing in the various timed fuzzing tests to catch timing-sensitive issues -- including the timeout. */
+    private WorkflowRun runFuzzerJob(JenkinsRule jrule, String jobName, FlowDurabilityHint hint) throws Exception {
+        Jenkins jenkins = jrule.jenkins;
+        WorkflowJob job = jenkins.getItemByFullName(jobName, WorkflowJob.class);
+        if (job == null) {  // Job may already have been created
+            job = jenkins.createProject(WorkflowJob.class, jobName);
+            job.addProperty(new DurabilityHintJobProperty(hint));
+            job.setDefinition(new CpsFlowDefinition(
+                    "echo 'first'\n" +
+                            "def steps = [:]\n" +
+                            "steps['1'] = {\n" +
+                            "    echo 'do 1 stuff'\n" +
+                            "}\n" +
+                            "steps['2'] = {\n" +
+                            "    echo '2a'\n" +
+                            "    echo '2b'\n" +
+                            "    def nested = [:]\n" +
+                            "    nested['2-1'] = {\n" +
+                            "        echo 'do 2-1'\n" +
+                            "    } \n" +
+                            "    nested['2-2'] = {\n" +
+                            "        sleep 1\n" +
+                            "        echo '2 section 2'\n" +
+                            "    }\n" +
+                            "    parallel nested\n" +
+                            "}\n" +
+                            "parallel steps\n" +
+                            "echo 'final'", false
+            ));
+        }
+
+        // First we need to build the job to get an appropriate estimate for how long we need to wait before hard-restarting Jenkins in order to catch it in the middle
+        story.j.buildAndAssertSuccess(job);
+        long millisDuration = job.getLastBuild().getDuration();
+        System.out.println("Test fuzzer job in  completed in "+millisDuration+" ms");
+
+        // Now we run the job again and wait an appropriate amount of time -- but we return the job so tests can grab info before restarting.
+        int time = new Random().nextInt((int) millisDuration);
+        System.out.println("Starting fuzzer job and waiting "+time+" ms before restarting.");
+        WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
+        run.getExecutionPromise().get();  // Ensures run has begun so that it *can* complete cleanly.
+        Thread.sleep(time);
+        return run;
+    }
+
+    /** Test interrupting build by randomly dying at unpredictable times.
+     * May fail rarely due to files being copied in a different order than they are modified as part of simulating a dirty restart.
+     * See {@link RestartableJenkinsRule#simulateAbruptShutdown()} for why that copying happens. */
     @Test
     @Ignore //Too long to run as part of main suite
-    @TimedRepeatRule.RepeatForTime(repeatMillis = 170_000)
+    @TimedRepeatRule.RepeatForTime(repeatMillis = 150_000)
     public void fuzzTimingDurable() throws Exception {
         final String jobName = "NestedParallelDurableJob";
         final String[] logStart = new String[1];
         final List<FlowNode> nodesOut = new ArrayList<FlowNode>();
+        final int[] buildNumber = new int [1];
 
         // Create thread that eventually interrupts Jenkins with a hard shutdown at a random time interval
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                Jenkins jenkins = story.j.jenkins;
-                WorkflowJob job = jenkins.getItemByFullName(jobName, WorkflowJob.class);
-                if (job == null) {  // Job may already have been created
-                    job = jenkins.createProject(WorkflowJob.class, jobName);
-                    FlowDurabilityHint hint = FlowDurabilityHint.MAX_SURVIVABILITY;
-                    TestDurabilityHintProvider provider = Jenkins.getInstance().getExtensionList(TestDurabilityHintProvider.class).get(0);
-                    provider.registerHint(job.getFullName(), hint);
-                    job.setDefinition(new CpsFlowDefinition(
-                            "echo 'first'\n" +
-                                    "def steps = [:]\n" +
-                                    "steps['1'] = {\n" +
-                                    "    echo 'do 1 stuff'\n" +
-                                    "}\n" +
-                                    "steps['2'] = {\n" +
-                                    "    echo '2a'\n" +
-                                    "    echo '2b'\n" +
-                                    "    def nested = [:]\n" +
-                                    "    nested['2-1'] = {\n" +
-                                    "        echo 'do 2-1'\n" +
-                                    "    } \n" +
-                                    "    nested['2-2'] = {\n" +
-                                    "        sleep 1\n" +
-                                    "        echo '2 section 2'\n" +
-                                    "    }\n" +
-                                    "    parallel nested\n" +
-                                    "}\n" +
-                                    "parallel steps\n" +
-                                    "echo 'final'"
-                    ));
-                }
-                story.j.buildAndAssertSuccess(job);
-                long millisDuration = job.getLastBuild().getDuration();
-
-                int time = new Random().nextInt((int) millisDuration);
-                WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
-                Thread.sleep(time);
+                WorkflowRun run = runFuzzerJob(story.j, jobName, FlowDurabilityHint.MAX_SURVIVABILITY);
                 logStart[0] = JenkinsRule.getLog(run);
                 nodesOut.clear();
                 nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
                 nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
+                if (run.getExecution() != null) {
+                    Assert.assertEquals(FlowDurabilityHint.MAX_SURVIVABILITY, run.getExecution().getDurabilityHint());
+                }
             }
             });
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                if (run.isBuilding()) {
-                    story.j.waitForCompletion(run);
-                    Assert.assertEquals(Result.SUCCESS, run.getResult());
-                } else {
-                    verifyCompletedCleanly(story.j.jenkins, run);
+                if (run == null) {   // Build killed so early the Run did not get to persist
+                    return;
                 }
+                if (run.getExecution() != null) {
+                    Assert.assertEquals(FlowDurabilityHint.MAX_SURVIVABILITY, run.getExecution().getDurabilityHint());
+                }
+                if (run.isBuilding()) {
+                    assertBuildNotHung(story, run, 30_000);
+                    Assert.assertEquals(Result.SUCCESS, run.getResult());
+                }
+                verifyCompletedCleanly(story.j.jenkins, run);
                 assertIncludesNodes(nodesOut, run);
                 story.j.assertLogContains(logStart[0], run);
             }
         });
 
+    }
+
+    /** Test interrupting build by randomly dying at unpredictable times.
+     *  May fail rarely due to files being copied in a different order than they are modified as part of simulating a dirty restart.
+     *  See {@link RestartableJenkinsRule#simulateAbruptShutdown()} for why that copying happens. */
+    @Test
+    @Ignore //Too long to run as part of main suite
+    @TimedRepeatRule.RepeatForTime(repeatMillis = 150_000)
+    public void fuzzTimingNonDurableWithDirtyRestart() throws Exception {
+        final String jobName = "NestedParallelDurableJob";
+        final String[] logStart = new String[1];
+
+        // Create thread that eventually interrupts Jenkins with a hard shutdown at a random time interval
+        story.addStepWithDirtyShutdown(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = runFuzzerJob(story.j, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                logStart[0] = JenkinsRule.getLog(run);
+                if (run.getExecution() != null) {
+                    Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                }
+                if (run.isBuilding()) {
+                    Assert.assertNotEquals(Boolean.TRUE, ((CpsFlowExecution)run.getExecution()).persistedClean);
+                } else {
+                    Assert.assertEquals(Boolean.TRUE, ((CpsFlowExecution)run.getExecution()).persistedClean);
+                }
+            }
+        });
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                if (run == null) {   // Build killed so early the Run did not get to persist
+                    return;
+                }
+                if (run.getExecution() != null) {
+                    Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                }
+                assertBuildNotHung(story, run, 30_000);
+                verifyCompletedCleanly(story.j.jenkins, run);
+                story.j.assertLogContains(logStart[0], run);
+            }
+        });
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                // Verify build doesn't resume at next restart, see JENKINS-50199
+                Assert.assertFalse(FlowExecutionList.get().iterator().hasNext());
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                if (run == null) {
+                    return;
+                }
+                Assert.assertFalse(run.isBuilding());
+                Assert.assertTrue(run.getExecution().isComplete());
+                if (run.getExecution() instanceof  CpsFlowExecution) {
+                    assert ((CpsFlowExecution)(run.getExecution())).done;
+                }
+            }
+        });
+
+    }
+
+    /** Test interrupting build by randomly restarting *cleanly* at unpredictable times and verify we stick pick up and resume. */
+    @Test
+    @Ignore //Too long to run as part of main suite
+    @TimedRepeatRule.RepeatForTime(repeatMillis = 150_000)
+    public void fuzzTimingNonDurableWithCleanRestart() throws Exception {
+
+        final String jobName = "NestedParallelDurableJob";
+        final String[] logStart = new String[1];
+        final List<FlowNode> nodesOut = new ArrayList<FlowNode>();
+
+        // Create thread that eventually interrupts Jenkins with a hard shutdown at a random time interval
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = runFuzzerJob(story.j, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                logStart[0] = JenkinsRule.getLog(run);
+                if (run.getExecution() != null) {
+                    Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                }
+                nodesOut.clear();
+                nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
+                nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
+            }
+        });
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                if (run == null) {   // Build killed so early the Run did not get to persist
+                    return;
+                }
+                if (run.getExecution() != null) {
+                    Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                }
+                if (run.isBuilding()) {
+                    assertBuildNotHung(story, run, 30_000);
+                }
+                verifyCompletedCleanly(story.j.jenkins, run);
+                story.j.assertLogContains(logStart[0], run);
+                if (run.isBuilding()) {
+                    try {
+                        story.j.waitUntilNoActivityUpTo(30_000);
+                    } catch (AssertionError ase) {
+                        throw new AssertionError("Build hung: "+run, ase);
+                    }
+                }
+                Assert.assertEquals(Result.SUCCESS, run.getResult());
+                assertIncludesNodes(nodesOut, run);
+            }
+        });
     }
 }

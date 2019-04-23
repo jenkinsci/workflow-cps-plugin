@@ -50,7 +50,7 @@ class ParallelStepExecution extends StepExecution {
         ResultHandler r = new ResultHandler(cps, this, parallelStep.isFailFast());
 
         for (Entry<String,Closure> e : parallelStep.closures.entrySet()) {
-            BodyExecution body = cps.newBodyInvoker(t.getGroup().export(e.getValue()))
+            BodyExecution body = cps.newBodyInvoker(t.getGroup().export(e.getValue()), true)
                     .withStartAction(new ParallelLabelAction(e.getKey()))
                     .withCallback(r.callbackFor(e.getKey()))
                     .start();

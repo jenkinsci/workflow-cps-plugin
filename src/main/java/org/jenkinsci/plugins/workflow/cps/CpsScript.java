@@ -91,6 +91,20 @@ public abstract class CpsScript extends SerializableScript {
     @Override
     public final Object invokeMethod(String name, Object args) {
         // TODO probably better to call super method and only proceed here incase of MissingMethodException:
+
+        // check for user instantiated objects in the script binding
+        // that respond to call.
+        if (getBinding().hasVariable(name)){
+            Object o = getBinding().getVariable(name);
+            if (!InvokerHelper.getMetaClass(o).respondsTo(o, "call", (Object[]) args).isEmpty()){
+                try{
+                    return InvokerHelper.getMetaClass(o).invokeMethod(o, "call", args);
+                } catch (Exception x) {
+                    throw new InvokerInvocationException(x);
+                }
+            }
+        }
+        
         // if global variables are defined by that name, try to call it.
         // the 'call' convention comes from Closure
         GlobalVariable v = GlobalVariable.byName(name, $buildNoException());

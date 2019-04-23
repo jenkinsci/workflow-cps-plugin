@@ -93,7 +93,7 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
  * @see Step#start(StepContext)
  */
 @PersistIn(ANYWHERE)
-@edu.umd.cs.findbugs.annotations.SuppressWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED") // bodyInvokers, syncMode handled specially
+@SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED") // bodyInvokers, syncMode handled specially
 public class CpsStepContext extends DefaultStepContext { // TODO add XStream class mapper
 
     private static final Logger LOGGER = Logger.getLogger(CpsStepContext.class.getName());
@@ -195,7 +195,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      */
     @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")
     public @CheckForNull StepDescriptor getStepDescriptor() {
-        Jenkins j = Jenkins.getInstance();
+        Jenkins j = Jenkins.getInstanceOrNull();
         if (j == null) {
             return null;
         }
@@ -282,11 +282,11 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         if (body == null) {
             throw new IllegalStateException("There is no body to invoke");
         }
-        return newBodyInvoker(body);
+        return newBodyInvoker(body, false);
     }
 
-    public @Nonnull CpsBodyInvoker newBodyInvoker(@Nonnull BodyReference body) {
-        return new CpsBodyInvoker(this,body);
+    public @Nonnull CpsBodyInvoker newBodyInvoker(@Nonnull BodyReference body, boolean unexport) {
+        return new CpsBodyInvoker(this, body, unexport);
     }
 
     @Override
@@ -436,7 +436,6 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                                 g.getExecution().subsumeHead(parents.get(i));
                             StepEndNode en = new StepEndNode(flow, (StepStartNode) n, parents);
                             thread.head.setNewHead(en);
-                            CpsFlowExecution.maybeAutoPersistNode(en);
                         }
                         thread.head.markIfFail(getOutcome());
                         thread.setStep(null);
@@ -534,9 +533,12 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                 @Override public void onSuccess(CpsThreadGroup result) {
                     try {
                         // TODO keep track of whether the program was saved anyway after saveState was called but before now, and do not bother resaving it in that case
-                        result.saveProgram();
+                        if (result.getExecution().getDurabilityHint().isPersistWithEveryStep()) {
+                            result.getExecution().getStorage().flush();
+                            result.saveProgram();
+                        }
                         f.set(null);
-                    } catch (IOException x) {
+                    } catch (Exception x) {
                         f.setException(x);
                     }
                 }
@@ -580,7 +582,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     private static final long serialVersionUID = 1L;
 
-    @edu.umd.cs.findbugs.annotations.SuppressWarnings("SE_INNER_CLASS")
+    @SuppressFBWarnings("SE_INNER_CLASS")
     private class ScheduleNextRun implements FutureCallback<Object>, Serializable {
         public void onSuccess(Object _)    { scheduleNextRun(); }
         public void onFailure(Throwable _) { scheduleNextRun(); }

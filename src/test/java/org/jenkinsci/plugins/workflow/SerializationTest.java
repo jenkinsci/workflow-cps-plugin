@@ -32,11 +32,7 @@ public class SerializationTest extends SingleJobTestBase {
             @Override
             public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(join(
-                        "node {",
-                        "  persistenceProblem()",
-                        "}"
-                )));
+                p.setDefinition(new CpsFlowDefinition("node { persistenceProblem() }", false));
 
                 startBuilding();
                 waitForWorkflowToSuspend();
@@ -126,7 +122,7 @@ public class SerializationTest extends SingleJobTestBase {
                     // make sure these values are still alive
                     "assert s.nodeName=='" + nodeName + "'\n" +
                     "assert r.getRemote()==p : r.getRemote() + ' vs ' + p;\n" +
-                    "assert r.channel==s.channel : r.channel.toString() + ' vs ' + s.channel\n"));
+                    "assert r.channel==s.channel : r.channel.toString() + ' vs ' + s.channel\n", false));
 
                 startBuilding();
                 SemaphoreStep.waitForStart("wait/1", b);

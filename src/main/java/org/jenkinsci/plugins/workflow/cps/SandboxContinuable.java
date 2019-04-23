@@ -2,19 +2,18 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
+import groovy.lang.GroovyShell;
+import hudson.MarkupText;
+import hudson.console.ConsoleAnnotator;
+import hudson.console.ConsoleNote;
+import java.io.IOException;
 import java.util.List;
-import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.GroovySandbox;
-import org.jenkinsci.plugins.scriptsecurity.scripts.ApprovalContext;
-import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
-
-import java.util.concurrent.Callable;
-import javax.annotation.CheckForNull;
 
 /**
  * {@link Continuable} that executes code inside sandbox execution.
- *
- * @author Kohsuke Kawaguchi
  */
 class SandboxContinuable extends Continuable {
     private final CpsThread thread;
@@ -27,36 +26,41 @@ class SandboxContinuable extends Continuable {
     @SuppressWarnings("rawtypes")
     @Override
     public Outcome run0(final Outcome cn, final List<Class> categories) {
+        CpsFlowExecution e = thread.group.getExecution();
+        if (e == null) {
+            throw new IllegalStateException("JENKINS-50407: no loaded execution");
+        }
+        GroovyShell shell = e.getShell();
+        if (shell == null) {
+            throw new IllegalStateException("JENKINS-50407: no loaded shell in " + e);
+        }
+        GroovyShell trustedShell = e.getTrustedShell();
+        if (trustedShell == null) {
+            throw new IllegalStateException("JENKINS-50407: no loaded trustedShell in " + e);
+        }
+        GroovySandbox sandbox = new GroovySandbox();
         try {
-            CpsFlowExecution e = thread.group.getExecution();
-            return GroovySandbox.runInSandbox(new Callable<Outcome>() {
-                @Override
-                public Outcome call() {
-                    Outcome outcome = SandboxContinuable.super.run0(cn, categories);
-                    RejectedAccessException x = findRejectedAccessException(outcome.getAbnormal());
-                    if (x != null) {
-                        ScriptApproval.get().accessRejected(x, ApprovalContext.create());
-                    }
-                    return outcome;
-                }
-            }, new GroovyClassLoaderWhitelist(CpsWhitelist.get(),
-                    e.getTrustedShell().getClassLoader(),
-                    e.getShell().getClassLoader()));
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new AssertionError(e);    // Callable doesn't throw anything
+            sandbox.withTaskListener(e.getOwner().getListener());
+        } catch (IOException x) {
+            LOGGER.log(Level.WARNING, null, x);
+        }
+        sandbox.withWhitelist(new GroovyClassLoaderWhitelist(CpsWhitelist.get(),
+            trustedShell.getClassLoader(),
+            shell.getClassLoader()));
+        try (GroovySandbox.Scope scope = sandbox.enter()) {
+            return SandboxContinuable.super.run0(cn, categories);
         }
     }
 
-    private static @CheckForNull RejectedAccessException findRejectedAccessException(@CheckForNull Throwable t) {
-        if (t == null) {
+    @SuppressWarnings("rawtypes")
+    @Deprecated
+    /** @deprecated Only here for serial compatibility. */
+    private static final class ScriptApprovalNote extends ConsoleNote {
+        private int length;
+        @Override public ConsoleAnnotator annotate(Object context, MarkupText text, int charPos) {
             return null;
-        } else if (t instanceof RejectedAccessException) {
-            return (RejectedAccessException) t;
-        } else {
-            return findRejectedAccessException(t.getCause());
         }
     }
 
+    private static final Logger LOGGER = Logger.getLogger(SandboxContinuable.class.getName());
 }

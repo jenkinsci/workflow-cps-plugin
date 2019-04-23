@@ -202,4 +202,22 @@ public class CpsScmFlowDefinitionTest {
         r.assertLogContains("version one", r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("VERSION", "one")))));
     }
 
+    @Issue("JENKINS-42836")
+    @Test public void usingParameterInScriptPath() throws Exception {
+        sampleRepo.init();
+        sampleRepo.write("flow.groovy", "echo 'version one'");
+        sampleRepo.git("add", "flow.groovy");
+        sampleRepo.write("otherFlow.groovy", "echo 'version two'");
+        sampleRepo.git("add", "otherFlow.groovy");
+        sampleRepo.git("commit", "--all", "--message=commits");
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(new GitSCM(Collections.singletonList(new UserRemoteConfig(sampleRepo.fileUrl(), null, null, null)),
+                Collections.singletonList(new BranchSpec("master")),
+                false, Collections.<SubmoduleConfig>emptyList(), null, null, Collections.<GitSCMExtension>emptyList()), "${SCRIPT_PATH}");
+
+        p.setDefinition(def);
+        p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("SCRIPT_PATH", "flow.groovy")));
+        r.assertLogContains("version one", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+        r.assertLogContains("version two", r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("SCRIPT_PATH", "otherFlow.groovy")))));
+    }
 }

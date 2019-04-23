@@ -42,6 +42,10 @@
       <pre class="console">
         ${td}
       </pre>
+
+      <l:hasPermission permission="${app.RUN_SCRIPTS}">
+        <a href="program.xml">Serialized program state</a>
+      </l:hasPermission>
     </l:main-panel>
   </l:layout>
 </j:jelly>
