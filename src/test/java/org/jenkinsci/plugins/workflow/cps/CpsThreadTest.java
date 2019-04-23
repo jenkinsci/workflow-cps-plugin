@@ -24,7 +24,6 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import hudson.AbortException;
 import hudson.model.Result;
 import hudson.security.ACL;
@@ -43,7 +42,6 @@ import static org.junit.Assert.*;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.jvnet.hudson.test.BuildWatcher;
-import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -91,42 +89,6 @@ public class CpsThreadTest {
                 return "unkillable";
             }
         }
-    }
-
-    @Issue({"JENKINS-31314", "JENKINS-27306"})
-    @Test public void wrongCatcher() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("def ok() {sleep 1}; @NonCPS def bad() {for (int i = 0; i < 10; i++) {sleep 1}; assert false : 'never gets here'}; node {ok(); bad()}", true));
-        r.assertLogContains(CpsCallableInvocation.mismatchMessage("bad", "sleep"), r.buildAndAssertSuccess(p));
-        p.setDefinition(new CpsFlowDefinition("def l = [3, 2, 1]; println(/oops got ${l.sort {x, y -> x - y}}/)", true));
-        WorkflowRun b = r.buildAndAssertSuccess(p);
-        r.assertLogContains("oops got -1", b);
-        r.assertLogContains(CpsCallableInvocation.mismatchMessage("sort", "call"), b);
-        p.setDefinition(new CpsFlowDefinition("node {[1, 2, 3].each {x -> sleep 1; echo(/no problem got $x/)}}", true));
-        b = r.buildAndAssertSuccess(p);
-        r.assertLogContains("no problem got 3", b);
-        r.assertLogNotContains("expected to call", b);
-        p.setDefinition(new CpsFlowDefinition("class C {@Override String toString() {'never used'}}; def gstring = /embedding ${new C()}/; echo(/oops got $gstring/)", true));
-        b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0)); // JENKINS-27306: No such constructor found: new org.codehaus.groovy.runtime.GStringImpl java.lang.String java.lang.String[]
-        r.assertLogContains(CpsCallableInvocation.mismatchMessage("asType", "toString"), b);
-        p.setDefinition(new CpsFlowDefinition("echo(/see what ${-> 'this'} does/)", true));
-        b = r.buildAndAssertSuccess(p);
-        r.assertLogContains(CpsCallableInvocation.mismatchMessage("echo", "call"), b);
-        r.assertLogNotContains("see what", b);
-        p.setDefinition(new CpsFlowDefinition(
-            "@NonCPS def shouldBomb() {\n" +
-            "  def text = ''\n" +
-            "  ['a', 'b', 'c'].each {it -> writeFile file: it, text: it; text += it}\n" +
-            "  text\n" +
-            "}\n" +
-            "node {\n" +
-            "  echo shouldBomb()\n" +
-            "}\n", true));
-        r.assertLogContains(CpsCallableInvocation.mismatchMessage("shouldBomb", "writeFile"), r.buildAndAssertSuccess(p));
-        p.setDefinition(new CpsFlowDefinition("@NonCPS def bad() {polygon(17) {}}; bad()", true));
-        b = r.buildAndAssertSuccess(p);
-        r.assertLogContains("wrapping in a 17-gon", b);
-        r.assertLogContains(CpsCallableInvocation.mismatchMessage("bad", "polygon"), b);
     }
 
 }

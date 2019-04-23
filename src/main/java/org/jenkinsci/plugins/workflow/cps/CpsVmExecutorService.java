@@ -1,6 +1,7 @@
 package org.jenkinsci.plugins.workflow.cps;
 
-import com.cloudbees.groovy.cps.Logging;
+import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
+import hudson.Main;
 import hudson.model.Computer;
 import hudson.remoting.SingleLaneExecutorService;
 import hudson.security.ACL;
@@ -108,12 +109,28 @@ class CpsVmExecutorService extends InterceptingExecutorService {
             assert cpsThreadGroup.getExecution().getShell().getClassLoader() != null;
             t.setContextClassLoader(cpsThreadGroup.getExecution().getShell().getClassLoader());
         }
-        try {
-            Logging.register(cpsThreadGroup.getExecution().getOwner().getListener().getLogger());
-        } catch (IOException x) {
-            LOGGER.log(Level.FINE, null, x);
-        }
+        CpsCallableInvocation.registerMismatchHandler(this::handleMismatch);
         return context;
+    }
+
+    private void handleMismatch(String expectedMethodName, String actualMethodName) {
+        String mismatchMessage = mismatchMessage(expectedMethodName, actualMethodName);
+        if (FAIL_ON_MISMATCH) {
+            throw new IllegalStateException(mismatchMessage);
+        } else {
+            try {
+                cpsThreadGroup.getExecution().getOwner().getListener().getLogger().println(mismatchMessage);
+            } catch (IOException x) {
+                LOGGER.log(Level.FINE, null, x);
+            }
+        }
+    }
+
+    static boolean FAIL_ON_MISMATCH = Main.isUnitTest;
+
+    static String mismatchMessage(String expectedMethodName, String actualMethodName) {
+        // TODO reference something like https://jenkins.io/redirects/pipeline-cps-method-mismatches/ sending you to a wiki page with commonly attempted idioms and the working equivalents
+        return "expected to call " + expectedMethodName + " but wound up catching " + actualMethodName;
     }
 
     private void tearDown(ThreadContext context) {
@@ -124,7 +141,7 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         if (isShutdown()) {
             execution.logTimings();
         }
-        Logging.register(null);
+        CpsCallableInvocation.registerMismatchHandler(null);
     }
 
     static ThreadLocal<CpsThreadGroup> CURRENT = new ThreadLocal<>();
