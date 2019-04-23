@@ -6,14 +6,12 @@ import hudson.model.Computer;
 import hudson.remoting.SingleLaneExecutorService;
 import hudson.security.ACL;
 import java.io.IOException;
-import jenkins.util.InterceptingExecutorService;
-
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static java.util.logging.Level.WARNING;
+import javax.annotation.CheckForNull;
+import jenkins.util.InterceptingExecutorService;
 
 /**
  * {@link ExecutorService} for running CPS VM.
@@ -54,7 +52,7 @@ class CpsVmExecutorService extends InterceptingExecutorService {
      * That makes it worth reporting.
      */
     private void reportProblem(Throwable t) {
-        LOGGER.log(WARNING, "Unexpected exception in CPS VM thread: " + cpsThreadGroup.getExecution(), t);
+        LOGGER.log(Level.WARNING, "Unexpected exception in CPS VM thread: " + cpsThreadGroup.getExecution(), t);
         cpsThreadGroup.getExecution().croak(t);
     }
 
@@ -113,8 +111,8 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         return context;
     }
 
-    private void handleMismatch(String expectedMethodName, String actualMethodName) {
-        String mismatchMessage = mismatchMessage(expectedMethodName, actualMethodName);
+    private void handleMismatch(Object expectedReceiver, String expectedMethodName, Object actualReceiver, String actualMethodName) {
+        String mismatchMessage = mismatchMessage(className(expectedReceiver), expectedMethodName, className(actualReceiver), actualMethodName);
         if (FAIL_ON_MISMATCH) {
             throw new IllegalStateException(mismatchMessage);
         } else {
@@ -126,11 +124,23 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         }
     }
 
+    private static @CheckForNull String className(@CheckForNull Object receiver) {
+        return receiver == null ? null : receiver.getClass().getName();
+    }
+
     static boolean FAIL_ON_MISMATCH = Main.isUnitTest;
 
-    static String mismatchMessage(String expectedMethodName, String actualMethodName) {
+    static String mismatchMessage(@CheckForNull String expectedReceiverClassName, String expectedMethodName, @CheckForNull String actualReceiverClassName, String actualMethodName) {
         // TODO reference something like https://jenkins.io/redirects/pipeline-cps-method-mismatches/ sending you to a wiki page with commonly attempted idioms and the working equivalents
-        return "expected to call " + expectedMethodName + " but wound up catching " + actualMethodName;
+        StringBuilder b = new StringBuilder("expected to call ");
+        if (expectedReceiverClassName != null) {
+            b.append(expectedReceiverClassName).append('.');
+        }
+        b.append(expectedMethodName).append(" but wound up catching ");
+        if (actualReceiverClassName != null) {
+            b.append(actualReceiverClassName).append('.');
+        }
+        return b.append(actualMethodName).toString();
     }
 
     private void tearDown(ThreadContext context) {
