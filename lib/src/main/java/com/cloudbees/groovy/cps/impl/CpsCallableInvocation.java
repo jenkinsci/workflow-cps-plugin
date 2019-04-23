@@ -61,7 +61,11 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
     
     public static String mismatchMessage(String expectedMethodName, String actualMethodName) {
         // TODO reference something like https://jenkins.io/redirects/pipeline-cps-method-mismatches/ sending you to a wiki page with commonly attempted idioms and the working equivalents
-        return "expected to call " + expectedMethodName + " but wound up catching " + actualMethodName;
+        return mismatchMessageFragment() + expectedMethodName + " but wound up catching " + actualMethodName;
+    }
+
+    public static String mismatchMessageFragment() {
+        return "expected to call ";
     }
 
     /**
