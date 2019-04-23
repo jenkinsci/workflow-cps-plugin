@@ -390,6 +390,8 @@ public class Translator {
                             } else if (overloadsResolved.containsKey(overloadResolved)) {
                                 // Private, so delegate to our mangled version.
                                 // TODO add a String parameter to each internal helper method for the expected methodName to pass to CpsCallableInvocation.<init>
+                                // (It could be improved to take a parameter for the name under which we expect methodCall to be invoking it.
+                                // Usually just `each`, but might be `$each__java_util_Iterable__groovy_lang_Closure` for the case that one DGM method is delegating to another.)
                                 inv = $b.invoke("staticCall")
                                     .arg(loc(mt))
                                     .arg($output.dotclass())
