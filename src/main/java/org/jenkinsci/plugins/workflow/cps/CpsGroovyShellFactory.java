@@ -84,10 +84,11 @@ class CpsGroovyShellFactory {
     }
 
     private CompilerConfiguration makeConfig() {
-        CompilerConfiguration cc = new CompilerConfiguration();
+        CompilerConfiguration cc = sandbox ? GroovySandbox.createBaseCompilerConfiguration() : new CompilerConfiguration();
 
         cc.addCompilationCustomizers(makeImportCustomizer());
         cc.addCompilationCustomizers(makeCpsTransformer());
+
         cc.setScriptBaseClass(CpsScript.class.getName());
 
         for (GroovyShellDecorator d : decorators) {
@@ -109,7 +110,7 @@ class CpsGroovyShellFactory {
     }
 
     private ClassLoader makeClassLoader() {
-        ClassLoader cl = Jenkins.getActiveInstance().getPluginManager().uberClassLoader;
+        ClassLoader cl = Jenkins.get().getPluginManager().uberClassLoader;
         return GroovySandbox.createSecureClassLoader(cl);
     }
 

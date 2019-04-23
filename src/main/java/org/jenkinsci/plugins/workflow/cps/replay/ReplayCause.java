@@ -67,7 +67,7 @@ public class ReplayCause extends Cause {
     }
 
     @Override public String getShortDescription() {
-        return "Replayed #" + originalNumber;
+        return org.jenkinsci.plugins.workflow.cps.replay.Messages.ReplayCause_shortDescription(originalNumber);
     }
 
     @Override public void print(TaskListener listener) {

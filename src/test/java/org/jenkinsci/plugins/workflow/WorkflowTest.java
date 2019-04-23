@@ -30,20 +30,19 @@ import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Executor;
-import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.Slave;
 import hudson.model.TaskListener;
 import hudson.model.User;
-import hudson.slaves.CommandLauncher;
 import hudson.slaves.ComputerLauncher;
-import hudson.slaves.NodeProperty;
 import hudson.slaves.RetentionStrategy;
 import hudson.slaves.SlaveComputer;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -52,7 +51,11 @@ import jenkins.security.QueueItemAuthenticatorConfiguration;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.flow.GraphListener;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
@@ -82,7 +85,7 @@ public class WorkflowTest extends SingleJobTestBase {
             @Override
             public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition("semaphore 'wait'"));
+                p.setDefinition(new CpsFlowDefinition("semaphore 'wait'", false));
                 startBuilding();
                 SemaphoreStep.waitForStart("wait/1", b);
                 assertTrue(b.isBuilding());
@@ -128,7 +131,7 @@ public class WorkflowTest extends SingleJobTestBase {
                     "    if (count++ < 2) {\n" + // forcing retry
                     "        error 'died'\n" +
                     "    }\n" +
-                    "}"));
+                    "}", false));
 
                 startBuilding();
                 SemaphoreStep.waitForStart("wait/1", b);
@@ -156,9 +159,9 @@ public class WorkflowTest extends SingleJobTestBase {
             @Override public void evaluate() throws Throwable {
                 jenkins().setSecurityRealm(story.j.createDummySecurityRealm());
                 jenkins().save();
-                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("demo", User.get("someone").impersonate())));
+                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("demo", User.getById("someone", true).impersonate())));
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition("checkAuth()"));
+                p.setDefinition(new CpsFlowDefinition("checkAuth()", false));
                 ScriptApproval.get().preapproveAll();
                 startBuilding();
                 waitForWorkflowToSuspend();
@@ -234,7 +237,7 @@ public class WorkflowTest extends SingleJobTestBase {
             @Override public void evaluate() throws Throwable {
                 jenkins().setSecurityRealm(story.j.createDummySecurityRealm());
                 jenkins().save();
-                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("demo", User.get("someone").impersonate())));
+                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("demo", User.getById("someone", true).impersonate())));
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition("echo \"ran as ${auth()}\"", true));
                 b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
@@ -258,6 +261,30 @@ public class WorkflowTest extends SingleJobTestBase {
         public static final class Execution extends AbstractSynchronousNonBlockingStepExecution<String> {
             @Override protected String run() throws Exception {
                 return Jenkins.getAuthentication().getName();
+            }
+        }
+    }
+
+    @Issue("JENKINS-52189")
+    @Test
+    public void notifyFlowStartNode() {
+        story.then(s->{
+            WorkflowJob j = jenkins().createProject(WorkflowJob.class, "bob");
+            j.setDefinition(new CpsFlowDefinition("echo 'I did a thing'", true));
+            WorkflowRun r = story.j.buildAndAssertSuccess(j);
+            FlowStartNodeListener listener = jenkins().getExtensionList(FlowStartNodeListener.class).get(0);
+            assertTrue(listener.execNames.contains(r.getExecution().toString()));
+        });
+    }
+
+    @TestExtension("notifyFlowStartNode")
+    public static class FlowStartNodeListener implements GraphListener {
+        List<String> execNames = new ArrayList<String>();
+
+        @Override
+        public void onNewHead(FlowNode node) {
+            if (node instanceof FlowStartNode) {
+                execNames.add(node.getExecution().toString());
             }
         }
     }
@@ -340,7 +367,11 @@ public class WorkflowTest extends SingleJobTestBase {
     private static class SpecialEnvSlave extends Slave {
         private final Map<String,String> env;
         SpecialEnvSlave(File remoteFS, ComputerLauncher launcher, String nodeName, @Nonnull String labels, Map<String,String> env) throws Descriptor.FormException, IOException {
-            super(nodeName, nodeName, remoteFS.getAbsolutePath(), 1, Node.Mode.NORMAL, labels, launcher, RetentionStrategy.NOOP, Collections.<NodeProperty<?>>emptyList());
+            super(nodeName, remoteFS.getAbsolutePath(), launcher);
+            setNumExecutors(1);
+            setLabelString(labels);
+            setMode(Mode.NORMAL);
+            setRetentionStrategy(RetentionStrategy.NOOP);
             this.env = env;
         }
         @Override public Computer createComputer() {

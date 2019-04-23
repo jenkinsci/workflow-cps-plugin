@@ -165,7 +165,7 @@ public class CpsFlowExecutionTest {
                 story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
                     grant(Jenkins.READ, Item.READ).everywhere().toEveryone().
                     grant(Jenkins.ADMINISTER).everywhere().to("admin").
-                    grant(Item.BUILD).onItems(p).to("dev"));
+                    grant(Item.BUILD, Item.CANCEL).onItems(p).to("dev"));
                 story.j.jenkins.save();
                 p.setDefinition(new CpsFlowDefinition("echo 'before'; semaphore 'one'; echo 'after'", true));
                 WorkflowRun b = p.scheduleBuild2(0).waitForStart();

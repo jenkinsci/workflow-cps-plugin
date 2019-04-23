@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2013-2014, CloudBees, Inc.
+ * Copyright 2019 CloudBees, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,35 +22,29 @@
  * THE SOFTWARE.
  */
 
-package org.jenkinsci.plugins.workflow.cps
+package org.jenkinsci.plugins.workflow.cps;
 
-import org.jenkinsci.plugins.workflow.graph.FlowNode
-import org.jenkinsci.plugins.workflow.actions.LogAction
-import org.jenkinsci.plugins.workflow.support.actions.LogActionImpl
-import org.junit.Test
+import static org.hamcrest.Matchers.*;
+import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
+import org.junit.Test;
+import static org.junit.Assert.*;
+import org.junit.Rule;
+import org.jvnet.hudson.test.JenkinsRule;
 
-/**
- *
- *
- * @author Kohsuke Kawaguchi
- */
-class LogActionTest extends AbstractCpsFlowTest {
-    /**
-     * CpsFlowDefinition's simplest possible test.
-     */
-    @Test
-    public void echo() {
-        def flow = new CpsFlowDefinition("""
-echo("Hello I'm Gilbert")
-""")
+public class CpsThreadDumpActionTest {
 
-        def exec = createExecution(flow)
-        exec.start()
-        exec.waitForSuspension()
+    @Rule public JenkinsRule r = new JenkinsRule();
 
-        assert exec.isComplete()
-        FlowNode atom = exec.currentHeads[0].parents[0]
-        LogActionImpl la = atom.getAction(LogAction)
-        assert la.logFile.text.trim() == "Hello I'm Gilbert"
+    @Test public void doProgramDotXml() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition("node {semaphore 'wait'}", true));
+        WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+        SemaphoreStep.waitForStart("wait/1", b);
+        String xml = r.createWebClient().goTo(b.getUrl() + b.getAction(CpsThreadDumpAction.class).getUrlName() + "/program.xml", "text/xml").getWebResponse().getContentAsString();
+        System.out.println(xml);
+        assertThat(xml, containsString("SemaphoreStep"));
     }
+
 }

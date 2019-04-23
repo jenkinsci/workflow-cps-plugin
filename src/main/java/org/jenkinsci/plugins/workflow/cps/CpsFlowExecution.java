@@ -135,6 +135,7 @@ import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
@@ -950,7 +951,18 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             LOGGER.log(Level.FINE, "Not blocking restart due to exception in ProgramPromise: "+this, x);
             return false;
         }
-        return g.busy;
+        if (g.busy) {
+            return true;
+        } else {
+            try {
+                return getCurrentExecutions(false).get(1, TimeUnit.SECONDS).stream().anyMatch(StepExecution::blocksRestart);
+            } catch (Exception x) {
+                // TODO RestartListener.Default.isReadyToRestart can throw checked exceptions, but AsynchronousExecution.blocksRestart does not currently allow it
+                Level level = x.getCause() instanceof RejectedExecutionException ? /* stray Executor past program end? */ Level.FINE : Level.WARNING;
+                LOGGER.log(level, "Not blocking restart due to problem checking running steps in " + this, x);
+                return false;
+            }
+        }
     }
 
     /**
@@ -1230,9 +1242,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     @Override
-    @SuppressFBWarnings(value = "RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN", justification = "We want to explicitly check for boolean not-null and true")
     public boolean isComplete() {
-        return done || super.isComplete(); // Compare to Boolean.TRUE so null == false.
+        return done || super.isComplete();
     }
 
     /**
@@ -1361,7 +1372,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             ClassLoader encounteredLoader = klazz.getClassLoader();
             if (encounteredLoader != loader) {
                 it.remove();
-                LOGGER.log(Level.FINEST, "ignoring {0} with loader {1}", new Object[] {klazz, /* do not hold from LogRecord */String.valueOf(encounteredLoader)});
+                if (LOGGER.isLoggable(Level.FINEST)) {
+                  LOGGER.log(Level.FINEST, "ignoring {0} with loader {1}", new Object[] {klazz, /* do not hold from LogRecord */String.valueOf(encounteredLoader)});
+                }
             }
         }
         LOGGER.log(Level.FINE, "cleaning up {0} associated with {1}", new Object[] {toRemove.toString(), loader.toString()});
@@ -1453,7 +1466,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 for (FlowNode node : nodes) {
                     for (GraphListener listener : toRun) {
                         if (listener instanceof GraphListener.Synchronous == synchronous) {
-                            listener.onNewHead(node);
+                            try {
+                                listener.onNewHead(node);
+                            } catch ( Exception e ) {
+                                LOGGER.log( Level.WARNING , "skip error with listener " + listener.getClass().getName() //
+                                                 + ": " + e.getMessage() );
+                            }
                         }
                     }
                 }
@@ -1476,7 +1494,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             return ACL.SYSTEM;
         }
         try {
-            return User.get(user).impersonate();
+            User u = User.getById(user, true);
+            if (u == null) {
+                return Jenkins.ANONYMOUS;
+            } else {
+                return u.impersonate();
+            }
         } catch (UsernameNotFoundException x) {
             LOGGER.log(Level.WARNING, "could not restore authentication", x);
             // Should not expose this to callers.
@@ -1895,7 +1918,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             container.add(new Content("nodes/master/pipeline-timings.txt") {
                 @Override public void writeTo(OutputStream outputStream) throws IOException {
                     PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, Charsets.UTF_8));
-                    for (Job<?, ?> job : Jenkins.getActiveInstance().getAllItems(Job.class)) {
+                    for (Job<?, ?> job : Jenkins.get().getAllItems(Job.class)) {
                         // TODO no clear way to tell if this might have Run instanceof FlowExecutionOwner.Executable, so for now just check for FlyweightTask which should exclude AbstractProject
                         if (job instanceof Queue.FlyweightTask) {
                             Run<?, ?> run = job.getLastCompletedBuild();

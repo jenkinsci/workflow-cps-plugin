@@ -73,6 +73,7 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -95,7 +96,7 @@ public class ReplayAction implements Action {
     }
 
     @Override public String getDisplayName() {
-        return "Replay";
+        return Messages.ReplayAction_displayName();
     }
 
     @Override public String getIconFileName() {
@@ -153,7 +154,7 @@ public class ReplayAction implements Action {
 
         CpsFlowExecution exec = getExecutionLazy();
         if (exec != null) {
-            return exec.isSandbox() || Jenkins.getActiveInstance().hasPermission(Jenkins.RUN_SCRIPTS); // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-master code
+            return exec.isSandbox() || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS); // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-master code
         } else {
             // If the execution hasn't been lazy-loaded then we will wait to do deeper checks until someone tries to lazy load
             // OR until isReplayableSandboxTest is invoked b/c they actually try to replay the build
@@ -167,7 +168,7 @@ public class ReplayAction implements Action {
         if (exec != null) {
             if (!exec.isSandbox()) {
                 // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-master code
-                return Jenkins.getActiveInstance().hasPermission(Jenkins.RUN_SCRIPTS);
+                return Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS);
             }
             return true;
         }
@@ -346,12 +347,14 @@ public class ReplayAction implements Action {
     }
 
     // Stub, we do not need to do anything here.
+    @RequirePOST
     public FormValidation doCheckScript() {
         return FormValidation.ok();
     }
 
-    public JSON doCheckScriptCompile(@QueryParameter String value) {
-        return Jenkins.getActiveInstance().getDescriptorByType(CpsFlowDefinition.DescriptorImpl.class).doCheckScriptCompile(value);
+    @RequirePOST
+    public JSON doCheckScriptCompile(@AncestorInPath Item job, @QueryParameter String value) {
+        return Jenkins.get().getDescriptorByType(CpsFlowDefinition.DescriptorImpl.class).doCheckScriptCompile(job, value);
     }
 
     public static final Permission REPLAY = new Permission(Run.PERMISSIONS, "Replay", Messages._Replay_permission_description(), Item.CONFIGURE, PermissionScope.RUN);

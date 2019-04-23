@@ -75,7 +75,7 @@ samples.push({
         "   }\n" +
         "   stage('Results') {\n" +
         "      junit '**/target/surefire-reports/TEST-*.xml'\n" + // assumes junit & workflow-basic-steps up to date
-        "      archive 'target/*.jar'\n" + // TODO Jenkins 2 use archiveArtifacts instead
+        "      archiveArtifacts 'target/*.jar'\n" +
         "   }\n" +
         "}"
 });

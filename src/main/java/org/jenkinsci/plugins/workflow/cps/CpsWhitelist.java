@@ -19,6 +19,8 @@ import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
+import org.kohsuke.groovy.sandbox.impl.Checker;
 
 /**
  * {@link Whitelist} implementation for CPS flow execution.
@@ -94,6 +96,17 @@ class CpsWhitelist extends AbstractWhitelist {
         String n = method.getName();
         // type coercive cast. In particular, this is used to build GString. See com.cloudbees.groovy.cps.Builder.gstring
         if (c == ScriptBytecodeAdapter.class && n.equals("asType")) {
+            Object object = args[0];
+            Class<?> type = (Class<?>) args[1];
+            try {
+                Checker.preCheckedCast(type, object, true, true, false);
+            } catch (RuntimeException x) {
+                throw x;
+            } catch (Error x) {
+                throw x;
+            } catch (Throwable x) {
+                throw new RuntimeException(x);
+            }
             return true;
         }
 
@@ -136,7 +149,7 @@ class CpsWhitelist extends AbstractWhitelist {
 
     @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")
     static synchronized Whitelist get() {
-        Jenkins j = Jenkins.getInstance();
+        Jenkins j = Jenkins.getInstanceOrNull();
         if (j == null) {
             return new ProxyWhitelist();
         }

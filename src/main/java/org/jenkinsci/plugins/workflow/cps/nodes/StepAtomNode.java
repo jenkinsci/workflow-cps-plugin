@@ -89,7 +89,7 @@ public class StepAtomNode extends AtomNode implements StepNode {
         }
         Class<?> delegateType = getDelegateType((FlowNode) node, d);
         if (delegateType != null && Describable.class.isAssignableFrom(delegateType)) {
-            Descriptor<?> descriptor = Jenkins.getInstance().getDescriptor(delegateType.asSubclass(Describable.class));
+            Descriptor<?> descriptor = Jenkins.get().getDescriptor(delegateType.asSubclass(Describable.class));
             if (descriptor != null) {
                 return descriptor.getDisplayName();
             }

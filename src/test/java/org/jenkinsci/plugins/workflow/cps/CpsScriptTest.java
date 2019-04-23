@@ -20,7 +20,7 @@ public class CpsScriptTest extends AbstractCpsFlowTest {
      */
     @Test
     public void evaluate() throws Exception {
-        CpsFlowDefinition flow = new CpsFlowDefinition("assert evaluate('1+2+3')==6");
+        CpsFlowDefinition flow = new CpsFlowDefinition("assert evaluate('1+2+3')==6", false);
 
         createExecution(flow);
         exec.start();
@@ -55,7 +55,7 @@ public class CpsScriptTest extends AbstractCpsFlowTest {
     @Ignore("TODO usually future == null, perhaps because CpsThread.resume is intended to be @CpsVmThreadOnly (so assumes that the promise is just set is not cleared by runNextChunk) yet we are calling it from the test thread; extremely dubious test design, should probably be using SemaphoreStep to be more realistic")
     @Test
     public void evaluateShallBeCpsTransformed() throws Exception {
-        CpsFlowDefinition flow = new CpsFlowDefinition("evaluate('1+com.cloudbees.groovy.cps.Continuable.suspend(2+3)')");
+        CpsFlowDefinition flow = new CpsFlowDefinition("evaluate('1+com.cloudbees.groovy.cps.Continuable.suspend(2+3)')", false);
 
         createExecution(flow);
         exec.start();
@@ -77,7 +77,7 @@ public class CpsScriptTest extends AbstractCpsFlowTest {
 
     /** Need to be careful that internal method names in {@link CpsScript} are not likely identifiers in user scripts. */
     @Test public void methodNameClash() throws Exception {
-        CpsFlowDefinition flow = new CpsFlowDefinition("def build() {20}; def initialize() {10}; def env() {10}; def getShell() {2}; assert build() + initialize() + env() + shell == 42");
+        CpsFlowDefinition flow = new CpsFlowDefinition("def build() {20}; def initialize() {10}; def env() {10}; def getShell() {2}; assert build() + initialize() + env() + shell == 42", false);
         createExecution(flow);
         exec.start();
         while (!exec.isComplete()) {
@@ -104,7 +104,7 @@ public class CpsScriptTest extends AbstractCpsFlowTest {
 
     @Issue("JENKINS-38167")
     @Test public void bindingDuringConstructor() throws Exception {
-        CpsFlowDefinition flow = new CpsFlowDefinition("@groovy.transform.Field def opt = (binding.hasVariable('opt')) ? opt : 'default'");
+        CpsFlowDefinition flow = new CpsFlowDefinition("@groovy.transform.Field def opt = (binding.hasVariable('opt')) ? opt : 'default'", false);
         createExecution(flow);
         exec.start();
         while (!exec.isComplete()) {

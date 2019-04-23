@@ -4,15 +4,15 @@ import com.google.common.base.Function;
 import com.google.common.collect.Sets;
 import groovy.lang.Closure;
 import hudson.model.Result;
+import hudson.slaves.DumbSlave;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import javax.annotation.Nonnull;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
-import org.hamcrest.Matchers;
+import static org.hamcrest.Matchers.*;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepNode;
@@ -33,14 +33,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
-import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.RestartableJenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 public class CpsBodyExecutionTest {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-    @Rule public JenkinsRule jenkins = new JenkinsRule();
+    @Rule public RestartableJenkinsRule rr = new RestartableJenkinsRule();
 
     /**
      * When the body of a step is synchronous and explodes, the failure should be recorded and the pipeline job
@@ -55,6 +55,7 @@ public class CpsBodyExecutionTest {
      */
     @Test
     public void synchronousExceptionInBody() throws Exception {
+        rr.then(jenkins -> {
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("synchronousExceptionInBody()",true));
 
@@ -89,6 +90,7 @@ public class CpsBodyExecutionTest {
                 "FlowStartNode"
             ),nodes);
         }
+        });
     }
 
     public static class SynchronousExceptionInBodyStep extends AbstractStepImpl {
@@ -120,7 +122,7 @@ public class CpsBodyExecutionTest {
                 Closure body = ScriptBytecodeAdapter.getMethodPointer(this, "bodyBlock");
                 CpsStepContext cps = (CpsStepContext) getContext();
                 CpsThread t = CpsThread.current();
-                cps.newBodyInvoker(t.getGroup().export(body))
+                cps.newBodyInvoker(t.getGroup().export(body), /* ? */false)
                         .withCallback(BodyExecutionCallback.wrap(cps))
                         .start();
                 return false;
@@ -131,6 +133,7 @@ public class CpsBodyExecutionTest {
 
     @Issue("JENKINS-34637")
     @Test public void currentExecutions() throws Exception {
+        rr.then(jenkins -> {
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("parallel main: {retainsBody {parallel a: {retainsBody {semaphore 'a'}}, b: {retainsBody {semaphore 'b'}}}}, aside: {semaphore 'c'}", true));
         WorkflowRun b = p.scheduleBuild2(0).waitForStart();
@@ -156,17 +159,18 @@ public class CpsBodyExecutionTest {
                 return null;
             }
         }).get();
-        assertThat(semaphores, Matchers.<SemaphoreStep.Execution>iterableWithSize(2));
+        assertThat(semaphores, iterableWithSize(2));
         Collection<StepExecution> currentExecutions1 = execs[1].body.getCurrentExecutions(); // A or B, does not matter
         assertThat(/* irritatingly, iterableWithSize does not show the collection in its mismatch message */currentExecutions1.toString(),
-            currentExecutions1, Matchers.<StepExecution>iterableWithSize(1));
+            currentExecutions1, iterableWithSize(1));
         Collection<StepExecution> currentExecutions2 = execs[2].body.getCurrentExecutions();
-        assertThat(currentExecutions2, Matchers.<StepExecution>iterableWithSize(1));
+        assertThat(currentExecutions2, iterableWithSize(1));
         assertEquals(semaphores, Sets.union(Sets.newLinkedHashSet(currentExecutions1), Sets.newLinkedHashSet(currentExecutions2)));
         assertEquals(semaphores, Sets.newLinkedHashSet(execs[0].body.getCurrentExecutions())); // the top-level one
         execs[0].body.cancel();
         SemaphoreStep.success("c/1", null);
         jenkins.assertBuildStatus(Result.ABORTED, jenkins.waitForCompletion(b));
+        });
     }
     public static class RetainsBodyStep extends AbstractStepImpl {
         @DataBoundConstructor public RetainsBodyStep() {}
@@ -187,6 +191,38 @@ public class CpsBodyExecutionTest {
                 throw new AssertionError("block #" + count + " not supposed to be killed directly", cause);
             }
         }
+    }
+
+    @Issue({"JENKINS-53709", "JENKINS-41791"})
+    @Test public void popContextVarsOnBodyCompletion() {
+        rr.then(r -> {
+            DumbSlave s = r.createOnlineSlave();
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "demo");
+            p.setDefinition(new CpsFlowDefinition("node('" + s.getNodeName() + "') {\n" +
+                    "  parallel one: {\n" +
+                    "    echo '" + s.getNodeName() + "'\n" +
+                    "  }\n" +
+                    "}\n" +
+                    "semaphore 'wait'\n", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            String xml = ((CpsFlowExecution) b.getExecution()).programPromise.get().asXml();
+            System.out.print(xml);
+            assertThat(xml, not(containsString(s.getWorkspaceFor(p).getRemote())));
+            assertThat(xml, not(containsString("ExecutorStepExecution")));
+            r.jenkins.removeNode(s);
+        });
+        rr.then(r -> {
+            WorkflowRun b = r.jenkins.getItemByFullName("demo", WorkflowJob.class).getBuildByNumber(1);
+            SemaphoreStep.waitForStart("wait/1", b);
+            SemaphoreStep.success("wait/1", null);
+            while (b.isBuilding()) {
+                // Before the fix for JENKINS-53709, the job hangs forever while attempting to rehydrate the agent.
+                r.assertLogNotContains("Jenkins doesn’t have label", b);
+                Thread.sleep(100);
+            }
+            r.assertBuildStatusSuccess(b);
+        });
     }
 
 }

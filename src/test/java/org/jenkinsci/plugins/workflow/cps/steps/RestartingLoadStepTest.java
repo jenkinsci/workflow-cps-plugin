@@ -53,7 +53,7 @@ public class RestartingLoadStepTest {
                     "  println 'started'\n" +
                     "  def o = load 'test.groovy'\n" +
                     "  println 'o=' + o.foo({21})\n" +
-                    "}"));
+                    "}", false));
 
                 // get the build going
                 WorkflowRun b = p.scheduleBuild2(0).getStartCondition().get();
@@ -98,7 +98,7 @@ public class RestartingLoadStepTest {
                     "  println 'started'\n" +
                     "  def o = load 'test.groovy'\n" +
                     "  println 'o=' + o;\n" +
-                    "}"));
+                    "}", false));
 
                 // get the build going
                 WorkflowRun b = p.scheduleBuild2(0).getStartCondition().get();

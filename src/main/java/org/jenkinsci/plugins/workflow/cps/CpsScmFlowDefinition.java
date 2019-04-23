@@ -73,7 +73,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
 
     @DataBoundConstructor public CpsScmFlowDefinition(SCM scm, String scriptPath) {
         this.scm = scm;
-        this.scriptPath = scriptPath;
+        this.scriptPath = scriptPath.trim();
     }
 
     public SCM getScm() {
@@ -118,7 +118,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             }
         }
         FilePath dir;
-        Node node = Jenkins.getActiveInstance();
+        Node node = Jenkins.get();
         if (build.getParent() instanceof TopLevelItem) {
             FilePath baseWorkspace = node.getWorkspaceFor((TopLevelItem) build.getParent());
             if (baseWorkspace == null) {
@@ -139,7 +139,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         delegate.setChangelog(true);
         FilePath acquiredDir;
         try (WorkspaceList.Lease lease = computer.getWorkspaceList().acquire(dir)) {
-            for (int retryCount = Jenkins.getInstance().getScmCheckoutRetryCount(); retryCount >= 0; retryCount--) {
+            for (int retryCount = Jenkins.get().getScmCheckoutRetryCount(); retryCount >= 0; retryCount--) {
                 try {
                     delegate.checkout(build, dir, listener, node.createLauncher(listener));
                     break;
@@ -151,9 +151,9 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                     }
                 } catch (InterruptedIOException e) {
                     throw e;
-                } catch (IOException e) {
+                } catch (Exception e) {
                     // checkout error not yet reported
-                    listener.error("Checkout failed").println(Functions.printThrowable(e).trim()); // TODO 2.43+ use Functions.printStackTrace
+                    Functions.printStackTrace(e, listener.error("Checkout failed"));
                 }
 
                 if (retryCount == 0)   // all attempts failed
