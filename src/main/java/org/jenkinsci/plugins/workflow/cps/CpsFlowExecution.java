@@ -1974,11 +1974,14 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                 if (owner != null) {
                                     FlowExecution exec = owner.get();
                                     if (exec instanceof CpsFlowExecution) {
-                                        pw.println("Internal calls for " + run + ":");
-                                        for (String call : ((CpsFlowExecution) exec).getInternalCalls()) {
-                                            pw.println("  " + call);
+                                        Set<String> calls = ((CpsFlowExecution) exec).getInternalCalls();
+                                        if (!calls.isEmpty()) {
+                                            pw.println("Internal calls for " + run + ":");
+                                            for (String call : calls) {
+                                                pw.println("  " + call);
+                                            }
+                                            pw.println();
                                         }
-                                        pw.println();
                                     }
                                 }
                             }
