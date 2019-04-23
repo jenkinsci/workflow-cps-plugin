@@ -4,7 +4,6 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
-import com.cloudbees.groovy.cps.Logging;
 import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 import org.codehaus.groovy.runtime.callsite.CallSite;
@@ -16,7 +15,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import static com.cloudbees.groovy.cps.impl.SourceLocation.*;
-import java.io.PrintStream;
 
 /**
  * Base class for defining a series of {@link Continuation} methods that share the same set of contextual values.
@@ -61,31 +59,10 @@ abstract class ContinuationGroup implements Serializable {
             // if this was a normal function, the method had just executed synchronously
             return k.receive(v);
         } catch (CpsCallableInvocation inv) {
-            if (isMismatch(methodName, inv.methodName)) {
-                PrintStream ps = Logging.current();
-                if (ps != null) {
-                    ps.println("expected to call " + methodName + " but wound up catching " + inv.methodName);
-                }
-            }
-            return inv.invoke(e, loc, k);
+            return inv.invoke(methodName, e, loc, k);
         } catch (Throwable t) {
             return throwException(e, t, loc, new ReferenceStackTrace());
         }
-    }
-
-    /** @see <a href="https://issues.jenkins-ci.org/browse/JENKINS-31314">JENKINS-31314</a> */
-    private static boolean isMismatch(String expected, String caught) {
-        if (expected.equals(caught)) {
-            return false;
-        }
-        if (expected.startsWith("$")) {
-            // see TODO comment in Translator w.r.t. overloadsResolved
-            return false;
-        }
-        if (expected.equals("evaluate") && caught.equals("run")) {
-            return false;
-        }
-        return true;
     }
 
     /**
