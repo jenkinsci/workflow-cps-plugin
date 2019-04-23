@@ -463,11 +463,15 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * Mark a call to an internal API made by this build.
      * @param call a representation of the call site; for example, {@code hudson.model.Run.setDescription}
      */
-    synchronized void recordInternalCall(String call) {
+    synchronized void recordInternalCall(@Nonnull String call) {
         if (internalCalls == null) {
             internalCalls = new TreeSet<>();
         }
         internalCalls.add(call);
+    }
+
+    synchronized @Nonnull Set<String> getInternalCalls() {
+        return internalCalls != null ? new TreeSet<>(internalCalls) : Collections.emptySet();
     }
 
     /**
@@ -1961,7 +1965,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             container.add(new Content("nodes/master/pipeline-internal-calls.txt") {
                 @Override public void writeTo(OutputStream outputStream) throws IOException {
                     PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, Charsets.UTF_8));
-                    for (Job<?, ?> job : Jenkins.getActiveInstance().getAllItems(Job.class)) {
+                    for (Job<?, ?> job : Jenkins.get().getAllItems(Job.class)) {
                         // TODO as above
                         if (job instanceof Queue.FlyweightTask) {
                             Run<?, ?> run = job.getLastCompletedBuild();
@@ -1970,14 +1974,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                 if (owner != null) {
                                     FlowExecution exec = owner.get();
                                     if (exec instanceof CpsFlowExecution) {
-                                        Set<String> calls = ((CpsFlowExecution) exec).internalCalls;
-                                        if (calls != null) {
-                                            pw.println("Internal calls for " + run + ":");
-                                            for (String call : calls) {
-                                                pw.println("  " + call);
-                                            }
-                                            pw.println();
+                                        pw.println("Internal calls for " + run + ":");
+                                        for (String call : ((CpsFlowExecution) exec).getInternalCalls()) {
+                                            pw.println("  " + call);
                                         }
+                                        pw.println();
                                     }
                                 }
                             }
