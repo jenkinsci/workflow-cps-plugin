@@ -16,7 +16,9 @@ import groovy.lang.Script;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.CheckReturnValue;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 
@@ -55,7 +57,7 @@ abstract class ContinuationGroup implements Serializable {
         List<String> expectedMethodNames = new ArrayList<>(2);
         expectedMethodNames.add(methodName);
         boolean laxCall = false;
-        Object effectiveReceiver = receiver instanceof CpsClosure ? ((CpsClosure) receiver).getOwner() : receiver;
+        Object effectiveReceiver = findEffectiveReceiver(receiver, null);
         try {
             Caller.record(receiver,methodName,args);
 
@@ -94,6 +96,20 @@ abstract class ContinuationGroup implements Serializable {
             return inv.invoke(e, loc, k);
         } catch (Throwable t) {
             return throwException(e, t, loc, new ReferenceStackTrace());
+        }
+    }
+
+    private static Object findEffectiveReceiver(Object receiver, Map<Object, Boolean> encountered) {
+        if (!(receiver instanceof CpsClosure)) {
+            return receiver;
+        }
+        if (encountered == null) {
+            encountered = new IdentityHashMap<>();
+        }
+        if (encountered.put(receiver, true) == null) {
+            return findEffectiveReceiver(((CpsClosure) receiver).getOwner(), encountered);
+        } else {
+            return receiver;
         }
     }
 
