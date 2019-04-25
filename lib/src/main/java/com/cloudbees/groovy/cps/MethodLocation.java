@@ -22,6 +22,7 @@ public final class MethodLocation implements Serializable {
     public MethodLocation(String declaringClass, String methodName, String fileName) {
         this.declaringClass = declaringClass;
         this.methodName = methodName;
+        assert !fileName.contains(":") : "possible JENKINS-57085 violation in " + fileName;
         this.fileName = fileName;
     }
 

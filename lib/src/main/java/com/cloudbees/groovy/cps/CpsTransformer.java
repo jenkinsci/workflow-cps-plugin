@@ -284,11 +284,13 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
      * @param m Method being transformed.
      */
     protected Expression makeBuilder(MethodNode m) {
+        String sourceName = sourceUnit.getName();
+        sourceName = sourceName.substring(Math.max(sourceName.lastIndexOf('\\'), sourceName.lastIndexOf('/')) + 1); // JENKINS-57085
         Expression b = new ConstructorCallExpression(BUIDER_TYPE, new TupleExpression(
                 new ConstructorCallExpression(METHOD_LOCATION_TYPE, new TupleExpression(
                         new ConstantExpression(m.getDeclaringClass().getName()),
                         new ConstantExpression(m.getName()),
-                        new ConstantExpression(sourceUnit.getName())
+                        new ConstantExpression(sourceName)
                 ))
         ));
         b = new MethodCallExpression(b, "withClosureType",
