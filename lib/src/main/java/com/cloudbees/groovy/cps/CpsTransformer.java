@@ -488,7 +488,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                     visit(call.getObjectExpression());
                 }
                 if (call.isSpreadSafe()) {
-                    throw new UnsupportedOperationException("spread not yet supported in " + call.getText()); // TODO will require safepoints
+                    sourceUnit.addError(new SyntaxException("spread not yet supported for CPS transformation",
+                            call.getLineNumber(), call.getColumnNumber()));
                 }
                 visit(call.getMethod());
                 literal(call.isSafe());
@@ -665,7 +666,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void visitSynchronizedStatement(SynchronizedStatement statement) {
-        throw new UnsupportedOperationException();
+        sourceUnit.addError(new SyntaxException("synchronized is unsupported for CPS transformation",
+                statement.getLineNumber(), statement.getColumnNumber()));
     }
 
     @Override
@@ -840,7 +842,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
             return;
         }
 
-        throw new UnsupportedOperationException("Operation: " + exp.getOperation() + " not supported");
+        sourceUnit.addError(new SyntaxException("Unsupported operation in this context",
+                exp.getLineNumber(), exp.getColumnNumber()));
     }
 
     @Override
@@ -920,7 +923,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void visitTupleExpression(TupleExpression expression) {
-        throw new UnsupportedOperationException();
+        sourceUnit.addError(new SyntaxException("Unsupported tuple expression in this context",
+                expression.getLineNumber(), expression.getColumnNumber()));
     }
 
     @Override
@@ -943,7 +947,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void visitMapEntryExpression(MapEntryExpression expression) {
-        throw new UnsupportedOperationException();
+        sourceUnit.addError(new SyntaxException("Unsupported map entry expression for CPS transformation in this context",
+                expression.getLineNumber(), expression.getColumnNumber()));
     }
 
     @Override
@@ -1195,18 +1200,22 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                 }
             });
         } else {
-            throw new UnsupportedOperationException(exp.getText());
+            // Note - it does not appear this path is actually reachable.
+            sourceUnit.addError(new SyntaxException("Unsupported array expression for CPS transformation in this context",
+                    exp.getLineNumber(), exp.getColumnNumber()));
         }
     }
 
     @Override
     public void visitSpreadExpression(SpreadExpression expression) {
-        throw new UnsupportedOperationException();
+        sourceUnit.addError(new SyntaxException("spread not yet supported for CPS transformation",
+                expression.getLineNumber(), expression.getColumnNumber()));
     }
 
     @Override
     public void visitSpreadMapExpression(SpreadMapExpression expression) {
-        throw new UnsupportedOperationException();
+        sourceUnit.addError(new SyntaxException("spread map not yet supported for CPS transformation",
+                expression.getLineNumber(), expression.getColumnNumber()));
     }
 
     @Override
@@ -1269,17 +1278,23 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void visitArgumentlistExpression(ArgumentListExpression expression) {
-        throw new UnsupportedOperationException();
+        // This should not be reachable since ArgumentListExpression only shows up in contexts where we already handle it directly.
+        sourceUnit.addError(new SyntaxException("Unsupported argument list expression for CPS transformation in this context",
+                expression.getLineNumber(), expression.getColumnNumber()));
     }
 
     @Override
     public void visitClosureListExpression(ClosureListExpression closureListExpression) {
-        throw new UnsupportedOperationException();
+        // This should not be reachable since ClosureListExpression only shows up in context where we already handle it directly.
+        sourceUnit.addError(new SyntaxException("Unsupported closure list expression for CPS transformation in this context",
+                closureListExpression.getLineNumber(), closureListExpression.getColumnNumber()));
     }
 
     @Override
     public void visitBytecodeExpression(BytecodeExpression expression) {
-        throw new UnsupportedOperationException();
+        // This can't be encountered in a source file.
+        sourceUnit.addError(new SyntaxException("Unsupported expression for CPS transformation",
+                expression.getLineNumber(), expression.getColumnNumber()));
     }
 
     private static final ClassNode OBJECT_TYPE = ClassHelper.makeCached(Object.class);
