@@ -59,7 +59,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
+import org.jenkinsci.plugins.workflow.testMetaStep.Curve;
+import org.jvnet.hudson.test.LoggerRule;
 
 /**
  * Tests the input sanitization and step persistence here
@@ -71,6 +74,8 @@ public class ArgumentsActionImplTest {
 
     @Rule
     public JenkinsRule r = new JenkinsRule();
+
+    @Rule public LoggerRule logging = new LoggerRule();
 
     /** Helper function to test direct file deserialization for an execution */
     private void testDeserialize(FlowExecution execution) throws Exception {
@@ -328,6 +333,18 @@ public class ArgumentsActionImplTest {
         }
     }
 
+    @Issue("JENKINS-54186")
+    @Test public void fauxDescribable() throws Exception {
+        logging.record(ArgumentsActionImpl.class, Level.FINE);
+        ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.singletonMap("curve", new Fractal()));
+        Map<String, Object> args = impl.getArguments();
+        Assert.assertThat(args, IsMapContaining.hasEntry("curve", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
+    }
+    public static final class Fractal extends Curve {
+        @Override public String getDescription() {
+            return "shape way too complex to describe";
+        }
+    }
 
     @Test
     @Issue("JENKINS-54032")
