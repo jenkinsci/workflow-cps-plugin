@@ -3,6 +3,7 @@ package com.cloudbees.groovy.cps
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import groovy.transform.NotYetImplemented
 import org.codehaus.groovy.control.MultipleCompilationErrorsException
+import org.junit.Ignore
 import org.junit.Test
 import org.jvnet.hudson.test.Issue
 
@@ -606,6 +607,13 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     }
 
     @Issue("JENKINS-31484")
+    @Ignore("Currently throws StackOverflowError")
+    @Test
+    void fieldViaGetterWithThis() {
+        assert evalCPS('class C {private int x = 33; int getX() {2 * this.x}}; new C().x') == 66
+    }
+
+    @Issue("JENKINS-31484")
     @Test
     void fieldViaSetter() {
         assert evalCPS('class C {private int x = 0; int getX() {2 * x}; void setX(int x) {this.@x = x / 3}}; C c = new C(); c.x = 33; c.x') == 22
@@ -985,4 +993,62 @@ return a + b + c + d
 ''') == 'firstsecondthirdfourth'
     }
 
+    @Test
+    void mapEntryInBadContext() {
+        try {
+        assert evalCPS('''
+return [[a: "a"], [b: "b"][c: "c"]]''') == "hi"
+        } catch (Exception e) {
+            assert e instanceof MultipleCompilationErrorsException
+            assert e.message.contains('Unsupported map entry expression for CPS transformation in this context')
+        }
+    }
+
+    @Test
+    void spreadMethodCall() {
+        try {
+            assert evalCPS('''
+return ["a", "b", "c"]*.hashCode()''') == "hi"
+        } catch (Exception e) {
+            assert e instanceof MultipleCompilationErrorsException
+            assert e.message.contains('spread not yet supported for CPS transformation')
+        }
+    }
+
+    @Test
+    void synchronizedStatement() {
+        try {
+            assert evalCPS('''
+synchronized(this) { return 1 }''') == "hi"
+        } catch (Exception e) {
+            assert e instanceof MultipleCompilationErrorsException
+            assert e.message.contains('synchronized is unsupported for CPS transformation')
+        }
+    }
+
+    @Test
+    void spreadExpression() {
+        try {
+            assert evalCPS('''
+def x = [1, 2, 3]
+return [*x, 4, 5]
+''') == "hi"
+        } catch (Exception e) {
+            assert e instanceof MultipleCompilationErrorsException
+            assert e.message.contains('spread not yet supported for CPS transformation')
+        }
+    }
+
+    @Test
+    void spreadMapExpression() {
+        try {
+            assert evalCPS('''
+def x = [a: 1, b: 2, c: 3]
+return [*:x, d: 4, e: 5]
+''') == "hi"
+        } catch (Exception e) {
+            assert e instanceof MultipleCompilationErrorsException
+            assert e.message.contains('spread map not yet supported for CPS transformation')
+        }
+    }
 }
