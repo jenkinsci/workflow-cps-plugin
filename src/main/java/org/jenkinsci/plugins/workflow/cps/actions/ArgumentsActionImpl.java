@@ -291,8 +291,14 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         } else if (tempVal instanceof UninstantiatedDescribable) {
             tempVal = ((UninstantiatedDescribable)tempVal).toMap();
         } else if (tempVal instanceof Describable) {  // Raw Describables may not be safe to store, so we should explode it
-            m = DescribableModel.of(tempVal.getClass());
-            tempVal = m.uninstantiate2(o).toMap();
+            try {
+                m = DescribableModel.of(tempVal.getClass());
+                tempVal = m.uninstantiate2(o).toMap();
+            } catch (RuntimeException x) { // usually NoStaplerConstructorException, but could also be misc. UnsupportedOperationException
+                LOGGER.log(Level.FINE, "failed to store " + tempVal, x);
+                this.isUnmodifiedBySanitization = false;
+                return NotStoredReason.UNSERIALIZABLE;
+            }
         }
 
         if (isOversized(tempVal)) {
