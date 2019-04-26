@@ -291,10 +291,6 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     @Override
     protected <T> T doGet(Class<T> key) throws IOException, InterruptedException {
-        if (FlowNode.class.isAssignableFrom(key)) {
-            return key.cast(getNode());
-        }
-
         CpsThread t = getThreadSynchronously();
         if (t == null) {
             throw new IOException("cannot find current thread");
