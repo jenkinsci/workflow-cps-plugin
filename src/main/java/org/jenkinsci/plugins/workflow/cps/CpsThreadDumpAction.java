@@ -3,6 +3,7 @@ package org.jenkinsci.plugins.workflow.cps;
 import com.cloudbees.jenkins.support.api.Component;
 import com.cloudbees.jenkins.support.api.Container;
 import com.cloudbees.jenkins.support.api.Content;
+import com.google.common.util.concurrent.FutureCallback;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.security.Permission;
@@ -12,11 +13,17 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.Charsets;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
+import org.kohsuke.stapler.HttpResponses;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.WebMethod;
 
 /**
  * Shows thread dump for {@link CpsFlowExecution}.
@@ -55,6 +62,34 @@ public final class CpsThreadDumpAction implements Action {
 
     public String getThreadDump() {
         return execution.getThreadDump().toString();
+    }
+
+    @WebMethod(name = "program.xml") public void doProgramDotXml(StaplerRequest req, StaplerResponse rsp) throws Exception {
+        Jenkins.get().checkPermission(Jenkins.RUN_SCRIPTS);
+        CompletableFuture<String> f = new CompletableFuture<>();
+        execution.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+            @Override public void onSuccess(CpsThreadGroup g) {
+                try {
+                    f.complete(g.asXml());
+                } catch (Throwable t) {
+                    f.completeExceptionally(t);
+                }
+            }
+            @Override public void onFailure(Throwable t) {
+                f.completeExceptionally(t);
+            }
+        });
+        String xml;
+        try {
+            xml = f.get(1, TimeUnit.MINUTES);
+        } catch (Exception x) {
+            HttpResponses.error(x).generateResponse(req, rsp, this);
+            return;
+        }
+        rsp.setContentType("text/xml;charset=UTF-8");
+        PrintWriter pw = rsp.getWriter();
+        pw.print(xml);
+        pw.flush();
     }
 
     @Extension(optional=true) public static class PipelineThreadDump extends Component {

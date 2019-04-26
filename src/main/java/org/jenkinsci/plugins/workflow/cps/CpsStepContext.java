@@ -282,11 +282,11 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         if (body == null) {
             throw new IllegalStateException("There is no body to invoke");
         }
-        return newBodyInvoker(body);
+        return newBodyInvoker(body, false);
     }
 
-    public @Nonnull CpsBodyInvoker newBodyInvoker(@Nonnull BodyReference body) {
-        return new CpsBodyInvoker(this,body);
+    public @Nonnull CpsBodyInvoker newBodyInvoker(@Nonnull BodyReference body, boolean unexport) {
+        return new CpsBodyInvoker(this, body, unexport);
     }
 
     @Override

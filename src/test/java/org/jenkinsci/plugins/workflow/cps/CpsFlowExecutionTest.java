@@ -257,6 +257,9 @@ public class CpsFlowExecutionTest {
                 WorkflowRun b = p.getLastBuild();
                 SemaphoreStep.success("wait/1", null);
                 story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
+                while (logger.getRecords().isEmpty()) {
+                    Thread.sleep(100); // apparently a race condition between CpsVmExecutorService.tearDown and WorkflowRun.finish
+                }
                 assertThat(logger.getRecords(), Matchers.hasSize(Matchers.equalTo(1)));
                 assertEquals(CpsFlowExecution.TimingKind.values().length, ((CpsFlowExecution) b.getExecution()).timings.keySet().size());
             }
