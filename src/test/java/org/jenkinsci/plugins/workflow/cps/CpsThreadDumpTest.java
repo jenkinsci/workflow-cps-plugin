@@ -119,7 +119,7 @@ public class CpsThreadDumpTest {
     @Test public void nativeMethods() throws Exception {
         p.setDefinition(new CpsFlowDefinition(
             "@NonCPS def untransformed() {Thread.sleep(Long.MAX_VALUE)}\n" +
-            "def helper() {echo 'sleeping'; /* flush output */ sleep 1; untransformed()}\n" +
+            "def helper() {echo 'sleeping'; untransformed()}\n" +
             "helper()", false));
         WorkflowRun b = p.scheduleBuild2(0).waitForStart();
         CpsFlowExecution e = (CpsFlowExecution) b.getExecutionPromise().get();
