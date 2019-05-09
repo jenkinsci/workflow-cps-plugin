@@ -102,7 +102,7 @@ public final class CpsThreadGroup implements Serializable {
     /**
      * All the member threads by their {@link CpsThread#id}
      */
-    final NavigableMap<Integer,CpsThread> threads = new TreeMap<Integer, CpsThread>();
+    final NavigableMap<Integer,CpsThread> threads = Collections.synchronizedNavigableMap(new TreeMap<Integer, CpsThread>());
 
     /**
      * Unique thread ID generator.
