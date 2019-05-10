@@ -100,9 +100,13 @@ public final class CpsThreadGroup implements Serializable {
     private /*almost final*/ transient CpsFlowExecution execution;
 
     /**
-     * All the member threads by their {@link CpsThread#id}
+     * All the member threads by their {@link CpsThread#id}.
+     *
+     * All mutation and iteration occurs only on the CPS VM thread. Read access through
+     * {@link CpsStepContext#doGet} may occur on other threads (e.g. non-blocking steps), so
+     * read/write access to the map needs to be synchronized.
      */
-    final NavigableMap<Integer,CpsThread> threads = Collections.synchronizedNavigableMap(new TreeMap<Integer, CpsThread>());
+    private final NavigableMap<Integer,CpsThread> threads = Collections.synchronizedNavigableMap(new TreeMap<>());
 
     /**
      * Unique thread ID generator.
@@ -200,8 +204,29 @@ public final class CpsThreadGroup implements Serializable {
         assert current()==this;
     }
 
+    /**
+     * Returns the thread with the specified id.
+     *
+     * Normally called from the CPS VM thread, but may be called from other threads via {@link CpsStepContext#doGet}.
+     *
+     * @return
+     *      null if the thread has finished executing.
+     */
     public CpsThread getThread(int id) {
-        return threads.get(id);
+        CpsThread thread = threads.get(id);
+        if (thread == null && LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.log(Level.FINE, "no thread " + id + " among " + threads.keySet(), new IllegalStateException());
+        }
+        return thread;
+    }
+
+    /**
+     * Returns an unmodifiable view of all threads in the thread group.
+     */
+    @CpsVmThreadOnly
+    public Collection<CpsThread> getThreads() {
+        assertVmThread();
+        return Collections.unmodifiableCollection(threads.values());
     }
 
     @CpsVmThreadOnly("root")

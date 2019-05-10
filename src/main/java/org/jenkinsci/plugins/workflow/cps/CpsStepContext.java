@@ -215,17 +215,12 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     /**
      * Returns the thread that is executing this step.
-     * Needs to take {@link CpsThreadGroup} as a parameter to prove that the caller is in CpsVmThread.
      *
      * @return
      *      null if the thread has finished executing.
      */
     @CheckForNull CpsThread getThread(CpsThreadGroup g) {
-        CpsThread thread = g.threads.get(threadId);
-        if (thread == null) {
-            LOGGER.log(Level.FINE, "no thread " + threadId + " among " + g.threads.keySet(), new IllegalStateException());
-        }
-        return thread;
+        return g.getThread(threadId);
     }
 
     /**
