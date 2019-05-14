@@ -68,6 +68,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -102,9 +103,10 @@ public final class CpsThreadGroup implements Serializable {
     /**
      * All the member threads by their {@link CpsThread#id}.
      *
-     * All mutation and iteration occurs only on the CPS VM thread. Read access through
-     * {@link CpsStepContext#doGet} may occur on other threads (e.g. non-blocking steps), so
-     * read/write access to the map needs to be synchronized.
+     * All mutation occurs only on the CPS VM thread. Read access through {@link CpsStepContext#doGet}
+     * and iteration through {@link CpsThreadDump#from(CpsThreadGroup)} may occur on other threads
+     * (e.g. non-blocking steps, thread dumps from the UI), and so those accesses need to be synchronized
+     * with respect to any writes.
      */
     private final NavigableMap<Integer,CpsThread> threads = Collections.synchronizedNavigableMap(new TreeMap<>());
 
@@ -224,9 +226,20 @@ public final class CpsThreadGroup implements Serializable {
      * Returns an unmodifiable view of all threads in the thread group.
      */
     @CpsVmThreadOnly
-    public Collection<CpsThread> getThreads() {
+    public Iterable<CpsThread> getThreads() {
         assertVmThread();
-        return Collections.unmodifiableCollection(threads.values());
+        return threads.values();
+    }
+
+    /**
+     * Synchronizes on {@link #threads} and applies the given function to it.
+     *
+     * If you are on the CPS VM thread, use {@link #getThreads} instead.
+     */
+    <T> T safelyApplyToThreads(Function<Collection<CpsThread>, T> fn) {
+        synchronized (threads) {
+            return fn.apply(threads.values());
+        }
     }
 
     @CpsVmThreadOnly("root")
