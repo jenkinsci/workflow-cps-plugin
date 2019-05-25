@@ -47,7 +47,7 @@ public class CpsVmExecutorServiceTest {
         r.buildAndAssertSuccess(p);
     }
 
-    @Issue({"JENKINS-31314", "JENKINS-27306"})
+    @Issue({"JENKINS-31314", "JENKINS-27306", "JENKINS-26313"})
     @Test public void wrongCatcher() throws Exception {
         boolean origFailOnMismatch = CpsVmExecutorService.FAIL_ON_MISMATCH;
         CpsVmExecutorService.FAIL_ON_MISMATCH = false;
@@ -110,6 +110,12 @@ public class CpsVmExecutorServiceTest {
                 WorkflowRun b = r.buildAndAssertSuccess(p);
                 r.assertLogContains("wrapping in a 17-gon", b);
                 r.assertLogContains(CpsVmExecutorService.mismatchMessage("WorkflowScript", "bad", null, "polygon"), b);
+                return null;
+            });
+            errors.checkSucceeds(() -> {
+                p.setDefinition(new CpsFlowDefinition("class C {C(script) {script.sleep(1)}}; new C(this)", true));
+                WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+                r.assertLogContains(CpsVmExecutorService.mismatchMessage("C", "<init>", null, "sleep"), b);
                 return null;
             });
         } finally {
