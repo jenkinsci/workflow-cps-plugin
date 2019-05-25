@@ -10,6 +10,7 @@ import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import static com.cloudbees.groovy.cps.impl.SourceLocation.UNKNOWN;
@@ -95,6 +96,9 @@ public class FunctionCallBlock extends CallSiteBlockSupport {
                     try {
                         v = e.getInvoker().contextualize(FunctionCallBlock.this).constructorCall((Class)lhs,args);
                     } catch (Throwable t) {
+                        if (t instanceof CpsCallableInvocation) {
+                            ((CpsCallableInvocation) t).checkMismatch(lhs, Collections.singletonList(name));
+                        }
                         return throwException(e, t, loc, new ReferenceStackTrace());
                     }
                     if (v instanceof Throwable)
