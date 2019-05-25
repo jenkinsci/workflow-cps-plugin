@@ -125,7 +125,13 @@ class CpsVmExecutorService extends InterceptingExecutorService {
     }
 
     private static @CheckForNull String className(@CheckForNull Object receiver) {
-        return receiver == null ? null : receiver.getClass().getName();
+        if (receiver == null) {
+            return null;
+        } else if (receiver instanceof Class) {
+            return ((Class) receiver).getName();
+        } else {
+            return receiver.getClass().getName();
+        }
     }
 
     static boolean FAIL_ON_MISMATCH = Main.isUnitTest;
