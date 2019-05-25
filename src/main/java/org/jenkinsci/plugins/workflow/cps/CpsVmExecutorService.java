@@ -137,7 +137,6 @@ class CpsVmExecutorService extends InterceptingExecutorService {
     static boolean FAIL_ON_MISMATCH = Main.isUnitTest;
 
     static String mismatchMessage(@CheckForNull String expectedReceiverClassName, String expectedMethodName, @CheckForNull String actualReceiverClassName, String actualMethodName) {
-        // TODO reference something like https://jenkins.io/redirects/pipeline-cps-method-mismatches/ sending you to a wiki page with commonly attempted idioms and the working equivalents
         StringBuilder b = new StringBuilder("expected to call ");
         if (expectedReceiverClassName != null) {
             b.append(expectedReceiverClassName).append('.');
@@ -146,7 +145,8 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         if (actualReceiverClassName != null) {
             b.append(actualReceiverClassName).append('.');
         }
-        return b.append(actualMethodName).toString();
+        b.append(actualMethodName);
+        return b.append("; see: https://jenkins.io/redirects/pipeline-cps-method-mismatches/").toString();
     }
 
     private void tearDown(ThreadContext context) {
