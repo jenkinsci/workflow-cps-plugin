@@ -134,6 +134,12 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         }
     }
 
+    /**
+     * Making false positives be fatal makes it much easier to detect mistakes here and in PCT.
+     * But we would rather have this be nonfatal in production,
+     * since there are sure to be some false positives in exotic situations not yet covered by tests.
+     * (As well as some false negatives, but this is a best effort after all.)
+     */
     static boolean FAIL_ON_MISMATCH = Main.isUnitTest;
 
     static String mismatchMessage(@CheckForNull String expectedReceiverClassName, String expectedMethodName, @CheckForNull String actualReceiverClassName, String actualMethodName) {
