@@ -152,7 +152,7 @@ class CpsVmExecutorService extends InterceptingExecutorService {
             b.append(actualReceiverClassName).append('.');
         }
         b.append(actualMethodName);
-        return b.append("; see: https://jenkins.io/redirects/pipeline-cps-method-mismatches/").toString();
+        return b.append("; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/").toString();
     }
 
     private void tearDown(ThreadContext context) {
