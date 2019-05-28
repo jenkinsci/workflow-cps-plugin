@@ -993,7 +993,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     // to exclude outer StepExecutions, first build a map by FlowHead
                     // younger threads with their StepExecutions will overshadow old threads, leaving inner-most threads alone.
                     Map<FlowHead, StepExecution> m = new LinkedHashMap<FlowHead, StepExecution>();
-                    for (CpsThread t : g.threads.values()) {
+                    for (CpsThread t : g.getThreads()) {
                         StepExecution e = t.getStep();
                         if (e != null) {
                             m.put(t.head, e);
@@ -1002,7 +1002,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     r.set(ImmutableList.copyOf(m.values()));
                 } else {
                     List<StepExecution> es = new ArrayList<StepExecution>();
-                    for (CpsThread t : g.threads.values()) {
+                    for (CpsThread t : g.getThreads()) {
                         StepExecution e = t.getStep();
                         if (e != null) {
                             es.add(e);
@@ -1142,7 +1142,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             public void onSuccess(CpsThreadGroup g) {
                 // don't touch outer ones. See JENKINS-26148
                 Map<FlowHead, CpsThread> m = new LinkedHashMap<>();
-                for (CpsThread t : g.threads.values()) {
+                for (CpsThread t : g.getThreads()) {
                     m.put(t.head, t);
                 }
                 // for each inner most CpsThread, from young to old...

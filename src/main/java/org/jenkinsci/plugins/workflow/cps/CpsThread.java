@@ -245,7 +245,7 @@ public final class CpsThread implements Serializable {
      * Cannot be {@code this}.
      */
     @CheckForNull CpsThread getNextInner() {
-        for (CpsThread t : group.threads.values()) {
+        for (CpsThread t : group.getThreads()) {
             if (t.id <= this.id) continue;
             if (t.head==this.head)  return t;
         }

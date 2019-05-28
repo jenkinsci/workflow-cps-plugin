@@ -208,7 +208,7 @@ class CpsBodyExecution extends BodyExecution {
                     List<StepExecution> executions = new ArrayList<>();
                     // cf. trick in CpsFlowExecution.getCurrentExecutions(true)
                     Map<FlowHead, CpsThread> m = new LinkedHashMap<>();
-                    for (CpsThread t : g.threads.values()) {
+                    for (CpsThread t : g.getThreads()) {
                         m.put(t.head, t);
                     }
                     for (CpsThread t : m.values()) {
@@ -260,7 +260,7 @@ class CpsBodyExecution extends BodyExecution {
                 public void onSuccess(CpsThreadGroup g) {
                     // Similar to getCurrentExecutions but we want the raw CpsThread, not a StepExecution; cf. CpsFlowExecution.interrupt
                     Map<FlowHead, CpsThread> m = new LinkedHashMap<>();
-                    for (CpsThread t : thread.group.threads.values()) {
+                    for (CpsThread t : thread.group.getThreads()) {
                         m.put(t.head, t);
                     }
                     for (CpsThread t : Iterators.reverse(ImmutableList.copyOf(m.values()))) {

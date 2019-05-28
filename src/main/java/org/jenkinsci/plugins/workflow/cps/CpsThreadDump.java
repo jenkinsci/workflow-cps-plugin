@@ -128,7 +128,7 @@ public final class CpsThreadDump {
     public static CpsThreadDump from(CpsThreadGroup g) {
         // all the threads that share the same head form a logically single thread
         Map<FlowHead, List<CpsThread>> m = new LinkedHashMap<FlowHead,List<CpsThread>>();
-        for (CpsThread t : g.threads.values()) {
+        for (CpsThread t : g.getThreads()) {
             List<CpsThread> l = m.get(t.head);
             if (l==null)    m.put(t.head, l = new ArrayList<CpsThread>());
             l.add(t);
