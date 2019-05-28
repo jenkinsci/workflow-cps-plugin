@@ -332,6 +332,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     private void completed(@Nonnull Outcome newOutcome) {
         if (outcome == null) {
+            LOGGER.finer(() -> this + " completed with " + newOutcome);
             outcome = newOutcome;
             scheduleNextRun();
             whenOutcomeDelivered = new Throwable();
@@ -437,6 +438,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                         thread.setStep(null);
                         thread.resume(getOutcome());
                     }
+                    outcome = new Outcome(null, new AlreadyCompleted());
                 }
 
                 /**
@@ -448,6 +450,20 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
             });
         } catch (IOException x) {
             LOGGER.log(Level.FINE, null, x);
+        }
+    }
+
+    /**
+     * Marker for steps which have completed.
+     * We no longer wish to hold on to their live objects as that could be a memory leak.
+     * We could use {@code new Outcome(null, null)}
+     * but that could be confused with a legitimate null return value;
+     * {@link #outcome} must be nonnull for {@link #isCompleted} to work.
+     * If this exception appears in the program, something is wrong.
+     */
+    private static final class AlreadyCompleted extends AssertionError {
+        @Override public synchronized Throwable fillInStackTrace() {
+            return this;
         }
     }
 

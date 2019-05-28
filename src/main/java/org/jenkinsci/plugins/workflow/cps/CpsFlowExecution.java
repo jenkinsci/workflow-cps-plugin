@@ -1307,6 +1307,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 LOGGER.log(Level.FINER, "found {0}", clazz.getName());
                 Introspector.flushFromCaches(clazz);
                 cleanUpGlobalClassSet(clazz);
+                cleanUpClassHelperCache(clazz);
                 cleanUpObjectStreamClassCaches(clazz);
                 cleanUpLoader(clazz.getClassLoader(), encounteredLoaders, encounteredClasses);
             }
@@ -1395,6 +1396,16 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 }
             }
         }
+    }
+
+    private static void cleanUpClassHelperCache(@Nonnull Class<?> clazz) throws Exception {
+        Field classCacheF = Class.forName("org.codehaus.groovy.ast.ClassHelper$ClassHelperCache").getDeclaredField("classCache");
+        classCacheF.setAccessible(true);
+        Object classCache = classCacheF.get(null);
+        if (LOGGER.isLoggable(Level.FINER)) {
+            LOGGER.log(Level.FINER, "cleaning up {0} from ClassHelperCache? {1}", new Object[] {clazz.getName(), classCache.getClass().getMethod("get", Object.class).invoke(classCache, clazz) != null});
+        }
+        classCache.getClass().getMethod("remove", Object.class).invoke(classCache, clazz);
     }
 
     private static void cleanUpObjectStreamClassCaches(@Nonnull Class<?> clazz) throws Exception {
