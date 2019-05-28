@@ -62,13 +62,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.TreeMap;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -105,10 +104,9 @@ public final class CpsThreadGroup implements Serializable {
      *
      * All mutation occurs only on the CPS VM thread. Read access through {@link CpsStepContext#doGet}
      * and iteration through {@link CpsThreadDump#from(CpsThreadGroup)} may occur on other threads
-     * (e.g. non-blocking steps, thread dumps from the UI), and so those accesses need to be synchronized
-     * with respect to any writes.
+     * (e.g. non-blocking steps, thread dumps from the UI).
      */
-    private final NavigableMap<Integer,CpsThread> threads = Collections.synchronizedNavigableMap(new TreeMap<>());
+    private final NavigableMap<Integer,CpsThread> threads = new ConcurrentSkipListMap<>();
 
     /**
      * Unique thread ID generator.
@@ -223,23 +221,10 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     /**
-     * Returns an unmodifiable view of all threads in the thread group.
+     * Returns an unmodifiable snapshot of all threads in the thread group.
      */
-    @CpsVmThreadOnly
     public Iterable<CpsThread> getThreads() {
-        assertVmThread();
         return threads.values();
-    }
-
-    /**
-     * Synchronizes on {@link #threads} and applies the given function to it.
-     *
-     * If you are on the CPS VM thread, use {@link #getThreads} instead.
-     */
-    <T> T safelyApplyToThreads(Function<Collection<CpsThread>, T> fn) {
-        synchronized (threads) {
-            return fn.apply(threads.values());
-        }
     }
 
     @CpsVmThreadOnly("root")
