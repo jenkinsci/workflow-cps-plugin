@@ -25,6 +25,7 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.ExtensionList;
 import hudson.model.Result;
 import java.io.IOException;
@@ -117,6 +118,7 @@ final class ContextVariableSet implements Serializable {
             @Override public BodyInvoker newBodyInvoker() throws IllegalStateException {
                 throw new AssertionError();
             }
+            @SuppressFBWarnings(value = "EQ_UNUSUAL", justification = "DefaultStepContext does not delegate to this")
             @Override public boolean equals(Object o) {
                 throw new AssertionError();
             }
