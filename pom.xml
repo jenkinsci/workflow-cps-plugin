@@ -72,12 +72,13 @@
         <scm-api-plugin.version>2.2.6</scm-api-plugin.version>
         <groovy-cps.version>1.27</groovy-cps.version>
         <structs-plugin.version>1.17</structs-plugin.version>
+        <workflow-step-api-plugin.version>2.20-rc521.2beb673db220</workflow-step-api-plugin.version> <!-- TODO https://github.com/jenkinsci/workflow-step-api-plugin/pull/42 -->
     </properties>
     <dependencies>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
-            <version>2.19</version>
+            <version>${workflow-step-api-plugin.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -120,6 +121,13 @@
                     <artifactId>findbugs-annotations</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins.workflow</groupId>
+            <artifactId>workflow-step-api</artifactId>
+            <version>${workflow-step-api-plugin.version}</version>
+            <classifier>tests</classifier>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
