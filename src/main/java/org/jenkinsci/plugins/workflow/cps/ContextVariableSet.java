@@ -47,6 +47,10 @@ import org.jenkinsci.plugins.workflow.steps.BodyInvoker;
 import org.jenkinsci.plugins.workflow.steps.DynamicContext;
 import org.jenkinsci.plugins.workflow.support.DefaultStepContext;
 
+/**
+ * Holds a set of contextual objects as per {@link BodyInvoker#withContext} in a given scope.
+ * Also interprets {@link DynamicContext}.
+ */
 @Immutable
 @PersistIn(PROGRAM)
 final class ContextVariableSet implements Serializable {

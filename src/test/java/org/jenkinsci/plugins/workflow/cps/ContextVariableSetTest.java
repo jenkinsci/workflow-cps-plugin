@@ -59,9 +59,9 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
 @Issue("JENKINS-41854")
-public class DynamicContextTest {
+public class ContextVariableSetTest {
 
-    private static final Logger LOGGER = Logger.getLogger(DynamicContextTest.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(ContextVariableSetTest.class.getName());
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
 
