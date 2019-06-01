@@ -47,9 +47,6 @@ import org.jenkinsci.plugins.workflow.steps.BodyInvoker;
 import org.jenkinsci.plugins.workflow.steps.DynamicContext;
 import org.jenkinsci.plugins.workflow.support.DefaultStepContext;
 
-/**
- * @author Kohsuke Kawaguchi
- */
 @Immutable
 @PersistIn(PROGRAM)
 final class ContextVariableSet implements Serializable {
@@ -57,7 +54,7 @@ final class ContextVariableSet implements Serializable {
     private static final Logger LOGGER = Logger.getLogger(ContextVariableSet.class.getName());
 
     private final ContextVariableSet parent;
-    private final List<Object> values = new ArrayList<Object>();
+    private final List<Object> values = new ArrayList<>();
 
     ContextVariableSet(ContextVariableSet parent) {
         this.parent = parent;
@@ -119,6 +116,7 @@ final class ContextVariableSet implements Serializable {
                 throw new AssertionError();
             }
             @SuppressFBWarnings(value = "EQ_UNUSUAL", justification = "DefaultStepContext does not delegate to this")
+            @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
             @Override public boolean equals(Object o) {
                 throw new AssertionError();
             }
