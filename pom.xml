@@ -67,12 +67,13 @@
         <jenkins.version>2.121.1</jenkins.version>
         <java.level>8</java.level>
         <no-test-jar>false</no-test-jar>
+        <useBeta>true</useBeta>
         <git-plugin.version>3.1.0</git-plugin.version>
         <workflow-support-plugin.version>3.3</workflow-support-plugin.version>
         <scm-api-plugin.version>2.2.6</scm-api-plugin.version>
         <groovy-cps.version>1.27</groovy-cps.version>
         <structs-plugin.version>1.17</structs-plugin.version>
-        <workflow-step-api-plugin.version>2.20-rc522.e7bd30e9c518</workflow-step-api-plugin.version> <!-- TODO https://github.com/jenkinsci/workflow-step-api-plugin/pull/42 -->
+        <workflow-step-api-plugin.version>2.20-rc523.096afd23f900</workflow-step-api-plugin.version> <!-- TODO https://github.com/jenkinsci/workflow-step-api-plugin/pull/42 -->
     </properties>
     <dependencies>
         <dependency>
