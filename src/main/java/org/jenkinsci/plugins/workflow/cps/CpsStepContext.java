@@ -215,17 +215,12 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     /**
      * Returns the thread that is executing this step.
-     * Needs to take {@link CpsThreadGroup} as a parameter to prove that the caller is in CpsVmThread.
      *
      * @return
      *      null if the thread has finished executing.
      */
     @CheckForNull CpsThread getThread(CpsThreadGroup g) {
-        CpsThread thread = g.threads.get(threadId);
-        if (thread == null) {
-            LOGGER.log(Level.FINE, "no thread " + threadId + " among " + g.threads.keySet(), new IllegalStateException());
-        }
-        return thread;
+        return g.getThread(threadId);
     }
 
     /**
@@ -240,7 +235,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     private @Nonnull CpsThreadGroup getThreadGroupSynchronously() throws InterruptedException, IOException {
         if (threadGroup == null) {
             ListenableFuture<CpsThreadGroup> pp;
-            CpsFlowExecution flowExecution = getFlowExecution();
+            CpsFlowExecution flowExecution = getExecution();
             while ((pp = flowExecution.programPromise) == null) {
                 Thread.sleep(100); // TODO does JENKINS-33005 remove the need for this?
             }
@@ -295,22 +290,12 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         if (t == null) {
             throw new IOException("cannot find current thread");
         }
-
-        T v = t.getContextVariable(key);
-        if (v!=null)        return v;
-
-        if (key == CpsThread.class) {
-            return key.cast(t);
-        }
-        if (key == CpsThreadGroup.class) {
-            return key.cast(t.group);
-        }
-        return null;
+        return t.getContextVariable(key, this::getExecution, this::getNode);
     }
 
     @Override protected FlowNode getNode() throws IOException {
         if (node == null) {
-            node = getFlowExecution().getNode(id);
+            node = getExecution().getNode(id);
             if (node == null) {
                 throw new IOException("no node found for " + id);
             }
@@ -332,6 +317,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     private void completed(@Nonnull Outcome newOutcome) {
         if (outcome == null) {
+            LOGGER.finer(() -> this + " completed with " + newOutcome);
             outcome = newOutcome;
             scheduleNextRun();
             whenOutcomeDelivered = new Throwable();
@@ -376,7 +362,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
         try {
             final FlowNode n = getNode();
-            final CpsFlowExecution flow = getFlowExecution();
+            final CpsFlowExecution flow = getExecution();
 
             final List<FlowNode> parents = new ArrayList<FlowNode>();
             for (int head : bodyHeads) {
@@ -437,6 +423,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                         thread.setStep(null);
                         thread.resume(getOutcome());
                     }
+                    outcome = new Outcome(null, new AlreadyCompleted());
                 }
 
                 /**
@@ -451,6 +438,20 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         }
     }
 
+    /**
+     * Marker for steps which have completed.
+     * We no longer wish to hold on to their live objects as that could be a memory leak.
+     * We could use {@code new Outcome(null, null)}
+     * but that could be confused with a legitimate null return value;
+     * {@link #outcome} must be nonnull for {@link #isCompleted} to work.
+     * If this exception appears in the program, something is wrong.
+     */
+    private static final class AlreadyCompleted extends AssertionError {
+        @Override public synchronized Throwable fillInStackTrace() {
+            return this;
+        }
+    }
+
     private static class BodyFailed extends CauseOfInterruption {
         @Override public String getShortDescription() {
             return "Body of block-scoped step failed";
@@ -460,14 +461,10 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     @Override
     public void setResult(Result r) {
         try {
-            getFlowExecution().setResult(r);
+            getExecution().setResult(r);
         } catch (IOException x) {
             LOGGER.log(Level.FINE, null, x);
         }
-    }
-
-    private @Nonnull CpsFlowExecution getFlowExecution() throws IOException {
-        return (CpsFlowExecution)executionRef.get();
     }
 
     synchronized boolean isCompleted() {
@@ -519,7 +516,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     @Override public ListenableFuture<Void> saveState() {
         try {
             final SettableFuture<Void> f = SettableFuture.create();
-            CpsFlowExecution exec = getFlowExecution();
+            CpsFlowExecution exec = getExecution();
             if (!exec.getDurabilityHint().isPersistWithEveryStep()) {
                 f.set(null);
                 return f;

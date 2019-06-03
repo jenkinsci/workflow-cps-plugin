@@ -62,8 +62,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.TreeMap;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
@@ -100,9 +100,13 @@ public final class CpsThreadGroup implements Serializable {
     private /*almost final*/ transient CpsFlowExecution execution;
 
     /**
-     * All the member threads by their {@link CpsThread#id}
+     * All the member threads by their {@link CpsThread#id}.
+     *
+     * All mutation occurs only on the CPS VM thread. Read access through {@link CpsStepContext#doGet}
+     * and iteration through {@link CpsThreadDump#from(CpsThreadGroup)} may occur on other threads
+     * (e.g. non-blocking steps, thread dumps from the UI).
      */
-    final NavigableMap<Integer,CpsThread> threads = new TreeMap<Integer, CpsThread>();
+    private final NavigableMap<Integer,CpsThread> threads = new ConcurrentSkipListMap<>();
 
     /**
      * Unique thread ID generator.
@@ -200,8 +204,27 @@ public final class CpsThreadGroup implements Serializable {
         assert current()==this;
     }
 
+    /**
+     * Returns the thread with the specified id.
+     *
+     * Normally called from the CPS VM thread, but may be called from other threads via {@link CpsStepContext#doGet}.
+     *
+     * @return
+     *      null if the thread has finished executing.
+     */
     public CpsThread getThread(int id) {
-        return threads.get(id);
+        CpsThread thread = threads.get(id);
+        if (thread == null && LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.log(Level.FINE, "no thread " + id + " among " + threads.keySet(), new IllegalStateException());
+        }
+        return thread;
+    }
+
+    /**
+     * Returns an unmodifiable snapshot of all threads in the thread group.
+     */
+    public Iterable<CpsThread> getThreads() {
+        return threads.values();
     }
 
     @CpsVmThreadOnly("root")
