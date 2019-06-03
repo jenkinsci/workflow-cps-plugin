@@ -28,6 +28,7 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.SettableFuture;
+import java.io.IOException;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
@@ -44,6 +45,8 @@ import java.util.logging.Logger;
 import static java.util.logging.Level.*;
 import org.jenkinsci.plugins.workflow.cps.persistence.IteratorHack;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
 import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
 
@@ -126,9 +129,18 @@ public final class CpsThread implements Serializable {
         return group.getExecution();
     }
 
-    <T> T getContextVariable(Class<T> type) {
-        if (contextVariables==null)     return null;
-        return contextVariables.get(type);
+    <T> T getContextVariable(Class<T> key, ContextVariableSet.ThrowingSupplier<FlowExecution> execution, ContextVariableSet.ThrowingSupplier<FlowNode> node) throws IOException, InterruptedException {
+        LOGGER.fine(() -> "looking up " + key.getName() + " from " + contextVariables);
+        T v = contextVariables != null ? contextVariables.get(key, execution, node) : null;
+        if (v != null) {
+            return v;
+        } else if (key == CpsThread.class) {
+            return key.cast(this);
+        } else if (key == CpsThreadGroup.class) {
+            return key.cast(group);
+        } else {
+            return null;
+        }
     }
 
     public ContextVariableSet getContextVariables() {

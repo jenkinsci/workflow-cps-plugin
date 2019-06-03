@@ -235,7 +235,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     private @Nonnull CpsThreadGroup getThreadGroupSynchronously() throws InterruptedException, IOException {
         if (threadGroup == null) {
             ListenableFuture<CpsThreadGroup> pp;
-            CpsFlowExecution flowExecution = getFlowExecution();
+            CpsFlowExecution flowExecution = getExecution();
             while ((pp = flowExecution.programPromise) == null) {
                 Thread.sleep(100); // TODO does JENKINS-33005 remove the need for this?
             }
@@ -290,22 +290,12 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         if (t == null) {
             throw new IOException("cannot find current thread");
         }
-
-        T v = t.getContextVariable(key);
-        if (v!=null)        return v;
-
-        if (key == CpsThread.class) {
-            return key.cast(t);
-        }
-        if (key == CpsThreadGroup.class) {
-            return key.cast(t.group);
-        }
-        return null;
+        return t.getContextVariable(key, this::getExecution, this::getNode);
     }
 
     @Override protected FlowNode getNode() throws IOException {
         if (node == null) {
-            node = getFlowExecution().getNode(id);
+            node = getExecution().getNode(id);
             if (node == null) {
                 throw new IOException("no node found for " + id);
             }
@@ -372,7 +362,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
         try {
             final FlowNode n = getNode();
-            final CpsFlowExecution flow = getFlowExecution();
+            final CpsFlowExecution flow = getExecution();
 
             final List<FlowNode> parents = new ArrayList<FlowNode>();
             for (int head : bodyHeads) {
@@ -471,14 +461,10 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     @Override
     public void setResult(Result r) {
         try {
-            getFlowExecution().setResult(r);
+            getExecution().setResult(r);
         } catch (IOException x) {
             LOGGER.log(Level.FINE, null, x);
         }
-    }
-
-    private @Nonnull CpsFlowExecution getFlowExecution() throws IOException {
-        return (CpsFlowExecution)executionRef.get();
     }
 
     synchronized boolean isCompleted() {
@@ -530,7 +516,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     @Override public ListenableFuture<Void> saveState() {
         try {
             final SettableFuture<Void> f = SettableFuture.create();
-            CpsFlowExecution exec = getFlowExecution();
+            CpsFlowExecution exec = getExecution();
             if (!exec.getDurabilityHint().isPersistWithEveryStep()) {
                 f.set(null);
                 return f;
