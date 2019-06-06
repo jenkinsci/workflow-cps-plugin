@@ -30,17 +30,17 @@ public class CpsClosure extends Closure {
     // returning CpsCallable lets the caller know that it needs to do CPS evaluation of this closure.
     @Override
     public Object call() {
-        throw new CpsCallableInvocation(def,this);
+        throw new CpsCallableInvocation("call", def, this);
     }
 
     @Override
     public Object call(Object... args) {
-        throw new CpsCallableInvocation(def,this,args);
+        throw new CpsCallableInvocation("call", def, this, args);
     }
 
     @Override
     public Object call(Object arguments) {
-        throw new CpsCallableInvocation(def,this,arguments);
+        throw new CpsCallableInvocation("call", def, this, arguments);
     }
 
     /**
@@ -50,7 +50,7 @@ public class CpsClosure extends Closure {
      * {@link CurriedClosure} invokes this method directly (via {@link MetaClassImpl#invokeMethod(Class, Object, String, Object[], boolean, boolean)}
      */
     public Object doCall(Object... args) {
-        throw new CpsCallableInvocation(def,this,args);
+        throw new CpsCallableInvocation("call", def, this, args);
     }
 
     private static final long serialVersionUID = 1L;

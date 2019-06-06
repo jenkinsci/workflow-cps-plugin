@@ -251,7 +251,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
             paramExpressions.add(new VariableExpression(p));
         }
         ArrayExpression paramArray = new ArrayExpression(ClassHelper.OBJECT_TYPE, paramExpressions);
-        TupleExpression args = new TupleExpression(new VariableExpression(f), THIS, paramArray);
+        TupleExpression args = new TupleExpression(Arrays.asList(new ConstantExpression(m.getName()), new VariableExpression(f), THIS, paramArray));
 
         ConstructorCallExpression cce = new ConstructorCallExpression(CPSCALLINVK_TYPE, args);
         m.setCode(new ThrowStatement(cce));

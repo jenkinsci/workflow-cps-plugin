@@ -5,16 +5,22 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
+import static com.cloudbees.groovy.cps.impl.SourceLocation.*;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
-import org.codehaus.groovy.runtime.callsite.CallSite;
-
-import javax.annotation.CheckReturnValue;
+import groovy.lang.GroovyCodeSource;
+import groovy.lang.GroovyShell;
+import groovy.lang.ListWithDefault;
+import groovy.lang.MapWithDefault;
+import groovy.lang.MetaClassImpl;
+import groovy.lang.Script;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.IdentityHashMap;
 import java.util.List;
-
-import static com.cloudbees.groovy.cps.impl.SourceLocation.*;
+import java.util.Map;
+import javax.annotation.CheckReturnValue;
+import org.codehaus.groovy.runtime.callsite.CallSite;
 
 /**
  * Base class for defining a series of {@link Continuation} methods that share the same set of contextual values.
@@ -41,8 +47,17 @@ abstract class ContinuationGroup implements Serializable {
 
     /**
      * Evaluates a function (possibly a workflow function), then pass the result to the given continuation.
+     * @see MetaClassImpl#invokePropertyOrMissing
+     * @see GroovyShell#evaluate(GroovyCodeSource)
+     * @see CpsBooleanClosureWrapper#callForMap
+     * @see ListWithDefault#get
+     * @see MapWithDefault#get
      */
     protected Next methodCall(final Env e, final SourceLocation loc, final Continuation k, final CallSiteBlock callSite, final Object receiver, final String methodName, final Object... args) {
+        List<String> expectedMethodNames = new ArrayList<>(2);
+        expectedMethodNames.add(methodName);
+        boolean laxCall = false;
+        Object effectiveReceiver = findEffectiveReceiver(receiver, null);
         try {
             Caller.record(receiver,methodName,args);
 
@@ -53,15 +68,48 @@ abstract class ContinuationGroup implements Serializable {
                 Super s = (Super) receiver;
                 v = inv.superCall(s.senderType, s.receiver, methodName, args);
             } else {
+                if (effectiveReceiver instanceof Script) {
+                    if (methodName.equals("evaluate")) { // Script.evaluate → GroovyShell.evaluate → Script.run
+                        expectedMethodNames.add("run");
+                    }
+                    // CpsScript.invokeMethod e.g. on a UserDefinedGlobalVariable cannot be predicted from here.
+                    expectedMethodNames.add("call");
+                    laxCall = !((Script) effectiveReceiver).getBinding().getVariables().containsKey(methodName); // lax unless like invokePropertyOrMissing
+                } else if (effectiveReceiver instanceof CpsBooleanClosureWrapper && methodName.equals("callForMap")) {
+                    expectedMethodNames.add("call");
+                } else if ((effectiveReceiver instanceof ListWithDefault || effectiveReceiver instanceof MapWithDefault) && methodName.equals("get")) {
+                    expectedMethodNames.add("call");
+                }
                 // TODO: spread
                 v = inv.methodCall(receiver, methodName, args);
             }
             // if this was a normal function, the method had just executed synchronously
             return k.receive(v);
         } catch (CpsCallableInvocation inv) {
+            if (!methodName.startsWith("$")) { // see TODO comment in Translator w.r.t. overloadsResolved
+                if (laxCall && inv.receiver instanceof CpsClosure) {
+                    // Potential false negative from overly lax addition above.
+                    expectedMethodNames.remove("call");
+                }
+                inv.checkMismatch(effectiveReceiver, expectedMethodNames);
+            }
             return inv.invoke(e, loc, k);
         } catch (Throwable t) {
             return throwException(e, t, loc, new ReferenceStackTrace());
+        }
+    }
+
+    private static Object findEffectiveReceiver(Object receiver, Map<Object, Boolean> encountered) {
+        if (!(receiver instanceof CpsClosure)) {
+            return receiver;
+        }
+        if (encountered == null) {
+            encountered = new IdentityHashMap<>();
+        }
+        if (encountered.put(receiver, true) == null) {
+            return findEffectiveReceiver(((CpsClosure) receiver).getOwner(), encountered);
+        } else {
+            return receiver;
         }
     }
 
