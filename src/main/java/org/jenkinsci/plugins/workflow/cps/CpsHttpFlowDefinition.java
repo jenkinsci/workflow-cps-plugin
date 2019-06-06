@@ -49,6 +49,7 @@ import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -60,8 +61,7 @@ import java.util.List;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.JOB;
 
-@PersistIn(JOB)
-public class CpsHttpFlowDefinition extends FlowDefinition {
+@PersistIn(JOB) public class CpsHttpFlowDefinition extends FlowDefinition {
 
     private final String scriptUrl;
     private final String credentialsId;
@@ -85,32 +85,33 @@ public class CpsHttpFlowDefinition extends FlowDefinition {
         return retryCount;
     }
 
-
-    @Override
-    public CpsFlowExecution create(FlowExecutionOwner owner, TaskListener listener, List<? extends Action> actions)
+    @Override public CpsFlowExecution create(FlowExecutionOwner owner, TaskListener listener, List<? extends Action> actions)
             throws Exception {
-        URL url = new URL(scriptUrl);
-        listener.getLogger().println("Fetching pipeline from "+ scriptUrl);
+        Queue.Executable _build = owner.getExecutable();
+        if (!(_build instanceof Run)) {
+            throw new IOException("Can only pull a Jenkinsfile in a run");
+        }
+        Run<?, ?> build = (Run<?, ?>) _build;
+
+        String expandedScriptUrl = build.getEnvironment(listener).expand(scriptUrl);
+        URL url = new URL(expandedScriptUrl);
+        listener.getLogger().println("Fetching pipeline from " + expandedScriptUrl);
         int count = 0;
         int maxTries = retryCount + 1;
 
-        while(true) {
-            try{
+        while (true) {
+            try {
                 HttpURLConnection con = (HttpURLConnection) url.openConnection();
                 con.setRequestMethod("GET");
 
                 if (!StringUtils.isBlank(credentialsId)) {
-                    UsernamePasswordCredentials credentials = (UsernamePasswordCredentials) CredentialsMatchers.firstOrNull(
-                            CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(),
-                                    ACL.SYSTEM, Collections.emptyList()),
-                            CredentialsMatchers.withId(credentialsId));
-                    if(credentials != null) {
-                        String encoded = Base64.getEncoder().encodeToString((credentials.getUsername()+":"+credentials.getPassword()).getBytes(StandardCharsets.UTF_8));
-                        con.setRequestProperty("Authorization", "Basic "+encoded);
+                    UsernamePasswordCredentials credentials = (UsernamePasswordCredentials) CredentialsMatchers.firstOrNull(CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(), ACL.SYSTEM, Collections.emptyList()), CredentialsMatchers.withId(credentialsId));
+                    if (credentials != null) {
+                        String encoded = Base64.getEncoder().encodeToString((credentials.getUsername() + ":"
+                                + credentials.getPassword()).getBytes(StandardCharsets.UTF_8));
+                        con.setRequestProperty("Authorization", "Basic " + encoded);
                     }
                 }
-
-
 
                 BufferedReader rd = new BufferedReader(new InputStreamReader(con.getInputStream()));
                 StringBuilder response = new StringBuilder();
@@ -123,24 +124,22 @@ public class CpsHttpFlowDefinition extends FlowDefinition {
                 rd.close();
                 con.disconnect();
 
-
                 Queue.Executable queueExec = owner.getExecutable();
-                FlowDurabilityHint hint = (queueExec instanceof Run)
-                        ? DurabilityHintProvider.suggestedFor(((Run) queueExec).getParent())
-                        : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
+                FlowDurabilityHint hint = (queueExec instanceof Run) ?
+                        DurabilityHintProvider.suggestedFor(((Run) queueExec).getParent()) :
+                        GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
                 return new CpsFlowExecution(response.toString(), true, owner, hint);
-            } catch(Exception e) {
-                if(++count >= maxTries) throw e;
-                listener.getLogger().printf("Caught exception while fetching %2$s:%1$s %3$s%1$sRetrying%1$s", System.lineSeparator(),scriptUrl, e.getMessage());
+            } catch (Exception e) {
+                if (++count >= maxTries)
+                    throw e;
+                listener.getLogger().printf("Caught exception while fetching %2$s:%1$s %3$s%1$sRetrying%1$s", System.lineSeparator(), expandedScriptUrl, e.getMessage());
             }
         }
     }
 
-    @Extension
-    public static class DescriptorImpl extends FlowDefinitionDescriptor {
+    @Extension public static class DescriptorImpl extends FlowDefinitionDescriptor {
 
-        @Override
-        public String getDisplayName() {
+        @Override public String getDisplayName() {
             return "Pipeline script from HTTP";
         }
 
@@ -150,14 +149,9 @@ public class CpsHttpFlowDefinition extends FlowDefinition {
             return SCM._for(job);
         }
 
-
         public ListBoxModel doFillCredentialsIdItems(@QueryParameter String scriptUrl, @QueryParameter String credentialsId) {
-            return new StandardListBoxModel().includeEmptyValue().includeMatchingAs(ACL.SYSTEM,
-                    Jenkins.getInstance(), StandardUsernamePasswordCredentials.class,
-                    URIRequirementBuilder.fromUri(scriptUrl).build(),
-                    CredentialsMatchers.always()).includeCurrentValue(credentialsId);
+            return new StandardListBoxModel().includeEmptyValue().includeMatchingAs(ACL.SYSTEM, Jenkins.getInstance(), StandardUsernamePasswordCredentials.class, URIRequirementBuilder.fromUri(scriptUrl).build(), CredentialsMatchers.always()).includeCurrentValue(credentialsId);
         }
-
 
     }
 
