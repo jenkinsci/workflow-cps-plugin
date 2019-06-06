@@ -113,7 +113,7 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
                     }
                 }
 
-                BufferedReader rd = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                BufferedReader rd = new BufferedReader(new InputStreamReader(con.getInputStream(), "UTF-8"));
                 StringBuilder response = new StringBuilder();
                 String line;
                 while ((line = rd.readLine()) != null) {
