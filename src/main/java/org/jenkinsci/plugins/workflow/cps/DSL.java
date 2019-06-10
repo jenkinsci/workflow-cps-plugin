@@ -158,6 +158,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             }
             unreportedAmbiguousFunctions = new HashSet<>(0);
             for (StepDescriptor d : StepDescriptor.all()) {
+                // TODO consider adding metasteps here and in reportAmbiguousStepInvocation
                 String functionName = d.getFunctionName();
                 if (functions.containsKey(functionName)) {
                     unreportedAmbiguousFunctions.add(functionName);
@@ -210,7 +211,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     /**
      * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
      * @param d The {@link StepDescriptor} being invoked.
-     * @param name The name used to invoke the step. Will be either {@code d.getFunctionName()} or {@code d.clazz.getName()}.
+     * @param name The name used to invoke the step. May be {@link StepDescriptor#getFunctionName}, a symbol as in {@link StepDescriptor#metaStepsOf}, or {@code d.clazz.getName()}.
      * @param args The arguments passed to the step.
      */
     protected Object invokeStep(StepDescriptor d, String name, Object args) {
@@ -296,7 +297,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         } else {
             // if it's in progress, suspend it until we get invoked later.
             // when it resumes, the CPS caller behaves as if this method returned with the resume value
-            Continuable.suspend(new ThreadTaskImpl(context));
+            Continuable.suspend(name, new ThreadTaskImpl(context));
 
             // the above method throws an exception to unwind the call stack, and
             // the control then goes back to CpsFlowExecution.runNextChunk
@@ -392,7 +393,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 ud = new UninstantiatedDescribable(symbol, null, dargs);
                 margs.put(p.getName(),ud);
 
-                return invokeStep(metaStep,new NamedArgsAndClosure(margs,args.body));
+                return invokeStep(metaStep, symbol, new NamedArgsAndClosure(margs, args.body));
             } catch (Exception e) {
                 throw new IllegalArgumentException("Failed to prepare "+symbol+" step",e);
             }
