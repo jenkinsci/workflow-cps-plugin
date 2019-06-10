@@ -66,7 +66,7 @@ public class CpsThreadTest {
         List<CauseOfInterruption> causes = iba.getCauses();
         assertEquals(1, causes.size());
         assertEquals(CauseOfInterruption.UserInterruption.class, causes.get(0).getClass());
-        r.assertLogContains("Finished: ABORTED", b);
+        r.waitForMessage("Finished: ABORTED", b); // TODO JENKINS-46076 WorkflowRun.isBuilding() can go to false before .finish has completed
         r.assertLogContains("never going to stop", b);
         r.assertLogNotContains("\tat ", b);
     }
