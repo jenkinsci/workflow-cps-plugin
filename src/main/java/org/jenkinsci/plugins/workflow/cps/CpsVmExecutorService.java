@@ -1,15 +1,17 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
+import hudson.Main;
 import hudson.model.Computer;
 import hudson.remoting.SingleLaneExecutorService;
 import hudson.security.ACL;
-import jenkins.util.InterceptingExecutorService;
-
+import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
+import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static java.util.logging.Level.WARNING;
+import javax.annotation.CheckForNull;
+import jenkins.util.InterceptingExecutorService;
 
 /**
  * {@link ExecutorService} for running CPS VM.
@@ -50,7 +52,7 @@ class CpsVmExecutorService extends InterceptingExecutorService {
      * That makes it worth reporting.
      */
     private void reportProblem(Throwable t) {
-        LOGGER.log(WARNING, "Unexpected exception in CPS VM thread: " + cpsThreadGroup.getExecution(), t);
+        LOGGER.log(Level.WARNING, "Unexpected exception in CPS VM thread: " + cpsThreadGroup.getExecution(), t);
         cpsThreadGroup.getExecution().croak(t);
     }
 
@@ -105,7 +107,52 @@ class CpsVmExecutorService extends InterceptingExecutorService {
             assert cpsThreadGroup.getExecution().getShell().getClassLoader() != null;
             t.setContextClassLoader(cpsThreadGroup.getExecution().getShell().getClassLoader());
         }
+        CpsCallableInvocation.registerMismatchHandler(this::handleMismatch);
         return context;
+    }
+
+    private void handleMismatch(Object expectedReceiver, String expectedMethodName, Object actualReceiver, String actualMethodName) {
+        String mismatchMessage = mismatchMessage(className(expectedReceiver), expectedMethodName, className(actualReceiver), actualMethodName);
+        if (FAIL_ON_MISMATCH) {
+            throw new IllegalStateException(mismatchMessage);
+        } else {
+            try {
+                cpsThreadGroup.getExecution().getOwner().getListener().getLogger().println(mismatchMessage);
+            } catch (IOException x) {
+                LOGGER.log(Level.FINE, null, x);
+            }
+        }
+    }
+
+    private static @CheckForNull String className(@CheckForNull Object receiver) {
+        if (receiver == null) {
+            return null;
+        } else if (receiver instanceof Class) {
+            return ((Class) receiver).getName();
+        } else {
+            return receiver.getClass().getName();
+        }
+    }
+
+    /**
+     * Making false positives be fatal makes it much easier to detect mistakes here and in PCT.
+     * But we would rather have this be nonfatal in production,
+     * since there are sure to be some false positives in exotic situations not yet covered by tests.
+     * (As well as some false negatives, but this is a best effort after all.)
+     */
+    static boolean FAIL_ON_MISMATCH = Main.isUnitTest;
+
+    static String mismatchMessage(@CheckForNull String expectedReceiverClassName, String expectedMethodName, @CheckForNull String actualReceiverClassName, String actualMethodName) {
+        StringBuilder b = new StringBuilder("expected to call ");
+        if (expectedReceiverClassName != null) {
+            b.append(expectedReceiverClassName).append('.');
+        }
+        b.append(expectedMethodName).append(" but wound up catching ");
+        if (actualReceiverClassName != null) {
+            b.append(actualReceiverClassName).append('.');
+        }
+        b.append(actualMethodName);
+        return b.append("; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/").toString();
     }
 
     private void tearDown(ThreadContext context) {
@@ -116,6 +163,7 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         if (isShutdown()) {
             execution.logTimings();
         }
+        CpsCallableInvocation.registerMismatchHandler(null);
     }
 
     static ThreadLocal<CpsThreadGroup> CURRENT = new ThreadLocal<>();
