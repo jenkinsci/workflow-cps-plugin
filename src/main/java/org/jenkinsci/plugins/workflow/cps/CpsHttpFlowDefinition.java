@@ -31,31 +31,28 @@ import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredenti
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.domains.URIRequirementBuilder;
 import hudson.Extension;
-import hudson.FilePath;
 import hudson.Util;
 import hudson.model.*;
 import hudson.scm.SCM;
 import hudson.scm.SCMDescriptor;
 import hudson.security.ACL;
-import hudson.slaves.WorkspaceList;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
-import org.apache.commons.httpclient.methods.GetMethod;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpHeaders;
+import org.apache.http.client.methods.HttpGet;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.flow.*;
 import org.kohsuke.stapler.*;
+import io.jenkins.plugins.httpclient.RobustHTTPClient;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.JOB;
 
@@ -95,55 +92,36 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
         Run<?, ?> build = (Run<?, ?>) _build;
 
         String expandedScriptUrl = build.getEnvironment(listener).expand(scriptUrl);
-        URL url = new URL(expandedScriptUrl);
         listener.getLogger().println("Fetching pipeline from " + expandedScriptUrl);
-        int count = 0;
-        int maxTries = retryCount + 1;
 
-        while (true) {
-            HttpURLConnection connection = null;
-            BufferedReader reader = null;
+        RobustHTTPClient client = new RobustHTTPClient();
+        client.setStopAfterAttemptNumber(retryCount + 1);
 
-            try {
-                connection = (HttpURLConnection) url.openConnection();
-                connection.setRequestMethod("GET");
+        HttpGet httpGet = new HttpGet(expandedScriptUrl);
+        if (credentialsId != null) {
+            UsernamePasswordCredentials credentials = CredentialsMatchers.firstOrNull(CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(), ACL.SYSTEM, Collections.emptyList()), CredentialsMatchers.withId(credentialsId));
+            if (credentials != null) {
+                String encoded = Base64.getEncoder().encodeToString((credentials.getUsername() + ":"
+                        + credentials.getPassword()).getBytes(StandardCharsets.UTF_8));
+                httpGet.setHeader(HttpHeaders.AUTHORIZATION, "Basic " + encoded);
+                CredentialsProvider.track(build, credentials);
+            }
+        }
 
-                if (credentialsId != null) {
-                    UsernamePasswordCredentials credentials = CredentialsMatchers.firstOrNull(CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(), ACL.SYSTEM, Collections.emptyList()), CredentialsMatchers.withId(credentialsId));
-                    if (credentials != null) {
-                        String encoded = Base64.getEncoder().encodeToString((credentials.getUsername() + ":"
-                                + credentials.getPassword()).getBytes(StandardCharsets.UTF_8));
-                        connection.setRequestProperty("Authorization", "Basic " + encoded);
-                        CredentialsProvider.track(build, credentials);
-                    }
-                }
+        AtomicReference<CpsFlowExecution> result = new AtomicReference<CpsFlowExecution>(null);
 
-                reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"));
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                    response.append(System.lineSeparator());
-                }
-
+        client.connect("get pipeline", "get pipeline from " + expandedScriptUrl, c -> c.execute(httpGet), response ->  {
+            try (InputStream is = response.getEntity().getContent()) {
+                String script = IOUtils.toString(is, "UTF-8");
                 Queue.Executable queueExec = owner.getExecutable();
                 FlowDurabilityHint hint = (queueExec instanceof Run) ?
                         DurabilityHintProvider.suggestedFor(((Run) queueExec).getParent()) :
                         GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
-                return new CpsFlowExecution(response.toString(), true, owner, hint);
-            } catch (Exception e) {
-                if (++count >= maxTries)
-                    throw e;
-                listener.getLogger().printf("Caught exception while fetching %2$s:%1$s %3$s%1$sRetrying%1$s", System.lineSeparator(), expandedScriptUrl, e.getMessage());
-            } finally {
-                if (connection != null) {
-                    connection.disconnect();
-                }
-                if (reader != null) {
-                    reader.close();
-                }
+                result.set(new CpsFlowExecution(script, true, owner, hint));
             }
-        }
+        }, listener);
+
+        return result.get();
     }
 
     @Extension public static class DescriptorImpl extends FlowDefinitionDescriptor {

@@ -68,8 +68,7 @@ public class CpsHttpFlowDefinitionTest {
         CpsHttpFlowDefinition def = new CpsHttpFlowDefinition(scriptUrl, 3);
         p.setDefinition(def);
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
-        r.assertLogContains("Caught exception while fetching " + scriptUrl, b);
-        assertEquals(3, StringUtils.countMatches(r.getLog(b), "Retrying"));
+        assertEquals(3, StringUtils.countMatches(r.getLog(b), "Retrying get pipeline"));
     }
 
 }
