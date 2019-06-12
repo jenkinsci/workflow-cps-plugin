@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2019 CloudBees, Inc.
+ * Copyright 2019 Coveo Solutions Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,14 +32,31 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 import static org.junit.Assert.assertEquals;
 
 public class CpsHttpFlowDefinitionTest {
     @Rule public JenkinsRule r = new JenkinsRule();
 
+    @Test public void testRunScriptFromUserContent() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        Path path = Paths.get(r.jenkins.getRootPath().getRemote(), "userContent", "test.groovy");
+        Files.write(path, "echo 'Hello from HTTP'".getBytes());
+
+        String url = r.jenkins.getRootUrl() + "userContent/test.groovy";
+        CpsHttpFlowDefinition def = new CpsHttpFlowDefinition(url, 3);
+        p.setDefinition(def);
+        WorkflowRun b = r.buildAndAssertSuccess(p);
+        r.assertLogContains("Fetching pipeline from " + url, b);
+        r.assertLogContains("Hello from HTTP", b);
+    }
+
     @Test public void testRunJenkinsHomePageAsPipeline() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        CpsHttpFlowDefinition def = new CpsHttpFlowDefinition(r.jenkins.getRootUrl(), "", 3);
+        CpsHttpFlowDefinition def = new CpsHttpFlowDefinition(r.jenkins.getRootUrl(), 3);
         p.setDefinition(def);
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogContains("unexpected token", b);
@@ -48,7 +65,7 @@ public class CpsHttpFlowDefinitionTest {
     @Test public void testRetryCount() throws Exception {
         String scriptUrl = "https://bad-website-jenkins-test.com/Jenkinsfile";
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        CpsHttpFlowDefinition def = new CpsHttpFlowDefinition(scriptUrl, "", 3);
+        CpsHttpFlowDefinition def = new CpsHttpFlowDefinition(scriptUrl, 3);
         p.setDefinition(def);
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogContains("Caught exception while fetching " + scriptUrl, b);

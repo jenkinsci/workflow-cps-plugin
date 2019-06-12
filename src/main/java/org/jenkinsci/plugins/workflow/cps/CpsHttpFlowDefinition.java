@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2019 CloudBees, Inc.
+ * Copyright 2019 Coveo Solutions Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,7 @@ import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.domains.URIRequirementBuilder;
 import hudson.Extension;
 import hudson.FilePath;
+import hudson.Util;
 import hudson.model.*;
 import hudson.scm.SCM;
 import hudson.scm.SCMDescriptor;
@@ -43,10 +44,7 @@ import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.flow.*;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.Stapler;
-import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.*;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -64,17 +62,12 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 @PersistIn(JOB) public class CpsHttpFlowDefinition extends FlowDefinition {
 
     private final String scriptUrl;
-    private final String credentialsId;
     private final int retryCount;
+    private String credentialsId;
 
-    @DataBoundConstructor public CpsHttpFlowDefinition(String scriptUrl, String credentialsId, int retryCount) {
+    @DataBoundConstructor public CpsHttpFlowDefinition(String scriptUrl, int retryCount) {
         this.scriptUrl = scriptUrl.trim();
-        this.credentialsId = credentialsId;
         this.retryCount = retryCount;
-    }
-
-    public String getCredentialsId() {
-        return credentialsId;
     }
 
     public String getScriptUrl() {
@@ -83,6 +76,14 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 
     public int getRetryCount() {
         return retryCount;
+    }
+
+    @DataBoundSetter public void setCredentialsId(String credentialsId) {
+        this.credentialsId = Util.fixEmpty(credentialsId);
+    }
+
+    public String getCredentialsId() {
+        return credentialsId;
     }
 
     @Override public CpsFlowExecution create(FlowExecutionOwner owner, TaskListener listener, List<? extends Action> actions)
@@ -100,29 +101,30 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
         int maxTries = retryCount + 1;
 
         while (true) {
-            try {
-                HttpURLConnection con = (HttpURLConnection) url.openConnection();
-                con.setRequestMethod("GET");
+            HttpURLConnection connection = null;
+            BufferedReader reader = null;
 
-                if (!StringUtils.isBlank(credentialsId)) {
-                    UsernamePasswordCredentials credentials = (UsernamePasswordCredentials) CredentialsMatchers.firstOrNull(CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(), ACL.SYSTEM, Collections.emptyList()), CredentialsMatchers.withId(credentialsId));
+            try {
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+
+                if (credentialsId != null) {
+                    UsernamePasswordCredentials credentials = CredentialsMatchers.firstOrNull(CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(), ACL.SYSTEM, Collections.emptyList()), CredentialsMatchers.withId(credentialsId));
                     if (credentials != null) {
                         String encoded = Base64.getEncoder().encodeToString((credentials.getUsername() + ":"
                                 + credentials.getPassword()).getBytes(StandardCharsets.UTF_8));
-                        con.setRequestProperty("Authorization", "Basic " + encoded);
+                        connection.setRequestProperty("Authorization", "Basic " + encoded);
+                        CredentialsProvider.track(build, credentials);
                     }
                 }
 
-                BufferedReader rd = new BufferedReader(new InputStreamReader(con.getInputStream(), "UTF-8"));
+                reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"));
                 StringBuilder response = new StringBuilder();
                 String line;
-                while ((line = rd.readLine()) != null) {
+                while ((line = reader.readLine()) != null) {
                     response.append(line);
                     response.append(System.lineSeparator());
                 }
-
-                rd.close();
-                con.disconnect();
 
                 Queue.Executable queueExec = owner.getExecutable();
                 FlowDurabilityHint hint = (queueExec instanceof Run) ?
@@ -133,6 +135,13 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
                 if (++count >= maxTries)
                     throw e;
                 listener.getLogger().printf("Caught exception while fetching %2$s:%1$s %3$s%1$sRetrying%1$s", System.lineSeparator(), expandedScriptUrl, e.getMessage());
+            } finally {
+                if (connection != null) {
+                    connection.disconnect();
+                }
+                if (reader != null) {
+                    reader.close();
+                }
             }
         }
     }
