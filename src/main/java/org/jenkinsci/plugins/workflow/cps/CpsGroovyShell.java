@@ -18,7 +18,10 @@ import org.codehaus.groovy.control.CompilationFailedException;
 import org.codehaus.groovy.control.CompilationUnit;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.SourceUnit;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.Whitelist;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.ClassLoaderWhitelist;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.GroovySandbox;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.ProxyWhitelist;
 
 /**
  * {@link GroovyShell} with additional tweaks necessary to run {@link CpsScript}
@@ -127,7 +130,9 @@ class CpsGroovyShell extends GroovyShell {
     }
 
     private Script doParse(GroovyCodeSource codeSource) throws CompilationFailedException {
-        try (GroovySandbox.Scope scope = new GroovySandbox().enter()) {
+        try (GroovySandbox.Scope scope = new GroovySandbox()
+                .withWhitelist(new ProxyWhitelist(new ClassLoaderWhitelist(getClassLoader()), Whitelist.all()))
+                .enter()) {
             if (execution != null) {
                 try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.parse)) {
                     return super.parse(codeSource);

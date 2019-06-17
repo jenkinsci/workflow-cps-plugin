@@ -590,4 +590,36 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b);
     }
 
+    @Issue("JENKINS-56682")
+    @Test
+    public void scriptInitializersAtFieldSyntax() throws Exception {
+        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition(
+                "import groovy.transform.Field\n" +
+                "@Field static int foo = 1\n" +
+                "@Field int bar = foo + 1\n" +
+                "@Field int baz = bar + 1\n" +
+                "echo \"baz is ${baz}\"", true));
+        WorkflowRun b = jenkins.buildAndAssertSuccess(p);
+        jenkins.assertLogContains("baz is 3", b);
+    }
+
+    @Issue("JENKINS-56682")
+    @Test
+    public void scriptInitializersClassSyntax() throws Exception {
+        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition(
+                "import org.codehaus.groovy.runtime.InvokerHelper\n" +
+                "class MyScript extends org.jenkinsci.plugins.workflow.cps.CpsScript {\n" +
+                "  { MyScript.foo++ }\n" + // The instance initializer seems to be context sensitive, if placed below the field it is treated as a closure...
+                "  static { MyScript.foo++ }\n" +
+                "  static int foo = 0\n" +
+                "  def run() {\n" +
+                "    echo \"MyScript.foo is ${MyScript.foo}\"\n " +
+                "  }\n" +
+                "}\n", true));
+        WorkflowRun b = jenkins.buildAndAssertSuccess(p);
+        jenkins.assertLogContains("MyScript.foo is 2", b);
+    }
+
 }
