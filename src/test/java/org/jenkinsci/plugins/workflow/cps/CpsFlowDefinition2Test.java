@@ -599,7 +599,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
                 "@Field static int foo = 1\n" +
                 "@Field int bar = foo + 1\n" +
                 "@Field int baz = bar + 1\n" +
-                "echo \"baz is ${baz}\"", true));
+                "echo(/baz is ${baz}/)", true));
         WorkflowRun b = jenkins.buildAndAssertSuccess(p);
         jenkins.assertLogContains("baz is 3", b);
     }
@@ -615,7 +615,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
                 "  static { MyScript.foo++ }\n" +
                 "  static int foo = 0\n" +
                 "  def run() {\n" +
-                "    echo \"MyScript.foo is ${MyScript.foo}\"\n " +
+                "    echo(/MyScript.foo is ${MyScript.foo}/)\n " +
                 "  }\n" +
                 "}\n", true));
         WorkflowRun b = jenkins.buildAndAssertSuccess(p);
