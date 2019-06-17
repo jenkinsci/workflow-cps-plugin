@@ -130,11 +130,15 @@ class CpsGroovyShell extends GroovyShell {
     }
 
     private Script doParse(GroovyCodeSource codeSource) throws CompilationFailedException {
-        try (GroovySandbox.Scope scope = new GroovySandbox()
-                .withWhitelist(new GroovyClassLoaderWhitelist(CpsWhitelist.get(),
-                        execution.getTrustedShell().getClassLoader(),
-                        execution.getShell().getClassLoader()))
-                .enter()) {
+        GroovySandbox sandbox = new GroovySandbox();
+        if (execution != null) {
+            sandbox.withWhitelist(new GroovyClassLoaderWhitelist(CpsWhitelist.get(),
+                execution.getTrustedShell().getClassLoader(),
+                execution.getShell().getClassLoader()));
+        } else {
+            sandbox.withWhitelist(new GroovyClassLoaderWhitelist(CpsWhitelist.get(), getClassLoader()));
+        }
+        try (GroovySandbox.Scope scope = sandbox.enter()) {
             if (execution != null) {
                 try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.parse)) {
                     return super.parse(codeSource);
