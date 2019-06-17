@@ -609,7 +609,6 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     public void scriptInitializersClassSyntax() throws Exception {
         WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition(
-                "import org.codehaus.groovy.runtime.InvokerHelper\n" +
                 "class MyScript extends org.jenkinsci.plugins.workflow.cps.CpsScript {\n" +
                 "  { MyScript.foo++ }\n" + // The instance initializer seems to be context sensitive, if placed below the field it is treated as a closure...
                 "  static { MyScript.foo++ }\n" +
