@@ -33,7 +33,6 @@ import hudson.model.Run;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
 
@@ -56,13 +55,7 @@ import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
         Map<String,Object> values = new HashMap<>();
         ParametersAction action = b.getAction(ParametersAction.class);
         if (action != null) {
-            List<ParameterValue> parameterValues;
-            try { // TODO 1.651.2+ remove reflection
-                parameterValues = (List<ParameterValue>) ParametersAction.class.getMethod("getAllParameters").invoke(action);
-            } catch (NoSuchMethodException x) {
-                parameterValues = action.getParameters();
-            }
-            for (ParameterValue parameterValue : parameterValues) {
+            for (ParameterValue parameterValue : action.getAllParameters()) {
                 addValue(values, parameterValue);
             }
         }
