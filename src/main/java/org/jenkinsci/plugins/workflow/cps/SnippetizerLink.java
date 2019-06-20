@@ -28,6 +28,7 @@ import hudson.Extension;
 import hudson.ExtensionPoint;
 import hudson.model.Item;
 import hudson.model.Job;
+import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
 
@@ -80,7 +81,7 @@ public abstract class SnippetizerLink implements ExtensionPoint {
 
         Item i = req.findAncestorObject(Item.class);
 
-        return req.getContextPath() + '/' + (i == null ? "" : i.getUrl()) + u;
+        return req.getContextPath() + "/" + (i == null ? "" : StringUtils.stripEnd(i.getUrl(), "/")) + "/" + u;
     }
 
     /**
@@ -176,6 +177,22 @@ public abstract class SnippetizerLink implements ExtensionPoint {
     }
 
     @Extension(ordinal = 600L)
+    public static class ExamplesLink extends SnippetizerLink {
+
+        @Nonnull
+        @Override
+        public String getUrl() {
+            return "https://jenkins.io/doc/pipeline/examples/";
+        }
+
+        @Nonnull
+        @Override
+        public String getDisplayName() {
+            return Messages.SnippetizerLink_ExamplesLink_displayName();
+        }
+    }
+
+    @Extension(ordinal = 500L)
     public static class GDSLLink extends SnippetizerLink {
         @Override
         @Nonnull
