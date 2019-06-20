@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.FilePath;
@@ -35,7 +36,6 @@ import hudson.model.Job;
 import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.Run;
-import hudson.model.Run.RunnerAbortedException;
 import hudson.model.TaskListener;
 import hudson.model.TopLevelItem;
 import hudson.scm.SCM;
@@ -92,6 +92,11 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         this.lightweight = lightweight;
     }
 
+    @SuppressFBWarnings(
+            value = {"NP_LOAD_OF_KNOWN_NULL_VALUE", "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE",
+                    "RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE", "RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE"},
+            justification = "false positives for try-resource in java 11"
+    )
     @Override public CpsFlowExecution create(FlowExecutionOwner owner, TaskListener listener, List<? extends Action> actions) throws Exception {
         for (Action a : actions) {
             if (a instanceof CpsFlowFactoryAction2) {
