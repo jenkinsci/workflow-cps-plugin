@@ -88,6 +88,8 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     // @Ignore /** Intermittent failures because triggers a longstanding unrelated SandboxResolvingClassloader bug
     // resolved in https://github.com/jenkinsci/script-security-plugin/pull/160 */
     public void endlessRecursion() throws Exception {
+        // Cheat so I can make sure I'm running the version of script-security that I think I am.
+        // Thread.sleep(30000000);
         Assume.assumeTrue(!Functions.isWindows());  // Sidestep false failures specific to a few Windows build environments.
         String script = "def getThing(){return thing == null}; \n" +
                 "node { echo getThing(); } ";
