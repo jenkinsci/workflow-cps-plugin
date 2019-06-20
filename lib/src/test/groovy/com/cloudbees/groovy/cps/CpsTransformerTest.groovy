@@ -770,7 +770,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         ''')=="ybase"
     }
 
-    @NotYetImplemented
     @Issue("JENKINS-52395")
     @Test
     void transformedSuperSuperClass() {
