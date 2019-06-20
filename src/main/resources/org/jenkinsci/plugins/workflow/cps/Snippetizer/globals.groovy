@@ -37,7 +37,7 @@ l.layout(title:_("Pipeline Syntax: Global Variable Reference"), norefresh: true)
                   if (rd != null) {
                     st.include(page: "help", it: v)
                   } else {
-                    raw("(no help)")
+                    raw(_("(no help)"))
                   }
                 }
               }

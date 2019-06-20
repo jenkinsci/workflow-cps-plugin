@@ -16,7 +16,6 @@ import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
 import static org.junit.Assert.assertTrue;
-import org.junit.Ignore;
 import org.jvnet.hudson.test.Issue;
 
 /**
@@ -33,11 +32,7 @@ public class SerializationTest extends SingleJobTestBase {
             @Override
             public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(join(
-                        "node {",
-                        "  persistenceProblem()",
-                        "}"
-                )));
+                p.setDefinition(new CpsFlowDefinition("node { persistenceProblem() }", false));
 
                 startBuilding();
                 waitForWorkflowToSuspend();
@@ -127,7 +122,7 @@ public class SerializationTest extends SingleJobTestBase {
                     // make sure these values are still alive
                     "assert s.nodeName=='" + nodeName + "'\n" +
                     "assert r.getRemote()==p : r.getRemote() + ' vs ' + p;\n" +
-                    "assert r.channel==s.channel : r.channel.toString() + ' vs ' + s.channel\n"));
+                    "assert r.channel==s.channel : r.channel.toString() + ' vs ' + s.channel\n", false));
 
                 startBuilding();
                 SemaphoreStep.waitForStart("wait/1", b);
@@ -224,25 +219,6 @@ public class SerializationTest extends SingleJobTestBase {
                     "}\n", true));
                 b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
                 story.j.assertLogContains("abc", b);
-            }
-        });
-    }
-
-    @Ignore("TODO JENKINS-31314: calls writeFile just once, echoes null (i.e., return value of writeFile), then succeeds")
-    @Test public void nonCpsContinuable() {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(
-                    "@NonCPS def shouldBomb() {\n" +
-                    "  def text = ''\n" +
-                    "  ['a', 'b', 'c'].each {it -> writeFile file: it, text: it; text += it}\n" +
-                    "  text\n" +
-                    "}\n" +
-                    "node {\n" +
-                    "  echo shouldBomb()\n" +
-                    "}\n", true));
-                b = story.j.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0).get());
             }
         });
     }

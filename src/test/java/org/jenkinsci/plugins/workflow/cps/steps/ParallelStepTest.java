@@ -2,17 +2,17 @@ package org.jenkinsci.plugins.workflow.cps.steps;
 
 import hudson.AbortException;
 import hudson.model.Result;
-import hudson.FilePath;
 import java.util.ArrayList;
 import java.util.Arrays;
 import static java.util.Arrays.*;
 import java.util.List;
+import java.util.logging.Level;
 
-import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 import org.jenkinsci.plugins.workflow.SingleJobTestBase;
 import org.jenkinsci.plugins.workflow.actions.ThreadNameAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.plugins.workflow.cps.CpsThreadGroup;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -24,9 +24,11 @@ import org.jenkinsci.plugins.workflow.support.visualization.table.FlowGraphTable
 import org.jenkinsci.plugins.workflow.support.visualization.table.FlowGraphTable.Row;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.Issue;
+import org.jvnet.hudson.test.LoggerRule;
 
 /**
  * Tests for {@link ParallelStep}.
@@ -34,6 +36,8 @@ import org.jvnet.hudson.test.Issue;
  * @author Kohsuke Kawaguchi
  */
 public class ParallelStepTest extends SingleJobTestBase {
+
+    @Rule public LoggerRule logging = new LoggerRule();
 
     private FlowGraphTable t;
 
@@ -44,14 +48,15 @@ public class ParallelStepTest extends SingleJobTestBase {
     public void minimumViableParallelRun() throws Exception {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
+                logging.record(CpsThreadGroup.class, Level.FINE);
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(join(
                     "node {",
-                    "  x = parallel( a: { echo('echo a'); return 1; }, b: { echo('echo b'); return 2; } )",
+                    "  x = parallel( a: { echo('echo a'); return 1; }, b: { echo('echo b'); sleep 1; return 2; } )",
                     "  assert x.a==1",
                     "  assert x.b==2",
                     "}"
-                )));
+                ), false));
 
                 startBuilding().get(); // 15, SECONDS);
                 assertBuildCompletedSuccessfully();
@@ -86,7 +91,7 @@ public class ParallelStepTest extends SingleJobTestBase {
                     "    assert e.message == 'died'",
                     "  }",
                     "}"
-                )));
+                ), false));
 
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();
@@ -124,7 +129,7 @@ public class ParallelStepTest extends SingleJobTestBase {
                     "    assert e.message == 'died'",
                     "  }",
                     "}"
-                )));
+                ), false));
 
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();
@@ -153,7 +158,7 @@ public class ParallelStepTest extends SingleJobTestBase {
                     "      failFast: true",
                     "    )",
                     "}"
-                )));
+                ), false));
 
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();
@@ -212,7 +217,7 @@ public class ParallelStepTest extends SingleJobTestBase {
                 p.setDefinition(new CpsFlowDefinition(
                     "parallel bad: {\n" +
                     "  throw new IllegalStateException('bad')\n" +
-                    "}"));
+                    "}", false));
                 WorkflowRun b4 = story.j.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0).get());
                 story.j.assertLogContains("Failed in branch bad", b4);
                 story.j.waitForMessage("Finished: FAILURE", b4);
@@ -258,22 +263,19 @@ public class ParallelStepTest extends SingleJobTestBase {
     public void localMethodCallWithinBranch() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
-                FilePath aa = jenkins().getRootPath().child("a");
-                FilePath bb = jenkins().getRootPath().child("b");
-
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(join(
                     "def touch(f) { writeFile text: '', file: f }",
                     "node {",
-                    "  parallel(aa: {touch($/" + aa + "/$)}, bb: {touch($/" + bb + "/$)})",
+                    "  parallel(aa: {touch('a')}, bb: {touch('b')})",
                     "}"
-                )));
+                ), false));
 
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();
 
-                assertTrue(aa.exists());
-                assertTrue(bb.exists());
+                assertTrue(jenkins().getWorkspaceFor(p).child("a").exists());
+                assertTrue(jenkins().getWorkspaceFor(p).child("b").exists());
             }
         });
     }
@@ -298,7 +300,7 @@ public class ParallelStepTest extends SingleJobTestBase {
                         "    echo 'end'",
                         "  }",
                         "}"
-                )));
+                ), false));
 
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();
@@ -314,7 +316,7 @@ public class ParallelStepTest extends SingleJobTestBase {
             @Override public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(
-                        IOUtils.toString(getClass().getResource("localMethodCallWithinLotsOfBranches.groovy"))));
+                        IOUtils.toString(getClass().getResource("localMethodCallWithinLotsOfBranches.groovy")), false));
 
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();
@@ -352,7 +354,7 @@ public class ParallelStepTest extends SingleJobTestBase {
                     "      c: { semaphore 'suspendC'; echo 'C done' },",
                     "    )",
                     "}"
-                )));
+                ), false));
 
                 startBuilding();
 
@@ -459,7 +461,7 @@ public class ParallelStepTest extends SingleJobTestBase {
                     "        noSuchFunctionExists(); \n"+
                     "      }\n" +
                     "    )\n"
-                )));
+                ), false));
 
                 startBuilding();
 

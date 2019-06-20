@@ -165,7 +165,7 @@ public class CpsFlowExecutionTest {
                 story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
                     grant(Jenkins.READ, Item.READ).everywhere().toEveryone().
                     grant(Jenkins.ADMINISTER).everywhere().to("admin").
-                    grant(Item.BUILD).onItems(p).to("dev"));
+                    grant(Item.BUILD, Item.CANCEL).onItems(p).to("dev"));
                 story.j.jenkins.save();
                 p.setDefinition(new CpsFlowDefinition("echo 'before'; semaphore 'one'; echo 'after'", true));
                 WorkflowRun b = p.scheduleBuild2(0).waitForStart();
@@ -257,6 +257,9 @@ public class CpsFlowExecutionTest {
                 WorkflowRun b = p.getLastBuild();
                 SemaphoreStep.success("wait/1", null);
                 story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
+                while (logger.getRecords().isEmpty()) {
+                    Thread.sleep(100); // apparently a race condition between CpsVmExecutorService.tearDown and WorkflowRun.finish
+                }
                 assertThat(logger.getRecords(), Matchers.hasSize(Matchers.equalTo(1)));
                 assertEquals(CpsFlowExecution.TimingKind.values().length, ((CpsFlowExecution) b.getExecution()).timings.keySet().size());
             }

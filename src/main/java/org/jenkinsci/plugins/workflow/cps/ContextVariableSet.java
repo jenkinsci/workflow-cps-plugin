@@ -24,36 +24,136 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-
-import javax.annotation.concurrent.Immutable;
+import com.google.common.util.concurrent.ListenableFuture;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.ExtensionList;
+import hudson.model.Result;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.NONE;
+import java.util.Set;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import javax.annotation.concurrent.Immutable;
+import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.steps.BodyInvoker;
+import org.jenkinsci.plugins.workflow.steps.DynamicContext;
+import org.jenkinsci.plugins.workflow.support.DefaultStepContext;
 
 /**
- * @author Kohsuke Kawaguchi
+ * Holds a set of contextual objects as per {@link BodyInvoker#withContext} in a given scope.
+ * Also interprets {@link DynamicContext}.
  */
 @Immutable
-@PersistIn(NONE)
+@PersistIn(PROGRAM)
 final class ContextVariableSet implements Serializable {
+
+    private static final Logger LOGGER = Logger.getLogger(ContextVariableSet.class.getName());
+
     private final ContextVariableSet parent;
-    private final List<Object> values = new ArrayList<Object>();
+    private final List<Object> values = new ArrayList<>();
 
     ContextVariableSet(ContextVariableSet parent) {
         this.parent = parent;
     }
 
-    <T> T get(Class<T> type) {
-        for (ContextVariableSet s=this; s!=null; s=s.parent) {
-            for (Object v : s.values) {
-                if (type.isInstance(v))
-                    return type.cast(v);
+    private static final ThreadLocal<Set<DynamicContextQuery>> dynamicContextClasses = ThreadLocal.withInitial(HashSet::new);
+
+    private static final class DynamicContextQuery {
+        final DynamicContext dynamicContext;
+        final Class<?> key;
+        DynamicContextQuery(DynamicContext dynamicContext, Class<?> key) {
+            this.dynamicContext = dynamicContext;
+            this.key = key;
+        }
+        @Override public boolean equals(Object obj) {
+            return obj instanceof DynamicContextQuery &&
+                dynamicContext == ((DynamicContextQuery) obj).dynamicContext &&
+                key == ((DynamicContextQuery) obj).key;
+        }
+        @Override public int hashCode() {
+            return dynamicContext.hashCode() ^ key.hashCode();
+        }
+    }
+
+    interface ThrowingSupplier<T> {
+        T get() throws IOException;
+    }
+
+    <T> T get(Class<T> key, ThrowingSupplier<FlowExecution> execution, ThrowingSupplier<FlowNode> node) throws IOException, InterruptedException {
+        for (Object v : values) {
+            if (key.isInstance(v)) {
+                LOGGER.fine(() -> "found a " + v.getClass().getName() + " in " + this);
+                return key.cast(v);
             }
         }
-        return null;
+        class Delegate extends DefaultStepContext implements DynamicContext.DelegatedContext {
+            @Override protected <T> T doGet(Class<T> key) throws IOException, InterruptedException {
+                return ContextVariableSet.this.get(key, execution, node);
+            }
+            @Override protected FlowExecution getExecution() throws IOException {
+                return execution.get();
+            }
+            @Override protected FlowNode getNode() throws IOException {
+                return node.get();
+            }
+            @Override public void onSuccess(Object result) {
+                throw new AssertionError();
+            }
+            @Override public boolean isReady() {
+                throw new AssertionError();
+            }
+            @Override public ListenableFuture<Void> saveState() {
+                throw new AssertionError();
+            }
+            @Override public void setResult(Result r) {
+                throw new AssertionError();
+            }
+            @Override public BodyInvoker newBodyInvoker() throws IllegalStateException {
+                throw new AssertionError();
+            }
+            @SuppressFBWarnings(value = "EQ_UNUSUAL", justification = "DefaultStepContext does not delegate to this")
+            @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
+            @Override public boolean equals(Object o) {
+                throw new AssertionError();
+            }
+            @Override public int hashCode() {
+                throw new AssertionError();
+            }
+            @Override public void onFailure(Throwable t) {
+                throw new AssertionError();
+            }
+        }
+        DynamicContext.DelegatedContext delegate = new Delegate();
+        for (DynamicContext dynamicContext : ExtensionList.lookup(DynamicContext.class)) {
+            DynamicContextQuery query = new DynamicContextQuery(dynamicContext, key);
+            Set<DynamicContextQuery> dynamicStack = dynamicContextClasses.get();
+            if (dynamicStack.add(query)) { // thus, being newly added to the stack
+                try {
+                    T v = dynamicContext.get(key, delegate);
+                    if (v != null) {
+                        LOGGER.fine(() -> "looked up a " + v.getClass().getName() + " from " + dynamicContext + " in " + this);
+                        return v;
+                    }
+                } finally {
+                    dynamicStack.remove(query);
+                }
+            }
+        }
+        if (parent != null) {
+            return parent.get(key, execution, node);
+        } else {
+            return null;
+        }
+    }
+
+    @Override public String toString() {
+        return "ContextVariableSet" + values.stream().map(Object::getClass).map(Class::getName).collect(Collectors.toList()) + (parent != null ? "<" + parent : "");
     }
 
     /**

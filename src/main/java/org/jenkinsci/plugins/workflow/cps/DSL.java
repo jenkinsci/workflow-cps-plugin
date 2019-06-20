@@ -32,6 +32,7 @@ import groovy.lang.GroovyObject;
 import groovy.lang.GroovyObjectSupport;
 import groovy.lang.GroovyRuntimeException;
 import hudson.EnvVars;
+import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
@@ -39,12 +40,12 @@ import hudson.model.Queue;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.groovy.reflection.CachedClass;
@@ -65,7 +67,6 @@ import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.*;
 
-import org.jenkinsci.plugins.workflow.actions.TimingAction;
 import org.jenkinsci.plugins.workflow.cps.actions.ArgumentsActionImpl;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
@@ -75,10 +76,8 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
-import org.jenkinsci.plugins.workflow.graph.AtomNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
-import org.jenkinsci.plugins.workflow.steps.MissingContextVariableException;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -95,6 +94,18 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     private final FlowExecutionOwner handle;
     private transient CpsFlowExecution exec;
     private transient Map<String,StepDescriptor> functions;
+    /**
+     * Allows steps to be referenced using their fully qualified class name in case the same
+     * function name is used for multiple steps. We keep them separate from {@link #functions} so
+     * that they are not included in the error message thrown by {@link #invokeMethod} when a
+     * matching DSL method is not found.
+     */
+    private transient Map<String,StepDescriptor> stepClassNames;
+    /**
+     * Set of function names that are reused by distinct {@link StepDescriptor}s and for which
+     * we have not yet warned the user about the ambiguity.
+     */
+    private transient Set<String> unreportedAmbiguousFunctions;
 
     private static final Logger LOGGER = Logger.getLogger(DSL.class.getName());
 
@@ -136,6 +147,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         if (functions == null) {
             functions = new TreeMap<>();
+            stepClassNames = new TreeMap<>();
             while (StepDescriptor.all().isEmpty()) {
                 LOGGER.warning("Jenkins does not seem to be fully started yet, waiting…");
                 try {
@@ -144,13 +156,25 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                     throw new GroovyRuntimeException(x);
                 }
             }
+            unreportedAmbiguousFunctions = new HashSet<>(0);
             for (StepDescriptor d : StepDescriptor.all()) {
-                functions.put(d.getFunctionName(), d);
+                // TODO consider adding metasteps here and in reportAmbiguousStepInvocation
+                String functionName = d.getFunctionName();
+                if (functions.containsKey(functionName)) {
+                    unreportedAmbiguousFunctions.add(functionName);
+                }
+                // The step descriptor with the highest value for Extension#ordinal() is used in the case of ambiguity.
+                functions.putIfAbsent(functionName, d);
+                stepClassNames.put(d.clazz.getName(), d);
             }
         }
-        final StepDescriptor sd = functions.get(name);
+        final StepDescriptor sd = functions.getOrDefault(name, stepClassNames.get(name));
         if (sd != null) {
-            return invokeStep(sd,args);
+            if (Util.isOverridden(DSL.class, getClass(), "invokeStep", StepDescriptor.class, Object.class) &&
+                    !Util.isOverridden(DSL.class, getClass(), "invokeStep", StepDescriptor.class, String.class, Object.class)) {
+                return invokeStep(sd, args);
+            }
+            return invokeStep(sd, name, args);
         }
         if (SymbolLookup.get().findDescriptor(Describable.class, name) != null) {
             return invokeDescribable(name,args);
@@ -160,7 +184,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         Set<String> globals = new TreeSet<>();
         // TODO SymbolLookup only lets us find a particular symbol, not enumerate them
         try {
-            for (Class<?> e : Index.list(Symbol.class, Jenkins.getActiveInstance().pluginManager.uberClassLoader, Class.class)) {
+            for (Class<?> e : Index.list(Symbol.class, Jenkins.get().pluginManager.uberClassLoader, Class.class)) {
                 if (Descriptor.class.isAssignableFrom(e)) {
                     symbols.addAll(SymbolLookup.getSymbolValue(e));
                 }
@@ -178,8 +202,19 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
     /**
      * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
+     * @deprecated Prefer {@link #invokeStep(StepDescriptor, String, Object)}
      */
     protected Object invokeStep(StepDescriptor d, Object args) {
+        return invokeStep(d, d.getFunctionName(), args);
+    }
+
+    /**
+     * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
+     * @param d The {@link StepDescriptor} being invoked.
+     * @param name The name used to invoke the step. May be {@link StepDescriptor#getFunctionName}, a symbol as in {@link StepDescriptor#metaStepsOf}, or {@code d.clazz.getName()}.
+     * @param args The arguments passed to the step.
+     */
+    protected Object invokeStep(StepDescriptor d, String name, Object args) {
         final NamedArgsAndClosure ps = parseArgs(args, d);
 
         CpsThread thread = CpsThread.current();
@@ -191,36 +226,41 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         if (ps.body == null && !hack) {
             an = new StepAtomNode(exec, d, thread.head.get());
-            // TODO: use CPS call stack to obtain the current call site source location. See JENKINS-23013
-            thread.head.setNewHead(an);
         } else {
             an = new StepStartNode(exec, d, thread.head.get());
-            thread.head.setNewHead(an);
         }
 
-        final CpsStepContext context = new CpsStepContext(d,thread,handle,an,ps.body);
+        // Ensure ArgumentsAction is attached before we notify even synchronous listeners:
+        final CpsStepContext context = new CpsStepContext(d, thread, handle, an, ps.body);
+        try {
+            // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
+            if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepArguments() && !(d instanceof ParallelStep.DescriptorImpl)) {
+                // Get the environment variables to find ones that might be credentials bindings
+                Computer comp = context.get(Computer.class);
+                EnvVars allEnv = new EnvVars(context.get(EnvVars.class));
+                if (comp != null && allEnv != null) {
+                    allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
+                }
+                an.addAction(new ArgumentsActionImpl(ps.namedArgs, allEnv));
+            }
+        } catch (Exception e) {
+            // Avoid breaking execution because we can't store some sort of crazy Step argument
+            LOGGER.log(Level.WARNING, "Error storing the arguments for step: " + d.getFunctionName(), e);
+        }
+
+        // TODO: use CPS call stack to obtain the current call site source location. See JENKINS-23013
+        thread.head.setNewHead(an);
+
         Step s;
         boolean sync;
         ClassLoader originalLoader = Thread.currentThread().getContextClassLoader();
         try {
+            if (unreportedAmbiguousFunctions.remove(name)) {
+                reportAmbiguousStepInvocation(context, d);
+            }
             d.checkContextAvailability(context);
             Thread.currentThread().setContextClassLoader(CpsVmExecutorService.ORIGINAL_CONTEXT_CLASS_LOADER.get());
             s = d.newInstance(ps.namedArgs);
-            try {
-                // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
-                if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepArguments() && !(s instanceof ParallelStep)) {
-                    // Get the environment variables to find ones that might be credentials bindings
-                    Computer comp = context.get(Computer.class);
-                    EnvVars allEnv = new EnvVars(context.get(EnvVars.class));
-                    if (comp != null && allEnv != null) {
-                        allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
-                    }
-                    an.addAction(new ArgumentsActionImpl(ps.namedArgs, allEnv));
-                }
-            } catch (Exception e) {
-                // Avoid breaking execution because we can't store some sort of crazy Step argument
-                LOGGER.log(Level.WARNING, "Error storing the arguments for step: "+d.getFunctionName(), e);
-            }
 
             // Persist the node - block start and end nodes do their own persistence.
             CpsFlowExecution.maybeAutoPersistNode(an);
@@ -228,8 +268,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             thread.setStep(e);
             sync = e.start();
         } catch (Exception e) {
-            if (e instanceof MissingContextVariableException)
-                reportMissingContextVariableException(context, (MissingContextVariableException)e);
             context.onFailure(e);
             s = null;
             sync = true;
@@ -259,7 +297,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         } else {
             // if it's in progress, suspend it until we get invoked later.
             // when it resumes, the CPS caller behaves as if this method returned with the resume value
-            Continuable.suspend(new ThreadTaskImpl(context));
+            Continuable.suspend(name, new ThreadTaskImpl(context));
 
             // the above method throws an exception to unwind the call stack, and
             // the control then goes back to CpsFlowExecution.runNextChunk
@@ -355,37 +393,34 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 ud = new UninstantiatedDescribable(symbol, null, dargs);
                 margs.put(p.getName(),ud);
 
-                return invokeStep(metaStep,new NamedArgsAndClosure(margs,args.body));
+                return invokeStep(metaStep, symbol, new NamedArgsAndClosure(margs, args.body));
             } catch (Exception e) {
                 throw new IllegalArgumentException("Failed to prepare "+symbol+" step",e);
             }
         }
     }
 
-    /**
-     * Reports a user-friendly error message for {@link MissingContextVariableException}.
-     */
-    private void reportMissingContextVariableException(CpsStepContext context, MissingContextVariableException e) {
-        TaskListener tl;
+    private void reportAmbiguousStepInvocation(CpsStepContext context, StepDescriptor d) {
+        Exception e = null;
         try {
-            tl = context.get(TaskListener.class);
-            if (tl==null)       return; // if we can't report an error, give up
-        } catch (IOException _) {
-            return;
-        } catch (InterruptedException _) {
-            return;
+            TaskListener listener = context.get(TaskListener.class);
+            if (listener != null) {
+                List<String> ambiguousClassNames = StepDescriptor.all().stream()
+                        .filter(sd -> sd.getFunctionName().equals(d.getFunctionName()))
+                        .map(sd -> sd.clazz.getName())
+                        .collect(Collectors.toList());
+                String message = String.format("Warning: Invoking ambiguous Pipeline Step ‘%1$s’ (%2$s). " +
+                        "‘%1$s’ could refer to any of the following steps: %3$s. " +
+                        "You can invoke steps by class name instead to avoid ambiguity. " +
+                        "For example: steps.'%2$s'(...)",
+                        d.getFunctionName(), d.clazz.getName(), ambiguousClassNames);
+                listener.getLogger().println(message);
+                return;
+            }
+        } catch (InterruptedException | IOException temp) {
+            e = temp;
         }
-
-        StringBuilder names = new StringBuilder();
-        for (StepDescriptor p : e.getProviders()) {
-            if (names.length()>0)   names.append(',');
-            names.append(p.getFunctionName());
-        }
-
-        PrintStream logger = tl.getLogger();
-        logger.println(e.getMessage());
-        if (names.length()>0)
-            logger.println("Perhaps you forgot to surround the code with a step that provides this, such as: "+names);
+        LOGGER.log(Level.FINE, "Unable to report ambiguous step invocation for: " + d.getFunctionName(), e);
     }
 
     /** Returns the capacity we need to allocate for a HashMap so it will hold all elements without needing to resize. */
@@ -577,6 +612,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // the first one can reuse the current thread, but other ones need to create new heads
             // we want to do this first before starting body so that the order of heads preserve
             // natural ordering.
+
+            // TODO give this javadocs worth a darn, because this is how we create parallel branches and the docs are cryptic as can be!
+            // Also we need to double-check this logic because this might cause a failure of persistence
             FlowHead[] heads = new FlowHead[context.bodyInvokers.size()];
             for (int i = 0; i < heads.length; i++) {
                 heads[i] = i==0 ? cur.head : cur.head.fork();

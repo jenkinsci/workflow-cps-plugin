@@ -28,10 +28,18 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
+import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.converters.Converter;
+import com.thoughtworks.xstream.converters.MarshallingContext;
+import com.thoughtworks.xstream.converters.UnmarshallingContext;
+import com.thoughtworks.xstream.io.HierarchicalStreamReader;
+import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
+import hudson.ExtensionList;
+import hudson.Functions;
 import hudson.Util;
 import hudson.model.Result;
 import jenkins.model.Jenkins;
@@ -54,8 +62,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.TreeMap;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
@@ -67,7 +75,10 @@ import static java.util.logging.Level.*;
 import javax.annotation.CheckForNull;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import org.jenkinsci.plugins.workflow.pickles.Pickle;
 import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
+import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
+import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
 
 /**
  * List of {@link CpsThread}s that form a single {@link CpsFlowExecution}.
@@ -78,7 +89,7 @@ import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
  * @author Kohsuke Kawaguchi
  */
 @PersistIn(PROGRAM)
-@edu.umd.cs.findbugs.annotations.SuppressWarnings("SE_BAD_FIELD") // bogus warning about closures
+@SuppressFBWarnings("SE_BAD_FIELD") // bogus warning about closures
 public final class CpsThreadGroup implements Serializable {
     /**
      * {@link CpsThreadGroup} always belong to the same {@link CpsFlowExecution}.
@@ -89,9 +100,13 @@ public final class CpsThreadGroup implements Serializable {
     private /*almost final*/ transient CpsFlowExecution execution;
 
     /**
-     * All the member threads by their {@link CpsThread#id}
+     * All the member threads by their {@link CpsThread#id}.
+     *
+     * All mutation occurs only on the CPS VM thread. Read access through {@link CpsStepContext#doGet}
+     * and iteration through {@link CpsThreadDump#from(CpsThreadGroup)} may occur on other threads
+     * (e.g. non-blocking steps, thread dumps from the UI).
      */
-    final NavigableMap<Integer,CpsThread> threads = new TreeMap<Integer, CpsThread>();
+    private final NavigableMap<Integer,CpsThread> threads = new ConcurrentSkipListMap<>();
 
     /**
      * Unique thread ID generator.
@@ -189,8 +204,27 @@ public final class CpsThreadGroup implements Serializable {
         assert current()==this;
     }
 
+    /**
+     * Returns the thread with the specified id.
+     *
+     * Normally called from the CPS VM thread, but may be called from other threads via {@link CpsStepContext#doGet}.
+     *
+     * @return
+     *      null if the thread has finished executing.
+     */
     public CpsThread getThread(int id) {
-        return threads.get(id);
+        CpsThread thread = threads.get(id);
+        if (thread == null && LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.log(Level.FINE, "no thread " + id + " among " + threads.keySet(), new IllegalStateException());
+        }
+        return thread;
+    }
+
+    /**
+     * Returns an unmodifiable snapshot of all threads in the thread group.
+     */
+    public Iterable<CpsThread> getThreads() {
+        return threads.values();
     }
 
     @CpsVmThreadOnly("root")
@@ -198,6 +232,7 @@ public final class CpsThreadGroup implements Serializable {
         assertVmThread();
         int id = iota++;
         closures.put(id, body);
+        LOGGER.log(FINE, "exporting {0}", id);
         return new StaticBodyReference(id,body);
     }
 
@@ -216,7 +251,11 @@ public final class CpsThreadGroup implements Serializable {
     public void unexport(BodyReference ref) {
         assertVmThread();
         if (ref==null)      return;
-        closures.remove(ref.id);
+        if (closures.remove(ref.id) != null) {
+            LOGGER.log(FINE, "unexporting {0}", ref.id);
+        } else {
+            LOGGER.log(WARNING, "double unexport of {0}", ref.id);
+        }
     }
 
     /**
@@ -231,7 +270,7 @@ public final class CpsThreadGroup implements Serializable {
             runner.submit(new Callable<Void>() {
                 @SuppressFBWarnings(value="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE", justification="runner.submit() result")
                 public Void call() throws Exception {
-                    Jenkins j = Jenkins.getInstance();
+                    Jenkins j = Jenkins.getInstanceOrNull();
                     if (paused.get() || j == null || (execution != null && j.isQuietingDown())) {
                         // by doing the pause check inside, we make sure that scheduleRun() returns a
                         // future that waits for any previously scheduled tasks to be completed.
@@ -352,12 +391,16 @@ public final class CpsThreadGroup implements Serializable {
                     threads.remove(t.id);
                     if (threads.isEmpty()) {
                         execution.onProgramEnd(o);
+                        try {
+                            this.execution.saveOwner();
+                        } catch (Exception ex) {
+                            LOGGER.log(Level.WARNING, "Error saving execution for "+this.getExecution(), ex);
+                        }
                         ending = true;
                     }
                 } else {
                     stillRunnable |= t.isRunnable();
                 }
-
                 changed = true;
             }
         }
@@ -371,7 +414,10 @@ public final class CpsThreadGroup implements Serializable {
             if (scripts != null) {
                 scripts.clear();
             }
-            closures.clear();
+            if (!closures.isEmpty()) {
+                LOGGER.log(WARNING, "Stale closures in {0}: {1}", new Object[] {execution, closures.keySet()});
+                closures.clear();
+            }
             try {
                 Util.deleteFile(execution.getProgramDataFile());
             } catch (IOException x) {
@@ -426,6 +472,16 @@ public final class CpsThreadGroup implements Serializable {
     void saveProgramIfPossible(boolean enteringQuietState) {
         if (this.getExecution() != null && (this.getExecution().getDurabilityHint().isPersistWithEveryStep()
                 || enteringQuietState)) {
+
+            try {  // Program may depend on flownodes being saved, so save nodes
+                FlowNodeStorage storage = this.execution.getStorage();
+                if (storage != null) {
+                    storage.flush();
+                }
+            } catch (IOException ioe) {
+                LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before saving program", ioe);
+            }
+
             try {
                 saveProgram();
             } catch (IOException x) {
@@ -483,6 +539,35 @@ public final class CpsThreadGroup implements Serializable {
             PROGRAM_STATE_SERIALIZATION.set(old);
             Util.deleteFile(tmpFile);
         }
+    }
+
+    @CpsVmThreadOnly
+    String asXml() {
+        XStream xs = new XStream();
+        // Could not handle a general PickleFactory without doing something weird with XStream
+        // and there is no apparent way to make a high-priority generic Convertor delegate to others.
+        // Anyway the only known exceptions are ThrowablePickle, which we are unlikely to need,
+        // and RealtimeJUnitStep.Pickler which could probably be replaced by a DescribablePickleFactory
+        // (and anyway these Describable objects would be serialized fine by XStream, just not JBoss Marshalling).
+        for (SingleTypedPickleFactory<?> stpf : ExtensionList.lookup(SingleTypedPickleFactory.class)) {
+            Class<?> factoryType = Functions.getTypeParameter(stpf.getClass(), SingleTypedPickleFactory.class, 0);
+            xs.registerConverter(new Converter() {
+                @Override public void marshal(Object source, HierarchicalStreamWriter writer, MarshallingContext context) {
+                    Pickle p = stpf.writeReplace(source);
+                    assert p != null : "failed to pickle " + source + " using " + stpf;
+                    context.convertAnother(p);
+                }
+                @Override public Object unmarshal(HierarchicalStreamReader reader, UnmarshallingContext context) {
+                    throw new UnsupportedOperationException(); // unused
+                }
+                @SuppressWarnings("rawtypes")
+                @Override public boolean canConvert(Class type) {
+                    return factoryType.isAssignableFrom(type);
+                }
+            });
+        }
+        // Could also register a convertor for FlowExecutionOwner, though it seems harmless.
+        return xs.toXML(this);
     }
 
     /**

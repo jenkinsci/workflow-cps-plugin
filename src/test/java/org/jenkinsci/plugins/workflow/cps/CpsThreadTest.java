@@ -27,6 +27,7 @@ package org.jenkinsci.plugins.workflow.cps;
 import hudson.AbortException;
 import hudson.model.Result;
 import hudson.security.ACL;
+import hudson.security.ACLContext;
 import java.util.List;
 import jenkins.model.CauseOfInterruption;
 import jenkins.model.InterruptedBuildAction;
@@ -55,11 +56,9 @@ public class CpsThreadTest {
         p.setDefinition(new CpsFlowDefinition("unkillable()", true));
         final WorkflowRun b = p.scheduleBuild2(0).waitForStart();
         r.waitForMessage("unkillable", b);
-        ACL.impersonate(Jenkins.ANONYMOUS, new Runnable() {
-            @Override public void run() {
-                b.getExecutor().interrupt();
-            }
-        });
+        try (ACLContext context = ACL.as(Jenkins.ANONYMOUS)) {
+            b.getExecutor().interrupt();
+        };
         r.waitForCompletion(b);
         r.assertBuildStatus(Result.ABORTED, b);
         InterruptedBuildAction iba = b.getAction(InterruptedBuildAction.class);

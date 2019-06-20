@@ -21,7 +21,7 @@ public class Safepoint extends ThreadTask {
      */
     @Whitelisted
     public static void safepoint() {
-        Continuable.suspend(new Safepoint());
+        Continuable.suspend("safepoint", new Safepoint());
     }
 
     @Override

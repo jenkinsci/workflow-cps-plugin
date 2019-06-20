@@ -98,6 +98,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -133,7 +135,9 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
@@ -175,7 +179,7 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
  * </dd>
  * <dt>PERSISTED</dt>
  * <dd>
- *     {@link CpsFlowExecution} is on disk with its owner, for example in <tt>build.xml</tt> of the workflow run.
+ *     {@link CpsFlowExecution} is on disk with its owner, for example in {@code build.xml} of the workflow run.
  *     Nothing exists in memory. For example, Jenkins is not running.
  *
  *     Transition from this into PREPARING is triggered outside our control by XStream using
@@ -282,7 +286,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     private transient List<String> startNodesSerial; // used only between unmarshal and onLoad
 
     @GuardedBy("this")
-    private /* almost final*/ NavigableMap<Integer,FlowHead> heads = new TreeMap<Integer,FlowHead>();
+    /* almost final*/ NavigableMap<Integer,FlowHead> heads = new TreeMap<Integer,FlowHead>(); // Non-private for unit tests
+
     @SuppressFBWarnings({"IS_FIELD_NOT_GUARDED", "IS2_INCONSISTENT_SYNC"}) // irrelevant here
     private transient Map<Integer,String> headsSerial; // used only between unmarshal and onLoad
 
@@ -313,7 +318,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * {@link FlowExecution} gets loaded into memory for the build records that have been completed,
      * and for those we don't want to load the program state, so that check should be efficient.
      */
-    private boolean done;
+    boolean done; // Only non-private for unit test use.
 
     /**
      * Groovy compiler with CPS+sandbox transformation correctly setup.
@@ -473,7 +478,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     public FlowNodeStorage getStorage() {
         return storage;
     }
-    
+
     public String getScript() {
         return script;
     }
@@ -598,80 +603,95 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         return iota.get();
     }
 
-    /** Handle failures where we can't load heads. */
-    private void rebuildEmptyGraph() {
-        synchronized (this) {
-            // something went catastrophically wrong and there's no live head. fake one
-            if (this.startNodes == null) {
-                this.startNodes = new Stack<BlockStartNode>();
-            }
-            this.heads.clear();
-            this.startNodes.clear();
-            FlowHead head = new FlowHead(this);
-            heads.put(head.getId(), head);
-            try {
-                FlowStartNode start = new FlowStartNode(this, iotaStr());
-                startNodes.push(start);
-                head.newStartNode(start);
-            } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "Failed to persist", e);
-            }
-            persistedClean = false;
-            startNodesSerial = null;
-            headsSerial = null;
+    /** For diagnostic purposes only, this logs current heads to assist with troubleshooting. */
+    private synchronized String getHeadsAsString() {
+        NavigableMap<Integer, FlowHead> myHeads = this.heads;
+        if (myHeads == null) {
+            return "null-heads";
+        } else if (myHeads.size() == 0) {
+            return "empty-heads";
+        } else {
+            return myHeads.entrySet().stream().map(h -> h.getKey() + "::" + h.getValue()).collect(Collectors.joining(","));
         }
+    }
+
+    /**
+     * In the event we're missing FlowNodes, fail-fast and create some mockup FlowNodes so we can continue.
+     * This avoids nulling out all of the execution's data
+     * Bypasses {@link #croak(Throwable)} and {@link #onProgramEnd(Outcome)} to guarantee a clean path.
+     */
+    @GuardedBy("this")
+    void createPlaceholderNodes(Throwable failureReason) throws Exception {
+        synchronized (this) {
+            this.done = true;
+
+            if (this.owner != null) {
+                // Ensure that the Run is marked as completed (failed) if it isn't already so it won't show as running
+                Queue.Executable ex = owner.getExecutable();
+                if (ex instanceof Run) {
+                    Result res = ((Run) ex).getResult();
+                    setResult(res != null ? res : Result.FAILURE);
+                }
+            }
+
+            programPromise = Futures.immediateFailedFuture(new IllegalStateException("Failed loading heads", failureReason));
+            LOGGER.log(Level.INFO, "Creating placeholder flownodes for execution: " + this);
+            if (this.owner != null) {
+                try {
+                    owner.getListener().getLogger().println("Creating placeholder flownodes because failed loading originals.");
+                } catch (Exception ex) {
+                    // It's okay to fail to log
+                }
+            }
+
+            // Switch to fallback storage so we don't delete original node data
+            this.storageDir = (this.storageDir != null) ? this.storageDir + "-fallback" : "workflow-fallback";
+            this.storage = createStorage();  // Empty storage
+
+            // Clear out old start nodes and heads
+            this.startNodes = new Stack<BlockStartNode>();
+            FlowHead head = new FlowHead(this);
+            this.heads = new TreeMap<Integer, FlowHead>();
+            heads.put(head.getId(), head);
+            FlowStartNode start = new FlowStartNode(this, iotaStr());
+            head.newStartNode(start);
+
+            // Create end
+            FlowNode end = new FlowEndNode(this, iotaStr(), (FlowStartNode) startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
+            end.addAction(new ErrorAction(failureReason));
+            head.setNewHead(end);
+        }
+        saveOwner();
     }
 
     @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification="Storage does not actually NEED to be synchronized but the rest does.")
     protected synchronized void initializeStorage() throws IOException {
-        boolean storageErrors = false;  // Maybe storage didn't get to persist properly or files were deleted.
-        try {
-            storage = createStorage();
+        storage = createStorage();
+        heads = new TreeMap<Integer,FlowHead>();
+        for (Map.Entry<Integer,String> entry : headsSerial.entrySet()) {
+            FlowHead h = new FlowHead(this, entry.getKey());
 
-                heads = new TreeMap<Integer,FlowHead>();
-                for (Map.Entry<Integer,String> entry : headsSerial.entrySet()) {
-                    FlowHead h = new FlowHead(this, entry.getKey());
-
-                    FlowNode n = storage.getNode(entry.getValue());
-                    if (n != null) {
-                        h.setForDeserialize(storage.getNode(entry.getValue()));
-                        heads.put(h.getId(), h);
-                    } else {
-                        storageErrors = true;
-                        break;
-                    }
-                }
-
-            headsSerial = null;
-
-            if (!storageErrors) {
-                // Same for startNodes:
-                storageErrors = false;
-                startNodes = new Stack<BlockStartNode>();
-                for (String id : startNodesSerial) {
-                    FlowNode node = storage.getNode(id);
-                    if (node != null) {
-                        startNodes.add((BlockStartNode) storage.getNode(id));
-                    } else {
-                        // TODO if possible, consider trying to close out unterminated blocks using heads, to keep existing graph history
-                        storageErrors = true;
-                        break;
-                    }
-                }
+            FlowNode n = storage.getNode(entry.getValue());
+            if (n != null) {
+                h.setForDeserialize(storage.getNode(entry.getValue()));
+                heads.put(h.getId(), h);
+            } else {
+                throw new IOException("Tried to load head FlowNodes for execution "+this.owner+" but FlowNode was not found in storage for head id:FlowNodeId "+entry.getKey()+":"+entry.getValue());
             }
-            startNodesSerial = null;
-
-        } catch (IOException ioe) {
-            LOGGER.log(Level.WARNING, "Error initializing storage and loading nodes", ioe);
-            storageErrors = true;
         }
+        headsSerial = null;
 
-        if (storageErrors) {  //
-            this.storageDir = (this.storageDir != null) ? this.storageDir+"-fallback" : "workflow-fallback";  // Avoid overwriting data
-            this.storage = createStorage();  // Empty storage
-            // Need to find a way to mimic up the heads and fail cleanly, far enough to let the canResume do its thing
-            rebuildEmptyGraph();
+        startNodes = new Stack<BlockStartNode>();
+        for (String id : startNodesSerial) {
+            FlowNode node = storage.getNode(id);
+            if (node != null) {
+                startNodes.add((BlockStartNode) storage.getNode(id));
+            } else {
+                // TODO if possible, consider trying to close out unterminated blocks using heads, to keep existing graph history
+                throw  new IOException( "Tried to load startNode FlowNodes for execution "+this.owner+" but FlowNode was not found in storage for FlowNode Id "+id);
+            }
         }
+        startNodesSerial = null;
     }
 
     /** If true, we are allowed to resume the build because resume is enabled AND we shut down cleanly. */
@@ -687,26 +707,48 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     @Override
+    @SuppressFBWarnings(value = "RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN", justification = "We want to explicitly check for boolean not-null and true")
     public void onLoad(FlowExecutionOwner owner) throws IOException {
         this.owner = owner;
+
         try {
-            initializeStorage();
             try {
-                if (!isComplete()) {
-                    if (canResume()) {
-                        loadProgramAsync(getProgramDataFile());
-                    } else {
-                        // TODO if possible, consider tyring to close out unterminated blocks to keep existing graph history
-                        // That way we can visualize the graph in some error cases.
-                        LOGGER.log(Level.WARNING, "Pipeline state not properly persisted, cannot resume "+owner.getUrl());
-                        throw new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down.");
-                    }
-                }
-            } catch (IOException e) {
-                SettableFuture<CpsThreadGroup> p = SettableFuture.create();
-                programPromise = p;
-                loadProgramFailed(e, p);
+                initializeStorage();  // Throws exception and bombs out if we can't load FlowNodes
+            } catch (Exception ex) {
+                LOGGER.log(Level.WARNING, "Error initializing storage and loading nodes, will try to create placeholders for: "+this, ex);
+                createPlaceholderNodes(ex);
+                return;
             }
+        } catch (Exception ex) {
+            done = true;
+            programPromise = Futures.immediateFailedFuture(ex);
+            throw new IOException("Failed to even create placeholder nodes for execution", ex);
+        }
+
+        try {
+            if (isComplete()) {
+                if (done == Boolean.TRUE && !super.isComplete()) {
+                    LOGGER.log(Level.INFO, "Completed flow without FlowEndNode: "+this+" heads:"+getHeadsAsString());
+                }
+                if (super.isComplete() && done != Boolean.TRUE) {
+                    LOGGER.log(Level.FINE, "Flow has FlowEndNode, but is not marked as done, fixing this for"+this);
+                    done = true;
+                    saveOwner();
+                }
+            } else {  // See if we can/should resume build
+                if (canResume()) {
+                    loadProgramAsync(getProgramDataFile());
+                } else {
+                    // TODO if possible, consider trying to close out unterminated blocks to keep existing graph history
+                    // That way we can visualize the graph in some error cases.
+                    LOGGER.log(Level.WARNING, "Pipeline state not properly persisted, cannot resume "+owner.getUrl());
+                    throw new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down.");
+                }
+            }
+        } catch (Exception e) {  // Broad catch ensures that failure to load do NOT nuke the master
+            SettableFuture<CpsThreadGroup> p = SettableFuture.create();
+            programPromise = p;
+            loadProgramFailed(e, p);
         } finally {
             if (programPromise == null) {
                 programPromise = Futures.immediateFailedFuture(new IllegalStateException("completed or broken execution"));
@@ -829,6 +871,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         setResult(Result.FAILURE);
         onProgramEnd(new Outcome(null, t));
         cleanUpHeap();
+        try {
+            saveOwner();
+        } catch (Exception ex) {
+            LOGGER.log(Level.WARNING, "Failed to persist WorkflowRun after noting a serious failure for run: " + owner, ex);
+        }
     }
 
     /**
@@ -872,17 +919,32 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         });
     }
 
+    /** See JENKINS-22941 for why this exists. */
     @Override public boolean blocksRestart() {
         if (programPromise == null || !programPromise.isDone()) {
+            // Can't restart cleanly while trying to set up the build
             return true;
         }
         CpsThreadGroup g;
         try {
             g = programPromise.get();
         } catch (Exception x) {
-            return true;
+            // TODO Check this won't cause issues due to depickling delays etc
+            LOGGER.log(Level.FINE, "Not blocking restart due to exception in ProgramPromise: "+this, x);
+            return false;
         }
-        return g.busy;
+        if (g.busy) {
+            return true;
+        } else {
+            try {
+                return getCurrentExecutions(false).get(1, TimeUnit.SECONDS).stream().anyMatch(StepExecution::blocksRestart);
+            } catch (Exception x) {
+                // TODO RestartListener.Default.isReadyToRestart can throw checked exceptions, but AsynchronousExecution.blocksRestart does not currently allow it
+                Level level = x.getCause() instanceof RejectedExecutionException ? /* stray Executor past program end? */ Level.FINE : Level.WARNING;
+                LOGGER.log(level, "Not blocking restart due to problem checking running steps in " + this, x);
+                return false;
+            }
+        }
     }
 
     /**
@@ -906,11 +968,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     @Override
     public synchronized List<FlowNode> getCurrentHeads() {
-        List<FlowNode> r = new ArrayList<FlowNode>();
         if (heads == null) {
             LOGGER.log(Level.WARNING, null, new IllegalStateException("List of flow heads unset for " + this));
-            return r;
+            return Collections.emptyList();
         }
+        List<FlowNode> r = new ArrayList<FlowNode>(heads.size());
         for (FlowHead h : heads.values()) {
             r.add(h.get());
         }
@@ -931,7 +993,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     // to exclude outer StepExecutions, first build a map by FlowHead
                     // younger threads with their StepExecutions will overshadow old threads, leaving inner-most threads alone.
                     Map<FlowHead, StepExecution> m = new LinkedHashMap<FlowHead, StepExecution>();
-                    for (CpsThread t : g.threads.values()) {
+                    for (CpsThread t : g.getThreads()) {
                         StepExecution e = t.getStep();
                         if (e != null) {
                             m.put(t.head, e);
@@ -940,7 +1002,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     r.set(ImmutableList.copyOf(m.values()));
                 } else {
                     List<StepExecution> es = new ArrayList<StepExecution>();
-                    for (CpsThread t : g.threads.values()) {
+                    for (CpsThread t : g.getThreads()) {
                         StepExecution e = t.getStep();
                         if (e != null) {
                             es.add(e);
@@ -1019,12 +1081,18 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * of a FlowNode and thereby joining an another thread.
      */
     //
-    synchronized void addHead(FlowHead h) {
-        heads.put(h.getId(), h);
+    void addHead(FlowHead h) {
+        synchronized (this) {
+            heads.put(h.getId(), h);
+        }
+        saveExecutionIfDurable();
     }
 
-    synchronized void removeHead(FlowHead h) {
-        heads.remove(h.getId());
+    void removeHead(FlowHead h) {
+        synchronized (this) {
+            heads.remove(h.getId());
+        }
+        saveExecutionIfDurable(); // We need to save the mutated heads for the run
     }
 
     /**
@@ -1040,6 +1108,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         for (FlowHead h : _heads) {
             if (h.get()==n) {
                 h.remove();
+                saveExecutionIfDurable(); // We need to save the mutated heads for the run
                 return;
             }
         }
@@ -1073,7 +1142,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             public void onSuccess(CpsThreadGroup g) {
                 // don't touch outer ones. See JENKINS-26148
                 Map<FlowHead, CpsThread> m = new LinkedHashMap<>();
-                for (CpsThread t : g.threads.values()) {
+                for (CpsThread t : g.getThreads()) {
                     m.put(t.head, t);
                 }
                 // for each inner most CpsThread, from young to old...
@@ -1160,7 +1229,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     /**
-     * Record the end of the build.
+     * Record the end of the build.  Note: we should always follow this with a call to {@link #saveOwner()} to persist the result.
      * @param outcome success; or a normal failure (uncaught exception); or a fatal error in VM machinery
      */
     synchronized void onProgramEnd(Outcome outcome) {
@@ -1170,12 +1239,24 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         // shrink everything into a single new head
-        done = true;
-        if (heads != null) {
-            FlowHead first = getFirstHead();
-            first.setNewHead(head);
-            heads.clear();
-            heads.put(first.getId(),first);
+        try {
+            if (heads != null) {
+                FlowHead first = getFirstHead();
+                first.setNewHead(head);
+                done = true;  // After setting the final head
+                heads.clear();
+                heads.put(first.getId(), first);
+
+                String tempIotaStr = Integer.toString(this.iota.get());
+                FlowHead lastHead = heads.get(first.getId());
+                if (lastHead == null || lastHead.get() == null || !(lastHead.get().getId().equals(tempIotaStr))) {
+                    // Warning of problems with the final call to FlowHead.setNewHead
+                    LOGGER.log(Level.WARNING, "Invalid final head for execution "+this.owner+" with head: "+lastHead);
+                }
+            }
+        } catch (Exception ex) {
+            done = true;
+            LOGGER.log(Level.WARNING, "Error trying to end execution "+this, ex);
         }
 
         try {
@@ -1184,6 +1265,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             LOGGER.log(Level.WARNING, "Error flushing FlowNodeStorage to disk at end of run", ioe);
         }
 
+        this.persistedClean = Boolean.TRUE;
     }
 
     void cleanUpHeap() {
@@ -1225,6 +1307,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 LOGGER.log(Level.FINER, "found {0}", clazz.getName());
                 Introspector.flushFromCaches(clazz);
                 cleanUpGlobalClassSet(clazz);
+                cleanUpClassHelperCache(clazz);
                 cleanUpObjectStreamClassCaches(clazz);
                 cleanUpLoader(clazz.getClassLoader(), encounteredLoaders, encounteredClasses);
             }
@@ -1272,7 +1355,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             ClassLoader encounteredLoader = klazz.getClassLoader();
             if (encounteredLoader != loader) {
                 it.remove();
-                LOGGER.log(Level.FINEST, "ignoring {0} with loader {1}", new Object[] {klazz, /* do not hold from LogRecord */String.valueOf(encounteredLoader)});
+                if (LOGGER.isLoggable(Level.FINEST)) {
+                  LOGGER.log(Level.FINEST, "ignoring {0} with loader {1}", new Object[] {klazz, /* do not hold from LogRecord */String.valueOf(encounteredLoader)});
+                }
             }
         }
         LOGGER.log(Level.FINE, "cleaning up {0} associated with {1}", new Object[] {toRemove.toString(), loader.toString()});
@@ -1311,6 +1396,16 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 }
             }
         }
+    }
+
+    private static void cleanUpClassHelperCache(@Nonnull Class<?> clazz) throws Exception {
+        Field classCacheF = Class.forName("org.codehaus.groovy.ast.ClassHelper$ClassHelperCache").getDeclaredField("classCache");
+        classCacheF.setAccessible(true);
+        Object classCache = classCacheF.get(null);
+        if (LOGGER.isLoggable(Level.FINER)) {
+            LOGGER.log(Level.FINER, "cleaning up {0} from ClassHelperCache? {1}", new Object[] {clazz.getName(), classCache.getClass().getMethod("get", Object.class).invoke(classCache, clazz) != null});
+        }
+        classCache.getClass().getMethod("remove", Object.class).invoke(classCache, clazz);
     }
 
     private static void cleanUpObjectStreamClassCaches(@Nonnull Class<?> clazz) throws Exception {
@@ -1364,7 +1459,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 for (FlowNode node : nodes) {
                     for (GraphListener listener : toRun) {
                         if (listener instanceof GraphListener.Synchronous == synchronous) {
-                            listener.onNewHead(node);
+                            try {
+                                listener.onNewHead(node);
+                            } catch (Throwable x) {
+                                LOGGER.log(Level.WARNING, null, x);
+                            }
                         }
                     }
                 }
@@ -1387,7 +1486,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             return ACL.SYSTEM;
         }
         try {
-            return User.get(user).impersonate();
+            User u = User.getById(user, true);
+            if (u == null) {
+                return Jenkins.ANONYMOUS;
+            } else {
+                return u.impersonate();
+            }
         } catch (UsernameNotFoundException x) {
             LOGGER.log(Level.WARNING, "could not restore authentication", x);
             // Should not expose this to callers.
@@ -1402,6 +1506,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     @Restricted(NoExternalUse.class)
     public String getNextScriptName(String path) {
         return shell.generateScriptName().replaceFirst("[.]groovy$", "");
+    }
+
+    /** Has the execution been marked done - note that legacy builds may not have that flag persisted, in which case
+     *  we look for a single FlowEndNode head (see: {@link #isComplete()} and {@link FlowExecution#isComplete()})
+     */
+    public boolean isDoneFlagSet() {
+        return done;
     }
 
     public boolean isPaused() {
@@ -1431,11 +1542,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         if (executable instanceof AccessControlled) {
             ((AccessControlled) executable).checkPermission(Item.CANCEL);
         }
+        done = false;
         Futures.addCallback(programPromise, new FutureCallback<CpsThreadGroup>() {
             @Override public void onSuccess(CpsThreadGroup g) {
                 if (v) {
                     g.pause();
-                    checkAndAbortNonresumableBuild();
+                    checkAndAbortNonresumableBuild();  // TODO Verify if we can rely on just killing paused builds at shutdown via checkAndAbortNonresumableBuild()
                     checkpoint();
                 } else {
                     g.unpause();
@@ -1462,13 +1574,27 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         try (Timeout t = Timeout.limit(3, TimeUnit.MINUTES)) { // TODO some complicated sequence of calls to Futures could allow all of them to run in parallel
             LOGGER.fine("starting to suspend all executions");
             for (FlowExecution execution : FlowExecutionList.get()) {
-                if (execution instanceof CpsFlowExecution) {
-                    LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
-                    exec = (CpsFlowExecution) execution;
-                    // Like waitForSuspension but with a timeout:
-                    if (exec.programPromise != null) {
-                        exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
+                try {
+                    if (execution instanceof CpsFlowExecution) {
+                        CpsFlowExecution cpsExec = (CpsFlowExecution)execution;
+                        cpsExec.checkAndAbortNonresumableBuild();
+
+                        LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
+                        exec = (CpsFlowExecution) execution;
+                        // Like waitForSuspension but with a timeout:
+                        if (exec.programPromise != null) {
+                            LOGGER.log(Level.FINER, "Waiting for Pipeline to go to sleep for shutdown: "+execution);
+                            try {
+                                exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
+                                LOGGER.log(Level.FINER, " Pipeline went to sleep OK: "+execution);
+                            } catch (InterruptedException | TimeoutException ex) {
+                                LOGGER.log(Level.WARNING, "Error waiting for Pipeline to suspend: "+exec, ex);
+                            }
+                        }
+                        cpsExec.checkpoint();
                     }
+                } catch (Exception ex) {
+                    LOGGER.log(Level.WARNING, "Error persisting Pipeline execution at shutdown: "+((CpsFlowExecution) execution).owner, ex);
                 }
             }
             LOGGER.fine("finished suspending all executions");
@@ -1517,12 +1643,27 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
             writeChild(w, context, "iota", e.iota.get(), Integer.class);
             synchronized (e) {
-                for (FlowHead h : e.heads.values()) {
-                    writeChild(w, context, "head", h.getId() + ":" + h.get().getId(), String.class);
+                if (e.headsSerial != null && (e.heads == null || e.heads.isEmpty())) { // Persisting before onLoad has called to load up the real heads
+                    // Note: unlike start nodes, heads should not be empty once onLoad loading has happened
+                    for (Entry<Integer, String> entry : e.headsSerial.entrySet()) {
+                        writeChild(w, context, "head", entry.getKey() + ":" + entry.getValue(), String.class);
+                    }
+                } else {  // onLoad was invoked, we have real heads
+                    for (FlowHead h : e.heads.values()) {
+                        writeChild(w, context, "head", h.getId() + ":" + h.get().getId(), String.class);
+                    }
                 }
-                for (BlockStartNode st : e.startNodes) {
-                    writeChild(w, context, "start", st.getId(), String.class);
+
+                if (e.startNodesSerial != null && (e.startNodes == null)) {  // Start nodes have not been lazy-loaded yet
+                    for (String startId : e.startNodesSerial) {
+                        writeChild(w, context, "start", startId, String.class);
+                    }
+                } else {  // Start nodes were loaded, so we can convert back to serial form
+                    for (BlockStartNode st : e.startNodes) {
+                        writeChild(w, context, "start", st.getId(), String.class);
+                    }
                 }
+                writeChild(w, context, "done", e.done, Boolean.class);
             }
             writeChild(w, context, "resumeBlocked", e.resumeBlocked, Boolean.class);
 
@@ -1587,6 +1728,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         } else if (nodeName.equals("iota")) {
                             Integer iota = readChild(reader, context, Integer.class, result);
                             setField(result, "iota", new AtomicInteger(iota));
+                        } else if (nodeName.equals("done")) {
+                            Boolean isDone = readChild(reader, context, Boolean.class, result);
+                            setField(result, "done", isDone);
                         } else if (nodeName.equals("start")) {
                             String id = readChild(reader, context, String.class, result);
                             result.startNodesSerial.add(id);
@@ -1645,6 +1789,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     class TimingFlowNodeStorage extends FlowNodeStorage {
         private final FlowNodeStorage delegate;
+        private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+
         TimingFlowNodeStorage(FlowNodeStorage delegate) {
             this.delegate = delegate;
         }
@@ -1652,53 +1798,93 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         @Override
         public FlowNode getNode(String string) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                return delegate.getNode(string);
+                readWriteLock.readLock().lock();
+                try {
+                    return delegate.getNode(string);
+                } finally {
+                    readWriteLock.readLock().unlock();
+                }
             }
         }
 
         @Override
         public void storeNode(@Nonnull FlowNode n) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                delegate.storeNode(n);
+                readWriteLock.writeLock().lock();
+                try {
+                    delegate.storeNode(n);
+                } finally {
+                    readWriteLock.writeLock().unlock();
+                }
             }
         }
 
         @Override
         public void storeNode(@Nonnull FlowNode n, boolean delayWritingActions) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                delegate.storeNode(n, delayWritingActions);
+                readWriteLock.writeLock().lock();
+                try {
+                    delegate.storeNode(n, delayWritingActions);
+                } finally {
+                    readWriteLock.writeLock().unlock();
+                }
             }
         }
 
         @Override
         public void flush() throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                delegate.flush();
+                readWriteLock.writeLock().lock();
+                try {
+                    delegate.flush();
+                } finally {
+                    readWriteLock.writeLock().unlock();
+                }
             }
         }
 
         @Override
         public void flushNode(FlowNode node) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                delegate.flushNode(node);
+                readWriteLock.writeLock().lock();
+                try {
+                    delegate.flushNode(node);
+                } finally {
+                    readWriteLock.writeLock().unlock();
+                }
             }
         }
 
         @Override
         public void autopersist(@Nonnull FlowNode n) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                delegate.autopersist(n);
+                readWriteLock.writeLock().lock();
+                try {
+                    delegate.autopersist(n);
+                }  finally {
+                    readWriteLock.writeLock().unlock();
+                }
             }
         }
 
         @Override public List<Action> loadActions(FlowNode node) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                return delegate.loadActions(node);
+                readWriteLock.readLock().lock();
+                try {
+                    return delegate.loadActions(node);
+                } finally {
+                    readWriteLock.readLock().unlock();
+                }
             }
         }
         @Override public void saveActions(FlowNode node, List<Action> actions) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                delegate.saveActions(node, actions);
+                readWriteLock.writeLock().lock();
+                try {
+                    delegate.saveActions(node, actions);
+                } finally {
+                    readWriteLock.writeLock().unlock();
+                }
             }
         }
     }
@@ -1718,14 +1904,21 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             container.add(new Content("nodes/master/pipeline-timings.txt") {
                 @Override public void writeTo(OutputStream outputStream) throws IOException {
                     PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, Charsets.UTF_8));
-                    for (Job<?, ?> job : Jenkins.getActiveInstance().getAllItems(Job.class)) {
+                    for (Job<?, ?> job : Jenkins.get().getAllItems(Job.class)) {
                         // TODO no clear way to tell if this might have Run instanceof FlowExecutionOwner.Executable, so for now just check for FlyweightTask which should exclude AbstractProject
                         if (job instanceof Queue.FlyweightTask) {
                             Run<?, ?> run = job.getLastCompletedBuild();
                             if (run instanceof FlowExecutionOwner.Executable) {
                                 FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
                                 if (owner != null) {
-                                    FlowExecution exec = owner.getOrNull();
+                                    FlowExecution exec;
+                                    try {
+                                        exec = owner.get();
+                                    } catch (IOException x) {
+                                        pw.println("No timings available for " + run + ": " + x);
+                                        pw.println();
+                                        continue;
+                                    }
                                     if (exec instanceof CpsFlowExecution) {
                                         Map<String, Long> timings = ((CpsFlowExecution) exec).timings;
                                         if (timings != null) {
@@ -1747,15 +1940,34 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     }
 
-    /** Save the owner that holds this execution. */
+    /** Persist the execution if we are set up to save the execution with every step. */
+    void saveExecutionIfDurable() {
+        if (this.getDurabilityHint().isPersistWithEveryStep()) {
+            saveOwner();
+        }
+    }
+
+    /** Save the owner that holds this execution.
+     *  Key note: to avoid deadlocks we need to ensure that we don't hold a lock on this CpsFlowExecution when running saveOwner
+     *   or pre-emptively lock the run before locking the execution and saving. */
     void saveOwner() {
         try {
-            if (this.owner.getExecutable() instanceof Saveable) {
+            if (this.owner != null && this.owner.getExecutable() instanceof Saveable) {  // Null-check covers some anomalous cases we've seen
                 Saveable saveable = (Saveable)(this.owner.getExecutable());
+                persistedClean = true;
+                if (storage != null && storage.delegate != null) {
+                    // Defensively flush FlowNodes to storage
+                    try {
+                        storage.flush();
+                    } catch (Exception ex) {
+                        LOGGER.log(Level.WARNING, "Error persisting FlowNodes for execution "+owner, ex);
+                        persistedClean = false;
+                    }
+                }
                 saveable.save();
             }
         } catch (IOException ex) {
-            LOGGER.log(Level.WARNING, "Error persisting Run before shutdown", ex);
+            LOGGER.log(Level.WARNING, "Error persisting Run "+owner, ex);
             persistedClean = false;
         }
     }
@@ -1769,15 +1981,25 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         boolean persistOk = true;
         FlowNodeStorage storage = getStorage();
         if (storage != null) {
+            try { // Node storage must be flushed first so program can be restored
+                storage.flush();
+            } catch (IOException ioe) {
+                persistOk=false;
+                LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before shutdown", ioe);
+            }
+
             // Try to ensure we've saved the appropriate things -- the program is the last stumbling block.
             try {
                 final SettableFuture<Void> myOutcome = SettableFuture.create();
+                LOGGER.log(Level.INFO, "About to try to checkpoint the program for build"+this);
                 if (programPromise != null && programPromise.isDone()) {
                     runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
                         @Override
                         public void onSuccess(CpsThreadGroup result) {
                             try {
+                                LOGGER.log(Level.INFO, "Trying to save program before shutdown "+this);
                                 result.saveProgramIfPossible(true);
+                                LOGGER.log(Level.INFO, "Finished saving program before shutdown "+this);
                                 myOutcome.set(null);
                             } catch (Exception ex) {
                                 LOGGER.log(Level.WARNING, "Error persisting program: "+ex);
@@ -1787,10 +2009,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
                         @Override
                         public void onFailure(Throwable t) {
+                            LOGGER.log(Level.WARNING, "Failed trying to save program before shutdown "+this);
                             myOutcome.setException(t);
                         }
                     });
                     myOutcome.get(30, TimeUnit.SECONDS);
+                    LOGGER.log(Level.FINE, "Successfully saved program for "+this);
                 }
 
             } catch (TimeoutException te) {
@@ -1800,26 +2024,29 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 persistOk = false;
                 LOGGER.log(Level.FINE, "Error saving program, that should be handled elsewhere.", ex);
             }
-
-            try {
+            try { // Flush node storage just in case the Program mutated it, just to be sure
                 storage.flush();
+                LOGGER.log(Level.FINE, "Successfully did final flush of storage for "+this);
             } catch (IOException ioe) {
                 persistOk=false;
                 LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before shutdown", ioe);
             }
             persistedClean = persistOk;
-            saveOwner();
+            try {
+                saveOwner();
+            } catch (Exception ex) {
+                LOGGER.log(Level.WARNING, "Error saving build for "+this, ex);
+            }
+
         }
     }
 
-    /** Clean shutdown of build. */
+    /** Abort any running builds at Jenkins shutdown if they don't support resuming at next startup. */
     private void checkAndAbortNonresumableBuild() {
         if (isComplete() || this.getDurabilityHint().isPersistWithEveryStep() || !isResumeBlocked()) {
             return;
         }
         try {
-            // FIXME we need to actually kill the darn build
-
             owner.getListener().getLogger().println("Failing build: shutting down master and build is marked to not resume");
             final Throwable x = new FlowInterruptedException(Result.ABORTED);
             Futures.addCallback(this.getCurrentExecutions(/* cf. JENKINS-26148 */true), new FutureCallback<List<StepExecution>>() {
@@ -1850,8 +2077,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /** Ensures that even if we're limiting persistence of data for performance, we still write out data for shutdown. */
     @Override
     protected void notifyShutdown() {
-        checkAndAbortNonresumableBuild();
-        checkpoint();
+        // No-op, handled in the suspendAll terminator
     }
 
 }

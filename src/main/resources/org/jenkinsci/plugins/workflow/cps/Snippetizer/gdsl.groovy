@@ -24,7 +24,7 @@ def errorSteps = [:]
         if (!Step.isAssignableFrom(d.real.clazz)) {
             return // TODO JENKINS-37215
         }
-        StepDescriptor step = Jenkins.instance.getDescriptor(d.real.clazz)
+        StepDescriptor step = Jenkins.get().getDescriptor(d.real.clazz)
         DescribableModel schema
         try {
             schema = new DescribableModel(d.real.clazz)

@@ -27,6 +27,7 @@ package org.jenkinsci.plugins.workflow.cps.nodes;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import hudson.model.Result;
+import hudson.tasks.ArtifactArchiver;
 import hudson.tasks.junit.JUnitResultArchiver;
 import java.util.List;
 import java.util.logging.Level;
@@ -62,14 +63,14 @@ public class StepNodeTest {
             "node {\n" +
             "  configFileProvider([]) {\n" +
             "    writeFile text: '''<testsuite name='a'><testcase name='c'><error>failed</error></testcase></testsuite>''', file: 'x.xml'\n" +
-            "    junit 'x.xml'\n" +
+            "    archiveArtifacts 'x.xml'\n" +
             "  }\n" +
             "}", true));
-        WorkflowRun b = r.assertBuildStatus(Result.UNSTABLE, p.scheduleBuild2(0));
+        WorkflowRun b = r.buildAndAssertSuccess(p);
         List<FlowNode> coreStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), new NodeStepTypePredicate("step"));
         assertThat(coreStepNodes, hasSize(1));
-        assertEquals("junit", coreStepNodes.get(0).getDisplayFunctionName());
-        assertEquals(r.jenkins.getDescriptor(JUnitResultArchiver.class).getDisplayName(), coreStepNodes.get(0).getDisplayName());
+        assertEquals("archiveArtifacts", coreStepNodes.get(0).getDisplayFunctionName());
+        assertEquals(r.jenkins.getDescriptor(ArtifactArchiver.class).getDisplayName(), coreStepNodes.get(0).getDisplayName());
         List<FlowNode> coreWrapperStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), Predicates.and(new NodeStepTypePredicate("wrap"), new Predicate<FlowNode>() {
             @Override public boolean apply(FlowNode n) {
                 return n instanceof StepStartNode && !((StepStartNode) n).isBody();
@@ -78,7 +79,7 @@ public class StepNodeTest {
         assertThat(coreWrapperStepNodes, hasSize(1));
         assertEquals("configFileProvider", coreWrapperStepNodes.get(0).getDisplayFunctionName());
         assertEquals(r.jenkins.getDescriptor(ConfigFileBuildWrapper.class).getDisplayName() + " : Start", coreWrapperStepNodes.get(0).getDisplayName());
-        r.assertLogContains("[Pipeline] junit", b);
+        r.assertLogContains("[Pipeline] archiveArtifacts", b);
         r.assertLogContains("[Pipeline] configFileProvider", b);
         r.assertLogContains("[Pipeline] // configFileProvider", b);
     }
@@ -89,14 +90,14 @@ public class StepNodeTest {
             "node {\n" +
             "  wrap([$class: 'ConfigFileBuildWrapper', managedFiles: []]) {\n" +
             "    writeFile text: '''<testsuite name='a'><testcase name='c'><error>failed</error></testcase></testsuite>''', file: 'x.xml'\n" +
-            "    step([$class: 'JUnitResultArchiver', testResults: 'x.xml'])\n" +
+            "    step([$class: 'ArtifactArchiver', artifacts: 'x.xml'])\n" +
             "  }\n" +
             "}", true));
-        WorkflowRun b = r.assertBuildStatus(Result.UNSTABLE, p.scheduleBuild2(0));
+        WorkflowRun b = r.buildAndAssertSuccess(p);
         List<FlowNode> coreStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), new NodeStepTypePredicate("step"));
         assertThat(coreStepNodes, hasSize(1));
-        assertEquals("junit", coreStepNodes.get(0).getDisplayFunctionName());
-        assertEquals(r.jenkins.getDescriptor(JUnitResultArchiver.class).getDisplayName(), coreStepNodes.get(0).getDisplayName());
+        assertEquals("archiveArtifacts", coreStepNodes.get(0).getDisplayFunctionName());
+        assertEquals(r.jenkins.getDescriptor(ArtifactArchiver.class).getDisplayName(), coreStepNodes.get(0).getDisplayName());
         List<FlowNode> coreWrapperStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), Predicates.and(new NodeStepTypePredicate("wrap"), new Predicate<FlowNode>() {
             @Override public boolean apply(FlowNode n) {
                 return n instanceof StepStartNode && !((StepStartNode) n).isBody();
@@ -105,7 +106,7 @@ public class StepNodeTest {
         assertThat(coreWrapperStepNodes, hasSize(1));
         assertEquals("configFileProvider", coreWrapperStepNodes.get(0).getDisplayFunctionName());
         assertEquals(r.jenkins.getDescriptor(ConfigFileBuildWrapper.class).getDisplayName() + " : Start", coreWrapperStepNodes.get(0).getDisplayName());
-        r.assertLogContains("[Pipeline] junit", b);
+        r.assertLogContains("[Pipeline] archiveArtifacts", b);
         r.assertLogContains("[Pipeline] configFileProvider", b);
         r.assertLogContains("[Pipeline] // configFileProvider", b);
     }
@@ -116,14 +117,14 @@ public class StepNodeTest {
             "node {\n" +
             "  wrap(new org.jenkinsci.plugins.configfiles.buildwrapper.ConfigFileBuildWrapper([])) {\n" +
             "    writeFile text: '''<testsuite name='a'><testcase name='c'><error>failed</error></testcase></testsuite>''', file: 'x.xml'\n" +
-            "    step(new hudson.tasks.junit.JUnitResultArchiver('x.xml'))\n" +
+            "    step(new hudson.tasks.ArtifactArchiver('x.xml'))\n" +
             "  }\n" +
             "}", false));
-        WorkflowRun b = r.assertBuildStatus(Result.UNSTABLE, p.scheduleBuild2(0));
+        WorkflowRun b = r.buildAndAssertSuccess(p);
         List<FlowNode> coreStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), new NodeStepTypePredicate("step"));
         assertThat(coreStepNodes, hasSize(1));
-        assertEquals("junit", coreStepNodes.get(0).getDisplayFunctionName());
-        assertEquals(r.jenkins.getDescriptor(JUnitResultArchiver.class).getDisplayName(), coreStepNodes.get(0).getDisplayName());
+        assertEquals("archiveArtifacts", coreStepNodes.get(0).getDisplayFunctionName());
+        assertEquals(r.jenkins.getDescriptor(ArtifactArchiver.class).getDisplayName(), coreStepNodes.get(0).getDisplayName());
         List<FlowNode> coreWrapperStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), Predicates.and(new NodeStepTypePredicate("wrap"), new Predicate<FlowNode>() {
             @Override public boolean apply(FlowNode n) {
                 return n instanceof StepStartNode && !((StepStartNode) n).isBody();
@@ -132,7 +133,7 @@ public class StepNodeTest {
         assertThat(coreWrapperStepNodes, hasSize(1));
         assertEquals("configFileProvider", coreWrapperStepNodes.get(0).getDisplayFunctionName());
         assertEquals(r.jenkins.getDescriptor(ConfigFileBuildWrapper.class).getDisplayName() + " : Start", coreWrapperStepNodes.get(0).getDisplayName());
-        r.assertLogContains("[Pipeline] junit", b);
+        r.assertLogContains("[Pipeline] archiveArtifacts", b);
         r.assertLogContains("[Pipeline] configFileProvider", b);
         r.assertLogContains("[Pipeline] // configFileProvider", b);
     }

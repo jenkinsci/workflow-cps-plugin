@@ -67,15 +67,17 @@ samples.push({
         "   }\n" +
         "   stage('Build') {\n" +
         "      // Run the maven build\n" +
-        "      if (isUnix()) {\n" +
-        "         sh \"'${mvnHome}/bin/mvn' -Dmaven.test.failure.ignore clean package\"\n" +
-        "      } else {\n" +
-        "         bat(/\"${mvnHome}\\bin\\mvn\" -Dmaven.test.failure.ignore clean package/)\n" +
+        "      withEnv([\"MVN_HOME=$mvnHome\"]) {\n" +
+        "         if (isUnix()) {\n" +
+        "            sh '\"$MVN_HOME/bin/mvn\" -Dmaven.test.failure.ignore clean package'\n" +
+        "         } else {\n" +
+        "            bat(/\"%MVN_HOME%\\bin\\mvn\" -Dmaven.test.failure.ignore clean package/)\n" +
+        "         }\n" +
         "      }\n" +
         "   }\n" +
         "   stage('Results') {\n" +
         "      junit '**/target/surefire-reports/TEST-*.xml'\n" + // assumes junit & workflow-basic-steps up to date
-        "      archive 'target/*.jar'\n" + // TODO Jenkins 2 use archiveArtifacts instead
+        "      archiveArtifacts 'target/*.jar'\n" +
         "   }\n" +
         "}"
 });

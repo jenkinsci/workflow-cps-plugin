@@ -42,7 +42,9 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import jenkins.model.RunAction2;
 import org.jenkinsci.plugins.workflow.flow.FlowCopier;
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.EnvironmentExpander;
 import org.jenkinsci.plugins.workflow.support.actions.EnvironmentAction;
 import org.kohsuke.accmod.Restricted;
@@ -64,6 +66,10 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
     }
 
     @Override public EnvVars getEnvironment() throws IOException, InterruptedException {
+      return getEnvironment(getListener());
+    }
+
+    private TaskListener getListener() throws IOException {
         TaskListener listener;
         if (owner instanceof FlowExecutionOwner.Executable) {
             FlowExecutionOwner executionOwner = ((FlowExecutionOwner.Executable) owner).asFlowExecutionOwner();
@@ -75,6 +81,10 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
         } else {
             listener = new LogTaskListener(LOGGER, Level.INFO);
         }
+        return listener;
+    }
+
+    private EnvVars getEnvironment(TaskListener listener) throws IOException, InterruptedException {
         EnvVars e = owner.getEnvironment(listener);
         e.putAll(env);
         return e;
@@ -88,11 +98,28 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
     @Override public String getProperty(String propertyName) {
         try {
             CpsThread t = CpsThread.current();
-            return EnvironmentExpander.getEffectiveEnvironment(getEnvironment(), t.getContextVariable(EnvVars.class), t.getContextVariable(EnvironmentExpander.class)).get(propertyName);
+            TaskListener listener = getListener();
+
+            return EnvironmentExpander.getEffectiveEnvironment(
+                    getEnvironment(listener), t.getContextVariable(EnvVars.class, this::getExecution, this::getNode),
+                    t.getContextVariable(EnvironmentExpander.class, this::getExecution, this::getNode), null, listener)
+                .get(propertyName);
         } catch (Exception x) {
             LOGGER.log(Level.WARNING, null, x);
             return null;
         }
+    }
+
+    private FlowExecution getExecution() throws IOException {
+        if (owner instanceof FlowExecutionOwner.Executable) {
+            return ((FlowExecutionOwner.Executable) owner).asFlowExecutionOwner().get();
+        } else {
+            throw new IOException("no FlowExecution");
+        }
+    }
+
+    private FlowNode getNode() throws IOException {
+        throw new IOException("no FlowNode in this context");
     }
 
     @Override public void setProperty(String propertyName, Object newValue) {

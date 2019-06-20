@@ -1,4 +1,4 @@
-# Pipeline Groovy Plugin
+# Pipeline: Groovy Plugin
 
 [Wiki page](https://wiki.jenkins-ci.org/display/JENKINS/Pipeline+Groovy+Plugin)
 
@@ -26,8 +26,9 @@ parallel branches
 ```
 
 gets run as a Groovy program, with certain special function calls called *steps* performing Jenkins-specific operations.
-In this example the step `parallel` is defined in this plugin, while `node`, `retry`, `checkout`, and `sh` are defined in other plugins in the Pipeline suite.
-The `scm` global variable is defined in the Pipeline Multibranch plugin.
+In this example the step `parallel` is defined in this plugin, while `node`, `retry`, `checkout`, and `sh` are defined in other plugins in the Pipeline suite. The `scm` global variable is defined in the Pipeline Multibranch plugin.
+
+The Groovy script is compiled to a class named `WorkflowScript`, so that is the name shown in stack traces instead of the script file-name (e.g. `Jenkinsfile`).
 
 Unlike a regular Groovy program run from a command line, the complete state of a Pipeline build’s program is saved to disk every time an *asynchronous* operation is performed, which includes most Pipeline steps.
 Jenkins may be restarted while a build is running, and will resume running the program where it left off.
@@ -43,6 +44,10 @@ The [Pipeline Sandbox epic](https://issues.jenkins-ci.org/browse/JENKINS-35391) 
 Scripts run with the sandbox disabled can make direct calls to Jenkins internal APIs, which can be a useful workaround for missing step functionality, but for security reasons only administrators can approve such scripts.
 
 The [Pipeline Snippet Generator epic](https://issues.jenkins-ci.org/browse/JENKINS-35393) covers issues with the tool used to provide samples of step syntax based on live configuration forms.
+
+## History
+
+This plugin was previously the "Workflow CPS plugin" or "Workflow Groovy Plugin". Accordingly it has the Maven `artifactId` `workflow-cps`, not `pipeline-groovy`.
 
 ## Technical design
 
