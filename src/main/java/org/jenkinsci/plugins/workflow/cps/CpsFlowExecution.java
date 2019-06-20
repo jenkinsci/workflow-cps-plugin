@@ -179,7 +179,7 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
  * </dd>
  * <dt>PERSISTED</dt>
  * <dd>
- *     {@link CpsFlowExecution} is on disk with its owner, for example in <tt>build.xml</tt> of the workflow run.
+ *     {@link CpsFlowExecution} is on disk with its owner, for example in {@code build.xml} of the workflow run.
  *     Nothing exists in memory. For example, Jenkins is not running.
  *
  *     Transition from this into PREPARING is triggered outside our control by XStream using
