@@ -2,6 +2,9 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import org.junit.Test;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
+
 /**
  * @author Kohsuke Kawaguchi
  */
@@ -19,7 +22,7 @@ public class CpsFlowDefinitionTest extends AbstractCpsFlowTest {
         exec.start();
         exec.waitForSuspension();
 
-        assert exec.isComplete();
+        assertTrue(exec.isComplete());
     }
 
     @Test
@@ -34,10 +37,10 @@ public class CpsFlowDefinitionTest extends AbstractCpsFlowTest {
 
         // it should stop at watch and suspend.
         exec.waitForSuspension();
-        assert exec.isComplete();
+        assertTrue(exec.isComplete());
         Throwable t = exec.getCauseOfFailure();
-        assert t.getClass().equals(Throwable.class);
-        assert t.getMessage().equals("This is a fire drill, not a real fire");
+        assertEquals(Throwable.class, t.getClass());
+        assertEquals("This is a fire drill, not a real fire", t.getMessage());
     }
 
 }
