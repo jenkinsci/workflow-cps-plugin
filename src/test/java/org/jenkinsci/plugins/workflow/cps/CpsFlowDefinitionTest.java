@@ -15,7 +15,8 @@ public class CpsFlowDefinitionTest extends AbstractCpsFlowTest {
     @Test
     public void simplestPossibleTest() throws Exception {
         CpsFlowDefinition flow = new CpsFlowDefinition(
-                "def sqrt(int x) { return Math.sqrt(x); }\nfor (int i=0; i<10; i++)\nsqrt(i);",
+                "def sqrt(int x) { return Math.sqrt(x); }\n" + 
+                "for (int i=0; i<10; i++) { sqrt(i); }",
                 false);
 
         createExecution(flow);
