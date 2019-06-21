@@ -85,8 +85,6 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
      * Verify that we kill endlessly recursive CPS code cleanly.
      */
     @Test
-    // @Ignore /** Intermittent failures because triggers a longstanding unrelated SandboxResolvingClassloader bug
-    // resolved in https://github.com/jenkinsci/script-security-plugin/pull/160 */
     public void endlessRecursion() throws Exception {
         // Cheat so I can make sure I'm running the version of script-security that I think I am.
         // Thread.sleep(30000000);
@@ -117,8 +115,6 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
      *  we don't trigger other forms of failure with the StackOverflowError.
      */
     @Test
-    // @Ignore  /** Intermittent failures because triggers a longstanding unrelated SandboxResolvingClassloader bug
-    //              resolved in https://github.com/jenkinsci/script-security-plugin/pull/160 */
     public void endlessRecursionNonCPS() throws Exception {
         Assume.assumeTrue(!Functions.isWindows());  // Sidestep false failures specific to a few Windows build environments.
 
