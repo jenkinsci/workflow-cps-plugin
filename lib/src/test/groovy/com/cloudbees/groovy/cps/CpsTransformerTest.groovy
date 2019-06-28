@@ -770,23 +770,27 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         ''')=="ybase"
     }
 
-    @NotYetImplemented
     @Issue("JENKINS-52395")
     @Test
     void transformedSuperSuperClass() {
         assert evalCPS('''
             class Foo extends CpsTransformerTest.Base {
-                public String toString() {
-                    return "x"+super.toString()
+                public String other() {
+                    return "base"
                 }
             }
             class Bar extends Foo {
-                public String toString() {
-                    return "y"+super.toString()
+                public String other() {
+                    return "y"+super.other()
                 }
             }
-            new Bar().toString();
-        ''')=="yxbase"
+            class Baz extends Bar {
+                public String other() {
+                    return "z"+super.other()
+                }
+            }
+            new Baz().other();
+        ''')=="zybase"
     }
 
     @Test
