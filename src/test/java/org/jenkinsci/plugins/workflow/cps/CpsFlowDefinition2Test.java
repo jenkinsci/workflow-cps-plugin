@@ -621,4 +621,21 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         jenkins.assertLogContains("MyScript.foo is 2", b);
     }
 
+    @Issue("JENKINS-56682")
+    @Test
+    public void scriptInitializerCallsCpsTransformedMethod() throws Exception {
+        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition(
+                "class MyScript extends org.jenkinsci.plugins.workflow.cps.CpsScript {\n" +
+                "  static { bar() }\n" +
+                "  static int foo = 0\n" +
+                "  static def bar() { MyScript.foo += 1 }\n" +
+                "  def run() {\n" +
+                "    echo(/MyScript.foo is ${MyScript.foo}/)\n " +
+                "  }\n" +
+                "}\n", true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("CpsCallableInvocation{methodName=bar,", b);
+    }
+
 }
