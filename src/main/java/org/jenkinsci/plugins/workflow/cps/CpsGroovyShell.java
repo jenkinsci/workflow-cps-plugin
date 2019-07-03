@@ -134,7 +134,7 @@ class CpsGroovyShell extends GroovyShell {
                 execution.getTrustedShell().getClassLoader(),
                 execution.getShell().getClassLoader()));
         } else {
-            sandbox.withWhitelist(new GroovyClassLoaderWhitelist(CpsWhitelist.get(), getClassLoader()));
+            sandbox.withWhitelist(new GroovyClassLoaderWhitelist(Whitelist.all(), getClassLoader()));
         }
         try (GroovySandbox.Scope scope = sandbox.enter()) {
             if (execution != null) {
