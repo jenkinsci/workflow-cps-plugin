@@ -84,7 +84,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <version>2.30</version>
+            <version>2.32</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -152,7 +152,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-job</artifactId>
-            <version>2.26</version>
+            <version>2.33</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -289,15 +289,6 @@
             </resource>
         </resources>
         <plugins>
-            <plugin>
-                <!-- why is this necessary!? otherwise compiling src/test/groovy/ fails -->
-                <!-- fix attempted at https://github.com/jenkinsci/jenkins/commit/101507f49873de0239ccb7839649ea71187712b2 but apparently failed. -->
-                <groupId>org.codehaus.gmaven</groupId>
-                <artifactId>gmaven-plugin</artifactId>
-                <configuration>
-                    <providerSelection>1.8</providerSelection>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>org.jenkins-ci.tools</groupId>
                 <artifactId>maven-hpi-plugin</artifactId>
