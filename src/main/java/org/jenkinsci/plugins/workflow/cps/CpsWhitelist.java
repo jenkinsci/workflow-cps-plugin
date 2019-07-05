@@ -147,7 +147,6 @@ class CpsWhitelist extends AbstractWhitelist {
      */
     private static final Map<Jenkins,Whitelist> wrappedByJenkins = new WeakHashMap<Jenkins,Whitelist>();
 
-    @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")
     static synchronized Whitelist get() {
         Jenkins j = Jenkins.getInstanceOrNull();
         if (j == null) {
