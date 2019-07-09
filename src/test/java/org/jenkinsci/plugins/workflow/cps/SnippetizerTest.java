@@ -33,12 +33,10 @@ import hudson.model.Result;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.tasks.ArtifactArchiver;
-import hudson.tasks.junit.JUnitResultArchiver;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
-import org.jenkinsci.plugins.workflow.steps.CatchErrorStep;
 import org.jenkinsci.plugins.workflow.steps.CoreStep;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
 import org.jenkinsci.plugins.workflow.steps.PwdStep;
@@ -71,15 +69,23 @@ import org.jvnet.hudson.test.MockFolder;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 
 import static org.hamcrest.CoreMatchers.*;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.testMetaStep.Circle;
 import org.jenkinsci.plugins.workflow.testMetaStep.CurveMetaStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Polygon;
 import static org.junit.Assert.*;
 import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.TestExtension;
+import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
 
 // TODO these tests would better be moved to the respective plugins
@@ -232,7 +238,27 @@ public class SnippetizerTest {
     }
 
     @Test public void generateSnippetAdvancedDeprecated() throws Exception {
-        st.assertGenerateSnippet("{'stapler-class':'" + CatchErrorStep.class.getName() + "'}", "// " + Messages.Snippetizer_this_step_should_not_normally_be_used_in() + "\ncatchError {\n    // some block\n}", null);
+        st.assertGenerateSnippet("{'stapler-class':'" + AdvancedStep.class.getName() + "'}", "// " + Messages.Snippetizer_this_step_should_not_normally_be_used_in() + "\nadvancedStuff {\n    // some block\n}", null);
+    }
+    public static final class AdvancedStep extends Step {
+        @DataBoundConstructor public AdvancedStep() {}
+        @Override public StepExecution start(StepContext context) throws Exception {
+            throw new UnsupportedOperationException();
+        }
+        @TestExtension/* cannot specify test name when using ClassRule */ public static final class DescriptorImpl extends StepDescriptor {
+            @Override public String getFunctionName() {
+                return "advancedStuff";
+            }
+            @Override public boolean isAdvanced() {
+                return true;
+            }
+            @Override public boolean takesImplicitBlockArgument() {
+                return true;
+            }
+            @Override public Set<? extends Class<?>> getRequiredContext() {
+                return Collections.emptySet();
+            }
+        }
     }
 
     @Issue({"JENKINS-26126", "JENKINS-37215"})
