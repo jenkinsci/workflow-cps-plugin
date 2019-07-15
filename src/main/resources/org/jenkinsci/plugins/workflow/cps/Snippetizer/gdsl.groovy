@@ -6,6 +6,7 @@ import hudson.Functions
 import org.jenkinsci.plugins.structs.describable.DescribableModel
 import org.jenkinsci.plugins.workflow.cps.GlobalVariable
 import org.jenkinsci.plugins.workflow.cps.Snippetizer
+import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep
 import org.jenkinsci.plugins.workflow.steps.Step
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor
 
@@ -18,6 +19,8 @@ Snippetizer snippetizer = my;
 Map<StepDescriptor,DescribableModel> steps = new LinkedHashMap<StepDescriptor, DescribableModel>();
 
 def errorSteps = [:]
+def nodeContext = []
+def scriptContext = []
 
 [false, true].each { isAdvanced ->
     snippetizer.getQuasiDescriptors(isAdvanced).each { d ->
@@ -25,6 +28,12 @@ def errorSteps = [:]
             return // TODO JENKINS-37215
         }
         StepDescriptor step = Jenkins.get().getDescriptor(d.real.clazz)
+        if (step instanceof ParallelStep.DescriptorImpl) {
+            // ParallelStep does not support data binding, so we just hard-code the correct entries.
+            scriptContext.add("method(name: 'parallel', type: 'Object', params: ['closures':'java.util.Map'], doc: 'Execute in parallel')")
+            scriptContext.add("method(name: 'parallel', type: 'Object', namedParams: [parameter(name: 'closures', type: 'java.util.Map'), parameter(name: 'failFast', type: 'boolean'), ], doc: 'Execute in parallel')")
+            return
+        }
         DescribableModel schema
         try {
             schema = new DescribableModel(d.real.clazz)
@@ -38,9 +47,6 @@ def errorSteps = [:]
 
     }
 }
-
-def nodeContext = []
-def scriptContext = []
 
 steps.each { StepDescriptor step, DescribableModel model ->
     def params = [:], opts = [:]
@@ -128,13 +134,17 @@ ${errorSteps.collect { k, v ->
 }.join("\n")}
 """)
 
-// Render anything other than a primitive, Closure, or a java.* class as a Map.
+// Render anything other than a primitive, Closure, or a java.* class or interface as a Map.
 def objectTypeToMap(String type) {
-    if (type != null && type.contains(".") && !(type.startsWith("java"))) {
-        return "Map"
-    } else {
-        return type
+    if (type != null && type.contains(".")) {
+        if (type.startsWith("interface ")) {
+            type = type.substring("interface ".length());
+        }
+        if (!type.startsWith("java")) {
+            return "Map"
+        }
     }
+    return type
 }
 
 def fetchActualClass(Type type) {
