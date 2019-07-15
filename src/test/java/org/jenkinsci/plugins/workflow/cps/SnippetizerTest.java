@@ -229,7 +229,7 @@ public class SnippetizerTest {
     @Test public void doGdsl() throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
         String gdsl = wc.goTo(Snippetizer.ACTION_URL + "/gdsl", "text/plain").getWebResponse().getContentAsString();
-        assertThat("Description is included as doc", gdsl, containsString("Build a job"));
+        assertThat("Description is included as doc", gdsl, containsString("Shell Script"));
         assertThat("Timeout step appears", gdsl, containsString("name: 'timeout'"));
 
         // Verify valid groovy syntax.
@@ -241,7 +241,7 @@ public class SnippetizerTest {
     @Test public void doDsld() throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
         String dsld = wc.goTo(Snippetizer.ACTION_URL + "/dsld", "text/plain").getWebResponse().getContentAsString();
-        assertThat("Description is included as doc", dsld, containsString("Build a job"));
+        assertThat("Description is included as doc", dsld, containsString("Shell Script"));
         assertThat("Timeout step appears", dsld, containsString("name: 'timeout'"));
 
         // Verify valid groovy sntax.
