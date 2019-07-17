@@ -2,6 +2,7 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import hudson.Main;
+import hudson.ExtensionList;
 import hudson.model.Computer;
 import hudson.remoting.SingleLaneExecutorService;
 import hudson.security.ACL;
@@ -112,6 +113,14 @@ class CpsVmExecutorService extends InterceptingExecutorService {
     }
 
     private void handleMismatch(Object expectedReceiver, String expectedMethodName, Object actualReceiver, String actualMethodName) {
+        // allow plugins to whitelist certain mismatch types
+        ExtensionList<AbstractMismatchWhitelist> mismatchWhitelist = AbstractMismatchWhitelist.all(); 
+        for( AbstractMismatchWhitelist whitelist : mismatchWhitelist ){
+            if(whitelist.ignoreCpsMismatch(className(expectedReceiver), expectedMethodName, className(actualReceiver), actualMethodName)){
+                return;
+            }            
+        }
+
         String mismatchMessage = mismatchMessage(className(expectedReceiver), expectedMethodName, className(actualReceiver), actualMethodName);
         if (FAIL_ON_MISMATCH) {
             throw new IllegalStateException(mismatchMessage);

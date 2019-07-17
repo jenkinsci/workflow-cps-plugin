@@ -34,6 +34,7 @@ import org.junit.rules.ErrorCollector;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.TestExtension;
 
 public class CpsVmExecutorServiceTest {
 
@@ -120,6 +121,38 @@ public class CpsVmExecutorServiceTest {
             });
         } finally {
             CpsVmExecutorService.FAIL_ON_MISMATCH = origFailOnMismatch;
+        }
+    }
+
+    /*
+        Test AbstractMismatchWhitelist.all() returns implementation
+    */
+    @Test public void wrongCatcherWithWhitelist() throws Exception {
+        boolean origFailOnMismatch = CpsVmExecutorService.FAIL_ON_MISMATCH;
+        CpsVmExecutorService.FAIL_ON_MISMATCH = false;
+        try {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            // show that whitelist can prevent mismatch warning log 
+            errors.checkSucceeds(() -> {
+                p.setDefinition(new CpsFlowDefinition("def ok() {sleep 1}; @NonCPS def bad() {for (int i = 0; i < 10; i++) {sleep 1}; assert false : 'never gets here'}; node {ok(); bad()}", true));
+                r.assertLogNotContains(CpsVmExecutorService.mismatchMessage("WorkflowScript", "bad", null, "sleep"), r.buildAndAssertSuccess(p));
+                return null;
+            });
+            // show that mismatch warning log is still printed when not caught by whitelist
+            errors.checkSucceeds(() -> {
+                p.setDefinition(new CpsFlowDefinition("def ok() {sleep 1}; @NonCPS def throwsWarning() {for (int i = 0; i < 10; i++) {sleep 1}; assert false : 'never gets here'}; node {ok(); throwsWarning()}", true));
+                r.assertLogContains(CpsVmExecutorService.mismatchMessage("WorkflowScript", "throwsWarning", null, "sleep"), r.buildAndAssertSuccess(p));
+                return null;
+            });
+        } finally {
+            CpsVmExecutorService.FAIL_ON_MISMATCH = origFailOnMismatch;
+        }
+    }
+
+    @TestExtension("wrongCatcherWithWhitelist") public static class MismatchWhitelist extends AbstractMismatchWhitelist{
+        @Override
+        public Boolean ignoreCpsMismatch(String expectedReceiver, String expectedMethodName, String actualReceiver, String actualMethodName){
+            return (expectedMethodName == "bad");
         }
     }
 
