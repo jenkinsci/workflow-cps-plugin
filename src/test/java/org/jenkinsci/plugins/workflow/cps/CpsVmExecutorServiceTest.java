@@ -29,6 +29,7 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.rules.ErrorCollector;
 import org.jvnet.hudson.test.BuildWatcher;
@@ -123,16 +124,13 @@ public class CpsVmExecutorServiceTest {
         }
     }
 
+    @Issue("JENKINS-58501")
+    @Ignore
     @Test public void mismatchMetaProgrammingFalsePositives() throws Exception {
         boolean origFailOnMismatch = CpsVmExecutorService.FAIL_ON_MISMATCH;
         CpsVmExecutorService.FAIL_ON_MISMATCH = false;
         try {
             WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-            /*
-              edge case: using InvokerHelper to execute method indirectly | MetaClassImpl
-              messages: 
-                1. expected to call groovy.lang.MetaClassImpl.invokeMethod but wound up catching org.jenkinsci.plugins.workflow.cps.CpsClosure2.call;
-            */
             errors.checkSucceeds(() -> {
                 p.setDefinition(new CpsFlowDefinition(
                     "import org.codehaus.groovy.runtime.InvokerHelper \n" + 
@@ -142,11 +140,6 @@ public class CpsVmExecutorServiceTest {
                 r.assertLogNotContains("MetaClassImpl", b);
                 return null;
             });
-            /*
-              edge case: using InvokerHelper to execute method indirectly | ExpandoMetaClass
-              messages: 
-                1. expected to call groovy.lang.MetaClassImpl.invokeMethod but wound up catching org.jenkinsci.plugins.workflow.cps.CpsClosure2.call;
-            */
             errors.checkSucceeds(() -> {
                 p.setDefinition(new CpsFlowDefinition(
                     "import org.codehaus.groovy.runtime.InvokerHelper \n" + 
@@ -157,12 +150,6 @@ public class CpsVmExecutorServiceTest {
                 r.assertLogNotContains("ExpandoMetaClass", b);
                 return null;
             });
-            /*
-             edge case: use methodMissing to invoke something else  
-             messages: 
-                1. expected to call Example.doSomething but wound up catching Example.methodMissing;
-                2. expected to call groovy.lang.MetaClassImpl.invokeMethod but wound up catching Example.exists;
-            */
             errors.checkSucceeds(() -> {
                 p.setDefinition(new CpsFlowDefinition(
                     "import org.codehaus.groovy.runtime.InvokerHelper \n" + 
