@@ -29,6 +29,7 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.rules.ErrorCollector;
 import org.jvnet.hudson.test.BuildWatcher;
@@ -116,6 +117,54 @@ public class CpsVmExecutorServiceTest {
                 p.setDefinition(new CpsFlowDefinition("class C {C(script) {script.sleep(1)}}; new C(this)", true));
                 WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
                 r.assertLogContains(CpsVmExecutorService.mismatchMessage("C", "<init>", null, "sleep"), b);
+                return null;
+            });
+        } finally {
+            CpsVmExecutorService.FAIL_ON_MISMATCH = origFailOnMismatch;
+        }
+    }
+
+    @Issue("JENKINS-58501")
+    @Ignore
+    @Test public void mismatchMetaProgrammingFalsePositives() throws Exception {
+        boolean origFailOnMismatch = CpsVmExecutorService.FAIL_ON_MISMATCH;
+        CpsVmExecutorService.FAIL_ON_MISMATCH = false;
+        try {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            errors.checkSucceeds(() -> {
+                p.setDefinition(new CpsFlowDefinition(
+                    "import org.codehaus.groovy.runtime.InvokerHelper \n" + 
+                    "c = { println 'doing a thing' } \n" +
+                    "InvokerHelper.getMetaClass(c).invokeMethod(c, 'call', null)", false));
+                WorkflowRun b = r.buildAndAssertSuccess(p);
+                r.assertLogNotContains("MetaClassImpl", b);
+                return null;
+            });
+            errors.checkSucceeds(() -> {
+                p.setDefinition(new CpsFlowDefinition(
+                    "import org.codehaus.groovy.runtime.InvokerHelper \n" + 
+                    "c = { println 'doing a thing' } \n" +
+                    "c.getMetaClass().someField = 'r' \n" + 
+                    "InvokerHelper.getMetaClass(c).invokeMethod(c, 'call', null)", false));
+                WorkflowRun b = r.buildAndAssertSuccess(p);
+                r.assertLogNotContains("ExpandoMetaClass", b);
+                return null;
+            });
+            errors.checkSucceeds(() -> {
+                p.setDefinition(new CpsFlowDefinition(
+                    "import org.codehaus.groovy.runtime.InvokerHelper \n" + 
+                    "class Example{ \n" +
+                        "def script \n" + 
+                        "Example(script){ this.script = script } \n" + 
+                        "def methodMissing(String methodName, args){ \n" + 
+                            "return InvokerHelper.getMetaClass(this).invokeMethod(this, 'exists', null) \n" + 
+                        "} \n" +
+                        "def exists(){ script.println 'doing a thing' } \n" +
+                    "} \n" + 
+                    "def e = new Example(this) \n" +
+                    "e.doSomething()", false));
+                WorkflowRun b = r.buildAndAssertSuccess(p);
+                r.assertLogNotContains("methodMissing", b);
                 return null;
             });
         } finally {
