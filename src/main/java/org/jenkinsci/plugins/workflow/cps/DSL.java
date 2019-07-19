@@ -263,8 +263,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             if (Util.isOverridden(StepDescriptor.class, d.getClass(), "newInstance", Map.class)) {
                 s = d.newInstance(ps.namedArgs);
             } else {
-                DescribableModel<?> stepModel = DescribableModel.of(d.clazz);
-                s = (Step) stepModel.instantiate(ps.namedArgs, handle.getListener());
+                DescribableModel<? extends Step> stepModel = DescribableModel.of(d.clazz);
+                s = stepModel.instantiate(ps.namedArgs, handle.getListener());
             }
 
             // Persist the node - block start and end nodes do their own persistence.

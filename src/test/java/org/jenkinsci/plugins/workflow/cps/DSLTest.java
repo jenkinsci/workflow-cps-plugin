@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import static org.hamcrest.Matchers.containsString;
 
+import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -49,6 +50,8 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
 import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoLowerStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoUpperStep;
+
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
@@ -433,6 +436,17 @@ public class DSLTest {
         r.assertLogContains("HELLO", b);
         r.assertLogContains("Warning: Invoking ambiguous Pipeline Step", b);
         r.assertLogContains("any of the following steps: [" + AmbiguousEchoUpperStep.class.getName() + ", " + AmbiguousEchoLowerStep.class.getName() + "]", b);
+    }
+
+    @Test public void  strayParameters() throws Exception {
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        try {
+            p.setDefinition(new CpsFlowDefinition("node {sleep time: 1, units: 'SECONDS', comment: 'units is a typo'}", true));
+        } catch (Exception e) {
+            assertThat(e, instanceOf(IllegalArgumentException.class));
+            assertThat(e.getMessage(), Matchers.is("Unknown parameter(s) found for class type 'org.jenkinsci.plugins.workflow.steps.SleepStep': comment,units"));
+        }
+        WorkflowRun b =  r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
     }
 
     public static class CLStep extends Step {
