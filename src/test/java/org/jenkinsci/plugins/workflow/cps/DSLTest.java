@@ -440,13 +440,10 @@ public class DSLTest {
 
     @Test public void  strayParameters() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        try {
-            p.setDefinition(new CpsFlowDefinition("node {sleep time: 1, units: 'SECONDS', comment: 'units is a typo'}", true));
-        } catch (Exception e) {
-            assertThat(e, instanceOf(IllegalArgumentException.class));
-            assertThat(e.getMessage(), Matchers.is("Unknown parameter(s) found for class type 'org.jenkinsci.plugins.workflow.steps.SleepStep': comment,units"));
-        }
+        p.setDefinition(new CpsFlowDefinition("node {sleep time: 1, units: 'SECONDS', comment: 'units is a typo'}", true));
         WorkflowRun b =  r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        r.assertLogContains("IllegalArgumentException: WARNING: Unknown parameter(s) found for class type " +
+                "'org.jenkinsci.plugins.workflow.steps.SleepStep': comment,units", b);
     }
 
     public static class CLStep extends Step {
