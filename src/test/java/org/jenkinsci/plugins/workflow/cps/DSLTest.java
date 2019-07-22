@@ -33,9 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import static org.hamcrest.Matchers.containsString;
 
-import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
-import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.LinearScanner;
 import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepTypePredicate;
@@ -51,7 +49,6 @@ import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
 import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoLowerStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoUpperStep;
 
-import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
