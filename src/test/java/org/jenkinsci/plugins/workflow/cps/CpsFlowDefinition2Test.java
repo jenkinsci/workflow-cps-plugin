@@ -634,4 +634,72 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         jenkins.assertLogContains("CpsCallableInvocation{methodName=bar,", b);
     }
 
+    @Issue("SECURITY-1465")
+    @Test public void blockLhsInMethodPointerExpression() throws Exception {
+        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition(
+                "({" +
+                "  System.getProperties()\n" +
+                "  1" +
+                "}().&toString)()", true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod java.lang.System getProperties", b);
+    }
+
+    @Issue("SECURITY-1465")
+    @Test public void blockRhsInMethodPointerExpression() throws Exception {
+        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition(
+                "1.&(System.getProperty('sandboxTransformsMethodPointerRhs'))()", true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod java.lang.System getProperty java.lang.String", b);
+    }
+
+    @Issue("SECURITY-1465")
+    @Test public void blockCastingUnsafeUserDefinedImplementationsOfCollection() throws Exception {
+        // See additional info on this test case in `SandboxTransformerTest.sandboxWillNotCastNonStandardCollections()` over in groovy-sandbox.
+        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition(
+                "import groovy.transform.Field\n" +
+                "@Field def i = 0\n" +
+                "@NonCPS def unsafe() {\n" + // Using an @NonCPS method instead of a closure to avoid a CpsCallableInvocation being thrown out of Checker.preCheckedCast() when it invokes a method on the proxied Collection.
+                "  if(i) {\n" +
+                "    return ['secret.txt'] as Object[]\n" +
+                "  } else {\n" +
+                "    i = 1\n" +
+                "    return null\n" +
+                "  }\n" +
+                "}\n" +
+                "((this.&unsafe as Collection) as File) as Object[]", true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        // Before the security fix, fails with FileNotFoundException, bypassing the sandbox!
+        jenkins.assertLogContains("Casting non-standard Collections to a type via constructor is not supported", b);
+    }
+
+    @Issue("SECURITY-1465")
+    @Test public void blockCastingSafeUserDefinedImplementationsOfCollection() throws Exception {
+        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition(
+                "@NonCPS def safe() {\n" + // Using an @NonCPS method instead of a closure to avoid a CpsCallableInvocation being thrown out of Checker.preCheckedCast() when it invokes a method on the proxied Collection.
+                "  return ['secret.txt'] as Object[]\n" +
+                "}\n" +
+                "(this.&safe as Collection) as File", true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        // Before the security fix, fails because `new File(String)` is not whitelisted, so not a problem, but we have
+        // no good way to distinguish this case from the one in blockCastingUnsafeUserDefinedImplementationsOfCollection.
+        jenkins.assertLogContains("Casting non-standard Collections to a type via constructor is not supported", b);
+    }
+
+    @Issue("SECURITY-1465")
+    @Test public void blockEnumConstants() throws Exception {
+        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("jenkins.YesNoMaybe.MAYBE", true));
+        WorkflowRun b1 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticField jenkins.YesNoMaybe MAYBE", b1);
+
+        p.setDefinition(new CpsFlowDefinition("jenkins.YesNoMaybe.class as Object[]", true));
+        WorkflowRun b2 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticField jenkins.YesNoMaybe YES", b2);
+    }
+
 }
