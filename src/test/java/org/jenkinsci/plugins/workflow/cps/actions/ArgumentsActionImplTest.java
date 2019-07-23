@@ -72,8 +72,8 @@ public class ArgumentsActionImplTest {
     @ClassRule
     public static BuildWatcher buildWatcher = new BuildWatcher();
 
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
+    @ClassRule
+    public static JenkinsRule r = new JenkinsRule();
 
     @Rule public LoggerRule logging = new LoggerRule();
 
@@ -241,7 +241,7 @@ public class ArgumentsActionImplTest {
     @Issue("JENKINS-48644")
     public void testMissingDescriptionInsideStage() throws Exception {
         Assume.assumeTrue(r.jenkins.getComputer("").isUnix()); // No need for windows-specific testing
-        WorkflowJob j = r.jenkins.createProject(WorkflowJob.class, "HiddenStep");
+        WorkflowJob j = r.createProject(WorkflowJob.class);
         j.setDefinition(new CpsFlowDefinition("node{\n" +
                 "   stage ('Build') {\n" +
                 "       sh \"echo 'Building'\"\n" +
@@ -380,7 +380,7 @@ public class ArgumentsActionImplTest {
         UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, "test", "sample", username, password);
         CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
 
-        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "credentialed");
+        WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
                 "node{ withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'test',\n" +
                 "                usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {\n" +
@@ -428,7 +428,7 @@ public class ArgumentsActionImplTest {
     @Test
     public void testSpecialMetastepCases() throws Exception {
         // First we test a metastep with a state argument
-        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "meta");
+        WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
                 // Need to do some customization to load me
                 "state(moderate: true, state:[$class: 'Oregon']) \n",
@@ -446,7 +446,7 @@ public class ArgumentsActionImplTest {
                 stateArgs.size() <= 1 && Sets.difference(stateArgs.keySet(), new HashSet<String>(Arrays.asList("$class"))).size() == 0);
 
         // Same metastep but only one arg supplied, shouldn't auto-unwrap the internal step because can take 2 args
-        job = r.jenkins.createProject(WorkflowJob.class, "meta2");
+        job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
                 // Need to do some customization to load me
                 "state(state:[$class: 'Oregon']) \n"+
@@ -469,7 +469,7 @@ public class ArgumentsActionImplTest {
 
     @Test
     public void simpleSemaphoreStep() throws Exception {
-        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("semaphore 'wait'", false));
         WorkflowRun run  = job.scheduleBuild2(0).getStartCondition().get();
         SemaphoreStep.waitForStart("wait/1", run);
@@ -482,7 +482,7 @@ public class ArgumentsActionImplTest {
 
     @Test
     public void testArgumentDescriptions() throws Exception {
-        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "argumentDescription");
+        WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
                 "echo 'test' \n " +
                 " node('master') { \n" +
@@ -525,7 +525,7 @@ public class ArgumentsActionImplTest {
 
     @Test
     public void testUnusualStepInstantiations() throws Exception {
-        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "unusualInstantiation");
+        WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
                 " node('master') { \n" +
                 "   writeFile text: 'hello world', file: 'msg.out'\n" +
@@ -563,7 +563,7 @@ public class ArgumentsActionImplTest {
 
     @Test
     public void testReallyUnusualStepInstantiations() throws Exception {
-        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "unusualInstantiation");
+        WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
                 " node() {\n" +
                 "   writeFile text: 'hello world', file: 'msg.out'\n" +
