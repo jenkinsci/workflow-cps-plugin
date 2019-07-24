@@ -59,12 +59,11 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
      */
     void checkMismatch(Object expectedReceiver, List<String> expectedMethodNames) {
         String expectedMethodName = expectedMethodNames.get(0);
-        // metaclass invokeMethod
+        
         if (expectedReceiver instanceof MetaClass && expectedMethodName.equals("invokeMethod")) {
             return; 
         }
 
-        // handle method missing
         if(methodName.equals("methodMissing")){
             return; 
         }
