@@ -124,7 +124,7 @@ public class CpsVmExecutorServiceTest {
         }
     }
 
-    @Issue("JENKINS-58501")
+    @Issue(value = { "JENKINS-58501", "JENKINS-58407" })
     @Ignore
     @Test public void mismatchMetaProgrammingFalsePositives() throws Exception {
         boolean origFailOnMismatch = CpsVmExecutorService.FAIL_ON_MISMATCH;
