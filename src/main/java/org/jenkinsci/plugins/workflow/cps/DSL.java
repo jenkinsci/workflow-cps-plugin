@@ -260,7 +260,12 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             }
             d.checkContextAvailability(context);
             Thread.currentThread().setContextClassLoader(CpsVmExecutorService.ORIGINAL_CONTEXT_CLASS_LOADER.get());
-            s = d.newInstance(ps.namedArgs);
+            if (Util.isOverridden(StepDescriptor.class, d.getClass(), "newInstance", Map.class)) {
+                s = d.newInstance(ps.namedArgs);
+            } else {
+                DescribableModel<? extends Step> stepModel = DescribableModel.of(d.clazz);
+                s = stepModel.instantiate(ps.namedArgs, context.get(TaskListener.class));
+            }
 
             // Persist the node - block start and end nodes do their own persistence.
             CpsFlowExecution.maybeAutoPersistNode(an);
