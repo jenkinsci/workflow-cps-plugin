@@ -276,7 +276,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             for (StepListener sl : ExtensionList.lookup(StepListener.class)) {
                 try {
                     sl.notifyOfNewStep(s, context);
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     LOGGER.log(Level.WARNING, "failed to notify step listener before starting " + s.getDescriptor().getFunctionName(), e);
                 }
             }
