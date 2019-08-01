@@ -32,6 +32,7 @@ import groovy.lang.GroovyObject;
 import groovy.lang.GroovyObjectSupport;
 import groovy.lang.GroovyRuntimeException;
 import hudson.EnvVars;
+import hudson.ExtensionList;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Describable;
@@ -76,6 +77,7 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
+import org.jenkinsci.plugins.workflow.flow.StepListener;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.Step;
@@ -269,9 +271,23 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
             // Persist the node - block start and end nodes do their own persistence.
             CpsFlowExecution.maybeAutoPersistNode(an);
-            StepExecution e = s.start(context);
-            thread.setStep(e);
-            sync = e.start();
+
+            // Call any registered StepListeners.
+            for (StepListener sl : ExtensionList.lookup(StepListener.class)) {
+                try {
+                    sl.notifyOfNewStep(s, context);
+                } catch (Throwable e) {
+                    LOGGER.log(Level.WARNING, "failed to notify step listener before starting " + s.getDescriptor().getFunctionName(), e);
+                }
+            }
+            if (!context.isCompleted()) {
+                StepExecution e = s.start(context);
+                thread.setStep(e);
+                sync = e.start();
+            } else {
+                s = null;
+                sync = true;
+            }
         } catch (Exception e) {
             context.onFailure(e);
             s = null;
