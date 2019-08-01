@@ -62,12 +62,16 @@ public class StepListenerTest {
     @TestExtension
     public static class TestStepListener implements StepListener {
         @Override
-        public void notifyOfNewStep(@Nonnull Step s, @Nonnull StepContext context) throws Exception {
-            TaskListener listener = context.get(TaskListener.class);
-            if (listener == null) {
-                listener = TaskListener.NULL;
+        public void notifyOfNewStep(@Nonnull Step s, @Nonnull StepContext context) {
+            try {
+                TaskListener listener = context.get(TaskListener.class);
+                if (listener == null) {
+                    listener = TaskListener.NULL;
+                }
+                listener.getLogger().println("Step listener saw step " + s.getDescriptor().getFunctionName());
+            } catch (Exception e) {
+                // Don't care.
             }
-            listener.getLogger().println("Step listener saw step " + s.getDescriptor().getFunctionName());
         }
     }
 }
