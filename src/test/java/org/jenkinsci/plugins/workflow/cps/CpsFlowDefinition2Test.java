@@ -32,54 +32,28 @@ import hudson.model.Result;
 
 import java.util.logging.Level;
 
-import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
+import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 
-public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
+public class CpsFlowDefinition2Test {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
+    @Rule public JenkinsRule jenkins = new JenkinsRule();
     @Rule public LoggerRule logging = new LoggerRule();
     @Rule public ErrorCollector errors = new ErrorCollector();
-
-    /**
-     * I should be able to have DSL call into async step and then bring it to the completion.
-     */
-    @Test public void suspendExecutionAndComeBack() throws Exception {
-        CpsFlowDefinition flow = new CpsFlowDefinition("semaphore 'watch'\nprintln 'Yo'", false);
-
-        // get this going...
-        createExecution(flow);
-        exec.start();
-
-        SemaphoreStep.waitForStart("watch/1", null);
-
-        assertFalse("Expected the execution to be suspended but it has completed", exec.isComplete());
-
-        FlowExecutionOwner owner = exec.getOwner();
-        exec = roundtripXStream(exec);    // poor man's simulation of Jenkins restart
-        exec.onLoad(owner);
-
-        // now resume workflow execution
-        SemaphoreStep.success("watch/1", null);
-
-        exec.waitForSuspension();
-        assertTrue(exec.isComplete());
-    }
 
     /**
      * Verify that we kill endlessly recursive CPS code cleanly.

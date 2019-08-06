@@ -33,31 +33,31 @@ import java.util.concurrent.TimeUnit;
 import hudson.util.OneShotEvent;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
-import org.jenkinsci.plugins.workflow.cps.AbstractCpsFlowTest;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import static org.junit.Assert.*;
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 
 import org.junit.ClassRule;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.JenkinsRule;
 
 /**
  * Test of {@link WorkflowJob} that doesn't involve Jenkins restarts.
  *
  * @author Kohsuke Kawaguchi
  */
-public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
+public class WorkflowJobNonRestartingTest {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
+    @ClassRule public static JenkinsRule jenkins = new JenkinsRule();
 
-    WorkflowJob p;
+    private static WorkflowJob p;
 
-    @Before public void setUp() throws Exception {
-        super.setUp();
+    @BeforeClass public static void setUp() throws Exception {
         p = jenkins.jenkins.createProject(WorkflowJob.class, "demo");
     }
 
