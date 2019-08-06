@@ -32,54 +32,31 @@ import hudson.model.Result;
 
 import java.util.logging.Level;
 
-import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
+import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 
-public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
+import static org.hamcrest.Matchers.instanceOf;
+
+public class CpsFlowDefinition2Test {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
+    @ClassRule public static JenkinsRule jenkins = new JenkinsRule();
     @Rule public LoggerRule logging = new LoggerRule();
     @Rule public ErrorCollector errors = new ErrorCollector();
-
-    /**
-     * I should be able to have DSL call into async step and then bring it to the completion.
-     */
-    @Test public void suspendExecutionAndComeBack() throws Exception {
-        CpsFlowDefinition flow = new CpsFlowDefinition("semaphore 'watch'\nprintln 'Yo'", false);
-
-        // get this going...
-        createExecution(flow);
-        exec.start();
-
-        SemaphoreStep.waitForStart("watch/1", null);
-
-        assertFalse("Expected the execution to be suspended but it has completed", exec.isComplete());
-
-        FlowExecutionOwner owner = exec.getOwner();
-        exec = roundtripXStream(exec);    // poor man's simulation of Jenkins restart
-        exec.onLoad(owner);
-
-        // now resume workflow execution
-        SemaphoreStep.success("watch/1", null);
-
-        exec.waitForSuspension();
-        assertTrue(exec.isComplete());
-    }
 
     /**
      * Verify that we kill endlessly recursive CPS code cleanly.
@@ -89,7 +66,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
         Assume.assumeTrue(!Functions.isWindows());  // Sidestep false failures specific to a few Windows build environments.
         String script = "def getThing(){return thing == null}; \n" +
                 "node { echo getThing(); } ";
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "recursion");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(script, true));
 
         // Should have failed with error about excessive recursion depth
@@ -118,7 +95,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
         String script = "@NonCPS def getThing(){return thing == null}; \n" +
                 "node { echo getThing(); } ";
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "recursion");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(script, true));
 
         // Should have failed with error about excessive recursion depth
@@ -136,14 +113,14 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     }
 
     @Test public void configRoundTrip() throws Exception {
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("echo 'whatever'", false));
         jenkins.configRoundtrip(job);
     }
 
     @Issue({"JENKINS-34599", "JENKINS-45629"})
     @Test public void fieldInitializers() throws Exception {
-        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("class X {final String val; X(String _val) {val = _val}}; echo(/hello ${new X('world').val}/)", true));
         jenkins.assertLogContains("hello world", jenkins.buildAndAssertSuccess(p));
         p.setDefinition(new CpsFlowDefinition("class X {String world = 'world'; String message = 'hello ' + world}; echo(new X().message)", true));
@@ -154,7 +131,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Test
     public void superCallsSandboxed() throws Exception {
         logging.record(CpsTransformer.class, Level.FINEST);
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("class X extends groovy.json.JsonSlurper {def parse(url) {super.parse(new URL(url))}}; echo(/got ${new X().parse(\"${JENKINS_URL}api/json\")}/)", true));
         WorkflowRun r = jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
         jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use method groovy.json.JsonSlurper parse java.net.URL", r);
@@ -168,13 +145,14 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
 
     @Test
     public void sandboxInvokerUsed() throws Exception {
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("[a: 1, b: 2].collectEntries { k, v ->\n" +
                 "  Jenkins.getInstance()\n" +
                 "  [(v): k]\n" +
                 "}\n", true));
 
         WorkflowRun r = jenkins.assertBuildStatus(Result.FAILURE, job.scheduleBuild2(0).get());
+        assertThat(r.getExecution().getCauseOfFailure(), instanceOf(RejectedAccessException.class));
         jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", r);
         jenkins.assertLogContains("Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance. " + org.jenkinsci.plugins.scriptsecurity.scripts.Messages.ScriptApprovalNote_message(), r);
     }
@@ -183,7 +161,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Test
     public void constructorSandbox() throws Exception {
         logging.record(CpsTransformer.class, Level.FINEST);
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("class X {X() {Jenkins.instance.systemMessage = 'pwned'}}; new X()", true));
         WorkflowRun b = job.scheduleBuild2(0).get();
         assertNull(jenkins.jenkins.getSystemMessage());
@@ -195,7 +173,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Test
     public void fieldInitializerSandbox() throws Exception {
         logging.record(CpsTransformer.class, Level.FINEST);
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("class X {def x = {Jenkins.instance.systemMessage = 'pwned'}()}; new X()", true));
         WorkflowRun b = job.scheduleBuild2(0).get();
         assertNull(jenkins.jenkins.getSystemMessage());
@@ -207,7 +185,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Test
     public void initializerSandbox() throws Exception {
         logging.record(CpsTransformer.class, Level.FINEST);
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("class X {{Jenkins.instance.systemMessage = 'pwned'}}; new X()", true));
         WorkflowRun b = job.scheduleBuild2(0).get();
         assertNull(jenkins.jenkins.getSystemMessage());
@@ -218,7 +196,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Test
     public void staticInitializerSandbox() throws Exception {
         logging.record(CpsTransformer.class, Level.FINEST);
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("class X {static {Jenkins.instance.systemMessage = 'pwned'}}; new X()", true));
         WorkflowRun b = job.scheduleBuild2(0).get();
         assertNull(jenkins.jenkins.getSystemMessage());
@@ -229,7 +207,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Test
     public void traitsSandbox() throws Exception {
         logging.record(CpsTransformer.class, Level.FINEST);
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("trait T {void m() {Jenkins.instance.systemMessage = 'pwned'}}; class X implements T {}; new X().m()", true));
         WorkflowRun b = job.scheduleBuild2(0).get();
         assertNull(jenkins.jenkins.getSystemMessage());
@@ -247,7 +225,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("SECURITY-566")
     @Test public void typeCoercion() throws Exception {
         logging.record(CpsTransformer.class, Level.FINEST);
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         errors.checkSucceeds(() -> {
             job.setDefinition(new CpsFlowDefinition("interface I {Object getInstance()}; println((Jenkins as I).instance)", true));
             WorkflowRun b = job.scheduleBuild2(0).get();
@@ -286,7 +264,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue({"SECURITY-580", "SECURITY-1353"})
     @Test public void positionalConstructors() throws Exception {
         logging.record(CpsTransformer.class, Level.FINEST);
-        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         // Control cases:
         errors.checkSucceeds(() -> {
             p.setDefinition(new CpsFlowDefinition("def u = ['http://nowhere.net/'] as URL; echo(/$u/)", true));
@@ -334,7 +312,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("SECURITY-567")
     @Test public void methodPointers() throws Exception {
         logging.record(CpsTransformer.class, Level.FINEST);
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("println((Jenkins.&getInstance)())", true));
         WorkflowRun b = job.scheduleBuild2(0).get();
         jenkins.assertBuildStatus(Result.FAILURE, b);
@@ -344,7 +322,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("JENKINS-38052")
     @Test
     public void curriedClosuresInParallel() throws Exception {
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("def example_c = { input -> node { echo \"ate $input\" } }\n" +
                 "def map = [:]\n" +
                 "map['spam'] = example_c.curry('spam')\n" +
@@ -358,7 +336,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("JENKINS-27916")
     @Test
     public void gStringInMapKey() throws Exception {
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("def s1 = \"first-${env.BUILD_NUMBER}\"\n" +
                 "def s2 = \"second-${env.BUILD_NUMBER}\"\n" +
                 "def m = [(s1): 'first-key',\n" +
@@ -396,7 +374,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("JENKINS-28321")
     @Test
     public void whitelistedMethodPointer() throws Exception {
-        WorkflowJob job = jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("def foo = 'lowercase'\n" +
                 "def bar = foo.&toUpperCase\n" +
                 "echo bar.call()\n", true));
@@ -409,7 +387,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("JENKINS-46391")
     @Test
     public void tildePattern() throws Exception {
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("def f = ~/f.*/; f.matcher('foo').matches()", true));
         jenkins.buildAndAssertSuccess(job);
     }
@@ -418,7 +396,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Test
     public void matcherTypeAssignment() throws Exception {
         logging.record(CpsTransformer.class, Level.FINEST);
-        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("@NonCPS\n" +
                 "def nonCPSMatcherMethod(String x) {\n" +
                 "  java.util.regex.Matcher m = x =~ /bla/\n" +
@@ -438,7 +416,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Test
     public void rhsOfDeclarationTransformedInNonCPS() throws Exception {
         logging.record(CpsTransformer.class, Level.FINEST);
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("@NonCPS\n" +
                 "def willFail() {\n" +
                 "  jenkins.model.Jenkins x = jenkins.model.Jenkins.getInstance()\n" +
@@ -453,7 +431,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Test
     public void rhsOfDeclarationSandboxedInCPS() throws Exception {
         logging.record(CpsTransformer.class, Level.FINEST);
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("jenkins.model.Jenkins x = jenkins.model.Jenkins.getInstance()\n", true));
         WorkflowRun b = job.scheduleBuild2(0).get();
         jenkins.assertBuildStatus(Result.FAILURE, b);
@@ -463,7 +441,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("JENKINS-47064")
     @Test
     public void booleanClosureWrapperFromDGM() throws Exception {
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("assert ['a', 'b'].every { sleep 1; return it != null }\n", true));
         jenkins.buildAndAssertSuccess(job);
     }
@@ -471,7 +449,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("JENKINS-48501")
     @Test
     public void variableDecl() throws Exception {
-        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("String foo", true));
         jenkins.buildAndAssertSuccess(p);
     }
@@ -479,7 +457,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("JENKINS-45575")
     @Test
     public void multipleAssignmentInSandbox() throws Exception {
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("def (a, b) = ['first', 'second']\n" +
                 "def c, d\n" +
                 "(c, d) = ['third', 'fourth']\n" +
@@ -490,7 +468,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("JENKINS-45575")
     @Test
     public void multipleAssignmentOutsideSandbox() throws Exception {
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("def (a, b) = ['first', 'second']\n" +
                 "def c, d\n" +
                 "(c, d) = ['third', 'fourth']\n" +
@@ -501,7 +479,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("JENKINS-49679")
     @Test
     public void multipleAssignmentFunctionCalledOnce() throws Exception {
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("alreadyRun = false\n" +
                 "def getAandB() {\n" +
                 "  if (!alreadyRun) {\n" +
@@ -521,7 +499,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("JENKINS-45982")
     @Test
     public void transformedSuperClass() throws Exception {
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("class Foo {\n" +
                 "    public String other() {\n" +
                 "        return 'base'\n" +
@@ -542,7 +520,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("SECURITY-1186")
     @Test
     public void finalizer() throws Exception {
-        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("class Foo {\n" +
                 "    @Override public void finalize() {\n" +
                 "    }\n" +
@@ -556,7 +534,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("SECURITY-266")
     @Test
     public void sandboxRejectsASTTransforms() throws Exception {
-        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("import groovy.transform.*\n" +
                 "import jenkins.model.Jenkins\n" +
                 "import org.jenkinsci.plugins.workflow.job.WorkflowJob\n" +
@@ -572,7 +550,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("SECURITY-1336")
     @Test
     public void blockConstructorInvocationAtRuntime() throws Exception {
-        WorkflowJob job = jenkins.jenkins.createProject(WorkflowJob.class, "w");
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
             "class DoNotRunConstructor extends org.jenkinsci.plugins.workflow.cps.CpsScript {\n" +
             "  DoNotRunConstructor() {\n" +
@@ -589,7 +567,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("JENKINS-56682")
     @Test
     public void scriptInitializersAtFieldSyntax() throws Exception {
-        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(
                 "import groovy.transform.Field\n" +
                 "@Field static int foo = 1\n" +
@@ -603,7 +581,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("JENKINS-56682")
     @Test
     public void scriptInitializersClassSyntax() throws Exception {
-        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(
                 "class MyScript extends org.jenkinsci.plugins.workflow.cps.CpsScript {\n" +
                 "  { MyScript.foo++ }\n" + // The instance initializer seems to be context sensitive, if placed below the field it is treated as a closure...
@@ -620,7 +598,7 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
     @Issue("JENKINS-56682")
     @Test
     public void scriptInitializerCallsCpsTransformedMethod() throws Exception {
-        WorkflowJob p = jenkins.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(
                 "class MyScript extends org.jenkinsci.plugins.workflow.cps.CpsScript {\n" +
                 "  static { bar() }\n" +
@@ -632,6 +610,74 @@ public class CpsFlowDefinition2Test extends AbstractCpsFlowTest {
                 "}\n", true));
         WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         jenkins.assertLogContains("CpsCallableInvocation{methodName=bar,", b);
+    }
+
+    @Issue("SECURITY-1465")
+    @Test public void blockLhsInMethodPointerExpression() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(
+                "({" +
+                "  System.getProperties()\n" +
+                "  1" +
+                "}().&toString)()", true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod java.lang.System getProperties", b);
+    }
+
+    @Issue("SECURITY-1465")
+    @Test public void blockRhsInMethodPointerExpression() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(
+                "1.&(System.getProperty('sandboxTransformsMethodPointerRhs'))()", true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod java.lang.System getProperty java.lang.String", b);
+    }
+
+    @Issue("SECURITY-1465")
+    @Test public void blockCastingUnsafeUserDefinedImplementationsOfCollection() throws Exception {
+        // See additional info on this test case in `SandboxTransformerTest.sandboxWillNotCastNonStandardCollections()` over in groovy-sandbox.
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(
+                "import groovy.transform.Field\n" +
+                "@Field def i = 0\n" +
+                "@NonCPS def unsafe() {\n" + // Using an @NonCPS method instead of a closure to avoid a CpsCallableInvocation being thrown out of Checker.preCheckedCast() when it invokes a method on the proxied Collection.
+                "  if(i) {\n" +
+                "    return ['secret.txt'] as Object[]\n" +
+                "  } else {\n" +
+                "    i = 1\n" +
+                "    return null\n" +
+                "  }\n" +
+                "}\n" +
+                "((this.&unsafe as Collection) as File) as Object[]", true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        // Before the security fix, fails with FileNotFoundException, bypassing the sandbox!
+        jenkins.assertLogContains("Casting non-standard Collections to a type via constructor is not supported", b);
+    }
+
+    @Issue("SECURITY-1465")
+    @Test public void blockCastingSafeUserDefinedImplementationsOfCollection() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(
+                "@NonCPS def safe() {\n" + // Using an @NonCPS method instead of a closure to avoid a CpsCallableInvocation being thrown out of Checker.preCheckedCast() when it invokes a method on the proxied Collection.
+                "  return ['secret.txt'] as Object[]\n" +
+                "}\n" +
+                "(this.&safe as Collection) as File", true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        // Before the security fix, fails because `new File(String)` is not whitelisted, so not a problem, but we have
+        // no good way to distinguish this case from the one in blockCastingUnsafeUserDefinedImplementationsOfCollection.
+        jenkins.assertLogContains("Casting non-standard Collections to a type via constructor is not supported", b);
+    }
+
+    @Issue("SECURITY-1465")
+    @Test public void blockEnumConstants() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition("jenkins.YesNoMaybe.MAYBE", true));
+        WorkflowRun b1 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticField jenkins.YesNoMaybe MAYBE", b1);
+
+        p.setDefinition(new CpsFlowDefinition("jenkins.YesNoMaybe.class as Object[]", true));
+        WorkflowRun b2 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticField jenkins.YesNoMaybe YES", b2);
     }
 
 }

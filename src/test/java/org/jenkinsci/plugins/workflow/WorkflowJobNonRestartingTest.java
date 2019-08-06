@@ -33,33 +33,26 @@ import java.util.concurrent.TimeUnit;
 import hudson.util.OneShotEvent;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
-import org.jenkinsci.plugins.workflow.cps.AbstractCpsFlowTest;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import static org.junit.Assert.*;
-import org.junit.Before;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 
 import org.junit.ClassRule;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.JenkinsRule;
 
 /**
  * Test of {@link WorkflowJob} that doesn't involve Jenkins restarts.
  *
  * @author Kohsuke Kawaguchi
  */
-public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
+public class WorkflowJobNonRestartingTest {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-
-    WorkflowJob p;
-
-    @Before public void setUp() throws Exception {
-        super.setUp();
-        p = jenkins.jenkins.createProject(WorkflowJob.class, "demo");
-    }
+    @ClassRule public static JenkinsRule jenkins = new JenkinsRule();
 
     /**
      * If a prohibited method is called, execution should fail.
@@ -77,6 +70,7 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
         ScriptApproval scriptApproval = ScriptApproval.get();
         scriptApproval.denySignature(signature);
         assertEquals(Collections.emptySet(), scriptApproval.getPendingSignatures());
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(script, true));
         WorkflowRun b = p.scheduleBuild2(0).get();
         jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use " + signature, b);
@@ -92,6 +86,7 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
      */
     @Test
     public void missingContextCheck() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("readFile 'true'", true));
 
         WorkflowRun b = p.scheduleBuild2(0).get();
@@ -103,6 +98,7 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
 
     @Test @Issue("JENKINS-25623")
     public void killInfiniteLoop() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("while(true) { " + WorkflowJobNonRestartingTest.class.getName()+".going(); }", true));
 
         QueueTaskFuture<WorkflowRun> f = p.scheduleBuild2(0);
@@ -116,6 +112,7 @@ public class WorkflowJobNonRestartingTest extends AbstractCpsFlowTest {
 
     @Test @Issue("JENKINS-25623")
     public void timeoutKillsLoop() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("timeout(time:3, unit:'SECONDS') { while (true) {} }", true));
         jenkins.assertBuildStatus(Result.ABORTED, p.scheduleBuild2(0));
     }
