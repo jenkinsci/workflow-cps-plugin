@@ -48,7 +48,7 @@ public class CpsVmExecutorServiceTest {
         r.buildAndAssertSuccess(p);
     }
 
-    @Issue({"JENKINS-31314", "JENKINS-27306", "JENKINS-26313"})
+    @Issue({"JENKINS-31314", "JENKINS-27306", "JENKINS-26313", "JENKINS-58501"})
     @Test public void wrongCatcher() throws Exception {
         boolean origFailOnMismatch = CpsVmExecutorService.FAIL_ON_MISMATCH;
         CpsVmExecutorService.FAIL_ON_MISMATCH = false;
@@ -119,18 +119,6 @@ public class CpsVmExecutorServiceTest {
                 r.assertLogContains(CpsVmExecutorService.mismatchMessage("C", "<init>", null, "sleep"), b);
                 return null;
             });
-        } finally {
-            CpsVmExecutorService.FAIL_ON_MISMATCH = origFailOnMismatch;
-        }
-    }
-
-    @Issue("JENKINS-58501")
-    @Ignore
-    @Test public void mismatchMetaProgrammingFalsePositives() throws Exception {
-        boolean origFailOnMismatch = CpsVmExecutorService.FAIL_ON_MISMATCH;
-        CpsVmExecutorService.FAIL_ON_MISMATCH = false;
-        try {
-            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
             errors.checkSucceeds(() -> {
                 p.setDefinition(new CpsFlowDefinition(
                     "import org.codehaus.groovy.runtime.InvokerHelper \n" + 
@@ -165,6 +153,36 @@ public class CpsVmExecutorServiceTest {
                     "e.doSomething()", false));
                 WorkflowRun b = r.buildAndAssertSuccess(p);
                 r.assertLogNotContains("methodMissing", b);
+                return null;
+            });
+        } finally {
+            CpsVmExecutorService.FAIL_ON_MISMATCH = origFailOnMismatch;
+        }
+    }
+
+    @Issue("JENKINS-58407")
+    @Ignore
+    @Test public void mismatchFalsePositives() throws Exception {
+        boolean origFailOnMismatch = CpsVmExecutorService.FAIL_ON_MISMATCH;
+        CpsVmExecutorService.FAIL_ON_MISMATCH = false;
+        try {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            errors.checkSucceeds(() -> {
+                p.setDefinition(new CpsFlowDefinition(
+                    "class C { def x }\n" +
+                    "def c = new C()\n" +
+                    "c.x = {-> echo 'test' }\n" +
+                    "c.x()", false));
+                WorkflowRun b = r.buildAndAssertSuccess(p);
+                r.assertLogNotContains(CpsVmExecutorService.mismatchMessage("C", "x", "org.jenkinsci.plugins.workflow.cps.CpsClosure2", "call"), b);
+                return null;
+            });
+            errors.checkSucceeds(() -> {
+                p.setDefinition(new CpsFlowDefinition(
+                    "def cs = [ action: {-> sleep(1) } ]\n" +
+                    "cs.action()", true));
+                WorkflowRun b = r.buildAndAssertSuccess(p);
+                r.assertLogNotContains(CpsVmExecutorService.mismatchMessage("java.util.LinkedHashMap", "action", "org.jenkinsci.plugins.workflow.cps.CpsClosure2", "call"), b);
                 return null;
             });
         } finally {

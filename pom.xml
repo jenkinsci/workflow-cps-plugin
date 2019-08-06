@@ -62,17 +62,17 @@
         </pluginRepository>
     </pluginRepositories>
     <properties>
-        <revision>2.73</revision>
+        <revision>2.74</revision>
         <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.121.1</jenkins.version>
+        <jenkins.version>2.138.4</jenkins.version>
         <java.level>8</java.level>
         <no-test-jar>false</no-test-jar>
         <useBeta>true</useBeta>
         <git-plugin.version>3.1.0</git-plugin.version>
         <workflow-support-plugin.version>3.3</workflow-support-plugin.version>
         <scm-api-plugin.version>2.2.6</scm-api-plugin.version>
-        <groovy-cps.version>1.29</groovy-cps.version>
-        <structs-plugin.version>1.18</structs-plugin.version>
+        <groovy-cps.version>1.30</groovy-cps.version>
+        <structs-plugin.version>1.20</structs-plugin.version>
         <workflow-step-api-plugin.version>2.20</workflow-step-api-plugin.version>
     </properties>
     <dependencies>
@@ -84,7 +84,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <version>2.32</version>
+            <version>2.36</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
