@@ -110,6 +110,12 @@ public final class CpsThread implements Serializable {
      */
     private final List<FutureCallback<Object>> completionHandlers = new ArrayList<FutureCallback<Object>>();
 
+    /**
+     *
+     * Created to allowing for a longer read chunk timeout on remoting
+     */
+    public static long REMOTE_TIMEOUT = Integer.parseInt(System.getProperty(CpsThread.class.getName() + ".REMOTE_TIMEOUT", "5"));
+
     CpsThread(CpsThreadGroup group, int id, Continuable program, FlowHead head, ContextVariableSet contextVariables) {
         this.group = group;
         this.id = id;
@@ -167,7 +173,7 @@ public final class CpsThread implements Serializable {
         final CpsThread old = CURRENT.get();
         CURRENT.set(this);
 
-        try (Timeout timeout = Timeout.limit(5, TimeUnit.MINUTES)) {
+        try (Timeout timeout = Timeout.limit(REMOTE_TIMEOUT, TimeUnit.MINUTES)) {
             LOGGER.log(FINE, "runNextChunk on {0}", resumeValue);
             final Outcome o = resumeValue;
             resumeValue = null;
