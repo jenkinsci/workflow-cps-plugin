@@ -114,7 +114,7 @@ public final class CpsThread implements Serializable {
      *
      * Created to allowing for a longer read chunk timeout on remoting
      */
-    public static long REMOTE_TIMEOUT = Integer.parseInt(System.getProperty(CpsThread.class.getName() + ".REMOTE_TIMEOUT", "5"));
+    public static final long REMOTE_TIMEOUT = Integer.parseInt(System.getProperty(CpsThread.class.getName() + ".REMOTE_TIMEOUT", "5"));
 
     CpsThread(CpsThreadGroup group, int id, Continuable program, FlowHead head, ContextVariableSet contextVariables) {
         this.group = group;
