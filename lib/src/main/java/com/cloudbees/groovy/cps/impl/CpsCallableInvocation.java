@@ -15,9 +15,7 @@ import javax.annotation.CheckForNull;
 import groovy.lang.Closure;
 import groovy.lang.GroovyObject;
 import groovy.lang.MetaClass;
-import groovy.lang.MetaProperty;
 import groovy.lang.MissingPropertyException;
-import org.codehaus.groovy.runtime.metaclass.MissingPropertyExceptionNoStack;
 
 /**
  * When an CPS-interpreted method is invoked, it immediately throws this error
