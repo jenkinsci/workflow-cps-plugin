@@ -9,8 +9,13 @@ import java.util.List;
 
 import static java.util.Arrays.*;
 import java.util.Collections;
+import java.util.Map;
 import javax.annotation.CheckForNull;
-import groovy.lang.MetaClass; 
+
+import groovy.lang.Closure;
+import groovy.lang.GroovyObject;
+import groovy.lang.MetaClass;
+import groovy.lang.MetaProperty;
 
 /**
  * When an CPS-interpreted method is invoked, it immediately throws this error
@@ -62,6 +67,19 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
         
         if (expectedReceiver instanceof MetaClass && expectedMethodName.equals("invokeMethod")) {
             return; 
+        }
+
+        if (expectedReceiver instanceof GroovyObject) {
+            Object propVal = ((GroovyObject) expectedReceiver).getMetaClass().getProperty(expectedReceiver, expectedMethodName);
+            if (propVal instanceof Closure) {
+                return;
+            }
+        }
+        if (expectedReceiver instanceof Map && ((Map) expectedReceiver).containsKey(expectedMethodName)) {
+            Object mapVal = ((Map) expectedReceiver).get(expectedMethodName);
+            if (mapVal instanceof Closure) {
+                return;
+            }
         }
 
         if(methodName.equals("methodMissing")){
