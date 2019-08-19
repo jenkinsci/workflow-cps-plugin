@@ -16,6 +16,8 @@ import groovy.lang.Closure;
 import groovy.lang.GroovyObject;
 import groovy.lang.MetaClass;
 import groovy.lang.MetaProperty;
+import groovy.lang.MissingPropertyException;
+import org.codehaus.groovy.runtime.metaclass.MissingPropertyExceptionNoStack;
 
 /**
  * When an CPS-interpreted method is invoked, it immediately throws this error
@@ -70,9 +72,13 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
         }
 
         if (expectedReceiver instanceof GroovyObject) {
-            Object propVal = ((GroovyObject) expectedReceiver).getMetaClass().getProperty(expectedReceiver, expectedMethodName);
-            if (propVal instanceof Closure) {
-                return;
+            try {
+                Object propVal = ((GroovyObject) expectedReceiver).getMetaClass().getProperty(expectedReceiver, expectedMethodName);
+                if (propVal instanceof Closure) {
+                    return;
+                }
+            } catch (MissingPropertyException mpe) {
+                // Do nothing - this just means the property didn't exist.
             }
         }
         if (expectedReceiver instanceof Map && ((Map) expectedReceiver).containsKey(expectedMethodName)) {
