@@ -161,8 +161,7 @@ public class CpsVmExecutorServiceTest {
     }
 
     @Issue("JENKINS-58407")
-    @Ignore
-    @Test public void mismatchFalsePositives() throws Exception {
+    @Test public void closureInvokeShouldBeTreatedAsClosureCall() throws Exception {
         boolean origFailOnMismatch = CpsVmExecutorService.FAIL_ON_MISMATCH;
         CpsVmExecutorService.FAIL_ON_MISMATCH = false;
         try {
@@ -179,7 +178,7 @@ public class CpsVmExecutorServiceTest {
             });
             errors.checkSucceeds(() -> {
                 p.setDefinition(new CpsFlowDefinition(
-                    "def cs = [ action: {-> sleep(1) } ]\n" +
+                    "def cs = [ action: {-> echo 'test' } ]\n" +
                     "cs.action()", true));
                 WorkflowRun b = r.buildAndAssertSuccess(p);
                 r.assertLogNotContains(CpsVmExecutorService.mismatchMessage("java.util.LinkedHashMap", "action", "org.jenkinsci.plugins.workflow.cps.CpsClosure2", "call"), b);
