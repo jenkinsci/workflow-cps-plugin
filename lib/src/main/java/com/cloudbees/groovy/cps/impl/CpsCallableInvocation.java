@@ -69,20 +69,22 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
             return; 
         }
 
-        if (expectedReceiver instanceof GroovyObject) {
-            try {
-                Object propVal = ((GroovyObject) expectedReceiver).getMetaClass().getProperty(expectedReceiver, expectedMethodName);
-                if (propVal instanceof Closure) {
+        if ("call".equals(methodName) && !expectedMethodNames.contains(methodName)) {
+            if (expectedReceiver instanceof GroovyObject) {
+                try {
+                    Object propVal = ((GroovyObject) expectedReceiver).getMetaClass().getProperty(expectedReceiver, expectedMethodName);
+                    if (propVal instanceof Closure) {
+                        return;
+                    }
+                } catch (MissingPropertyException mpe) {
+                    // Do nothing - this just means the property didn't exist.
+                }
+            }
+            if (expectedReceiver instanceof Map && ((Map) expectedReceiver).containsKey(expectedMethodName)) {
+                Object mapVal = ((Map) expectedReceiver).get(expectedMethodName);
+                if (mapVal instanceof Closure) {
                     return;
                 }
-            } catch (MissingPropertyException mpe) {
-                // Do nothing - this just means the property didn't exist.
-            }
-        }
-        if (expectedReceiver instanceof Map && ((Map) expectedReceiver).containsKey(expectedMethodName)) {
-            Object mapVal = ((Map) expectedReceiver).get(expectedMethodName);
-            if (mapVal instanceof Closure) {
-                return;
             }
         }
 
