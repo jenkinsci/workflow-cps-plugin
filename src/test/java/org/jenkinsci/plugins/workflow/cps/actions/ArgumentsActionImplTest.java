@@ -19,6 +19,7 @@ import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsMapContaining;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
+import org.jenkinsci.plugins.workflow.actions.ArgumentsAction.NotStoredReason;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.CpsThread;
@@ -35,6 +36,10 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
 import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
 import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
@@ -48,10 +53,14 @@ import static org.hamcrest.Matchers.*;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.TestExtension;
+
+import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -59,6 +68,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.testMetaStep.Curve;
@@ -583,5 +594,53 @@ public class ArgumentsActionImplTest {
         Map<String, ?> args = (Map<String,?>)(((UninstantiatedDescribable)delegate).getArguments());
         Assert.assertThat(args, IsMapContaining.hasEntry("artifacts", "msg.out"));
         Assert.assertEquals(ArtifactArchiver.class.getName(), ud.getModel().getType().getName());
+    }
+
+    @Test public void enumArguments() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(
+                "import java.util.concurrent.TimeUnit\n" +
+                "import java.time.temporal.ChronoUnit\n" +
+                "enum UserDefinedEnum {\n" +
+                "    VALUE;\n" +
+                "    UserDefinedEnum() { /* JENKINS-33023 */ }\n" +
+                "}\n" +
+                "nop(UserDefinedEnum.VALUE)\n" +
+                "nop(TimeUnit.MINUTES)\n" +
+                "nop(ChronoUnit.MINUTES)\n",
+                false)); // ChronoUnit.MINUTES is not whitelisted.
+        WorkflowRun run = r.buildAndAssertSuccess(p);
+        List<FlowNode> nodes = new DepthFirstScanner().filteredNodes(run.getExecution(), new NodeStepTypePredicate("nop"));
+        Assert.assertThat(nodes.get(0).getPersistentAction(ArgumentsAction.class).getArgumentValueOrReason("value"),
+                equalTo(ChronoUnit.MINUTES));
+        Assert.assertThat(nodes.get(1).getPersistentAction(ArgumentsAction.class).getArgumentValueOrReason("value"),
+                equalTo(TimeUnit.MINUTES));
+        Assert.assertThat(nodes.get(2).getPersistentAction(ArgumentsAction.class).getArgumentValueOrReason("value"),
+                equalTo(NotStoredReason.UNSERIALIZABLE));
+    }
+
+    public static class NopStep extends Step {
+        @DataBoundConstructor
+        public NopStep(Object value) {}
+        @Override
+        public StepExecution start(StepContext context) throws Exception {
+            return new SynchronousStepExecution<Void>(context) {
+                @Override
+                protected Void run() throws Exception {
+                    return null;
+                }
+            };
+        }
+        @TestExtension
+        public static class DescriptorImpl extends StepDescriptor {
+            @Override
+            public String getFunctionName() {
+                return "nop";
+            }
+            @Override
+            public Set<? extends Class<?>> getRequiredContext() {
+                return Collections.emptySet();
+            }
+        }
     }
 }

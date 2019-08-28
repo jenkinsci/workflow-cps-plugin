@@ -25,6 +25,7 @@
 package org.jenkinsci.plugins.workflow.cps.actions;
 
 import com.google.common.collect.Maps;
+import groovy.lang.GroovyClassLoader;
 import hudson.EnvVars;
 import hudson.model.Describable;
 import hudson.model.Result;
@@ -128,8 +129,13 @@ public class ArgumentsActionImpl extends ArgumentsAction {
                 || ob instanceof URL || ob instanceof Result) {
             return true;
         }
+        if (ob instanceof Enum) {
+            // We use getDeclaringClass instead of getClass to handle enums with value-specific class bodies like TimeUnit.
+            Class enumClass = ((Enum) ob).getDeclaringClass();
+            return !(enumClass.getClassLoader() instanceof GroovyClassLoader);
+        }
         Class c = ob.getClass();
-        return c.isPrimitive() || c.isEnum() || (c.isArray() && !(c.getComponentType().isPrimitive()));  // Primitive arrays are not legal here
+        return c.isPrimitive() || (c.isArray() && !(c.getComponentType().isPrimitive()));  // Primitive arrays are not legal here
     }
 
     /** Normal environment variables, as opposed to ones that might come from credentials bindings */
