@@ -39,7 +39,6 @@ import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
-import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
 import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
@@ -71,7 +70,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
+import org.jenkinsci.plugins.workflow.steps.StepExecutions;
 import org.jenkinsci.plugins.workflow.testMetaStep.Curve;
 import org.jvnet.hudson.test.LoggerRule;
 
@@ -608,7 +609,8 @@ public class ArgumentsActionImplTest {
                 "nop(UserDefinedEnum.VALUE)\n" +
                 "nop(TimeUnit.MINUTES)\n" +
                 "nop(ChronoUnit.MINUTES)\n",
-                false)); // ChronoUnit.MINUTES is not whitelisted.
+                true));
+        ScriptApproval.get().approveSignature("staticField java.time.temporal.ChronoUnit MINUTES"); // TODO add to generic-whitelist
         WorkflowRun run = r.buildAndAssertSuccess(p);
         List<FlowNode> nodes = new DepthFirstScanner().filteredNodes(run.getExecution(), new NodeStepTypePredicate("nop"));
         Assert.assertThat(nodes.get(0).getPersistentAction(ArgumentsAction.class).getArgumentValueOrReason("value"),
@@ -624,12 +626,7 @@ public class ArgumentsActionImplTest {
         public NopStep(Object value) {}
         @Override
         public StepExecution start(StepContext context) throws Exception {
-            return new SynchronousStepExecution<Void>(context) {
-                @Override
-                protected Void run() throws Exception {
-                    return null;
-                }
-            };
+            return StepExecutions.synchronous(context, unused -> null);
         }
         @TestExtension
         public static class DescriptorImpl extends StepDescriptor {
