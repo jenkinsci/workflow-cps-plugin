@@ -73,7 +73,7 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
         TaskListener listener;
         if (owner instanceof FlowExecutionOwner.Executable) {
             FlowExecutionOwner executionOwner = ((FlowExecutionOwner.Executable) owner).asFlowExecutionOwner();
-            if (executionOwner != null) {
+            if (executionOwner != null && owner.isBuilding()) {
                 listener = executionOwner.getListener();
             } else {
                 listener = new LogTaskListener(LOGGER, Level.INFO);
