@@ -1,0 +1,20 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:f="/lib/form">
+
+	<f:entry field="path" title="${%Classpath Resource Path}" description="The classpath location of the Groovy Pipeline Script to load">
+	    <f:textbox/>
+	</f:entry>
+	
+	<f:entry field="classloaderSource" title="${%Classpath Hint Object}" description="An object to grab a ClassLoader from to use to load the script">
+	    <f:textbox default="null"/>
+	</f:entry>
+	
+	<f:advanced>
+	
+		<f:entry field="unexport" title="${%Unexport properties when done?}" description="Whether properties from the loaded script should be un-exported when the pipeline is serialized">
+			<f:checkbox checked="${descriptor.DEFAULT_UNEXPORT}" />
+		</f:entry>
+	
+	</f:advanced>
+
+</j:jelly>

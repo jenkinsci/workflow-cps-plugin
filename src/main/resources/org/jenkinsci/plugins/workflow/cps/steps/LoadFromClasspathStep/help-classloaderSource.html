@@ -1,0 +1,22 @@
+<p>
+An object to use to get the classloader to use to look for the classpath resource.
+<br><br>
+Since this will be targeting a Groovy script file (not bytecode) resource on the classpath, 
+you must use a <a target="_blank" href="http://docs.groovy-lang.org/2.4.10/html/api/groovy/lang/GroovyClassLoader.html">GroovyClassLoader</a>
+to look for the class to ensure that the Groovy script text is located and compiled.
+Using a regular Java ClassLoader will only look for bytecode. This may fail - but if it does succeed, the resulting script's source code will 
+not be able to be CPS-transformed (since the source code was not loaded) and so it won't be able to be used by pipeline scripts without breaking the whole pipeline execution.
+An easy way to find a <code>GroovyClassLoader</code> is to provide the current Groovy script (<code>this</code>) as the hint object.
+</p>
+<p>
+I haven't figured out how to get the Snippet Generator to accept arbitrary variable names (that of course are not defined right now),
+so it will fail to generate a snippet unless you set "null" for the hint.
+Proper usage might look like
+</p>
+<code>
+<pre>
+loadFromClasspath(
+	classloaderSource: this,
+	path: "com/example/some/classpath/resource/Pipeline.groovy" )
+</pre>
+</code>
