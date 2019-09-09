@@ -54,17 +54,6 @@
             <id>repo.jenkins-ci.org</id>
             <url>https://repo.jenkins-ci.org/public/</url>
         </repository>
-        <!-- TODO: Remove once https://github.com/cloudbees/groovy-cps/pull/102 is merged/released -->
-        <repository>
-            <id>oss-nexus-snapshots</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </repository>
     </repositories>
     <pluginRepositories>
         <pluginRepository>
@@ -82,7 +71,7 @@
         <git-plugin.version>3.1.0</git-plugin.version>
         <workflow-support-plugin.version>3.3</workflow-support-plugin.version>
         <scm-api-plugin.version>2.2.6</scm-api-plugin.version>
-        <groovy-cps.version>1.31-20190819.170645-3</groovy-cps.version> <!-- TODO: Switch to release once https://github.com/cloudbees/groovy-cps/pull/102 is merged/released -->
+        <groovy-cps.version>1.31</groovy-cps.version>
         <structs-plugin.version>1.20</structs-plugin.version>
         <workflow-step-api-plugin.version>2.20</workflow-step-api-plugin.version>
     </properties>
