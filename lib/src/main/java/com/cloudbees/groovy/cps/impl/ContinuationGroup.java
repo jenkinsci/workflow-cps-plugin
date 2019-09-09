@@ -75,6 +75,8 @@ abstract class ContinuationGroup implements Serializable {
                     // CpsScript.invokeMethod e.g. on a UserDefinedGlobalVariable cannot be predicted from here.
                     expectedMethodNames.add("call");
                     laxCall = !((Script) effectiveReceiver).getBinding().getVariables().containsKey(methodName); // lax unless like invokePropertyOrMissing
+                } else if (effectiveReceiver instanceof GroovyShell && methodName.equals("evaluate")) {
+                    expectedMethodNames.add("run");
                 } else if (effectiveReceiver instanceof CpsBooleanClosureWrapper && methodName.equals("callForMap")) {
                     expectedMethodNames.add("call");
                 } else if ((effectiveReceiver instanceof ListWithDefault || effectiveReceiver instanceof MapWithDefault) && methodName.equals("get")) {
