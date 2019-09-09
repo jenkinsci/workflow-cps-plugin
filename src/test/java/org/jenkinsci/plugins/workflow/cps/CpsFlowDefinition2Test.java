@@ -680,4 +680,83 @@ public class CpsFlowDefinition2Test {
         jenkins.assertLogContains("staticField jenkins.YesNoMaybe YES", b2);
     }
 
+    @Issue("SECURITY-1538")
+    @Test public void blockMethodNameInMethodCalls() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition("1.({ Jenkins.getInstance(); 'toString' }())()", true));
+        WorkflowRun b1 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b1);
+        // @NonCPS equivalent
+        p.setDefinition(new CpsFlowDefinition(
+                "def @NonCPS method() {\n" +
+                "  1.({ Jenkins.getInstance(); 'toString' }())()\n" +
+                "}\n" +
+                "method()", true));
+        WorkflowRun b2 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b2);
+    }
+
+    @Issue("SECURITY-1538")
+    @Test public void blockPropertyNameInAssignment() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(
+                "class Test { def x = 0 }\n" +
+                "def t = new Test()\n" +
+                "t.({ Jenkins.getInstance(); 'x' }()) = 1\n", true));
+        WorkflowRun b1 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b1);
+        // @NonCPS equivalent
+        p.setDefinition(new CpsFlowDefinition(
+                "class Test { def x = 0 }\n" +
+                "def @NonCPS method() {\n" +
+                "  def t = new Test()\n" +
+                "  t.({ Jenkins.getInstance(); 'x' }()) = 1\n" +
+                "}\n" +
+                "method()", true));
+        WorkflowRun b2 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b2);
+    }
+
+    @Issue("SECURITY-1538")
+    @Test public void blockPropertyNameInPrefixPostfixExpressions() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(
+                "class Test { def x = 0 }\n" +
+                "def t = new Test()\n" +
+                "t.({ Jenkins.getInstance(); 'x' }())++\n", true));
+        WorkflowRun b1 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b1);
+        // @NonCPS equivalent
+        p.setDefinition(new CpsFlowDefinition(
+                "class Test { def x = 0 }\n" +
+                "def @NonCPS method() {\n" +
+                "  def t = new Test()\n" +
+                "  t.({ Jenkins.getInstance(); 'x' }())++\n" +
+                "}\n" +
+                "method()", true));
+        WorkflowRun b2 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b2);
+    }
+
+    @Issue("SECURITY-1538")
+    @Test public void blockSubexpressionsInPrefixPostfixExpressions() throws Exception {
+        // Prefix
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition("++({ Jenkins.getInstance(); 1 }())", true));
+        WorkflowRun b1 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("MissingMethodException: No signature of method: com.cloudbees.groovy.cps.Builder.prefixInc", b1);
+        // @NonCPS prefix
+        p.setDefinition(new CpsFlowDefinition("def @NonCPS method() { ++({ Jenkins.getInstance(); 1 }()) }; method()", true));
+        WorkflowRun b2 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b2);
+        // Postfix
+        p.setDefinition(new CpsFlowDefinition("({ Jenkins.getInstance(); 1 }())++", true));
+        WorkflowRun b3 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("MissingMethodException: No signature of method: com.cloudbees.groovy.cps.Builder.postfixInc", b3);
+        // @NonCPS postfix
+        p.setDefinition(new CpsFlowDefinition("def @NonCPS method() { ({ Jenkins.getInstance(); 1 }())++ }; method()", true));
+        WorkflowRun b4 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b4);
+    }
+
 }
