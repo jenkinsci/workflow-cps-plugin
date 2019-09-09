@@ -52,8 +52,8 @@ import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoUpperStep;
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.Ignore;
 import org.jvnet.hudson.test.BuildWatcher;
@@ -68,10 +68,14 @@ import org.kohsuke.stapler.DataBoundConstructor;
 public class DSLTest {
     
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-    @Rule public JenkinsRule r = new JenkinsRule();
+    @ClassRule public static JenkinsRule r = new JenkinsRule();
+
+    private WorkflowJob p;
+    @Before public void newProject() throws Exception {
+        p = r.createProject(WorkflowJob.class);
+    }
 
     @Test public void overrideFunction() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("echo 'this came from a step'", true));
         r.assertLogContains("this came from a step", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
         p.setDefinition(new CpsFlowDefinition("def echo(s) {println s.toUpperCase()}\necho 'this came from my own function'\nsteps.echo 'but this is still from a step'", true));
@@ -82,7 +86,6 @@ public class DSLTest {
 
     @Issue("JENKINS-43934")
     @Test public void flattenGString() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("def message = myJoin(['the', /${'message'.toLowerCase(Locale.ENGLISH)}/]); echo(/What is $message?/)", true));
         r.assertLogContains("What is the message?", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
@@ -102,7 +105,7 @@ public class DSLTest {
                 return args;
             }
         }
-        @TestExtension("flattenGString") public static class DescriptorImpl extends StepDescriptor {
+        @TestExtension public static class DescriptorImpl extends StepDescriptor {
             @Override public String getFunctionName() {
                 return "myJoin";
             }
@@ -125,7 +128,6 @@ public class DSLTest {
 
     @Issue("JENKINS-43934")
     @Test public void flattenGString2() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("echo pops(pojo(/running #$BUILD_NUMBER/))", true));
         r.assertLogContains("running #1", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
@@ -133,7 +135,7 @@ public class DSLTest {
         public final String x;
         @DataBoundConstructor public Pojo(String x) {this.x = x;}
         @Symbol("pojo")
-        @TestExtension("flattenGString2") public static class DescriptorImpl extends Descriptor<Pojo> {}
+        @TestExtension public static class DescriptorImpl extends Descriptor<Pojo> {}
     }
     public static class Pops extends Step {
         public final Pojo pojo;
@@ -152,7 +154,7 @@ public class DSLTest {
                 return pojo.x;
             }
         }
-        @TestExtension("flattenGString2") public static class DescriptorImpl extends StepDescriptor {
+        @TestExtension public static class DescriptorImpl extends StepDescriptor {
             @Override public String getFunctionName() {
                 return "pops";
             }
@@ -168,7 +170,6 @@ public class DSLTest {
     @Issue("JENKINS-29922")
     @Test
     public void dollar_class_must_die() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die1");
         p.setDefinition(new CpsFlowDefinition("california ocean:'pacific', mountain:'sierra'", true));
         r.assertLogContains("California from pacific to sierra", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
@@ -179,7 +180,6 @@ public class DSLTest {
     @Issue("JENKINS-29922")
     @Test
     public void dollar_class_must_die2() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die2");
         p.setDefinition(new CpsFlowDefinition("california ocean:'pacific', mountain:'sierra', moderate:true", true));
         assertThat(JenkinsRule.getLog(r.assertBuildStatusSuccess(p.scheduleBuild2(0))).replace("\r\n", "\n"), containsString("Introducing california\nCalifornia from pacific to sierra"));
     }
@@ -190,7 +190,6 @@ public class DSLTest {
     @Issue("JENKINS-29922")
     @Test
     public void dollar_class_must_die3() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die3");
         p.setDefinition(new CpsFlowDefinition("nevada()", true));
         r.assertLogContains("All For Our Country", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
@@ -201,7 +200,6 @@ public class DSLTest {
     @Issue("JENKINS-29922")
     @Test
     public void dollar_class_must_die_colliding_argument() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die5");
         p.setDefinition(new CpsFlowDefinition("newYork motto:'Empire', moderate:true", true));
         WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         assertThat(JenkinsRule.getLog(run).replace("\r\n", "\n"), containsString("Introducing newYork\nThe Empire State"));
@@ -214,7 +212,6 @@ public class DSLTest {
     @Issue("JENKINS-29922")
     @Test
     public void dollar_class_must_die_onearg() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "die4");
         p.setDefinition(new CpsFlowDefinition("newYork 'Empire'", true));
         r.assertLogContains("The Empire State", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
@@ -222,7 +219,6 @@ public class DSLTest {
     @Issue("JENKINS-29922")
     @Test
     public void nonexistentFunctions() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("nonexistent()", true));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogContains("nonexistent", b);
@@ -232,7 +228,6 @@ public class DSLTest {
 
     @Issue("JENKINS-29922")
     @Test public void runMetaBlockStep() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("circle {echo 'interior is a disk'}", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("wrapping in a circle", b);
@@ -249,7 +244,6 @@ public class DSLTest {
     @Issue("JENKINS-29711")
     @Test
     public void monomorphic() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "mon");
         p.setDefinition(new CpsFlowDefinition("monomorphStep([firstArg:'one', secondArg:'two'])", true));
         r.assertLogContains("First arg: one, second arg: two", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
         WorkflowRun run = p.getLastBuild();
@@ -263,7 +257,6 @@ public class DSLTest {
     @Issue("JENKINS-29711")
     @Test
     public void monomorphicSymbol() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "monSymbol");
         p.setDefinition(new CpsFlowDefinition("monomorphWithSymbolStep monomorphSymbol(firstArg: 'one', secondArg: 'two')", true));
         r.assertLogContains("First arg: one, second arg: two", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
@@ -275,7 +268,6 @@ public class DSLTest {
     @Issue("JENKINS-29711")
     @Test
     public void monomorphicList() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "monList");
         p.setDefinition(new CpsFlowDefinition("monomorphListStep([[firstArg:'one', secondArg:'two'], [firstArg:'three', secondArg:'four']])", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("First arg: one, second arg: two", b);
@@ -285,7 +277,6 @@ public class DSLTest {
     @Issue("JENKINS-29711")
     @Test
     public void monomorphicListWithSymbol() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "monListSymbol");
         p.setDefinition(new CpsFlowDefinition("monomorphListSymbolStep([monomorphSymbol(firstArg: 'one', secondArg: 'two'), monomorphSymbol(firstArg: 'three', secondArg: 'four')])", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("First arg: one, second arg: two", b);
@@ -295,7 +286,6 @@ public class DSLTest {
     @Issue("JENKINS-38037")
     @Test
     public void metaStepSyntaxForDataBoundSetters() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "metaStepSyntaxForDataBoundSetters");
         p.setDefinition(new CpsFlowDefinition("multiShape(count: 2, name: 'pentagon') { echo 'Multiple shapes' }", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("wrapping in a group of 2 instances of pentagon", b);
@@ -305,7 +295,6 @@ public class DSLTest {
     @Issue("JENKINS-38169")
     @Test
     public void namedSoleParamForStep() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "namedSoleParamForStep");
         p.setDefinition(new CpsFlowDefinition("echo message:'Hello world'", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("Hello world", b);
@@ -313,7 +302,6 @@ public class DSLTest {
 
     @Issue("JENKINS-37538")
     @Test public void contextClassLoader() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("try {def c = classLoad(getClass().name); error(/did not expect to be able to load ${c} from ${c.classLoader}/)} catch (ClassNotFoundException x) {echo(/good, got ${x}/)}", false));
         r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
@@ -322,7 +310,6 @@ public class DSLTest {
     * Tests the ability to execute a user defined closure
     */
     @Test public void userDefinedClosureInvocationExecution() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("binding[\"my_closure\"] = { \n" +
                                               " sleep 1 \n" + 
                                               " echo \"my closure!\" \n" + 
@@ -336,7 +323,6 @@ public class DSLTest {
     * Tests the ability to execute a user defined closure with no arguments
     */
     @Test public void userDefinedClosure0ArgsExecution() throws Exception {
-         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
          p.setDefinition(new CpsFlowDefinition("binding.setVariable(\"my_closure\", { echo \"my closure!\" })\n my_closure() ", false));
          WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
          r.assertLogContains("my closure!", b); 
@@ -346,7 +332,6 @@ public class DSLTest {
     * Tests the ability to execute a user defined closure with one arguments
     */
     @Test public void userDefinedClosure1ArgInvocationExecution() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("my_closure = { String message -> \n" +
                                               "  echo message \n" +
                                               "}\n" + 
@@ -359,7 +344,6 @@ public class DSLTest {
     * Tests the ability to execute a user defined closure with 2 arguments
     */
     @Test public void userDefinedClosure2ArgInvocationExecution() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("my_closure = { String message1, String message2 -> \n" +
                                               "  echo \"my message is ${message1} and ${message2}\" \n" +
                                               "}\n" + 
@@ -372,7 +356,6 @@ public class DSLTest {
     * Tests untyped arguments 
     */
     @Test public void userDefinedClosureUntypedArgInvocationExecution() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("my_closure = { a , b -> \n" +
                                                       "  echo \"my message is ${a} and ${b}\" \n" +
                                                       "}\n" +
@@ -388,7 +371,6 @@ public class DSLTest {
     */
 	@Ignore
     @Test public void userDefinedClosureVarArgInvocationExecution() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("my_closure = { String message, Integer... n -> \n" +
                                               "  println message \n" + 
                                               "  println n.sum() \n" +
@@ -400,7 +382,6 @@ public class DSLTest {
     }
     
     @Test public void quotedStep() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("'echo' 'Hello1'\n" +
                                               "\"echo\" 'Hello2'", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
@@ -409,14 +390,12 @@ public class DSLTest {
     }
 
     @Test public void fullyQualifiedStep() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("'org.jenkinsci.plugins.workflow.steps.EchoStep' 'Hello, world!'", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("Hello, world!", b);
     }
 
     @Test public void fullyQualifiedAmbiguousStep() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition(
                 "'org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoLowerStep' 'HeLlO'\n" +
                 "'org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoUpperStep' 'GoOdByE'", true));
@@ -427,7 +406,6 @@ public class DSLTest {
     }
 
     @Test public void ambiguousStepsRespectOrdinal() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("ambiguousEcho 'HeLlO'\n", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("HELLO", b);
@@ -436,7 +414,6 @@ public class DSLTest {
     }
 
     @Test public void  strayParameters() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("node {sleep time: 1, units: 'SECONDS', comment: 'units is a typo'}", true));
         WorkflowRun b =  r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogContains("IllegalArgumentException: WARNING: Unknown parameter(s) found for class type " +
@@ -459,7 +436,7 @@ public class DSLTest {
                 return Thread.currentThread().getContextClassLoader().loadClass(name);
             }
         }
-        @TestExtension("contextClassLoader") public static class DescriptorImpl extends StepDescriptor {
+        @TestExtension public static class DescriptorImpl extends StepDescriptor {
             @Override public String getFunctionName() {
                 return "classLoad";
             }

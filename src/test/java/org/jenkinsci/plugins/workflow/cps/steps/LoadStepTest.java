@@ -21,11 +21,11 @@ import org.jvnet.hudson.test.JenkinsRule;
 public class LoadStepTest {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-    @Rule public JenkinsRule r = new JenkinsRule();
+    @ClassRule public static JenkinsRule r = new JenkinsRule();
 
     @Test
     public void basics() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = r.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(
             "node {\n" +
             "  writeFile text: 'println(21*2)', file: 'test.groovy'\n" +
@@ -42,7 +42,7 @@ public class LoadStepTest {
      */
     @Test
     public void evaluationResult() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = r.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(
                 "node {\n" +
                 "  writeFile text: '21*2', file: 'test.groovy'\n" +
@@ -55,7 +55,7 @@ public class LoadStepTest {
 
     @Test
     public void compilationErrorsCanBeSerialized() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = r.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(
                 "node {\n" +
                 "  writeFile text: 'bad, syntax', file: 'test.groovy'\n" +
