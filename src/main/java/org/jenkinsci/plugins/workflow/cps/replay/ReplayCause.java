@@ -31,6 +31,8 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.util.List;
+import java.lang.NoSuchMethodError;
 
 /**
  * Marker that a run is a replay of an earlier one.
@@ -67,6 +69,21 @@ public class ReplayCause extends Cause {
     }
 
     @Override public String getShortDescription() {
+        String user = "";
+        List<Cause> causes = this.run.getCauses();
+        for (Cause cause : causes) {
+            if (cause instanceof UserIdCause) {
+                UserIdCause userIdCause = (UserIdCause) cause;
+                user = userIdCause.getUserName();
+            }
+        }
+        if (!user.isEmpty()) {
+            try {
+                return org.jenkinsci.plugins.workflow.cps.replay.Messages.ReplayCauseWithUser_shortDescription(originalNumber, user);
+            } catch (NoSuchMethodError e) {
+                /* If a localization hasn't been updated to have this string, just use the older flavor. */
+            }
+        }
         return org.jenkinsci.plugins.workflow.cps.replay.Messages.ReplayCause_shortDescription(originalNumber);
     }
 
