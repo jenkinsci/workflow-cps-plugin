@@ -205,7 +205,7 @@ public class ParallelStep extends Step {
             private static final long serialVersionUID = 1L;
         }
 
-        static final class ThrowableComparator implements Comparator<Throwable> {
+        static final class ThrowableComparator implements Comparator<Throwable>, Serializable {
 
             private final LinkedHashSet<Throwable> insertionOrder;
 
@@ -302,6 +302,10 @@ public class ParallelStep extends Step {
                                     + "="
                                     + e.getValue());
                 }
+                if (failFast && propagateWorst) {
+                    throw new IllegalArgumentException(
+                            "failFast and propagateWorst are mutually exclusive");
+                }
             }
             return new ParallelStep((Map) closures, failFast, propagateWorst);
         }
@@ -311,6 +315,9 @@ public class ParallelStep extends Step {
             Map<String,Object> retVal = new TreeMap<String,Object>(ps.closures);
             if (ps.failFast) {
                 retVal.put(FAIL_FAST_FLAG, Boolean.TRUE);
+            }
+            if (ps.propagateWorst) {
+                retVal.put(PROPAGATE_WORST_FLAG, Boolean.TRUE);
             }
             return retVal;
         }

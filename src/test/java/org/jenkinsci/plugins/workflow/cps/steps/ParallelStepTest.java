@@ -39,6 +39,7 @@ import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestBuilder;
+import org.jvnet.hudson.test.WithoutJenkins;
 
 /**
  * Tests for {@link ParallelStep}.
@@ -528,6 +529,7 @@ public class ParallelStepTest extends SingleJobTestBase {
         });
     }
 
+    @WithoutJenkins
     @Test
     public void throwableComparator() throws Exception {
         Comparator<Throwable> comparator = new ParallelStep.ResultHandler.ThrowableComparator();
