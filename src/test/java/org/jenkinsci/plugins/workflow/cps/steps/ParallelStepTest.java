@@ -647,7 +647,7 @@ public class ParallelStepTest extends SingleJobTestBase {
         upstreamJobDefinition.append("    propagateWorst: true\n");
         upstreamJobDefinition.append("  )\n");
         upstreamJobDefinition.append("}\n");
-        upstreamJob.setDefinition(new CpsFlowDefinition(upstreamJobDefinition.toString(), false));
+        upstreamJob.setDefinition(new CpsFlowDefinition(upstreamJobDefinition.toString(), true));
 
         WorkflowRun run = upstreamJob.scheduleBuild2(0).waitForStart();
         for (int i = 0; i < downstreamJobs.size(); i++) {
@@ -671,6 +671,7 @@ public class ParallelStepTest extends SingleJobTestBase {
             }
         }
 
+        story.j.waitForCompletion(run);
         story.j.assertBuildStatus(upstreamResult, run);
 
         for (int i = 0; i < downstreamJobs.size(); i++) {
