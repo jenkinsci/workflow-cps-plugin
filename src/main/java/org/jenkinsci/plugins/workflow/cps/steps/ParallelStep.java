@@ -16,9 +16,12 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -70,8 +73,8 @@ public class ParallelStep extends Step {
         private final boolean failFast;
         /** Have we called stop on the StepExecution? */
         private boolean stopSent = false;
-        /** if we failFast we need to record the first failure */
-        private Throwable originalFailure = null;
+        /** If we fail fast, we need to record the first failure. Use a linked hash set to maintain insertion order. */
+        private final LinkedHashSet<Throwable> failures = new LinkedHashSet<>();
 
         /**
          * Collect the results of sub-workflows as they complete.
@@ -122,14 +125,11 @@ public class ParallelStep extends Step {
                 } catch (IOException | InterruptedException x) {
                     LOGGER.log(Level.WARNING, null, x);
                 }
-                if (handler.originalFailure == null) {
-                    handler.originalFailure = t;
-                } else {
-                    Throwable originalT = handler.originalFailure;
-                    if (t != originalT) { // could be the same abort being delivered across branches
-                        originalT.addSuppressed(t);
-                    }
-                }
+                /*
+                 * Use a set because we may be encountering the same abort being delivered across
+                 * branches.
+                 */
+                handler.failures.add(t);
                 checkAllDone(true);
             }
 
@@ -152,9 +152,9 @@ public class ParallelStep extends Step {
                         return;
                     }
                     if (o.isFailure()) {
-                        if (handler.originalFailure == null) {
+                        if (handler.failures.isEmpty()) {
                             // in case the plugin is upgraded whilst a parallel step is running
-                            handler.originalFailure = e.getValue().getAbnormal();
+                            handler.failures.add(e.getValue().getAbnormal());
                         }
                         // recorded in the onFailure
                     } else {
@@ -162,8 +162,13 @@ public class ParallelStep extends Step {
                     }
                 }
                 // all done
-                if (handler.originalFailure!=null) {
-                    handler.context.onFailure(handler.originalFailure);
+                List<Throwable> toAttach = new ArrayList<>(handler.failures);
+                if (!toAttach.isEmpty()) {
+                    Throwable head = toAttach.get(0);
+                    for (int i = 1; i < toAttach.size(); i++) {
+                        head.addSuppressed(toAttach.get(i));
+                    }
+                    handler.context.onFailure(head);
                 } else {
                     handler.context.onSuccess(success);
                 }
