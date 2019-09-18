@@ -16,7 +16,6 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 import java.io.Serializable;
-import java.util.AbstractMap.SimpleEntry;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -72,7 +71,7 @@ public class ParallelStep extends Step {
         /** Have we called stop on the StepExecution? */
         private boolean stopSent = false;
         /** if we failFast we need to record the first failure */
-        private SimpleEntry<String,Throwable> originalFailure = null;
+        private Throwable originalFailure = null;
 
         /**
          * Collect the results of sub-workflows as they complete.
@@ -124,9 +123,9 @@ public class ParallelStep extends Step {
                     LOGGER.log(Level.WARNING, null, x);
                 }
                 if (handler.originalFailure == null) {
-                    handler.originalFailure = new SimpleEntry<String, Throwable>(name, t);
+                    handler.originalFailure = t;
                 } else {
-                    Throwable originalT = handler.originalFailure.getValue();
+                    Throwable originalT = handler.originalFailure;
                     if (t != originalT) { // could be the same abort being delivered across branches
                         originalT.addSuppressed(t);
                     }
@@ -155,7 +154,7 @@ public class ParallelStep extends Step {
                     if (o.isFailure()) {
                         if (handler.originalFailure == null) {
                             // in case the plugin is upgraded whilst a parallel step is running
-                            handler.originalFailure = new SimpleEntry<String, Throwable>(e.getKey(), e.getValue().getAbnormal());
+                            handler.originalFailure = e.getValue().getAbnormal();
                         }
                         // recorded in the onFailure
                     } else {
@@ -164,7 +163,7 @@ public class ParallelStep extends Step {
                 }
                 // all done
                 if (handler.originalFailure!=null) {
-                    handler.context.onFailure(handler.originalFailure.getValue());
+                    handler.context.onFailure(handler.originalFailure);
                 } else {
                     handler.context.onSuccess(success);
                 }
