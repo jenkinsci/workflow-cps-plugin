@@ -3,13 +3,16 @@ package org.jenkinsci.plugins.workflow.cps.steps;
 import com.cloudbees.groovy.cps.Outcome;
 
 import groovy.lang.Closure;
+import hudson.AbortException;
 import hudson.Extension;
+import hudson.model.Result;
 import hudson.model.TaskListener;
 import java.io.IOException;
 
 import org.jenkinsci.plugins.workflow.cps.CpsVmThreadOnly;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -18,6 +21,7 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -45,14 +49,26 @@ public class ParallelStep extends Step {
     /** should a failure in a parallel branch terminate other still executing branches. */
     private final boolean failFast;
 
+    /** Whether or not the worst failure in a parallel branch should be propagated when joining. **/
+    private final boolean propagateWorst;
+
     /**
      * All the sub-workflows as {@link Closure}s, keyed by their names.
      */
     /*package*/ final transient Map<String,Closure> closures;
 
+    public ParallelStep(Map<String, Closure> closures, boolean failFast, boolean propagateWorst) {
+        this.closures = closures;
+        this.failFast = failFast;
+        this.propagateWorst = propagateWorst;
+    }
+
+    /** @deprecated Use {@link #ParallelStep(Map, boolean, boolean)} in typical cases. */
+    @Deprecated
     public ParallelStep(Map<String,Closure> closures, boolean failFast) {
         this.closures = closures;
         this.failFast = failFast;
+        this.propagateWorst = false;
     }
 
     @Override
@@ -65,12 +81,16 @@ public class ParallelStep extends Step {
         return failFast;
     }
 
+    /*package*/ boolean isPropagateWorst() {
+        return propagateWorst;
+    }
 
     @PersistIn(PROGRAM)
     static class ResultHandler implements Serializable {
         private final StepContext context;
         private final ParallelStepExecution stepExecution;
         private final boolean failFast;
+        private final boolean propagateWorst;
         /** Have we called stop on the StepExecution? */
         private boolean stopSent = false;
         /** If we fail fast, we need to record the first failure. Use a linked hash set to maintain insertion order. */
@@ -82,10 +102,15 @@ public class ParallelStep extends Step {
          */
         private final Map<String,Outcome> outcomes = new HashMap<String, Outcome>();
 
-        ResultHandler(StepContext context, ParallelStepExecution parallelStepExecution, boolean failFast) {
+        ResultHandler(
+                StepContext context,
+                ParallelStepExecution parallelStepExecution,
+                boolean failFast,
+                boolean propagateWorst) {
             this.context = context;
             this.stepExecution = parallelStepExecution;
             this.failFast = failFast;
+            this.propagateWorst = propagateWorst;
         }
 
         Callback callbackFor(String name) {
@@ -163,6 +188,9 @@ public class ParallelStep extends Step {
                 }
                 // all done
                 List<Throwable> toAttach = new ArrayList<>(handler.failures);
+                if (handler.propagateWorst) {
+                    Collections.sort(toAttach, new ThrowableComparator(handler.failures));
+                }
                 if (!toAttach.isEmpty()) {
                     Throwable head = toAttach.get(0);
                     for (int i = 1; i < toAttach.size(); i++) {
@@ -177,6 +205,63 @@ public class ParallelStep extends Step {
             private static final long serialVersionUID = 1L;
         }
 
+        static final class ThrowableComparator implements Comparator<Throwable> {
+
+            private final LinkedHashSet<Throwable> insertionOrder;
+
+            ThrowableComparator() {
+                this.insertionOrder = new LinkedHashSet<>();
+            }
+
+            ThrowableComparator(LinkedHashSet<Throwable> insertionOrder) {
+                this.insertionOrder = insertionOrder;
+            }
+
+            @Override
+            public int compare(Throwable t1, Throwable t2) {
+                if (!(t1 instanceof FlowInterruptedException)
+                        && t2 instanceof FlowInterruptedException) {
+                    // FlowInterruptedException is always higher than any other exception.
+                    return -1;
+                } else if (t1 instanceof FlowInterruptedException
+                        && !(t2 instanceof FlowInterruptedException)) {
+                    // FlowInterruptedException is always higher than any other exception.
+                    return 1;
+                } else if (!(t1 instanceof AbortException) && t2 instanceof AbortException) {
+                    // AbortException is always higher than any exception other than
+                    // FlowInterruptedException.
+                    return -1;
+                } else if (t1 instanceof AbortException && !(t2 instanceof AbortException)) {
+                    // AbortException is always higher than any exception other than
+                    // FlowInterruptedException.
+                    return 1;
+                } else if (t1 instanceof FlowInterruptedException
+                        && t2 instanceof FlowInterruptedException) {
+                    // Two FlowInterruptedExceptions are compared by their results.
+                    FlowInterruptedException fie1 = (FlowInterruptedException) t1;
+                    FlowInterruptedException fie2 = (FlowInterruptedException) t2;
+                    Result r1 = fie1.getResult();
+                    Result r2 = fie2.getResult();
+                    if (r1.isWorseThan(r2)) {
+                        return -1;
+                    } else if (r1.isBetterThan(r2)) {
+                        return 1;
+                    }
+                } else if (insertionOrder.contains(t1) && insertionOrder.contains(t2)) {
+                    // Break ties by insertion order. Earlier errors are worse.
+                    List<Throwable> insertionOrderList = new ArrayList<>(insertionOrder);
+                    int index1 = insertionOrderList.indexOf(t1);
+                    int index2 = insertionOrderList.indexOf(t2);
+                    if (index1 < index2) {
+                        return -1;
+                    } else if (index1 > index2) {
+                        return 1;
+                    }
+                }
+                return 0;
+            }
+        }
+
         private static final long serialVersionUID = 1L;
     }
 
@@ -187,7 +272,8 @@ public class ParallelStep extends Step {
 
     @Extension
     public static class DescriptorImpl extends StepDescriptor {
-        private final static String FAIL_FAST_FLAG = "failFast";
+        private static final String FAIL_FAST_FLAG = "failFast";
+        private static final String PROPAGATE_WORST_FLAG = "propagateWorst";
 
         @Override
         public String getFunctionName() {
@@ -197,6 +283,7 @@ public class ParallelStep extends Step {
         @Override
         public Step newInstance(Map<String,Object> arguments) {
             boolean failFast = false;
+            boolean propagateWorst = false;
             Map<String,Closure<?>> closures = new LinkedHashMap<String, Closure<?>>();
             for (Entry<String,Object> e : arguments.entrySet()) {
                 if ((e.getValue() instanceof Closure)) {
@@ -204,12 +291,19 @@ public class ParallelStep extends Step {
                 }
                 else if (FAIL_FAST_FLAG.equals(e.getKey()) && e.getValue() instanceof Boolean) {
                     failFast = (Boolean)e.getValue();
+                } else if (PROPAGATE_WORST_FLAG.equals(e.getKey())
+                        && e.getValue() instanceof Boolean) {
+                    propagateWorst = (Boolean) e.getValue();
                 }
                 else {
-                    throw new IllegalArgumentException("Expected a closure or failFast but found "+e.getKey()+"="+e.getValue());
+                    throw new IllegalArgumentException(
+                            "Expected a closure, failFast, or propagateWorst but found "
+                                    + e.getKey()
+                                    + "="
+                                    + e.getValue());
                 }
             }
-            return new ParallelStep((Map)closures, failFast);
+            return new ParallelStep((Map) closures, failFast, propagateWorst);
         }
 
         @Override public Map<String,Object> defineArguments(Step step) throws UnsupportedOperationException {
