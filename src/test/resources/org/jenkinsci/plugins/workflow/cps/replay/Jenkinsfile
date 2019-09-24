@@ -1,0 +1,4 @@
+node {
+  def t = load 'f.groovy'
+  echo "received ${t}"
+}
