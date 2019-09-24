@@ -160,6 +160,24 @@ public class CpsVmExecutorServiceTest {
         }
     }
 
+    @Issue("JENKINS-58620")
+    @Test public void wrongCatcherGroovyShellEvaluate() throws Exception {
+        boolean origFailOnMismatch = CpsVmExecutorService.FAIL_ON_MISMATCH;
+        CpsVmExecutorService.FAIL_ON_MISMATCH = false;
+        try {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            errors.checkSucceeds(() -> {
+                p.setDefinition(new CpsFlowDefinition("org.jenkinsci.plugins.workflow.cps.CpsThread.current().getExecution().getShell().evaluate('echo \"Goofy\"', 'X.groovy')", false));
+                WorkflowRun b = r.buildAndAssertSuccess(p);
+                r.assertLogContains("Goofy", b);
+                r.assertLogNotContains("expected to call", b);
+                return null;
+            });
+        } finally {
+            CpsVmExecutorService.FAIL_ON_MISMATCH = origFailOnMismatch;
+        }
+    }
+
     @Issue("JENKINS-58407")
     @Ignore
     @Test public void mismatchFalsePositives() throws Exception {
