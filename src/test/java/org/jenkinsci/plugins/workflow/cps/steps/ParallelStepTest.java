@@ -679,7 +679,7 @@ public class ParallelStepTest extends SingleJobTestBase {
             Result downstreamResult = downstreamResults[i];
 
             if (!downstreamResult.equals(Result.SUCCESS)) {
-                story.j.assertLogContains(
+                story.j.waitForMessage(
                         String.format(
                                 "%s #1 completed with status %s",
                                 downstreamJob.getName(), downstreamResult.toString()),
