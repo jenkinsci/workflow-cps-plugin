@@ -31,7 +31,6 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
@@ -177,7 +176,14 @@ public class CpsVmExecutorServiceTest {
         r.assertLogNotContains("methodMissing", b);
     }
 
-    @Ignore
+    @Issue("JENKINS-58620")
+    @Test public void wrongCatcherGroovyShellEvaluate() throws Exception {
+        p.setDefinition(new CpsFlowDefinition("org.jenkinsci.plugins.workflow.cps.CpsThread.current().getExecution().getShell().evaluate('echo \"Goofy\"', 'X.groovy')", false));
+        WorkflowRun b = r.buildAndAssertSuccess(p);
+        r.assertLogContains("Goofy", b);
+        r.assertLogNotContains("expected to call", b);
+    }
+
     @Issue("JENKINS-58407")
     @Test public void closureInvokeAsPropertyShouldBeTreatedAsClosureCall() throws Exception {
         p.setDefinition(new CpsFlowDefinition(
@@ -189,7 +195,6 @@ public class CpsVmExecutorServiceTest {
         r.assertLogNotContains(CpsVmExecutorService.mismatchMessage("C", "x", "org.jenkinsci.plugins.workflow.cps.CpsClosure2", "call"), b);
     }
 
-    @Ignore
     @Issue("JENKINS-58407")
     @Test public void closureInvokeAsMapShouldBeTreatedAsClosureCall() throws Exception {
         p.setDefinition(new CpsFlowDefinition(
