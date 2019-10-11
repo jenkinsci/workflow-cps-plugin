@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
+import jenkins.model.Jenkins;
 import jenkins.util.InterceptingExecutorService;
 
 /**
@@ -112,6 +113,11 @@ class CpsVmExecutorService extends InterceptingExecutorService {
     }
 
     private void handleMismatch(Object expectedReceiver, String expectedMethodName, Object actualReceiver, String actualMethodName) {
+        Class receiverClass = expectedReceiver.getClass();
+        if (Jenkins.get().getPluginManager().whichPlugin(receiverClass) != null) {
+            // Plugin code is opaque to the mismatch detector.
+            return;
+        }
         String mismatchMessage = mismatchMessage(className(expectedReceiver), expectedMethodName, className(actualReceiver), actualMethodName);
         if (FAIL_ON_MISMATCH) {
             throw new IllegalStateException(mismatchMessage);
