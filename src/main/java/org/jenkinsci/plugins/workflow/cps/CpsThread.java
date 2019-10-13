@@ -159,13 +159,6 @@ public final class CpsThread implements Serializable {
         this.step = step;
     }
 
-    private static final List<Class> categories;
-    static {
-        categories = new ArrayList<>();
-        categories.addAll(Continuable.categories);
-        categories.add(IteratorHack.class);
-    }
-
     /**
      * Executes CPS code synchronously a little bit more, until it hits
      * the point the workflow needs to be dehydrated.
@@ -183,7 +176,7 @@ public final class CpsThread implements Serializable {
             LOGGER.log(FINE, "runNextChunk on {0}", resumeValue);
             final Outcome o = resumeValue;
             resumeValue = null;
-            outcome = program.run0(o, categories);
+            outcome = program.run0(o, getCategories());
             if (outcome.getAbnormal() != null) {
                 LOGGER.log(FINE, "ran and produced error", outcome.getAbnormal());
             } else {
@@ -329,6 +322,12 @@ public final class CpsThread implements Serializable {
     @CpsVmThreadOnly
     public static CpsThread current() {
         return CURRENT.get();
+    }
+
+    private static List<Class> getCategories() {
+        List<Class> categories = new ArrayList<>(Continuable.categories);
+        categories.add(IteratorHack.class);
+        return categories;
     }
 
     @Override public String toString() {
