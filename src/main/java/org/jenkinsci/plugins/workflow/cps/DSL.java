@@ -460,7 +460,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         final Closure body;
 
         private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body) {
-            this.namedArgs = new LinkedHashMap<String,Object>(preallocatedHashmapCapacity(namedArgs.size()));
+            this.namedArgs = new LinkedHashMap<>(preallocatedHashmapCapacity(namedArgs.size()));
             this.body = body;
 
             for (Map.Entry<?,?> entry : namedArgs.entrySet()) {

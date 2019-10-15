@@ -3,7 +3,6 @@ package org.jenkinsci.plugins.workflow.cps;
 import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.impl.CpsClosure;
-import groovy.lang.Closure;
 import org.codehaus.groovy.runtime.DefaultGroovyStaticMethods;
 import org.codehaus.groovy.runtime.InvokerHelper;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;

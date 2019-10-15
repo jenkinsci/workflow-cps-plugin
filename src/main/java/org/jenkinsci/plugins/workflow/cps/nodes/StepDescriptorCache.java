@@ -59,7 +59,7 @@ public class StepDescriptorCache implements ExtensionPoint {
         store.clear();
     }
 
-    private final ConcurrentHashMap<String, StepDescriptor> store = new ConcurrentHashMap<String, StepDescriptor>();
+    private final ConcurrentHashMap<String, StepDescriptor> store = new ConcurrentHashMap<>();
 
     @CheckForNull
     public StepDescriptor getDescriptor(String descriptorId) {

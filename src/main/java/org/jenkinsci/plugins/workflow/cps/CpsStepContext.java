@@ -138,7 +138,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      * {@link FlowHead#getId()} that should become
      * the parents of the {@link BlockEndNode} when we create one. Only used when this context has the body.
      */
-    final List<Integer> bodyHeads = new ArrayList<Integer>();
+    final List<Integer> bodyHeads = new ArrayList<>();
 
     /**
      * If the invocation of the body is requested, this object remembers how to start it.
@@ -148,7 +148,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      * so this need not be persisted. To preserve the order of invocation in the flow graph,
      * this needs to be a list and not set.
      */
-    transient List<CpsBodyInvoker> bodyInvokers = Collections.synchronizedList(new ArrayList<CpsBodyInvoker>());
+    transient List<CpsBodyInvoker> bodyInvokers = Collections.synchronizedList(new ArrayList<>());
 
     /**
      * While {@link CpsStepContext} has not received teh response, maintains the body closure.
@@ -364,7 +364,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
             final FlowNode n = getNode();
             final CpsFlowExecution flow = getExecution();
 
-            final List<FlowNode> parents = new ArrayList<FlowNode>();
+            final List<FlowNode> parents = new ArrayList<>();
             for (int head : bodyHeads) {
                 FlowHead flowHead = flow.getFlowHead(head);
                 if (flowHead != null) {
@@ -577,8 +577,8 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     @SuppressFBWarnings("SE_INNER_CLASS")
     private class ScheduleNextRun implements FutureCallback<Object>, Serializable {
-        public void onSuccess(Object _)    { scheduleNextRun(); }
-        public void onFailure(Throwable _) { scheduleNextRun(); }
+        public void onSuccess(Object e)    { scheduleNextRun(); }
+        public void onFailure(Throwable e) { scheduleNextRun(); }
 
         private static final long serialVersionUID = 1L;
     }

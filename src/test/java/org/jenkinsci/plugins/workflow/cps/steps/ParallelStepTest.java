@@ -428,7 +428,7 @@ public class ParallelStepTest extends SingleJobTestBase {
         return t;
     }
     private void shouldHaveParallelStepsInTheOrder(String... expected) {
-        List<String> actual = new ArrayList<String>();
+        List<String> actual = new ArrayList<>();
 
         for (Row row : t.getRows()) {
             ThreadNameAction a = row.getNode().getAction(ThreadNameAction.class);

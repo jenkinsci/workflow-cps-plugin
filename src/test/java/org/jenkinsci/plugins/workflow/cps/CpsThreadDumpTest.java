@@ -141,7 +141,7 @@ public class CpsThreadDumpTest {
     }
 
     private List<String> toString(List<StackTraceElement> in) {
-        List<String> r = new ArrayList<String>();
+        List<String> r = new ArrayList<>();
         for (StackTraceElement e : in)
             r.add(e.toString());
         return r;
