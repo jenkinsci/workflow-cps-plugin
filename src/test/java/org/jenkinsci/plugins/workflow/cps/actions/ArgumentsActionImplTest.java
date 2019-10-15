@@ -287,14 +287,14 @@ public class ArgumentsActionImplTest {
 
         // Same string, unsanitized
         ArgumentsActionImpl argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars());
-        Assert.assertEquals(true, argumentsActionImpl.isUnmodifiedArguments());
+        Assert.assertTrue(argumentsActionImpl.isUnmodifiedArguments());
         Assert.assertEquals(arguments.get("message"), argumentsActionImpl.getArgumentValueOrReason("message"));
         Assert.assertEquals(1, argumentsActionImpl.getArguments().size());
         Assert.assertEquals("I have a secret p4ssw0rd", argumentsActionImpl.getArguments().get("message"));
 
         // Test sanitizing arguments now
         argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars(passwordBinding));
-        Assert.assertEquals(false, argumentsActionImpl.isUnmodifiedArguments());
+        Assert.assertFalse(argumentsActionImpl.isUnmodifiedArguments());
         Assert.assertEquals(ArgumentsActionImpl.NotStoredReason.MASKED_VALUE, argumentsActionImpl.getArgumentValueOrReason("message"));
         Assert.assertEquals(1, argumentsActionImpl.getArguments().size());
         Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, argumentsActionImpl.getArguments().get("message"));
