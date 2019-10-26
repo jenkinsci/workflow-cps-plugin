@@ -55,15 +55,15 @@ import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
  */
 @PersistIn(NONE)
 public final class CpsBodyInvoker extends BodyInvoker {
-    /*package*/ final List<Object> contextOverrides = new ArrayList<Object>();
+    /*package*/ final List<Object> contextOverrides = new ArrayList<>();
 
     /*package*/ final BodyReference body;
 
     private final CpsStepContext owner;
 
-    private List<BodyExecutionCallback> callbacks = new ArrayList<BodyExecutionCallback>();
+    private List<BodyExecutionCallback> callbacks = new ArrayList<>();
 
-    /*package*/ final List<Action> startNodeActions = new ArrayList<Action>();
+    /*package*/ final List<Action> startNodeActions = new ArrayList<>();
 
     private String displayName;
 

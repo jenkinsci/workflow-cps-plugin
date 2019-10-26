@@ -279,7 +279,7 @@ public class WorkflowTest extends SingleJobTestBase {
 
     @TestExtension("notifyFlowStartNode")
     public static class FlowStartNodeListener implements GraphListener {
-        List<String> execNames = new ArrayList<String>();
+        List<String> execNames = new ArrayList<>();
 
         @Override
         public void onNewHead(FlowNode node) {
@@ -293,7 +293,7 @@ public class WorkflowTest extends SingleJobTestBase {
     @Test public void env() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
-                Map<String,String> slaveEnv = new HashMap<String,String>();
+                Map<String,String> slaveEnv = new HashMap<>();
                 slaveEnv.put("BUILD_TAG", null);
                 slaveEnv.put("PERMACHINE", "set");
                 createSpecialEnvSlave(story.j, "slave", null, slaveEnv);

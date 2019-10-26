@@ -24,11 +24,11 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
  */
 public final class CpsThreadDump {
 
-    private final List<ThreadInfo> threads = new ArrayList<ThreadInfo>();
+    private final List<ThreadInfo> threads = new ArrayList<>();
 
     public static final class ThreadInfo {
         private final String headline;
-        private final List<StackTraceElement> stack = new ArrayList<StackTraceElement>();
+        private final List<StackTraceElement> stack = new ArrayList<>();
 
         /**
          * Given a list of {@link CpsThread}s that share the same {@link FlowHead}, in the order
@@ -127,10 +127,10 @@ public final class CpsThreadDump {
 
     public static CpsThreadDump from(CpsThreadGroup g) {
         // all the threads that share the same head form a logically single thread
-        Map<FlowHead, List<CpsThread>> m = new LinkedHashMap<FlowHead,List<CpsThread>>();
+        Map<FlowHead, List<CpsThread>> m = new LinkedHashMap<>();
         for (CpsThread t : g.getThreads()) {
             List<CpsThread> l = m.get(t.head);
-            if (l==null)    m.put(t.head, l = new ArrayList<CpsThread>());
+            if (l==null)    m.put(t.head, l = new ArrayList<>());
             l.add(t);
         }
 

@@ -609,7 +609,7 @@ public class FlowDurabilityTest {
     // Can be fleshed out later if we have a valid need for it.
     public void testPipelineFinishesFlowGraph() throws Exception {
         final String[] logStart = new String[1];
-        final List<FlowNode> nodesOut = new ArrayList<FlowNode>();
+        final List<FlowNode> nodesOut = new ArrayList<>();
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
@@ -730,7 +730,7 @@ public class FlowDurabilityTest {
     public void testResumeBlocked() throws Exception {
         final String jobName = "survivesEverything";
         final String[] logStart = new String[1];
-        final List<FlowNode> nodesOut = new ArrayList<FlowNode>();
+        final List<FlowNode> nodesOut = new ArrayList<>();
 
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
@@ -763,7 +763,7 @@ public class FlowDurabilityTest {
     public void testResumeBlockedAddedAfterRunStart() throws Exception {
         final String jobName = "survivesEverything";
         final String[] logStart = new String[1];
-        final List<FlowNode> nodesOut = new ArrayList<FlowNode>();
+        final List<FlowNode> nodesOut = new ArrayList<>();
 
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
@@ -852,7 +852,7 @@ public class FlowDurabilityTest {
     public void fuzzTimingDurable() throws Exception {
         final String jobName = "NestedParallelDurableJob";
         final String[] logStart = new String[1];
-        final List<FlowNode> nodesOut = new ArrayList<FlowNode>();
+        final List<FlowNode> nodesOut = new ArrayList<>();
         final int[] buildNumber = new int [1];
 
         // Create thread that eventually interrupts Jenkins with a hard shutdown at a random time interval
@@ -959,7 +959,7 @@ public class FlowDurabilityTest {
 
         final String jobName = "NestedParallelDurableJob";
         final String[] logStart = new String[1];
-        final List<FlowNode> nodesOut = new ArrayList<FlowNode>();
+        final List<FlowNode> nodesOut = new ArrayList<>();
 
         // Create thread that eventually interrupts Jenkins with a hard shutdown at a random time interval
         story.addStep(new Statement() {

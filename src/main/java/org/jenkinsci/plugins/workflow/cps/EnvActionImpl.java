@@ -62,7 +62,7 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
     private transient Run<?,?> owner;
 
     private EnvActionImpl() {
-        this.env = new TreeMap<String,String>();
+        this.env = new TreeMap<>();
     }
 
     @Override public EnvVars getEnvironment() throws IOException, InterruptedException {

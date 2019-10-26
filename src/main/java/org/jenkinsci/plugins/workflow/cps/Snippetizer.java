@@ -151,7 +151,7 @@ import org.kohsuke.stapler.StaplerRequest;
                             boolean failSimplification = false;
 
                             UninstantiatedDescribable nested = (UninstantiatedDescribable) wrapped;
-                            TreeMap<String, Object> copy = new TreeMap<String, Object>(nested.getArguments());
+                            TreeMap<String, Object> copy = new TreeMap<>(nested.getArguments());
                             for (Entry<String, ?> e : uninst.getArguments().entrySet()) {
                                 if (!e.getKey().equals(p.getName())) {
                                     if (copy.put(e.getKey(), e.getValue()) != null) {

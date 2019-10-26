@@ -139,7 +139,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     }
 
     /** Normal environment variables, as opposed to ones that might come from credentials bindings */
-    private static final HashSet<String> SAFE_ENVIRONMENT_VARIABLES = new HashSet<String>(Arrays.asList(
+    private static final HashSet<String> SAFE_ENVIRONMENT_VARIABLES = new HashSet<>(Arrays.asList(
             // Pipeline/Jenkins variables in normal builds
             "BRANCH_NAME",
             "BUILD_DISPLAY_NAME",

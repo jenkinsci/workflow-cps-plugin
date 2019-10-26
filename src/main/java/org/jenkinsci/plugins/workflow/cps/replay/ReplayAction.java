@@ -206,7 +206,7 @@ public class ReplayAction implements Action {
         }
         JSONObject form = req.getSubmittedForm();
         // Copy originalLoadedScripts, replacing values with those from the form wherever defined.
-        Map<String,String> replacementLoadedScripts = new HashMap<String,String>();
+        Map<String,String> replacementLoadedScripts = new HashMap<>();
         for (Map.Entry<String,String> entry : getOriginalLoadedScripts().entrySet()) {
             // optString since you might be replaying a running build, which might have loaded a script after the page load but before submission.
             replacementLoadedScripts.put(entry.getKey(), form.optString(entry.getKey().replace('.', '_'), entry.getValue()));
@@ -255,7 +255,7 @@ public class ReplayAction implements Action {
      * @return build queue item
      */
     public @CheckForNull Queue.Item run2(@Nonnull String replacementMainScript, @Nonnull Map<String,String> replacementLoadedScripts) {
-        List<Action> actions = new ArrayList<Action>();
+        List<Action> actions = new ArrayList<>();
         CpsFlowExecution execution = getExecutionBlocking();
         if (execution == null) {
             return null;

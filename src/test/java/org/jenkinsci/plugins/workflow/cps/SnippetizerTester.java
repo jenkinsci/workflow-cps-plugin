@@ -65,7 +65,7 @@ public class SnippetizerTester {
         if (referer != null) {
             wrs.setAdditionalHeader("Referer", referer);
         }
-        List<NameValuePair> params = new ArrayList<NameValuePair>();
+        List<NameValuePair> params = new ArrayList<>();
         params.add(new NameValuePair("json", json));
         // WebClient.addCrumb *replaces* rather than *adds*:
         params.add(new NameValuePair(r.jenkins.getCrumbIssuer().getDescriptor().getCrumbRequestField(), r.jenkins.getCrumbIssuer().getCrumb(null)));
