@@ -196,6 +196,11 @@
             <version>1.2.1</version>
         </dependency>
         <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>jquery-ui</artifactId>
+            <version>1.0.2</version>
+        </dependency>
+        <dependency>
             <groupId>org.jenkins-ci.ui</groupId>
             <artifactId>ace-editor</artifactId>
             <version>1.0.1</version>
