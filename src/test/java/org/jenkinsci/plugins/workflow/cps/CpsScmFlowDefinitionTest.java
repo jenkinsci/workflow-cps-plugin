@@ -167,6 +167,20 @@ public class CpsScmFlowDefinitionTest {
         r.assertLogContains("Obtained flow.groovy from git " + sampleRepo, b);
         r.assertLogContains("version one", b);
     }
+
+    @Issue("JENKINS-59425")
+    @Test public void missingFile() throws Exception {
+        sampleRepo.init();
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        GitStep step = new GitStep(sampleRepo.toString());
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(step.createSCM(), "flow.groovy");
+        def.setLightweight(true);
+        p.setDefinition(def);
+        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        r.assertLogNotContains("Cloning the remote Git repository", b);
+        r.assertLogNotContains("Retrying after 10 seconds", b);
+        r.assertLogContains("Unable to find flow.groovy from git " + sampleRepo, b);
+    }
     
     @Issue("JENKINS-39194")
     @Test public void retry() throws Exception {

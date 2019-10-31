@@ -41,6 +41,8 @@ import hudson.model.TopLevelItem;
 import hudson.scm.SCM;
 import hudson.scm.SCMDescriptor;
 import hudson.slaves.WorkspaceList;
+
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.Collection;
@@ -112,11 +114,15 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         if (isLightweight()) {
             try (SCMFileSystem fs = SCMFileSystem.of(build.getParent(), scm)) {
                 if (fs != null) {
-                    String script = fs.child(expandedScriptPath).contentAsString();
-                    listener.getLogger().println("Obtained " + expandedScriptPath + " from " + scm.getKey());
-                    Queue.Executable exec = owner.getExecutable();
-                    FlowDurabilityHint hint = (exec instanceof Item) ? DurabilityHintProvider.suggestedFor((Item)exec) : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
-                    return new CpsFlowExecution(script, true, owner, hint);
+                    try {
+                        String script = fs.child(expandedScriptPath).contentAsString();
+                        listener.getLogger().println("Obtained " + expandedScriptPath + " from " + scm.getKey());
+                        Queue.Executable exec = owner.getExecutable();
+                        FlowDurabilityHint hint = (exec instanceof Item) ? DurabilityHintProvider.suggestedFor((Item) exec) : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
+                        return new CpsFlowExecution(script, true, owner, hint);
+                    } catch (FileNotFoundException e) {
+                        throw new AbortException("Unable to find " + expandedScriptPath + " from " + scm.getKey());
+                    }
                 } else {
                     listener.getLogger().println("Lightweight checkout support not available, falling back to full checkout.");
                 }
