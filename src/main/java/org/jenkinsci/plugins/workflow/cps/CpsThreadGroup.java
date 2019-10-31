@@ -139,7 +139,7 @@ public final class CpsThreadGroup implements Serializable {
     /**
      * "Exported" closures that are referenced by live {@link CpsStepContext}s.
      */
-    public final Map<Integer,Closure> closures = new HashMap<Integer,Closure>();
+    public final Map<Integer,Closure> closures = new HashMap<>();
 
     private final @CheckForNull List<Script> scripts = new ArrayList<>();
 
@@ -441,7 +441,7 @@ public final class CpsThreadGroup implements Serializable {
         execution.notifyListeners(Collections.singletonList(head), true);
         synchronized (nodesToNotifyLock) {
             if (nodesToNotify == null) {
-                nodesToNotify = new ArrayList<FlowNode>();
+                nodesToNotify = new ArrayList<>();
             }
             nodesToNotify.add(head);
         }
@@ -518,11 +518,8 @@ public final class CpsThreadGroup implements Serializable {
 
         boolean serializedOK = false;
         try (CpsFlowExecution.Timing t = execution.time(TimingKind.saveProgram)) {
-            RiverWriter w = new RiverWriter(tmpFile, execution.getOwner(), pickleFactories);
-            try {
+            try (RiverWriter w = new RiverWriter(tmpFile, execution.getOwner(), pickleFactories)) {
                 w.writeObject(this);
-            } finally {
-                w.close();
             }
             serializedOK = true;
             Files.move(tmpFile.toPath(), f.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);

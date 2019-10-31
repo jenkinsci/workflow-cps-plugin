@@ -100,7 +100,7 @@ public class ParallelStep extends Step {
          * Collect the results of sub-workflows as they complete.
          * The key set is fully populated from the beginning.
          */
-        private final Map<String,Outcome> outcomes = new HashMap<String, Outcome>();
+        private final Map<String,Outcome> outcomes = new HashMap<>();
 
         ResultHandler(
                 StepContext context,
@@ -159,7 +159,7 @@ public class ParallelStep extends Step {
             }
 
             private void checkAllDone(boolean stepFailed) {
-                Map<String,Object> success = new HashMap<String, Object>();
+                Map<String,Object> success = new HashMap<>();
                 for (Entry<String,Outcome> e : handler.outcomes.entrySet()) {
                     Outcome o = e.getValue();
 
@@ -284,7 +284,7 @@ public class ParallelStep extends Step {
         public Step newInstance(Map<String,Object> arguments) {
             boolean failFast = false;
             boolean propagateWorst = false;
-            Map<String,Closure<?>> closures = new LinkedHashMap<String, Closure<?>>();
+            Map<String,Closure<?>> closures = new LinkedHashMap<>();
             for (Entry<String,Object> e : arguments.entrySet()) {
                 if ((e.getValue() instanceof Closure)) {
                     closures.put(e.getKey(), (Closure<?>)e.getValue());
@@ -312,7 +312,7 @@ public class ParallelStep extends Step {
 
         @Override public Map<String,Object> defineArguments(Step step) throws UnsupportedOperationException {
             ParallelStep ps = (ParallelStep) step;
-            Map<String,Object> retVal = new TreeMap<String,Object>(ps.closures);
+            Map<String,Object> retVal = new TreeMap<>(ps.closures);
             if (ps.failFast) {
                 retVal.put(FAIL_FAST_FLAG, Boolean.TRUE);
             }

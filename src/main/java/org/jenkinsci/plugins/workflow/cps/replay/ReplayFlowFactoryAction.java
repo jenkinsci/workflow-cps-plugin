@@ -28,7 +28,6 @@ import com.google.common.collect.ImmutableSet;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.InvisibleAction;
-import hudson.model.Item;
 import hudson.model.Queue;
 import java.io.IOException;
 import java.util.HashMap;
@@ -58,7 +57,7 @@ class ReplayFlowFactoryAction extends InvisibleAction implements CpsFlowFactoryA
     
     ReplayFlowFactoryAction(@Nonnull String replacementMainScript, @Nonnull Map<String,String> replacementLoadedScripts, boolean sandbox) {
         this.replacementMainScript = replacementMainScript;
-        this.replacementLoadedScripts = new HashMap<String,String>(replacementLoadedScripts);
+        this.replacementLoadedScripts = new HashMap<>(replacementLoadedScripts);
         this.sandbox = sandbox;
     }
 

@@ -3,7 +3,6 @@ package org.jenkinsci.plugins.workflow.testMetaStep;
 import com.google.inject.Inject;
 import hudson.Extension;
 import hudson.model.TaskListener;
-import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.structs.SymbolLookup;
 import org.jenkinsci.plugins.workflow.cps.DSLTest;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;

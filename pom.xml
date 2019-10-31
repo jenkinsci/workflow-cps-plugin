@@ -36,7 +36,7 @@
     <version>${revision}${changelist}</version>
     <packaging>hpi</packaging>
     <name>Pipeline: Groovy</name>
-    <url>https://wiki.jenkins.io/display/JENKINS/Pipeline+Groovy+Plugin</url>
+    <url>https://github.com/jenkinsci/workflow-cps-plugin</url>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -99,7 +99,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1.62</version>
+            <version>1.63</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>

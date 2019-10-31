@@ -58,7 +58,7 @@ public class CpsThreadTest {
         r.waitForMessage("unkillable", b);
         try (ACLContext context = ACL.as(Jenkins.ANONYMOUS)) {
             b.getExecutor().interrupt();
-        };
+        }
         r.waitForCompletion(b);
         r.assertBuildStatus(Result.ABORTED, b);
         InterruptedBuildAction iba = b.getAction(InterruptedBuildAction.class);

@@ -154,16 +154,16 @@ public class ArgumentsActionImplTest {
     @Test
     public void testStringSafetyTest() throws Exception {
         String input = "I have a secret p4ssw0rd";
-        HashMap<String,String> passwordBinding = new HashMap<String,String>();
+        HashMap<String,String> passwordBinding = new HashMap<>();
         passwordBinding.put("mypass", "p4ssw0rd");
         Assert.assertTrue("Input with no variables is safe", ArgumentsActionImpl.isStringSafe(input, new EnvVars(), Collections.EMPTY_SET));
         Assert.assertFalse("Input containing bound value is unsafe", ArgumentsActionImpl.isStringSafe(input, new EnvVars(passwordBinding), Collections.EMPTY_SET));
 
         Assert.assertTrue("EnvVars that do not occur are safe", ArgumentsActionImpl.isStringSafe("I have no passwords", new EnvVars(passwordBinding), Collections.EMPTY_SET));
 
-        HashMap<String, String> safeBinding = new HashMap<String,String>();
+        HashMap<String, String> safeBinding = new HashMap<>();
         safeBinding.put("harmless", "secret");
-        HashSet<String> safeVars = new HashSet<String>();
+        HashSet<String> safeVars = new HashSet<>();
         safeVars.add("harmless");
         passwordBinding.put("harmless", "secret");
         Assert.assertTrue("Input containing whitelisted bound value is safe", ArgumentsActionImpl.isStringSafe(input, new EnvVars(safeBinding), safeVars));
@@ -276,9 +276,9 @@ public class ArgumentsActionImplTest {
 
     @Test
     public void testBasicCreateAndMask() throws Exception {
-        HashMap<String,String> passwordBinding = new HashMap<String,String>();
+        HashMap<String,String> passwordBinding = new HashMap<>();
         passwordBinding.put("mypass", "p4ssw0rd");
-        Map<String, Object> arguments = new HashMap<String,Object>();
+        Map<String, Object> arguments = new HashMap<>();
         arguments.put("message", "I have a secret p4ssw0rd");
 
         Field maxSizeF = ArgumentsAction.class.getDeclaredField("MAX_RETAINED_LENGTH");
@@ -287,14 +287,14 @@ public class ArgumentsActionImplTest {
 
         // Same string, unsanitized
         ArgumentsActionImpl argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars());
-        Assert.assertEquals(true, argumentsActionImpl.isUnmodifiedArguments());
+        Assert.assertTrue(argumentsActionImpl.isUnmodifiedArguments());
         Assert.assertEquals(arguments.get("message"), argumentsActionImpl.getArgumentValueOrReason("message"));
         Assert.assertEquals(1, argumentsActionImpl.getArguments().size());
         Assert.assertEquals("I have a secret p4ssw0rd", argumentsActionImpl.getArguments().get("message"));
 
         // Test sanitizing arguments now
         argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars(passwordBinding));
-        Assert.assertEquals(false, argumentsActionImpl.isUnmodifiedArguments());
+        Assert.assertFalse(argumentsActionImpl.isUnmodifiedArguments());
         Assert.assertEquals(ArgumentsActionImpl.NotStoredReason.MASKED_VALUE, argumentsActionImpl.getArgumentValueOrReason("message"));
         Assert.assertEquals(1, argumentsActionImpl.getArguments().size());
         Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, argumentsActionImpl.getArguments().get("message"));
@@ -309,7 +309,7 @@ public class ArgumentsActionImplTest {
     @Test
     @Issue("JENKINS-50752")
     public void testHandleUnserializableArguments() throws Exception {
-        HashMap<String, Object> unserializable = new HashMap<String, Object>(3);
+        HashMap<String, Object> unserializable = new HashMap<>(3);
         Object me = new Object() {
             Object writeReplace() {
                 throw new RuntimeException("Can't serialize me nyah nyah!");
@@ -361,7 +361,7 @@ public class ArgumentsActionImplTest {
     @Test
     @Issue("JENKINS-54032")
     public void testAvoidStoringSpecialTypes() throws Exception {
-        HashMap<String, Object> testMap = new HashMap<String, Object>();
+        HashMap<String, Object> testMap = new HashMap<>();
         testMap.put("safe", 5);
         testMap.put("maskme", new SuperSpecialThing());
         testMap.put("maskMyMapValue", Collections.singletonMap("bob", new SuperSpecialThing(-5, "testing")));
@@ -455,7 +455,7 @@ public class ArgumentsActionImplTest {
         Assert.assertEquals(true, args.get("moderate"));
         Map<String, Object> stateArgs = (Map<String,Object>)args.get("state");
         Assert.assertTrue("Nested state Describable should only include a class argument or none at all",
-                stateArgs.size() <= 1 && Sets.difference(stateArgs.keySet(), new HashSet<String>(Arrays.asList("$class"))).size() == 0);
+                stateArgs.size() <= 1 && Sets.difference(stateArgs.keySet(), new HashSet<>(Arrays.asList("$class"))).size() == 0);
 
         // Same metastep but only one arg supplied, shouldn't auto-unwrap the internal step because can take 2 args
         job = r.createProject(WorkflowJob.class);

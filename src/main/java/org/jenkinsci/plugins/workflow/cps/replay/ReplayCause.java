@@ -26,7 +26,6 @@ package org.jenkinsci.plugins.workflow.cps.replay;
 
 import hudson.console.ModelHyperlinkNote;
 import hudson.model.Cause;
-import hudson.model.Job;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import javax.annotation.CheckForNull;

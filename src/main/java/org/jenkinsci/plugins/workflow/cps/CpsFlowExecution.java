@@ -244,7 +244,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * Any additional scripts {@linkplain CpsGroovyShell#parse(GroovyCodeSource) parsed} afterward, keyed by
      * their FQCN.
      */
-    /*package*/ /*final*/ Map<String,String> loadedScripts = new HashMap<String, String>();
+    /*package*/ /*final*/ Map<String,String> loadedScripts = new HashMap<>();
 
     private final boolean sandbox;
     private transient /*almost final*/ FlowExecutionOwner owner;
@@ -281,12 +281,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * Start nodes that have been created, whose {@link BlockEndNode} is not yet created.
      */
     @GuardedBy("this")
-    /*package*/ /* almost final*/ Stack<BlockStartNode> startNodes = new Stack<BlockStartNode>();
+    /*package*/ /* almost final*/ Stack<BlockStartNode> startNodes = new Stack<>();
     @SuppressFBWarnings({"IS_FIELD_NOT_GUARDED", "IS2_INCONSISTENT_SYNC"}) // irrelevant here
     private transient List<String> startNodesSerial; // used only between unmarshal and onLoad
 
     @GuardedBy("this")
-    /* almost final*/ NavigableMap<Integer,FlowHead> heads = new TreeMap<Integer,FlowHead>(); // Non-private for unit tests
+    /* almost final*/ NavigableMap<Integer,FlowHead> heads = new TreeMap<>(); // Non-private for unit tests
 
     @SuppressFBWarnings({"IS_FIELD_NOT_GUARDED", "IS2_INCONSISTENT_SYNC"}) // irrelevant here
     private transient Map<Integer,String> headsSerial; // used only between unmarshal and onLoad
@@ -340,7 +340,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     private transient Class<?> scriptClass;
 
     /** Actions to add to the {@link FlowStartNode}. */
-    transient final List<Action> flowStartNodeActions = new ArrayList<Action>();
+    transient final List<Action> flowStartNodeActions = new ArrayList<>();
 
     /** If true, pipeline is forbidden to resume even if it can. */
     public boolean isResumeBlocked() {
@@ -410,7 +410,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      */
     private Object readResolve() {
         if (loadedScripts==null)
-            loadedScripts = new HashMap<String,String>();   // field added later
+            loadedScripts = new HashMap<>();   // field added later
         return this;
     }
 
@@ -649,9 +649,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             this.storage = createStorage();  // Empty storage
 
             // Clear out old start nodes and heads
-            this.startNodes = new Stack<BlockStartNode>();
+            this.startNodes = new Stack<>();
             FlowHead head = new FlowHead(this);
-            this.heads = new TreeMap<Integer, FlowHead>();
+            this.heads = new TreeMap<>();
             heads.put(head.getId(), head);
             FlowStartNode start = new FlowStartNode(this, iotaStr());
             head.newStartNode(start);
@@ -667,7 +667,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification="Storage does not actually NEED to be synchronized but the rest does.")
     protected synchronized void initializeStorage() throws IOException {
         storage = createStorage();
-        heads = new TreeMap<Integer,FlowHead>();
+        heads = new TreeMap<>();
         for (Map.Entry<Integer,String> entry : headsSerial.entrySet()) {
             FlowHead h = new FlowHead(this, entry.getKey());
 
@@ -681,7 +681,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
         headsSerial = null;
 
-        startNodes = new Stack<BlockStartNode>();
+        startNodes = new Stack<>();
         for (String id : startNodesSerial) {
             FlowNode node = storage.getNode(id);
             if (node != null) {
@@ -700,7 +700,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             return false;
         }
         if (persistedClean != null) {
-            return persistedClean.booleanValue();
+            return persistedClean;
         }
         FlowDurabilityHint hint = getDurabilityHint();
         return hint.isPersistWithEveryStep();
@@ -972,7 +972,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             LOGGER.log(Level.WARNING, null, new IllegalStateException("List of flow heads unset for " + this));
             return Collections.emptyList();
         }
-        List<FlowNode> r = new ArrayList<FlowNode>(heads.size());
+        List<FlowNode> r = new ArrayList<>(heads.size());
         for (FlowHead h : heads.values()) {
             r.add(h.get());
         }
@@ -992,7 +992,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 if (innerMostOnly) {
                     // to exclude outer StepExecutions, first build a map by FlowHead
                     // younger threads with their StepExecutions will overshadow old threads, leaving inner-most threads alone.
-                    Map<FlowHead, StepExecution> m = new LinkedHashMap<FlowHead, StepExecution>();
+                    Map<FlowHead, StepExecution> m = new LinkedHashMap<>();
                     for (CpsThread t : g.getThreads()) {
                         StepExecution e = t.getStep();
                         if (e != null) {
@@ -1001,7 +1001,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     }
                     r.set(ImmutableList.copyOf(m.values()));
                 } else {
-                    List<StepExecution> es = new ArrayList<StepExecution>();
+                    List<StepExecution> es = new ArrayList<>();
                     for (CpsThread t : g.getThreads()) {
                         StepExecution e = t.getStep();
                         if (e != null) {
@@ -1103,7 +1103,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     void subsumeHead(FlowNode n) {
         List<FlowHead> _heads;
         synchronized (this) {
-            _heads = new ArrayList<FlowHead>(heads.values());
+            _heads = new ArrayList<>(heads.values());
         }
         for (FlowHead h : _heads) {
             if (h.get()==n) {
@@ -1118,7 +1118,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     @Override
     public void addListener(GraphListener listener) {
         if (listeners == null) {
-            listeners = new CopyOnWriteArrayList<GraphListener>();
+            listeners = new CopyOnWriteArrayList<>();
         }
         listeners.add(listener);
     }
@@ -1274,7 +1274,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         trusted = null;
         if (scriptClass != null) {
             try {
-                cleanUpLoader(scriptClass.getClassLoader(), new HashSet<ClassLoader>(), new HashSet<Class<?>>());
+                cleanUpLoader(scriptClass.getClassLoader(), new HashSet<>(), new HashSet<>());
             } catch (Exception x) {
                 LOGGER.log(Level.WARNING, "failed to clean up memory from " + owner, x);
             }
@@ -1695,8 +1695,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         result = (CpsFlowExecution) ref.newInstance(CpsFlowExecution.class);
                     }
 
-                    result.startNodesSerial = new ArrayList<String>();
-                    result.headsSerial = new TreeMap<Integer, String>();
+                    result.startNodesSerial = new ArrayList<>();
+                    result.headsSerial = new TreeMap<>();
 
                     while (reader.hasMoreChildren()) {
                         reader.moveDown();
@@ -1742,7 +1742,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             setField(result, "persistedClean", hint);
                         } else if (nodeName.equals("resumeBlocked")) {
                             Boolean val = readChild(reader, context, Boolean.class, result);
-                            setField(result, "resumeBlocked", val.booleanValue());
+                            setField(result, "resumeBlocked", val);
                         } else if (nodeName.equals("storageDir")) {
                             String val = readChild(reader, context, String.class, result);
                             setField(result, "storageDir", val);
@@ -1785,7 +1785,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * While we serialize/deserialize {@link CpsThreadGroup} and the entire program execution state,
      * this field is set to {@link CpsFlowExecution} that will own it.
      */
-    static final ThreadLocal<CpsFlowExecution> PROGRAM_STATE_SERIALIZATION = new ThreadLocal<CpsFlowExecution>();
+    static final ThreadLocal<CpsFlowExecution> PROGRAM_STATE_SERIALIZATION = new ThreadLocal<>();
 
     class TimingFlowNodeStorage extends FlowNodeStorage {
         private final FlowNodeStorage delegate;

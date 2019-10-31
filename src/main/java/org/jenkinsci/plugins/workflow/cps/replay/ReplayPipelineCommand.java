@@ -72,7 +72,7 @@ import org.kohsuke.args4j.spi.Setter;
         }
         String text = IOUtils.toString(stdin);
         if (script != null) {
-            Map<String,String> replacementLoadedScripts = new HashMap<String,String>(action.getOriginalLoadedScripts());
+            Map<String,String> replacementLoadedScripts = new HashMap<>(action.getOriginalLoadedScripts());
             if (!replacementLoadedScripts.containsKey(script)) {
                 throw new AbortException("Unrecognized script name among " + replacementLoadedScripts.keySet());
             }

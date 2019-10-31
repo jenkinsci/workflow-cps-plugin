@@ -15,7 +15,7 @@ import java.util.Map;
  */
 @Extension
 public class TestDurabilityHintProvider implements DurabilityHintProvider {
-    private HashMap<String, FlowDurabilityHint> hintMapping = new HashMap<String, FlowDurabilityHint>();
+    private HashMap<String, FlowDurabilityHint> hintMapping = new HashMap<>();
 
     @Override
     public int ordinal() {
@@ -39,7 +39,7 @@ public class TestDurabilityHintProvider implements DurabilityHintProvider {
     }
 
     public Map<String, FlowDurabilityHint> getMappings() {
-        return new HashMap<String, FlowDurabilityHint>(this.hintMapping);
+        return new HashMap<>(this.hintMapping);
     }
 
     @CheckForNull

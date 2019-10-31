@@ -146,7 +146,7 @@ public class CpsFlowExecutionTest {
         assertEquals(Arrays.toString(steps), all.toString());
     }
     private static List<String> stepNames(ListenableFuture<List<StepExecution>> executionsFuture) throws Exception {
-        List<String> r = new ArrayList<String>();
+        List<String> r = new ArrayList<>();
         for (StepExecution e : executionsFuture.get()) {
             // TODO should this method be defined in StepContext?
             StepDescriptor d = ((CpsStepContext) e.getContext()).getStepDescriptor();

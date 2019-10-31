@@ -2,10 +2,7 @@ package org.jenkinsci.plugins.workflow.cps.nodes;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
-import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
-
-import javax.annotation.CheckForNull;
 
 /**
  * Optional interface for {@link FlowNode} that has associated {@link StepDescriptor}.

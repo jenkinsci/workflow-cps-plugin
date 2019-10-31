@@ -28,7 +28,7 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 class ParallelStepExecution extends StepExecution {
     private transient ParallelStep parallelStep;
 
-    private final List<BodyExecution> bodies = new ArrayList<BodyExecution>();
+    private final List<BodyExecution> bodies = new ArrayList<>();
 
     public ParallelStepExecution(ParallelStep parallelStep, StepContext context) {
         super(context);

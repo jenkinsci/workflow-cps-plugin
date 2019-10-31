@@ -111,7 +111,7 @@ public final class CpsThread implements Serializable {
     /**
      * Gets called when the thread is done.
      */
-    private final List<FutureCallback<Object>> completionHandlers = new ArrayList<FutureCallback<Object>>();
+    private final List<FutureCallback<Object>> completionHandlers = new ArrayList<>();
 
     CpsThread(CpsThreadGroup group, int id, Continuable program, FlowHead head, ContextVariableSet contextVariables) {
         this.group = group;
@@ -216,7 +216,6 @@ public final class CpsThread implements Serializable {
                         // SettableFuture tries to rethrow an Error, which we don't want.
                         // so prevent that from happening. I need to see if this behaviour
                         // affects other places that use SettableFuture
-                        ;
                     } else {
                         throw e;
                     }
@@ -320,7 +319,7 @@ public final class CpsThread implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private static final ThreadLocal<CpsThread> CURRENT = new ThreadLocal<CpsThread>();
+    private static final ThreadLocal<CpsThread> CURRENT = new ThreadLocal<>();
 
     /**
      * While {@link CpsThreadGroup} executes, this method returns {@link CpsThread}
