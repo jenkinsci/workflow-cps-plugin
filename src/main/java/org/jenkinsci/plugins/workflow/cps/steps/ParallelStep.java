@@ -168,7 +168,7 @@ public class ParallelStep extends Step {
                 // all done
                 List<Throwable> toAttach = new ArrayList<>(handler.failures);
                 if (!handler.failFast) {
-                    Collections.sort(toAttach, new ThrowableComparator(handler.failures));
+                    Collections.sort(toAttach, new ThrowableComparator(new ArrayList<>(handler.failures)));
                 }
                 if (!toAttach.isEmpty()) {
                     Throwable head = toAttach.get(0);
@@ -186,13 +186,13 @@ public class ParallelStep extends Step {
 
         static final class ThrowableComparator implements Comparator<Throwable>, Serializable {
 
-            private final LinkedHashSet<Throwable> insertionOrder;
+            private final List<Throwable> insertionOrder;
 
             ThrowableComparator() {
-                this.insertionOrder = new LinkedHashSet<>();
+                this.insertionOrder = new ArrayList<>();
             }
 
-            ThrowableComparator(LinkedHashSet<Throwable> insertionOrder) {
+            ThrowableComparator(List<Throwable> insertionOrder) {
                 this.insertionOrder = insertionOrder;
             }
 
@@ -228,9 +228,8 @@ public class ParallelStep extends Step {
                     }
                 } else if (insertionOrder.contains(t1) && insertionOrder.contains(t2)) {
                     // Break ties by insertion order. Earlier errors are worse.
-                    List<Throwable> insertionOrderList = new ArrayList<>(insertionOrder);
-                    int index1 = insertionOrderList.indexOf(t1);
-                    int index2 = insertionOrderList.indexOf(t2);
+                    int index1 = insertionOrder.indexOf(t1);
+                    int index2 = insertionOrder.indexOf(t2);
                     if (index1 < index2) {
                         return -1;
                     } else if (index1 > index2) {
