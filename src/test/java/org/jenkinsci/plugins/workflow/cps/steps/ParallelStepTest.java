@@ -644,7 +644,6 @@ public class ParallelStepTest extends SingleJobTestBase {
                     String.format("      build '%s'\n", downstreamJob.getName()));
             upstreamJobDefinition.append("    },\n");
         }
-        upstreamJobDefinition.append("    propagateWorst: true\n");
         upstreamJobDefinition.append("  )\n");
         upstreamJobDefinition.append("}\n");
         upstreamJob.setDefinition(new CpsFlowDefinition(upstreamJobDefinition.toString(), true));
