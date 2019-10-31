@@ -1,6 +1,17 @@
 ## Changelog
 
-### 2.74 
+### 2.75
+
+Release date: 2019-10-31
+
+* Fix: Do not log CPS method mismatch warnings for invocations of closures stored in class fields or maps. ([JENKINS-58407](https://issues.jenkins-ci.org/browse/JENKINS-58407))
+* Fix: Do not log CPS method mismatch warnings when the receiver is defined in a Jenkins Plugin. ([JENKINS-58643](https://issues.jenkins-ci.org/browse/JENKINS-58643))
+* Fix: Do not log CPS method mismatch warnings for uses of `GroovyShell.evaluate`. ([JENKINS-58620](https://issues.jenkins-ci.org/browse/JENKINS-58620))
+* Improvement: Make the error that is thrown when the script for a Pipeline definition cannot be found in the configured SCM clearer. ([JENKINS-59425](https://issues.jenkins-ci.org/browse/JENKINS-59425))
+* Improvement: Add Declarative Pipeline samples to the editor for Pipeline jobs. ([JENKINS-42471](https://issues.jenkins-ci.org/browse/JENKINS-42471))
+* Internal: Refactor code to use Java 7+ language features, improve performance, clarity, and coverage of tests, and migrate Wiki content to GitHub ([PR 310](https://github.com/jenkinsci/workflow-cps-plugin/pull/320), [PR 321](https://github.com/jenkinsci/workflow-cps-plugin/pull/321), [PR 322](https://github.com/jenkinsci/workflow-cps-plugin/pull/322), [PR 330](https://github.com/jenkinsci/workflow-cps-plugin/pull/330), [PR 331](https://github.com/jenkinsci/workflow-cps-plugin/pull/331), [PR 333](https://github.com/jenkinsci/workflow-cps-plugin/pull/333))
+
+### 2.74
 
 Release date: 2019-08-24
 
