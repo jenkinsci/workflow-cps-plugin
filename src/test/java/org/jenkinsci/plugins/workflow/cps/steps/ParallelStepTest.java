@@ -616,9 +616,23 @@ public class ParallelStepTest extends SingleJobTestBase {
                 parallelPropagatesStatusImpl(
                         Result.FAILURE, Result.SUCCESS, Result.FAILURE, Result.UNSTABLE);
                 parallelPropagatesStatusImpl(
-                        Result.NOT_BUILT, Result.SUCCESS, Result.SUCCESS, Result.NOT_BUILT);
+                        Result.NOT_BUILT, Result.SUCCESS, Result.NOT_BUILT);
                 parallelPropagatesStatusImpl(
-                        Result.NOT_BUILT, Result.NOT_BUILT, Result.NOT_BUILT, Result.NOT_BUILT);
+                        Result.NOT_BUILT, Result.SUCCESS, Result.UNSTABLE, Result.NOT_BUILT);
+                parallelPropagatesStatusImpl(
+                        Result.NOT_BUILT, Result.SUCCESS, Result.UNSTABLE, Result.FAILURE, Result.NOT_BUILT);
+                parallelPropagatesStatusImpl(
+                        Result.NOT_BUILT, Result.NOT_BUILT, Result.NOT_BUILT);
+                parallelPropagatesStatusImpl(
+                        Result.ABORTED, Result.SUCCESS, Result.ABORTED);
+                parallelPropagatesStatusImpl(
+                        Result.ABORTED, Result.SUCCESS, Result.UNSTABLE, Result.ABORTED);
+                parallelPropagatesStatusImpl(
+                        Result.ABORTED, Result.SUCCESS, Result.UNSTABLE, Result.FAILURE, Result.ABORTED);
+                parallelPropagatesStatusImpl(
+                        Result.ABORTED, Result.SUCCESS, Result.UNSTABLE, Result.FAILURE, Result.NOT_BUILT, Result.ABORTED);
+                parallelPropagatesStatusImpl(
+                        Result.ABORTED, Result.ABORTED, Result.ABORTED);
             }
         });
     }
