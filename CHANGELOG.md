@@ -230,7 +230,7 @@ Release date: 2018-04-08
     * The other part of the bugfix is in the Pipeline Job Plugin - version 2.18
 * **Part of Major Bugfix**: Failed pipelines resume and won't die even when marked to not resume, and show resume failures ([JENKINS-50199](https://issues.jenkins-ci.org/browse/JENKINS-50199))
     * The other part of the bugfix is in the Pipeline Job Plugin - version 2.18
-* Part of Bugfix**:** Error "NullPointerException in SandboxContinuable.run0" after restart in Performance-Optimized Durability Setting ([JENKINS-50407](https://issues.jenkins-ci.org/browse/JENKINS-50407))
+* **Part of Bugfix**: Error "NullPointerException in SandboxContinuable.run0" after restart in Performance-Optimized Durability Setting ([JENKINS-50407](https://issues.jenkins-ci.org/browse/JENKINS-50407))
     * The other part of the bugfix is in the Pipeline Job Plugin - version 2.18
 
 ### 2.46
