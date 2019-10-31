@@ -49,26 +49,14 @@ public class ParallelStep extends Step {
     /** should a failure in a parallel branch terminate other still executing branches. */
     private final boolean failFast;
 
-    /** Whether or not the worst failure in a parallel branch should be propagated when joining. **/
-    private final boolean propagateWorst;
-
     /**
      * All the sub-workflows as {@link Closure}s, keyed by their names.
      */
     /*package*/ final transient Map<String,Closure> closures;
 
-    public ParallelStep(Map<String, Closure> closures, boolean failFast, boolean propagateWorst) {
-        this.closures = closures;
-        this.failFast = failFast;
-        this.propagateWorst = propagateWorst;
-    }
-
-    /** @deprecated Use {@link #ParallelStep(Map, boolean, boolean)} in typical cases. */
-    @Deprecated
     public ParallelStep(Map<String,Closure> closures, boolean failFast) {
         this.closures = closures;
         this.failFast = failFast;
-        this.propagateWorst = false;
     }
 
     @Override
@@ -81,16 +69,11 @@ public class ParallelStep extends Step {
         return failFast;
     }
 
-    /*package*/ boolean isPropagateWorst() {
-        return propagateWorst;
-    }
-
     @PersistIn(PROGRAM)
     static class ResultHandler implements Serializable {
         private final StepContext context;
         private final ParallelStepExecution stepExecution;
         private final boolean failFast;
-        private final boolean propagateWorst;
         /** Have we called stop on the StepExecution? */
         private boolean stopSent = false;
         /** If we fail fast, we need to record the first failure. Use a linked hash set to maintain insertion order. */
@@ -102,15 +85,10 @@ public class ParallelStep extends Step {
          */
         private final Map<String,Outcome> outcomes = new HashMap<>();
 
-        ResultHandler(
-                StepContext context,
-                ParallelStepExecution parallelStepExecution,
-                boolean failFast,
-                boolean propagateWorst) {
+        ResultHandler(StepContext context, ParallelStepExecution parallelStepExecution, boolean failFast) {
             this.context = context;
             this.stepExecution = parallelStepExecution;
             this.failFast = failFast;
-            this.propagateWorst = propagateWorst;
         }
 
         Callback callbackFor(String name) {
@@ -188,7 +166,7 @@ public class ParallelStep extends Step {
                 }
                 // all done
                 List<Throwable> toAttach = new ArrayList<>(handler.failures);
-                if (handler.propagateWorst) {
+                if (!handler.failFast) {
                     Collections.sort(toAttach, new ThrowableComparator(handler.failures));
                 }
                 if (!toAttach.isEmpty()) {
@@ -272,8 +250,7 @@ public class ParallelStep extends Step {
 
     @Extension
     public static class DescriptorImpl extends StepDescriptor {
-        private static final String FAIL_FAST_FLAG = "failFast";
-        private static final String PROPAGATE_WORST_FLAG = "propagateWorst";
+        private final static String FAIL_FAST_FLAG = "failFast";
 
         @Override
         public String getFunctionName() {
@@ -283,7 +260,6 @@ public class ParallelStep extends Step {
         @Override
         public Step newInstance(Map<String,Object> arguments) {
             boolean failFast = false;
-            boolean propagateWorst = false;
             Map<String,Closure<?>> closures = new LinkedHashMap<>();
             for (Entry<String,Object> e : arguments.entrySet()) {
                 if ((e.getValue() instanceof Closure)) {
@@ -291,23 +267,12 @@ public class ParallelStep extends Step {
                 }
                 else if (FAIL_FAST_FLAG.equals(e.getKey()) && e.getValue() instanceof Boolean) {
                     failFast = (Boolean)e.getValue();
-                } else if (PROPAGATE_WORST_FLAG.equals(e.getKey())
-                        && e.getValue() instanceof Boolean) {
-                    propagateWorst = (Boolean) e.getValue();
                 }
                 else {
-                    throw new IllegalArgumentException(
-                            "Expected a closure, failFast, or propagateWorst but found "
-                                    + e.getKey()
-                                    + "="
-                                    + e.getValue());
-                }
-                if (failFast && propagateWorst) {
-                    throw new IllegalArgumentException(
-                            "failFast and propagateWorst are mutually exclusive");
+                    throw new IllegalArgumentException("Expected a closure or failFast but found "+e.getKey()+"="+e.getValue());
                 }
             }
-            return new ParallelStep((Map) closures, failFast, propagateWorst);
+            return new ParallelStep((Map)closures, failFast);
         }
 
         @Override public Map<String,Object> defineArguments(Step step) throws UnsupportedOperationException {
@@ -315,9 +280,6 @@ public class ParallelStep extends Step {
             Map<String,Object> retVal = new TreeMap<>(ps.closures);
             if (ps.failFast) {
                 retVal.put(FAIL_FAST_FLAG, Boolean.TRUE);
-            }
-            if (ps.propagateWorst) {
-                retVal.put(PROPAGATE_WORST_FLAG, Boolean.TRUE);
             }
             return retVal;
         }

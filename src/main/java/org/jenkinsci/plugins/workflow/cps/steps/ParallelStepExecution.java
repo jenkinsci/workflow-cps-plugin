@@ -47,9 +47,7 @@ class ParallelStepExecution extends StepExecution {
 
         CpsThread t = CpsThread.current();
 
-        ResultHandler r =
-                new ResultHandler(
-                        cps, this, parallelStep.isFailFast(), parallelStep.isPropagateWorst());
+        ResultHandler r = new ResultHandler(cps, this, parallelStep.isFailFast());
 
         for (Entry<String,Closure> e : parallelStep.closures.entrySet()) {
             BodyExecution body = cps.newBodyInvoker(t.getGroup().export(e.getValue()), true)

@@ -1,10 +1,7 @@
 <div>
     <p>
-        Takes a map from branch names to closures. An optional <code>failFast</code> argument
-        determines whether the step will terminate all branches upon a failure in any other branch.
-        An optional <code>propagateWorst</code> argument determines whether the first error or the
-        worst error (e.g., a failure is worse than an unstable result) will be propagated as the
-        result of the step.
+        Takes a map from branch names to closures and an optional argument <code>failFast</code>
+        which will terminate all branches upon a failure in any other branch:
     </p>
     <pre>
     parallel firstBranch: {
@@ -12,7 +9,6 @@
     }, secondBranch: {
         // do something else
     },
-    failFast: true|false,
-    propagateWorst: true|false
+    failFast: true|false
     </pre>
 </div>
