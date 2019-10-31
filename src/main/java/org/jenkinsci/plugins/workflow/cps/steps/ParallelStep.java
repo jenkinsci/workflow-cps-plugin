@@ -76,7 +76,12 @@ public class ParallelStep extends Step {
         private final boolean failFast;
         /** Have we called stop on the StepExecution? */
         private boolean stopSent = false;
-        /** If we fail fast, we need to record the first failure. Use a linked hash set to maintain insertion order. */
+        /**
+         * If we fail fast, we need to record the first failure.
+         *
+         * <p>We use a set because we may be encountering the same abort being delivered across
+         * branches. We use a linked hash set to maintain insertion order.
+         */
         private final LinkedHashSet<Throwable> failures = new LinkedHashSet<>();
 
         /**
@@ -128,10 +133,6 @@ public class ParallelStep extends Step {
                 } catch (IOException | InterruptedException x) {
                     LOGGER.log(Level.WARNING, null, x);
                 }
-                /*
-                 * Use a set because we may be encountering the same abort being delivered across
-                 * branches.
-                 */
                 handler.failures.add(t);
                 checkAllDone(true);
             }
