@@ -538,7 +538,7 @@ public class ParallelStepTest extends SingleJobTestBase {
                 comparator.compare(
                         new AbortException(),
                         new FlowInterruptedException(
-                                Result.FAILURE, new TimeoutStepExecution.ExceededTimeout())));
+                                Result.FAILURE)));
         assertEquals(
                 0,
                 comparator.compare(

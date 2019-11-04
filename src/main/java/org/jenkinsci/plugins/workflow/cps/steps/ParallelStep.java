@@ -184,6 +184,9 @@ public class ParallelStep extends Step {
             private static final long serialVersionUID = 1L;
         }
 
+        /**
+         * Sorts throwables in order of most most to least severe. General throwables are most severe, followed by instances of `AbortException`, and then instances of `FlowInterruptedException`.
+         */
         static final class ThrowableComparator implements Comparator<Throwable>, Serializable {
 
             private final List<Throwable> insertionOrder;
