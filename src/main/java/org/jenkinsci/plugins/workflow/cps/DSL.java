@@ -297,7 +297,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
 
         if (sync) {
-            assert context.bodyInvokers.isEmpty() : "If a step claims synchronous completion, it shouldn't invoke body";
+            assert context.withBodyInvokers(List::isEmpty) : "If a step claims synchronous completion, it shouldn't invoke body";
 
             if (context.getOutcome()==null) {
                 context.onFailure(new AssertionError("Step "+s+" claimed to have ended synchronously, but didn't set the result via StepContext.onSuccess/onFailure"));
@@ -612,9 +612,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         @Override
         protected ThreadTaskResult eval(CpsThread cur) {
-            invokeBody(cur);
+            boolean switchToAsync = invokeBodyAndSwitchToAsyncMode(cur);
 
-            if (!context.switchToAsyncMode()) {
+            if (!switchToAsync) {
                 // we have a result now, so just keep executing
                 // TODO: if this fails with an exception, we need ability to resume by throwing an exception
                 return resumeWith(context.getOutcome());
@@ -628,7 +628,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             }
         }
 
-        private void invokeBody(CpsThread cur) {
+        private boolean invokeBodyAndSwitchToAsyncMode(CpsThread cur) {
             // prepare enough heads for all the bodies
             // the first one can reuse the current thread, but other ones need to create new heads
             // we want to do this first before starting body so that the order of heads preserve
@@ -636,21 +636,24 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
             // TODO give this javadocs worth a darn, because this is how we create parallel branches and the docs are cryptic as can be!
             // Also we need to double-check this logic because this might cause a failure of persistence
-            FlowHead[] heads = new FlowHead[context.bodyInvokers.size()];
-            for (int i = 0; i < heads.length; i++) {
-                heads[i] = i==0 ? cur.head : cur.head.fork();
-            }
+            return context.withBodyInvokers(bodyInvokers -> {
+                FlowHead[] heads = new FlowHead[bodyInvokers.size()];
+                for (int i = 0; i < heads.length; i++) {
+                    heads[i] = i==0 ? cur.head : cur.head.fork();
+                }
 
-            int idx=0;
-            for (CpsBodyInvoker b : context.bodyInvokers) {
-                // don't collect the first head, which is what we borrowed from our parent.
-                FlowHead h = heads[idx];
-                b.launch(cur, h);
-                context.bodyHeads.add(h.getId());
-                idx++;
-            }
+                int idx=0;
+                for (CpsBodyInvoker b : bodyInvokers) {
+                    // don't collect the first head, which is what we borrowed from our parent.
+                    FlowHead h = heads[idx];
+                    b.launch(cur, h);
+                    context.bodyHeads.add(h.getId());
+                    idx++;
+                }
 
-            context.bodyInvokers.clear();
+                bodyInvokers.clear();
+                return context.switchToAsyncMode();
+            });
         }
 
         /**

@@ -57,12 +57,12 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.CauseOfInterruption;
@@ -147,8 +147,12 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      * Only used in the synchronous mode while {@link CpsFlowExecution} is in the RUNNABLE state,
      * so this need not be persisted. To preserve the order of invocation in the flow graph,
      * this needs to be a list and not set.
+     *
+     * Must only be accessed via {@link #withBodyInvokers} to avoid race conditions during step startup
+     * before {@link #switchToAsyncMode} is called.
      */
-    transient List<CpsBodyInvoker> bodyInvokers = Collections.synchronizedList(new ArrayList<>());
+    @GuardedBy("this")
+    private transient List<CpsBodyInvoker> bodyInvokers = new ArrayList<>();
 
     /**
      * While {@link CpsStepContext} has not received teh response, maintains the body closure.
@@ -511,6 +515,26 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         if (!syncMode)  throw new AssertionError();
         syncMode = false;
         return !isCompleted();
+    }
+
+    /**
+     * Perform an action on {@link #bodyInvokers} while synchronizing on this {@link CpsStepContext}
+     * to avoid concurrency issues.
+     * 
+     * In some cases, it may be important for calls to other synchronized methods on {@link CpsStepContext}
+     * to happen inside of this action so that they are atomic with respect to any other modifications. For
+     * example, when an async step starts, {@code DSL$ThreadTaskImpl.invokeBody} attempts to run any
+     * synchronously-added bodies before switching to async mode via {@link #switchToAsyncMode}. This needs
+     * to be done as a single, atomic operation, so that {@link CpsBodyInvoker} does not try to add synchronous
+     * bodies after {@code DSL$ThreadTaskImpl.invokeBody} has invoked the bodies but before it has called
+     * {@link #switchToAsyncMode}.
+     *
+     * @param <R> the return type of the action
+     * @param action the action to perform
+     * @return the result of performing the action
+     */
+    synchronized <R> R withBodyInvokers(Function<List<CpsBodyInvoker>, R> action) {
+        return action.apply(bodyInvokers);
     }
 
     @Override public ListenableFuture<Void> saveState() {
