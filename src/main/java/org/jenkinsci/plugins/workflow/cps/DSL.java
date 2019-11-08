@@ -612,9 +612,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         @Override
         protected ThreadTaskResult eval(CpsThread cur) {
-            boolean switchToAsync = invokeBodyAndSwitchToAsyncMode(cur);
+            boolean switchedToAsync = invokeBodiesAndSwitchToAsyncMode(cur);
 
-            if (!switchToAsync) {
+            if (!switchedToAsync) {
                 // we have a result now, so just keep executing
                 // TODO: if this fails with an exception, we need ability to resume by throwing an exception
                 return resumeWith(context.getOutcome());
@@ -628,7 +628,18 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             }
         }
 
-        private boolean invokeBodyAndSwitchToAsyncMode(CpsThread cur) {
+        /**
+         * Invoke any bodies that have been synchronously added to the context and decide whether to continue executing
+         * or suspend the step to wait for a result.
+         * Synchronously added bodies are normally added on the CPS VM thread via {@link CpsBodyInvoker#start} in
+         * {@link StepExecution#start}, but implementations of {@code GeneralizedNonBlockingStepExecution} can invoke
+         * {@link CpsBodyInvoker#start} from a background thread, so this method synchronizes on {@link CpsStepContext}
+         * to avoid issues in that case.
+         *
+         * @return {@code true} if the step completed execution and execution should continue using the step's result,
+         * or {@code false} if the step has not yet completed and should be suspended to wait for a result.
+         */
+        private boolean invokeBodiesAndSwitchToAsyncMode(CpsThread cur) {
             // prepare enough heads for all the bodies
             // the first one can reuse the current thread, but other ones need to create new heads
             // we want to do this first before starting body so that the order of heads preserve
