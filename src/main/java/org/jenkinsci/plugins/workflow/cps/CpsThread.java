@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.SettableFuture;
 import java.io.IOException;
@@ -159,12 +160,10 @@ public final class CpsThread implements Serializable {
         this.step = step;
     }
 
-    private static final List<Class> categories;
-    static {
-        categories = new ArrayList<>();
-        categories.addAll(Continuable.categories);
-        categories.add(IteratorHack.class);
-    }
+    private static final List<Class> CATEGORIES = ImmutableList.<Class>builder()
+            .addAll(Continuable.categories)
+            .add(IteratorHack.class)
+            .build();
 
     /**
      * Executes CPS code synchronously a little bit more, until it hits
@@ -183,7 +182,7 @@ public final class CpsThread implements Serializable {
             LOGGER.log(FINE, "runNextChunk on {0}", resumeValue);
             final Outcome o = resumeValue;
             resumeValue = null;
-            outcome = program.run0(o, categories);
+            outcome = program.run0(o, CATEGORIES);
             if (outcome.getAbnormal() != null) {
                 LOGGER.log(FINE, "ran and produced error", outcome.getAbnormal());
             } else {
