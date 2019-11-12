@@ -1,5 +1,11 @@
 ## Changelog
 
+### 2.76
+
+Release date: 2019-11-12
+
+* Fix: Prevent block-scope steps implemented using `GeneralizedNonBlockingStepExecution` (such as `withCredentials` and `wrap`) from hanging indefinitely in some scenarios. ([JENKINS-58878](https://issues.jenkins-ci.org/browse/JENKINS-58878))
+
 ### 2.75
 
 Release date: 2019-10-31
