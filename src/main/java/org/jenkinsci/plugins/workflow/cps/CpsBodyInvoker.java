@@ -136,12 +136,17 @@ public final class CpsBodyInvoker extends BodyInvoker {
             throw new IllegalStateException("The " + owner.getDisplayName() + " step has already completed.");
         }
 
-        if (owner.isSyncMode()) {
-            // we call 'launch' later from DSL.ThreadTaskImpl.
-            // in this mode, the first thread inherits the same thread, but
-            // all the other body executions are run as new threads, for the parallel.
-            owner.bodyInvokers.add(this);
-        } else {
+        boolean addedSynchrously = owner.withBodyInvokers(bodyInvokers -> {
+            if (owner.isSyncMode()) {
+                // we call 'launch' later from DSL.ThreadTaskImpl.
+                // in this mode, the first thread inherits the same thread, but
+                // all the other body executions are run as new threads, for the parallel.
+                bodyInvokers.add(this);
+                return true;
+            }
+            return false;
+        });
+        if (!addedSynchrously) {
             // when this method is called asynchronously, the body is scheduled to run in the same thread
             // that started run.
             try {
