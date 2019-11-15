@@ -68,4 +68,8 @@ class GroovyClassLoaderWhitelist extends Whitelist {
         return permits(field.getDeclaringClass()) || delegate.permitsStaticFieldSet(field, value);
     }
 
+    @Override public String toString() {
+        return super.toString() + "[" + delegate + "]";
+    }
+
 }
