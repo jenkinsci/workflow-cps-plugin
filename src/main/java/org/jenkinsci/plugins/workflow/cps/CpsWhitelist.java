@@ -145,11 +145,19 @@ class CpsWhitelist extends AbstractWhitelist {
     static synchronized Whitelist get() {
         Jenkins j = Jenkins.getInstanceOrNull();
         if (j == null) {
+            LOGGER.warning("Jenkins is not running");
             return new ProxyWhitelist();
         }
         Whitelist wrapped = wrappedByJenkins.get(j);
         if (wrapped == null) {
             wrapped = new ProxyWhitelist(new CpsWhitelist(), Whitelist.all());
+            try {
+                if (!wrapped.permitsStaticMethod(Safepoint.class.getMethod("safepoint"), new Object[0])) {
+                    throw new IllegalStateException("Broken whitelists: " + wrapped);
+                }
+            } catch (NoSuchMethodException x) {
+                assert false : x;
+            }
             wrappedByJenkins.put(j, wrapped);
         }
         return wrapped;
