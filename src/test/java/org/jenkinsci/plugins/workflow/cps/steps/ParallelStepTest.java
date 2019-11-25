@@ -26,7 +26,6 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
-import org.jenkinsci.plugins.workflow.steps.TimeoutStepExecution;
 import org.jenkinsci.plugins.workflow.steps.durable_task.BatchScriptStep;
 import org.jenkinsci.plugins.workflow.steps.durable_task.ShellStep;
 import org.jenkinsci.plugins.workflow.support.visualization.table.FlowGraphTable;
@@ -537,66 +536,60 @@ public class ParallelStepTest extends SingleJobTestBase {
                 -1,
                 comparator.compare(
                         new AbortException(),
-                        new FlowInterruptedException(
-                                Result.FAILURE)));
+                        new FlowInterruptedException(Result.FAILURE)));
         assertEquals(
                 0,
                 comparator.compare(
-                        new FlowInterruptedException(
-                                Result.FAILURE, new TimeoutStepExecution.ExceededTimeout()),
-                        new FlowInterruptedException(
-                                Result.FAILURE, new TimeoutStepExecution.ExceededTimeout())));
+                        new FlowInterruptedException(Result.FAILURE),
+                        new FlowInterruptedException(Result.FAILURE)));
         assertEquals(
                 1,
                 comparator.compare(
-                        new FlowInterruptedException(
-                                Result.FAILURE, new TimeoutStepExecution.ExceededTimeout()),
+                        new FlowInterruptedException(Result.FAILURE),
                         new AbortException()));
-        assertEquals(-1, comparator.compare(new IllegalStateException(), new AbortException()));
+        assertEquals(
+                -1,
+                comparator.compare(
+                        new IllegalStateException(),
+                        new FlowInterruptedException(Result.FAILURE)));
+        assertEquals(
+                1,
+                comparator.compare(
+                        new FlowInterruptedException(Result.FAILURE),
+                        new IllegalStateException()));
+        assertEquals(-1,comparator.compare(new IllegalStateException(), new AbortException()));
         assertEquals(0, comparator.compare(new AbortException(), new AbortException()));
         assertEquals(1, comparator.compare(new AbortException(), new IllegalStateException()));
         assertEquals(
                 1,
                 comparator.compare(
-                        new FlowInterruptedException(
-                                Result.SUCCESS, new TimeoutStepExecution.ExceededTimeout()),
-                        new FlowInterruptedException(
-                                Result.FAILURE, new TimeoutStepExecution.ExceededTimeout())));
+                        new FlowInterruptedException(Result.SUCCESS),
+                        new FlowInterruptedException(Result.FAILURE)));
         assertEquals(
                 -1,
                 comparator.compare(
-                        new FlowInterruptedException(
-                                Result.FAILURE, new TimeoutStepExecution.ExceededTimeout()),
-                        new FlowInterruptedException(
-                                Result.SUCCESS, new TimeoutStepExecution.ExceededTimeout())));
+                        new FlowInterruptedException(Result.FAILURE),
+                        new FlowInterruptedException(Result.SUCCESS)));
         assertEquals(
                 1,
                 comparator.compare(
-                        new FlowInterruptedException(
-                                Result.SUCCESS, new TimeoutStepExecution.ExceededTimeout()),
-                        new FlowInterruptedException(
-                                Result.UNSTABLE, new TimeoutStepExecution.ExceededTimeout())));
+                        new FlowInterruptedException(Result.SUCCESS),
+                        new FlowInterruptedException(Result.UNSTABLE)));
         assertEquals(
                 -1,
                 comparator.compare(
-                        new FlowInterruptedException(
-                                Result.UNSTABLE, new TimeoutStepExecution.ExceededTimeout()),
-                        new FlowInterruptedException(
-                                Result.SUCCESS, new TimeoutStepExecution.ExceededTimeout())));
+                        new FlowInterruptedException(Result.UNSTABLE),
+                        new FlowInterruptedException(Result.SUCCESS)));
         assertEquals(
                 1,
                 comparator.compare(
-                        new FlowInterruptedException(
-                                Result.UNSTABLE, new TimeoutStepExecution.ExceededTimeout()),
-                        new FlowInterruptedException(
-                                Result.FAILURE, new TimeoutStepExecution.ExceededTimeout())));
+                        new FlowInterruptedException(Result.UNSTABLE),
+                        new FlowInterruptedException(Result.FAILURE)));
         assertEquals(
                 -1,
                 comparator.compare(
-                        new FlowInterruptedException(
-                                Result.FAILURE, new TimeoutStepExecution.ExceededTimeout()),
-                        new FlowInterruptedException(
-                                Result.UNSTABLE, new TimeoutStepExecution.ExceededTimeout())));
+                        new FlowInterruptedException(Result.FAILURE),
+                        new FlowInterruptedException(Result.UNSTABLE)));
     }
 
     @Issue("JENKINS-49073")

@@ -185,7 +185,9 @@ public class ParallelStep extends Step {
         }
 
         /**
-         * Sorts throwables in order of most most to least severe. General throwables are most severe, followed by instances of `AbortException`, and then instances of `FlowInterruptedException`.
+         * Sorts {@link Throwable Throwables} in order of most to least severe.
+         * General {@link Throwable Throwables} are most severe, followed by instances of {@link AbortException}, and
+         * then instances of {@link FlowInterruptedException}, which are ordered by {@link FlowInterruptedException#getResult()}.
          */
         static final class ThrowableComparator implements Comparator<Throwable>, Serializable {
 
@@ -203,18 +205,18 @@ public class ParallelStep extends Step {
             public int compare(Throwable t1, Throwable t2) {
                 if (!(t1 instanceof FlowInterruptedException)
                         && t2 instanceof FlowInterruptedException) {
-                    // FlowInterruptedException is always higher than any other exception.
+                    // FlowInterruptedException is always less severe than any other exception.
                     return -1;
                 } else if (t1 instanceof FlowInterruptedException
                         && !(t2 instanceof FlowInterruptedException)) {
-                    // FlowInterruptedException is always higher than any other exception.
+                    // FlowInterruptedException is always less severe than any other exception.
                     return 1;
                 } else if (!(t1 instanceof AbortException) && t2 instanceof AbortException) {
-                    // AbortException is always higher than any exception other than
+                    // AbortException is always less severe than any exception other than
                     // FlowInterruptedException.
                     return -1;
                 } else if (t1 instanceof AbortException && !(t2 instanceof AbortException)) {
-                    // AbortException is always higher than any exception other than
+                    // AbortException is always less severe than any exception other than
                     // FlowInterruptedException.
                     return 1;
                 } else if (t1 instanceof FlowInterruptedException
