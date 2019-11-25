@@ -185,9 +185,10 @@ public class ParallelStep extends Step {
         }
 
         /**
-         * Sorts {@link Throwable Throwables} in order of most to least severe.
-         * General {@link Throwable Throwables} are most severe, followed by instances of {@link AbortException}, and
-         * then instances of {@link FlowInterruptedException}, which are ordered by {@link FlowInterruptedException#getResult()}.
+         * Sorts {@link Throwable Throwables} in order of most to least severe. General {@link
+         * Throwable Throwables} are most severe, followed by instances of {@link AbortException},
+         * and then instances of {@link FlowInterruptedException}, which are ordered by {@link
+         * FlowInterruptedException#getResult()}.
          */
         static final class ThrowableComparator implements Comparator<Throwable>, Serializable {
 

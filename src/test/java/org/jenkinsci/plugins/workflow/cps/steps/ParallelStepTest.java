@@ -535,8 +535,7 @@ public class ParallelStepTest extends SingleJobTestBase {
         assertEquals(
                 -1,
                 comparator.compare(
-                        new AbortException(),
-                        new FlowInterruptedException(Result.FAILURE)));
+                        new AbortException(), new FlowInterruptedException(Result.FAILURE)));
         assertEquals(
                 0,
                 comparator.compare(
@@ -545,19 +544,16 @@ public class ParallelStepTest extends SingleJobTestBase {
         assertEquals(
                 1,
                 comparator.compare(
-                        new FlowInterruptedException(Result.FAILURE),
-                        new AbortException()));
+                        new FlowInterruptedException(Result.FAILURE), new AbortException()));
         assertEquals(
                 -1,
                 comparator.compare(
-                        new IllegalStateException(),
-                        new FlowInterruptedException(Result.FAILURE)));
+                        new IllegalStateException(), new FlowInterruptedException(Result.FAILURE)));
         assertEquals(
                 1,
                 comparator.compare(
-                        new FlowInterruptedException(Result.FAILURE),
-                        new IllegalStateException()));
-        assertEquals(-1,comparator.compare(new IllegalStateException(), new AbortException()));
+                        new FlowInterruptedException(Result.FAILURE), new IllegalStateException()));
+        assertEquals(-1, comparator.compare(new IllegalStateException(), new AbortException()));
         assertEquals(0, comparator.compare(new AbortException(), new AbortException()));
         assertEquals(1, comparator.compare(new AbortException(), new IllegalStateException()));
         assertEquals(
