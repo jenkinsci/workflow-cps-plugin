@@ -1,5 +1,13 @@
 ## Changelog
 
+### 2.77
+
+Release date: 2019-11-26
+
+* Fix: Make the `parallel` step propagate the worst result of all branches when not using `failFast: true`. Previously, the propagated result was the result of the first branch that completed. Note that before Pipeline: Build Step Plugin version 2.10, which changed the way that results are propagated for the `build` step, it was rare for there to be a distinction between the old and new behavior in practice. ([JENKINS-49073](https://issues.jenkins-ci.org/browse/JENKINS-49073))
+* Improvement: Improve diagnostics and robustness for Pipeline-specific Whitelists. ([PR 338](https://github.com/jenkinsci/workflow-cps-plugin/pull/338))
+* Internal: Update workflow-step-api to no longer rely on a beta API. ([PR 327](https://github.com/jenkinsci/workflow-cps-plugin/pull/327))
+
 ### 2.76
 
 Release date: 2019-11-12
