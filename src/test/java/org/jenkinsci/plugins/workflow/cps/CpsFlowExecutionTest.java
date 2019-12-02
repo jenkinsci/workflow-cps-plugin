@@ -241,6 +241,53 @@ public class CpsFlowExecutionTest {
         });
     }
 
+    @Issue("JENKINS-34256")
+    @Test public void quietDownThenCancelQuietDown() {
+        story.then(r -> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            r.jenkins.doQuietDown(true, 0);
+            SemaphoreStep.success("wait/1", null);
+            ((CpsFlowExecution) b.getExecution()).waitForSuspension();
+            assertTrue(b.isBuilding());
+            r.assertLogNotContains("I am done", b);
+            r.jenkins.doCancelQuietDown();
+            r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
+        });
+    }
+
+    @Issue("JENKINS-34256")
+    @Test public void pauseAndQuietDown() {
+        story.then(r -> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            CpsFlowExecution exec = (CpsFlowExecution) b.getExecutionPromise().get();
+            SemaphoreStep.waitForStart("wait/1", b);
+            // Pause the build and enable quiet mode.
+            exec.pause(true);
+            r.jenkins.doQuietDown(true, 0);
+            exec.waitForSuspension();
+            SemaphoreStep.success("wait/1", null);
+            assertTrue(b.isBuilding());
+            r.assertLogNotContains("I am done", b);
+            // While still paused, cancel quiet mode.
+            r.jenkins.doCancelQuietDown();
+            r.assertLogNotContains("I am done", b);
+            // Enable quiet mode again
+            r.jenkins.doQuietDown(true, 0);
+            r.assertLogNotContains("I am done", b);
+            // Unpause the build
+            exec.pause(false);
+            r.assertLogNotContains("I am done", b);
+            // Cancel quiet mode now that the build is unpaused so the build can finish.
+            r.jenkins.doCancelQuietDown();
+            r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
+        });
+    }
+
     @Test public void timing() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {

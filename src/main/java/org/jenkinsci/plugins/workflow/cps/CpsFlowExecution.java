@@ -110,9 +110,11 @@ import groovy.lang.GroovyCodeSource;
 import hudson.AbortException;
 import hudson.BulkChange;
 import hudson.Extension;
+import hudson.Main;
 import hudson.init.Terminator;
 import hudson.model.Item;
 import hudson.model.Job;
+import hudson.model.PeriodicWork;
 import hudson.model.Queue;
 import hudson.model.Run;
 import hudson.model.Saveable;
@@ -2078,6 +2080,47 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     @Override
     protected void notifyShutdown() {
         // No-op, handled in the suspendAll terminator
+    }
+
+    // TODO: Core could use a QuietDownListener class with `onQuietDown` and `onCancelQuietDown` methods.
+    @Restricted(NoExternalUse.class)
+    @Extension
+    public static class QuietDownListener extends PeriodicWork {
+        private boolean wasQuietDown = Jenkins.get().isQuietingDown();
+
+        @Override
+        public long getRecurrencePeriod() {
+            return Main.isUnitTest
+                    ? TimeUnit.SECONDS.toMillis(1)
+                    : TimeUnit.MINUTES.toMillis(1);
+        }
+
+        @Override
+        protected void doRun() throws Exception {
+            boolean isQuietDown = Jenkins.get().isQuietingDown();
+            // Quieting down is handled by `CpsThreadGroup.scheduleRun`, so we just need to handle quiet mode being cancelled.
+            if (!isQuietDown && wasQuietDown) {
+                // Need to resume all executions by calling `CpsThreadGroup.scheduleRun()`.
+                for (FlowExecution exec : FlowExecutionList.get()) {
+                    if (exec instanceof CpsFlowExecution) {
+                        CpsFlowExecution cpsExec = (CpsFlowExecution) exec;
+                        cpsExec.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+                            @Override
+                            public void onSuccess(CpsThreadGroup g) {
+                                if (!g.isPaused()) {
+                                    g.scheduleRun();
+                                }
+                            }
+                            @Override
+                            public void onFailure(Throwable x) {
+                                LOGGER.log(Level.WARNING, "cannot resume from quiet down " + exec, x);
+                            }
+                        });
+                    }
+                }
+            }
+            wasQuietDown = isQuietDown;
+        }
     }
 
 }
