@@ -228,6 +228,7 @@ public class CpsFlowExecutionTest {
                 SemaphoreStep.waitForStart("wait/1", b);
                 story.j.jenkins.doQuietDown(true, 0);
                 SemaphoreStep.success("wait/1", null);
+                story.j.waitForMessage("Pausing (Preparing for shutdown)", b);
                 ((CpsFlowExecution) b.getExecution()).waitForSuspension();
                 assertTrue(b.isBuilding());
             }
@@ -244,16 +245,105 @@ public class CpsFlowExecutionTest {
     @Issue("JENKINS-34256")
     @Test public void quietDownThenCancelQuietDown() {
         story.then(r -> {
-            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+            WorkflowJob p = r.createProject(WorkflowJob.class);
             p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
             WorkflowRun b = p.scheduleBuild2(0).waitForStart();
             SemaphoreStep.waitForStart("wait/1", b);
             r.jenkins.doQuietDown(true, 0);
             SemaphoreStep.success("wait/1", null);
-            ((CpsFlowExecution) b.getExecution()).waitForSuspension();
+            r.waitForMessage("Pausing (Preparing for shutdown)", b);
             assertTrue(b.isBuilding());
             r.assertLogNotContains("I am done", b);
             r.jenkins.doCancelQuietDown();
+            r.waitForMessage("Resuming (Prepare for shutdown was canceled)", b);
+            r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
+        });
+    }
+
+    @Issue("JENKINS-34256")
+    @Test public void pauseThenQuietDownThenUnpauseThenCancelQuietDown() {
+        story.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            ((CpsFlowExecution) b.getExecution()).pause(true);
+            r.waitForMessage("Pausing", b);
+            SemaphoreStep.success("wait/1", null);
+            Thread.sleep(1000);
+            r.jenkins.doQuietDown(true, 0);
+            Thread.sleep(1000);
+            r.assertLogNotContains("Pausing (Preparing for shutdown)", b);
+            ((CpsFlowExecution) b.getExecution()).pause(false);
+            r.waitForMessage("Resuming", b);
+            r.waitForMessage("Pausing (Preparing for shutdown)", b);
+            r.jenkins.doCancelQuietDown();
+            r.waitForMessage("Resuming (Prepare for shutdown was canceled)", b);
+            r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
+        });
+    }
+
+    @Issue("JENKINS-34256")
+    @Test public void pauseThenQuietDownThenCancelQuietDownThenUnpause() {
+        story.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            ((CpsFlowExecution) b.getExecution()).pause(true);
+            r.waitForMessage("Pausing", b);
+            SemaphoreStep.success("wait/1", null);
+            Thread.sleep(1000);
+            r.jenkins.doQuietDown(true, 0);
+            Thread.sleep(1000);
+            r.assertLogNotContains("Pausing (Preparing for shutdown)", b);
+            r.jenkins.doCancelQuietDown();
+            Thread.sleep(1000);
+            r.assertLogNotContains("Resuming (Prepare for shutdown was canceled)", b);
+            ((CpsFlowExecution) b.getExecution()).pause(false);
+            r.waitForMessage("Resuming", b);
+            r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
+        });
+    }
+
+    @Issue("JENKINS-34256")
+    @Test public void quietDownThenPauseThenCancelQuietDownThenUnpause() {
+        story.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            r.jenkins.doQuietDown(true, 0);
+            SemaphoreStep.success("wait/1", null);
+            r.waitForMessage("Pausing (Preparing for shutdown)", b);
+            ((CpsFlowExecution) b.getExecution()).pause(true);
+            r.waitForMessage("Pausing", b);
+            r.jenkins.doCancelQuietDown();
+            r.waitForMessage("Resuming (Prepare for shutdown was canceled)", b);
+            r.assertLogNotContains("I am done", b);
+            ((CpsFlowExecution) b.getExecution()).pause(false);
+            r.waitForMessage("Resuming", b);
+            r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
+        });
+    }
+
+    @Issue("JENKINS-34256")
+    @Test public void quietDownThenPauseThenUnpauseThenCancelQuietDown() {
+        story.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            r.jenkins.doQuietDown(true, 0);
+            SemaphoreStep.success("wait/1", null);
+            r.waitForMessage("Pausing (Preparing for shutdown)", b);
+            ((CpsFlowExecution) b.getExecution()).pause(true);
+            r.waitForMessage("Pausing", b);
+            ((CpsFlowExecution) b.getExecution()).pause(false);
+            r.waitForMessage("Resuming", b);
+            r.assertLogNotContains("I am done", b);
+            r.jenkins.doCancelQuietDown();
+            r.waitForMessage("Resuming (Prepare for shutdown was canceled)", b);
             r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
         });
     }
