@@ -296,11 +296,14 @@ public final class CpsThreadGroup implements Serializable {
                             } catch (IOException e) {
                                LOGGER.log(Level.WARNING, null, e);
                             }
-                            Timer.get().schedule(() -> {
-                                if (j.isQuietingDown()) {
-                                    Timer.get().schedule(this, Main.isUnitTest ? 1 : 10, TimeUnit.SECONDS);
-                                } else {
-                                    scheduleRun();
+                            Timer.get().schedule(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (j.isQuietingDown()) {
+                                        Timer.get().schedule(this, Main.isUnitTest ? 1 : 10, TimeUnit.SECONDS);
+                                    } else {
+                                        scheduleRun();
+                                    }
                                 }
                             }, Main.isUnitTest ? 1 : 10, TimeUnit.SECONDS);
                         }
