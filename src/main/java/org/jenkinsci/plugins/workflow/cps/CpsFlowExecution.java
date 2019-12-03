@@ -2103,17 +2103,16 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 // Need to resume all executions by calling `CpsThreadGroup.scheduleRun()`.
                 for (FlowExecution exec : FlowExecutionList.get()) {
                     if (exec instanceof CpsFlowExecution) {
-                        CpsFlowExecution cpsExec = (CpsFlowExecution) exec;
-                        cpsExec.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+                        ((CpsFlowExecution) exec).runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
                             @Override
                             public void onSuccess(CpsThreadGroup g) {
-                                if (!g.isPaused()) {
+                                if (!g.isPaused()) { // If the CpsThreadGroup is paused, scheduleRun will cause it to be persisted again unnecessarily.
                                     g.scheduleRun();
                                 }
                             }
                             @Override
                             public void onFailure(Throwable x) {
-                                LOGGER.log(Level.WARNING, "cannot resume from quiet down " + exec, x);
+                                LOGGER.log(Level.WARNING, "cannot resume " + exec + " after cancelling quiet mode", x);
                             }
                         });
                     }
