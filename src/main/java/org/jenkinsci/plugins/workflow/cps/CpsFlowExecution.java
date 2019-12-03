@@ -2112,7 +2112,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             }
                             @Override
                             public void onFailure(Throwable x) {
-                                LOGGER.log(Level.WARNING, "cannot resume " + exec + " after cancelling quiet mode", x);
+                                LOGGER.log(Level.WARNING, "cannot resume " + exec + " after canceling quiet mode", x);
                             }
                         });
                     }
