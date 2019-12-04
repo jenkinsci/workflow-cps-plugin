@@ -284,7 +284,7 @@ public final class CpsThreadGroup implements Serializable {
                     Jenkins j = Jenkins.getInstanceOrNull();
                     if (j != null && !j.isQuietingDown() && execution != null && pausedByQuietMode.compareAndSet(true, false)) {
                         try {
-                            execution.getOwner().getListener().getLogger().println("Resuming (Prepare for shutdown was canceled)");
+                            execution.getOwner().getListener().getLogger().println("Resuming (Shutdown was canceled)");
                         } catch (IOException e) {
                             LOGGER.log(Level.WARNING, null, e);
                         }

@@ -255,7 +255,7 @@ public class CpsFlowExecutionTest {
             assertTrue(b.isBuilding());
             r.assertLogNotContains("I am done", b);
             r.jenkins.doCancelQuietDown();
-            r.waitForMessage("Resuming (Prepare for shutdown was canceled)", b);
+            r.waitForMessage("Resuming (Shutdown was canceled)", b);
             r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
         });
     }
@@ -278,7 +278,7 @@ public class CpsFlowExecutionTest {
             r.waitForMessage("Resuming", b);
             r.waitForMessage("Pausing (Preparing for shutdown)", b);
             r.jenkins.doCancelQuietDown();
-            r.waitForMessage("Resuming (Prepare for shutdown was canceled)", b);
+            r.waitForMessage("Resuming (Shutdown was canceled)", b);
             r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
         });
     }
@@ -299,7 +299,7 @@ public class CpsFlowExecutionTest {
             r.assertLogNotContains("Pausing (Preparing for shutdown)", b);
             r.jenkins.doCancelQuietDown();
             Thread.sleep(1000);
-            r.assertLogNotContains("Resuming (Prepare for shutdown was canceled)", b);
+            r.assertLogNotContains("Resuming (Shutdown was canceled)", b);
             ((CpsFlowExecution) b.getExecution()).pause(false);
             r.waitForMessage("Resuming", b);
             r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
@@ -319,7 +319,7 @@ public class CpsFlowExecutionTest {
             ((CpsFlowExecution) b.getExecution()).pause(true);
             r.waitForMessage("Pausing", b);
             r.jenkins.doCancelQuietDown();
-            r.waitForMessage("Resuming (Prepare for shutdown was canceled)", b);
+            r.waitForMessage("Resuming (Shutdown was canceled)", b);
             r.assertLogNotContains("I am done", b);
             ((CpsFlowExecution) b.getExecution()).pause(false);
             r.waitForMessage("Resuming", b);
@@ -343,7 +343,7 @@ public class CpsFlowExecutionTest {
             r.waitForMessage("Resuming", b);
             r.assertLogNotContains("I am done", b);
             r.jenkins.doCancelQuietDown();
-            r.waitForMessage("Resuming (Prepare for shutdown was canceled)", b);
+            r.waitForMessage("Resuming (Shutdown was canceled)", b);
             r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
         });
     }
