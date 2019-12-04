@@ -46,6 +46,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import jenkins.model.Jenkins;
 import jenkins.scm.api.SCMFileSystem;
@@ -80,6 +81,11 @@ public class CpsScmFlowDefinition extends FlowDefinition {
 
     public SCM getScm() {
         return scm;
+    }
+
+    @Override
+    public Collection<? extends SCM> getSCMs() {
+       return Collections.singletonList(scm);
     }
 
     public String getScriptPath() {
