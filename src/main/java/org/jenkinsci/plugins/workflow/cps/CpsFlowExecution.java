@@ -1134,7 +1134,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         setResult(result);
 
         LOGGER.log(Level.FINE, "Interrupting {0} as {1}", new Object[] {owner, result});
-        final FlowInterruptedException ex = new FlowInterruptedException(result,causes);
+        final FlowInterruptedException ex = new FlowInterruptedException(result, true, causes);
 
         // stop all ongoing activities
         runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
@@ -2048,7 +2048,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
         try {
             owner.getListener().getLogger().println("Failing build: shutting down master and build is marked to not resume");
-            final Throwable x = new FlowInterruptedException(Result.ABORTED);
+            final Throwable x = new FlowInterruptedException(Result.ABORTED, true);
             Futures.addCallback(this.getCurrentExecutions(/* cf. JENKINS-26148 */true), new FutureCallback<List<StepExecution>>() {
                 @Override public void onSuccess(List<StepExecution> l) {
                     for (StepExecution e : Iterators.reverse(l)) {

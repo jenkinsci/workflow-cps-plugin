@@ -250,7 +250,7 @@ class CpsBodyExecution extends BodyExecution {
         synchronized (this) {
             if (isDone())  return false;   // already complete
             // TODO should perhaps rather override cancel(Throwable) and make this overload just delegate to that one
-            stopped = new FlowInterruptedException(Result.ABORTED, causes);
+            stopped = new FlowInterruptedException(Result.ABORTED, true, causes);
             t = this.thread;
         }
 

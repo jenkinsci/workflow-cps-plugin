@@ -398,7 +398,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                                 if (s != null) {
                                     // TODO: ideally this needs to work like interrupt, in that
                                     // if s==null the next StepExecution gets interrupted when it happen
-                                    FlowInterruptedException cause = new FlowInterruptedException(Result.FAILURE, new BodyFailed());
+                                    FlowInterruptedException cause = new FlowInterruptedException(Result.FAILURE, true, new BodyFailed());
                                     cause.initCause(getOutcome().getAbnormal());
                                     try {
                                         // TODO JENKINS-26148/JENKINS-34637 this is probably wrong: should interrupt the innermost execution
