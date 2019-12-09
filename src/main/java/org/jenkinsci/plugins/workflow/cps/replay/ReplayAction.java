@@ -91,7 +91,7 @@ public class ReplayAction implements Action {
 
     private final Run run;
 
-    private ReplayAction(Run run) {
+    public ReplayAction(Run run) {
         this.run = run;
     }
 
