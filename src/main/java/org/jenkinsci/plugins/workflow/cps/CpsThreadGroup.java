@@ -40,9 +40,11 @@ import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 import hudson.ExtensionList;
 import hudson.Functions;
+import hudson.Main;
 import hudson.Util;
 import hudson.model.Result;
 import jenkins.model.Jenkins;
+import jenkins.util.Timer;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -67,6 +69,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -121,6 +124,13 @@ public final class CpsThreadGroup implements Serializable {
 
     /** Set while {@link #runner} is doing something. */
     transient boolean busy;
+
+    /**
+     * True if the build was automatically paused because quiet mode is enabled.
+     * Used to avoid printing more than one pause message or scheduling more than one resumption task per build.
+     * Independent of {@link #paused}.
+     */
+    private transient AtomicBoolean pausedByQuietMode;
 
     /**
      * True if the execution suspension is requested.
@@ -182,6 +192,7 @@ public final class CpsThreadGroup implements Serializable {
 
     private void setupTransients() {
         runner = new CpsVmExecutorService(this);
+        pausedByQuietMode = new AtomicBoolean();
         if (paused == null) { // earlier versions did not have this field.
             paused = new AtomicBoolean();
         }
@@ -271,7 +282,31 @@ public final class CpsThreadGroup implements Serializable {
                 @SuppressFBWarnings(value="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE", justification="runner.submit() result")
                 public Void call() throws Exception {
                     Jenkins j = Jenkins.getInstanceOrNull();
+                    if (j != null && !j.isQuietingDown() && execution != null && pausedByQuietMode.compareAndSet(true, false)) {
+                        try {
+                            execution.getOwner().getListener().getLogger().println("Resuming (Shutdown was canceled)");
+                        } catch (IOException e) {
+                            LOGGER.log(Level.WARNING, null, e);
+                        }
+                    }
                     if (paused.get() || j == null || (execution != null && j.isQuietingDown())) {
+                        if (j != null && j.isQuietingDown() && execution != null && pausedByQuietMode.compareAndSet(false, true)) {
+                            try {
+                                execution.getOwner().getListener().getLogger().println("Pausing (Preparing for shutdown)");
+                            } catch (IOException e) {
+                               LOGGER.log(Level.WARNING, null, e);
+                            }
+                            Timer.get().schedule(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (j.isQuietingDown()) {
+                                        Timer.get().schedule(this, Main.isUnitTest ? 1 : 10, TimeUnit.SECONDS);
+                                    } else {
+                                        scheduleRun();
+                                    }
+                                }
+                            }, Main.isUnitTest ? 1 : 10, TimeUnit.SECONDS);
+                        }
                         // by doing the pause check inside, we make sure that scheduleRun() returns a
                         // future that waits for any previously scheduled tasks to be completed.
                         saveProgramIfPossible(true);
