@@ -1,5 +1,11 @@
 ## Changelog
 
+### 2.78
+
+Release date: 2019-12-10
+
+* Fix: Resume Pipeline execution if Jenkins shutdown is canceled. Previously, when Pipelines were paused because Jenkins was preparing for shutdown, they remained paused even if shutdown was canceled. ([JENKINS-34256](https://issues.jenkins-ci.org/browse/JENKINS-34256))
+
 ### 2.77
 
 Release date: 2019-11-26
