@@ -477,6 +477,33 @@ public class CpsFlowExecutionTest {
         });
     }
 
+    @Test
+    public void existingVariablesOnRestart() throws Exception {
+        story.then(r -> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("echo('pre-semaphore')\n" +
+                    "semaphore('wait')\n" +
+                    "echo('post-semaphore')", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+        });
+        story.then(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getBuildByNumber(1);
+            SemaphoreStep.success("wait/1", null);
+            r.waitForCompletion(b);
+            r.assertBuildStatus(Result.SUCCESS, b);
+        });
+    }
+
+    @TestExtension("ExistingVariablesOnRestart")
+    public static class InjectedGroovyShell extends GroovyShellDecorator {
+        @Override
+        public void configureShell(@CheckForNull CpsFlowExecution context, GroovyShell shell) {
+            shell.setVariable("existing", "value");
+        }
+    }
+
     /**
      * This field shouldn't be visible to regular script.
      */

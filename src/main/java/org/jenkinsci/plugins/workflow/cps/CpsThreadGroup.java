@@ -174,16 +174,13 @@ public final class CpsThreadGroup implements Serializable {
         execution = CpsFlowExecution.PROGRAM_STATE_SERIALIZATION.get();
         setupTransients();
         assert execution!=null;
-        if (scripts != null) { // compatibility: the field will be null in old programs
+        if (scripts != null && !scripts.isEmpty()) { // compatibility: the field will be null in old programs
             GroovyShell shell = execution.getShell();
-            assert shell.getContext().getVariables().isEmpty();
-            if (!scripts.isEmpty()) {
-                // Take the canonical bindings from the main script and relink that object with that of the shell and all other loaded scripts which kept the same bindings.
-                shell.getContext().getVariables().putAll(scripts.get(0).getBinding().getVariables());
-                for (Script script : scripts) {
-                    if (script.getBinding().getVariables().equals(shell.getContext().getVariables())) {
-                        script.setBinding(shell.getContext());
-                    }
+            // Take the canonical bindings from the main script and relink that object with that of the shell and all other loaded scripts which kept the same bindings.
+            shell.getContext().getVariables().putAll(scripts.get(0).getBinding().getVariables());
+            for (Script script : scripts) {
+                if (script.getBinding().getVariables().equals(shell.getContext().getVariables())) {
+                    script.setBinding(shell.getContext());
                 }
             }
         }
