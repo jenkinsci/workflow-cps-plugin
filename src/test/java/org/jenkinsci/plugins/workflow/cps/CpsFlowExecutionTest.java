@@ -79,6 +79,9 @@ public class CpsFlowExecutionTest {
     @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
     @Rule public LoggerRule logger = new LoggerRule();
 
+    private static final String EXISTING_VAR_NAME = "INJECTED_VAR";
+    private static final String EXISTING_VAR_VALUE = "PRE_EXISTING";
+
     @Test public void getCurrentExecutions() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
@@ -481,11 +484,12 @@ public class CpsFlowExecutionTest {
     public void existingVariablesOnRestart() throws Exception {
         story.then(r -> {
             WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-            p.setDefinition(new CpsFlowDefinition("echo('pre-semaphore')\n" +
-                    "semaphore('wait')\n" +
-                    "echo('post-semaphore')", true));
+            p.setDefinition(new CpsFlowDefinition("echo(\"Pre-semaphore value is ${" + EXISTING_VAR_NAME + "}\")\n" +
+                                                  "semaphore('wait')\n" +
+                                                  "echo(\"Post-semaphore value is ${" + EXISTING_VAR_NAME + "}\")", true));
             WorkflowRun b = p.scheduleBuild2(0).waitForStart();
             SemaphoreStep.waitForStart("wait/1", b);
+            r.assertLogContains("Pre-semaphore value is " + EXISTING_VAR_VALUE, b);
         });
         story.then(r -> {
             WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
@@ -493,14 +497,16 @@ public class CpsFlowExecutionTest {
             SemaphoreStep.success("wait/1", null);
             r.waitForCompletion(b);
             r.assertBuildStatus(Result.SUCCESS, b);
+            r.assertLogContains("Pre-semaphore value is " + EXISTING_VAR_VALUE, b);
         });
     }
 
-    @TestExtension("ExistingVariablesOnRestart")
+    @TestExtension("existingVariablesOnRestart")
     public static class InjectedGroovyShell extends GroovyShellDecorator {
+
         @Override
         public void configureShell(@CheckForNull CpsFlowExecution context, GroovyShell shell) {
-            shell.setVariable("existing", "value");
+            shell.setVariable(EXISTING_VAR_NAME, EXISTING_VAR_VALUE);
         }
     }
 
