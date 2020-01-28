@@ -179,9 +179,7 @@ public final class CpsThreadGroup implements Serializable {
             // Take the canonical bindings from the main script and relink that object with that of the shell and all other loaded scripts which kept the same bindings.
             shell.getContext().getVariables().putAll(scripts.get(0).getBinding().getVariables());
             for (Script script : scripts) {
-                if (script.getBinding().getVariables().equals(shell.getContext().getVariables())) {
-                    script.setBinding(shell.getContext());
-                }
+                script.setBinding(shell.getContext());
             }
         }
         return this;
