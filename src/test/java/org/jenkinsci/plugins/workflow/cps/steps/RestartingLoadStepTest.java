@@ -226,7 +226,7 @@ public class RestartingLoadStepTest {
         });
     }
 
-    @TestExtension(value={"simpleExistingBindingsOnRestart", "existingBindingsOnRestart", "conflictingBindingsOnRestart"})
+    @TestExtension(value={"existingBindingsOnRestart", "existingBindingsWithLoadOnRestart"})
     public static class InjectedVariable extends GroovyShellDecorator {
 
         @Override
@@ -236,7 +236,7 @@ public class RestartingLoadStepTest {
     }
 
     @Test
-    public void simpleExistingBindingsOnRestart() throws Exception {
+    public void existingBindingsOnRestart() throws Exception {
         story.then(r -> {
             WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p1");
             p.setDefinition(new CpsFlowDefinition(
@@ -258,7 +258,7 @@ public class RestartingLoadStepTest {
     }
 
     @Test
-    public void existingBindingsOnRestart() {
+    public void existingBindingsWithLoadOnRestart() {
         story.then(r -> {
             WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
             r.jenkins.getWorkspaceFor(p).child("a.groovy").write(
@@ -287,43 +287,6 @@ public class RestartingLoadStepTest {
             r.waitForCompletion(b);
             r.assertBuildStatus(Result.SUCCESS, b);
             r.assertLogContains("Post-semaphore value is " + EXISTING_VAR_VALUE, b);
-            r.assertLogContains("a ran on value from b", b);
-        });
-    }
-
-    @Test
-    public void conflictingBindingsOnRestart() throws Exception {
-        String conflictingValue = "0";
-        story.then( r -> {
-            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-            r.jenkins.getWorkspaceFor(p).child("a.groovy").write(
-                    "def call(arg) {echo (/a ran on ${arg}/)}; this", null);
-            ScriptApproval.get().approveSignature("method groovy.lang.Binding getVariables");
-            r.jenkins.getWorkspaceFor(p).child("b.groovy").write(
-                    "def m(arg) {echo (/${this} binding=${binding.variables}/); a(/${arg} from b/)}; this", null);
-            p.setDefinition(new CpsFlowDefinition(
-                    EXISTING_VAR_NAME + " = " + conflictingValue + ";" +
-                    "a = 0;" +
-                    "node {a = load 'a.groovy'};" +
-                    "echo (/Pre-semaphore value is ${" + EXISTING_VAR_NAME + "}/);" +
-                    "semaphore 'wait';" +
-                    "echo (/Post-semaphore value is ${" + EXISTING_VAR_NAME + "}/);" +
-                    "def b;" +
-                    "node {b = load 'b.groovy'};" +
-                    "echo (/${this} binding=${binding.variables}/);" +
-                    "b.m('value');" +
-                    "echo (/final injected value is ${" + EXISTING_VAR_NAME + "}/);", true));
-            WorkflowRun b = p.scheduleBuild2(0).getStartCondition().get();
-            SemaphoreStep.waitForStart("wait/1", b);
-            r.assertLogContains("Pre-semaphore value is " + conflictingValue, b);
-        });
-        story.then( r -> {
-            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
-            WorkflowRun b = p.getBuildByNumber(1);
-            SemaphoreStep.success("wait/1", null);
-            r.waitForCompletion(b);
-            r.assertBuildStatus(Result.SUCCESS, b);
-            r.assertLogContains("Post-semaphore value is " + conflictingValue, b);
             r.assertLogContains("a ran on value from b", b);
         });
     }
