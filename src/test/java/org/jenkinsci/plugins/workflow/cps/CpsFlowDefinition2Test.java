@@ -680,4 +680,12 @@ public class CpsFlowDefinition2Test {
         jenkins.assertLogContains("staticField jenkins.YesNoMaybe YES", b2);
     }
 
+    @Issue("SECURITY-1710")
+    @Test public void blockInitialExpressionsForParamsInCpsTransformedMethods() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition("def m(p = Jenkins.getInstance()) { true }; m()", true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b);
+    }
+
 }
