@@ -1,11 +1,15 @@
 package org.jenkinsci.plugins.workflow.cps.steps;
 
+import javax.annotation.CheckForNull;
 import javax.inject.Inject;
-
+import groovy.lang.GroovyShell;
 import hudson.FilePath;
+import hudson.model.Result;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
+import org.jenkinsci.plugins.workflow.cps.GroovyShellDecorator;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
@@ -18,6 +22,7 @@ import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
+import org.jvnet.hudson.test.TestExtension;
 
 /**
  *
@@ -31,6 +36,9 @@ public class RestartingLoadStepTest {
 
     @Inject
     Jenkins jenkins;
+
+    private static final String EXISTING_VAR_NAME = "INJECTED_VAR";
+    private static final String EXISTING_VAR_VALUE = "PRE_EXISTING";
 
     /**
      * Makes sure that loaded scripts survive persistence.
@@ -218,4 +226,97 @@ public class RestartingLoadStepTest {
         });
     }
 
+    @TestExtension(value={"existingBindingsOnRestart", "existingBindingsWithLoadOnRestart"})
+    public static class InjectedVariable extends GroovyShellDecorator {
+
+        @Override
+        public void configureShell(@CheckForNull CpsFlowExecution context, GroovyShell shell) {
+            shell.setVariable(EXISTING_VAR_NAME, EXISTING_VAR_VALUE);
+        }
+    }
+
+    @Test
+    public void existingBindingsOnRestart() throws Exception {
+        story.then(r -> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p1");
+            p.setDefinition(new CpsFlowDefinition(
+                    "echo(/Pre-semaphore value is ${" + EXISTING_VAR_NAME + "}/)\n" +
+                    "semaphore('wait')\n" +
+                    "echo(/Post-semaphore value is ${" + EXISTING_VAR_NAME + "}/)", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            r.assertLogContains("Pre-semaphore value is " + EXISTING_VAR_VALUE, b);
+        });
+        story.then(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName("p1", WorkflowJob.class);
+            WorkflowRun b = p.getBuildByNumber(1);
+            SemaphoreStep.success("wait/1", null);
+            r.waitForCompletion(b);
+            r.assertBuildStatus(Result.SUCCESS, b);
+            r.assertLogContains("Post-semaphore value is " + EXISTING_VAR_VALUE, b);
+        });
+    }
+
+    @Test
+    public void existingBindingsWithLoadOnRestart() {
+        story.then(r -> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+            r.jenkins.getWorkspaceFor(p).child("a.groovy").write(
+                    "def call(arg) {echo (/a ran on ${arg}/)}; this", null);
+            ScriptApproval.get().approveSignature("method groovy.lang.Binding getVariables");
+            r.jenkins.getWorkspaceFor(p).child("b.groovy").write(
+                    "def m(arg) {echo (/${this} binding=${binding.variables}/); a(/${arg} from b/)}; this", null);
+            p.setDefinition(new CpsFlowDefinition(
+                    "a = 0;" +
+                    "node {a = load 'a.groovy'};" +
+                    "echo (/Pre-semaphore value is ${" + EXISTING_VAR_NAME + "}/);" +
+                    "semaphore 'wait';" +
+                    "echo (/Post-semaphore value is ${" + EXISTING_VAR_NAME + "}/);" +
+                    "def b;" +
+                    "node {b = load 'b.groovy'};" +
+                    "echo (/${this} binding=${binding.variables}/);" +
+                    "b.m('value')", true));
+            WorkflowRun b = p.scheduleBuild2(0).getStartCondition().get();
+            SemaphoreStep.waitForStart("wait/1", b);
+            r.assertLogContains("Pre-semaphore value is " + EXISTING_VAR_VALUE, b);
+        });
+        story.then( r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getBuildByNumber(1);
+            SemaphoreStep.success("wait/1", null);
+            r.waitForCompletion(b);
+            r.assertBuildStatus(Result.SUCCESS, b);
+            r.assertLogContains("Post-semaphore value is " + EXISTING_VAR_VALUE, b);
+            r.assertLogContains("a ran on value from b", b);
+        });
+    }
+
+    @Test
+    public void updatedBindingsOnRestart() throws Exception {
+        story.then(r -> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+            r.jenkins.getWorkspaceFor(p).child("a.groovy").write("tmp = 'tmp'; { -> tmp}", null);
+            p.setDefinition(new CpsFlowDefinition(
+                    "node() {\n" +
+                    "  a = load('a.groovy')\n" +
+                    "}\n" +
+                    "echo(/before change: ${a()}/)\n" +
+                    "tmp = 'tmp2'\n" +
+                    "echo(/before restart: ${a()}/)\n" +
+                    "semaphore('wait')\n" +
+                    "tmp = 'tmp3'\n" +
+                    "echo(/after restart: ${a()}/)\n", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            r.assertLogContains("before change: tmp", b);
+            r.assertLogContains("before restart: tmp2", b);
+        });
+        story.then(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getBuildByNumber(1);
+            SemaphoreStep.success("wait/1", null);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+            r.assertLogContains("after restart: tmp3", b);
+        });
+    }
 }
