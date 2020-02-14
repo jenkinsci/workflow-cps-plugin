@@ -1,11 +1,17 @@
 ## Changelog
 
-### 2.79
+### 2.80
 
 Release date: 2020-02-14
 
-* Fix: Allow main script bindings to be mapped to the shell upon deserialization. Previously, if the main script had a binding that could not be deserialized, it would get silently dropped in loaded scripts.
-* Introduced GroovySample extension point
+* Fix: Always link the bindings of scripts loaded via the `load` step back to the binding for the main Pipeline script when a Pipeline is resumed. Previously, the bindings in the loaded script could become out of date in some cases. ([PR 348](https://github.com/jenkinsci/workflow-cps-plugin/pull/348))
+* Developer: Introduced `GroovySample` extension point to allow plugins to dynamically add samples to (or filter samples from) the dropdown menu shown when configuring a Pipeline script in Jenkins. ([PR 350](https://github.com/jenkinsci/workflow-cps-plugin/pull/350))
+
+### 2.79
+
+Release date: 2020-02-12
+
+* Security: Fix sandbox bypass vulnerability. ([SECURITY-1710](https://jenkins.io/security/advisory/2020-02-12/#SECURITY-1710))
 
 ### 2.78
 
@@ -260,7 +266,7 @@ Release date: 2018-04-12
 
 Release date: 2018-04-08
 
-* **Major bugfix / improvements**: numerous fixes & improvements to make Pipeline persistence & resume more robust (across all Durability Settings)  
+* **Major bugfix / improvements**: numerous fixes & improvements to make Pipeline persistence & resume more robust (across all Durability Settings)
     * These do not have individual JIRAs because they were spinoffs from testing other work, discovered with fuzzing-like approaches
     * Many of these bugs would result in irreproducible errors that may have been reported - **link any related JIRAs here**: (TBD)
     * Improves error-handling logic
