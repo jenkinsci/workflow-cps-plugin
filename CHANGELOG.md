@@ -1,5 +1,12 @@
 ## Changelog
 
+### 2.79
+
+Release date: 2020-02-14
+
+* Fix: Allow main script bindings to be mapped to the shell upon deserialization. Previously, if the main script had a binding that could not be deserialized, it would get silently dropped in loaded scripts.
+* Introduced GroovySample extension point
+
 ### 2.78
 
 Release date: 2019-12-10
