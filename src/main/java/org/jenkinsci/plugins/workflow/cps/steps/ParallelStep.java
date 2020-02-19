@@ -249,9 +249,12 @@ public class ParallelStep extends Step {
         private static final long serialVersionUID = 1L;
     }
 
-    /** Internal exception that is only used internally to abort a parallel body in the case of a failFast body failing. */
-    private static final class FailFastException extends Exception {
+    public static final class FailFastException extends Exception {
         private static final long serialVersionUID = 1L;
+
+        private FailFastException() {
+            // Exception that is only used to abort a parallel body in the case of a failFast body failing.
+        }
     }
 
     @Extension
