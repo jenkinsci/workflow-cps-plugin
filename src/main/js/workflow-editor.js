@@ -97,7 +97,7 @@ jenkinsJSModules.import('ace-editor:ace-editor-122')
                         // we add a samples widget to let the user select some samples that
                         // can be used to get them going.
                         if (editor.getValue() === '') {
-                            require('./samples').addSamplesWidget(editor, editorId);
+                            require('./samples').addSamplesWidget(editor, editorId, aceContainer.attr('samplesUrl'));
                         }
                     }
                     showSamplesWidget();

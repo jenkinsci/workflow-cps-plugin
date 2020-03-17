@@ -14,7 +14,7 @@
         <j:otherwise>
             <div class="workflow-editor-wrapper" style="display: none; position: relative">
                 <f:textarea value="${script}" checkMethod="post" checkUrl="${attrs.checkUrl}" checkDependsOn="${attrs.checkDependsOn}"/>
-                <div class="pane-frame editor" style="height: 250px;"/>
+                <div class="pane-frame editor" style="height: 250px;" samplesUrl="${rootURL}/workflow-cps-samples/"/>
             </div>
             <st:adjunct includes="org.jenkinsci.plugins.workflow.cps.workflow-editor"/>
         </j:otherwise>
