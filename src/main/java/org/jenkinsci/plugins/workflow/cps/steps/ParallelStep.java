@@ -8,6 +8,7 @@ import hudson.Extension;
 import hudson.model.Result;
 import hudson.model.TaskListener;
 import java.io.IOException;
+import jenkins.model.CauseOfInterruption;
 
 import org.jenkinsci.plugins.workflow.cps.CpsVmThreadOnly;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
@@ -147,7 +148,7 @@ public class ParallelStep extends Step {
                         if (stepFailed && handler.failFast && ! handler.isStopSent()) {
                             handler.stopSent();
                             try {
-                                handler.stepExecution.stop(new FailFastException());
+                                handler.stepExecution.stop(new FailFastCause(name));
                             }
                             catch (Exception ignored) {
                                 // ignored.
@@ -249,7 +250,25 @@ public class ParallelStep extends Step {
         private static final long serialVersionUID = 1L;
     }
 
-    /** Internal exception that is only used internally to abort a parallel body in the case of a failFast body failing. */
+    /** Used to abort a running branch body in the case of {@code failFast} taking effect. */
+    private static final class FailFastCause extends CauseOfInterruption {
+
+        private static final long serialVersionUID = 1L;
+
+        private final String failingBranch;
+
+        FailFastCause(String failingBranch) {
+            this.failingBranch = failingBranch;
+        }
+
+        @Override public String getShortDescription() {
+            return "Failed in branch "+ failingBranch;
+        }
+
+    }
+
+    /** @deprecated no longer used, just here for serial compatibility */
+    @Deprecated
     private static final class FailFastException extends Exception {
         private static final long serialVersionUID = 1L;
     }
