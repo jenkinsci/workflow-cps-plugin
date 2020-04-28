@@ -74,4 +74,14 @@ public class CpsTransformer2Test extends AbstractGroovyCpsTest {
                 "m2('x', 'b', 'y')\n" +
                 "r"));
     }
+
+    @Test public void assignmentExprsEvalToRHS() throws Throwable {
+        assertEquals(Arrays.asList(1, 1, 1), evalCPS(
+                "def a = b = c = 1\n" +
+                "[a, b, c]\n"));
+        assertEquals(Arrays.asList(2, 3, 4), evalCPS(
+                "def a = b = c = 1\n" +
+                "c += b += a += 1\n" +
+                "[a, b, c]\n"));
+    }
 }
