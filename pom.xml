@@ -28,7 +28,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>3.54</version>
+        <version>4.1</version>
         <relativePath />
     </parent>
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -64,7 +64,7 @@
     <properties>
         <revision>2.81</revision>
         <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.138.4</jenkins.version>
+        <jenkins.version>2.176.4</jenkins.version>
         <java.level>8</java.level>
         <no-test-jar>false</no-test-jar>
         <git-plugin.version>3.1.0</git-plugin.version>
