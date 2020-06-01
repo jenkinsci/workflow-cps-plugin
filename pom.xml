@@ -41,6 +41,11 @@
             <url>https://opensource.org/licenses/MIT</url>
             <distribution>repo</distribution>
         </license>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
     </licenses>
     <scm>
         <connection>scm:git:git://github.com/jenkinsci/${project.artifactId}-plugin.git</connection>
@@ -65,10 +70,12 @@
         <changelist>-SNAPSHOT</changelist>
         <jenkins.version>2.176.4</jenkins.version>
         <java.level>8</java.level>
-        <no-test-jar>false</no-test-jar>
-        <groovy-cps.version>1.32</groovy-cps.version>
+        <groovy.version>2.4.12</groovy.version> <!-- TODO: Why is the core BOM not working? -->
+        <groovy-sandbox.version>1.21</groovy-sandbox.version>
     </properties>
     <modules>
+        <module>dgm-builder</module>
+        <module>lib</module>
         <module>plugin</module>
     </modules>
     <dependencyManagement>

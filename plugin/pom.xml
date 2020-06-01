@@ -41,6 +41,9 @@
             <url>https://opensource.org/licenses/MIT</url>
         </license>
     </licenses>
+    <properties>
+        <no-test-jar>false</no-test-jar>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -138,7 +141,7 @@
         <dependency>
             <groupId>com.cloudbees</groupId>
             <artifactId>groovy-cps</artifactId>
-            <version>${groovy-cps.version}</version>
+            <version>${revision}${changelist}</version>
             <exclusions>
                 <exclusion> <!-- we pick this up from jenkins-core -->
                     <groupId>com.google.guava</groupId>
@@ -201,7 +204,7 @@
         <dependency>
             <groupId>com.cloudbees</groupId>
             <artifactId>groovy-cps</artifactId>
-            <version>${groovy-cps.version}</version>
+            <version>${revision}${changelist}</version>
             <classifier>tests</classifier>
             <scope>test</scope>
             <exclusions>

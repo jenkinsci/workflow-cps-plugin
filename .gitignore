@@ -2,8 +2,11 @@ target
 work
 node
 node_modules
+nbactions.xml
 .idea/
 *.iml
+*.ipr
+*.iws
 .classpath
 .project
 .settings/

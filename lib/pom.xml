@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.jenkins-ci.plugins.workflow</groupId>
+    <artifactId>workflow-cps-parent</artifactId>
+    <version>${revision}${changelist}</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <groupId>com.cloudbees</groupId>
+  <artifactId>groovy-cps</artifactId>
+  <packaging>jar</packaging>
+  <name>Groovy CPS Execution</name>
+
+  <licenses>
+    <license>
+      <name>The Apache Software License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <properties>
+    <no-test-jar>false</no-test-jar>
+  </properties>
+
+  <build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <executions>
+                <execution>
+                    <goals>
+                        <!-- TODO: Why is this needed? -->
+                        <goal>properties</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
+        <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>1.6.0</version>
+            <executions>
+                <execution>
+                    <phase>generate-sources</phase>
+                    <goals>
+                        <goal>exec</goal>
+                    </goals>
+                    <configuration>
+                        <sourceRoot>${project.build.directory}/generated-sources/dgm</sourceRoot>
+                        <executable>java</executable>
+                        <arguments>
+                            <argument>-jar</argument>
+                            <argument>${com.cloudbees:groovy-cps-dgm-builder:jar:jar-with-dependencies}</argument>
+                            <argument>${project.build.directory}/generated-sources/dgm</argument>
+                        </arguments>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
+      <plugin>
+        <groupId>org.codehaus.gmavenplus</groupId>
+        <artifactId>gmavenplus-plugin</artifactId>
+        <executions>
+          <execution>
+            <configuration>
+                <!-- TODO: Move to plugin-pom, see https://github.com/jenkinsci/plugin-pom/blob/ebc1df524a85499332d920d439e77e4d467bc3c6/pom.xml#L702 -->
+                <stubsOutputDirectory>${project.build.directory}/generated-sources/groovy-stubs</stubsOutputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.cloudbees</groupId>
+      <artifactId>groovy-cps-dgm-builder</artifactId>
+      <version>${revision}${changelist}</version>
+      <classifier>jar-with-dependencies</classifier>
+      <scope>runtime</scope> <!-- somehow provide to dependency:properties without actually adding to CP -->
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.kohsuke</groupId>
+      <artifactId>groovy-sandbox</artifactId>
+      <version>${groovy-sandbox.version}</version>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.kohsuke</groupId>
+      <artifactId>groovy-sandbox</artifactId>
+      <version>${groovy-sandbox.version}</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.codehaus.groovy</groupId>
+      <artifactId>groovy</artifactId>
+      <version>${groovy.version}</version>
+      <!--
+        let the user of this library select the right flavor of groovy,
+        including groovy vs groovy-all
+      -->
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.codehaus.groovy</groupId>
+      <artifactId>groovy-test</artifactId>
+      <version>${groovy.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+    </dependency>
+  </dependencies>
+
+</project>
