@@ -29,6 +29,7 @@ public class Driver {
         new Driver().run(new File(args[0]));
     }
 
+    @SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE", justification = "SpotBugs doesn't like try/catch statements in Java 11+, see https://github.com/spotbugs/spotbugs/issues/756")
     public void run(File dir) throws Exception {
         JavaCompiler javac = JavacTool.create();
         DiagnosticListener<JavaFileObject> errorListener = createErrorListener();
