@@ -52,7 +52,7 @@
                     </goals>
                     <configuration>
                         <sourceRoot>${project.build.directory}/generated-sources/dgm</sourceRoot>
-                        <executable>java</executable>
+                        <executable>${env.JAVA_HOME}/bin/java</executable> <!-- We need a JDK, not a JRE. -->
                         <arguments>
                             <argument>-jar</argument>
                             <argument>${com.cloudbees:groovy-cps-dgm-builder:jar:jar-with-dependencies}</argument>
