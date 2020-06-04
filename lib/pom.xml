@@ -51,13 +51,12 @@
                         <goal>exec</goal>
                     </goals>
                     <configuration>
-                        <sourceRoot>${project.build.directory}/generated-sources/dgm</sourceRoot>
-                        <executable>${env.JAVA_HOME}/bin/java</executable> <!-- We need a JDK, not a JRE. -->
+                        <executable>${env.JAVA_HOME}/bin/jar</executable> <!-- We need a JDK, not a JRE. -->
                         <arguments>
-                            <argument>-jar</argument>
+                            <argument>-tf</argument>
                             <argument>${com.cloudbees:groovy-cps-dgm-builder:jar:jar-with-dependencies}</argument>
-                            <argument>${project.build.directory}/generated-sources/dgm</argument>
                         </arguments>
+                        <successCodes>9999</successCodes> <!-- TODO: Always fail, just testing -->
                     </configuration>
                 </execution>
             </executions>
