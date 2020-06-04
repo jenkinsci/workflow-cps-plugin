@@ -46,6 +46,7 @@
             <version>1.6.0</version>
             <executions>
                 <execution>
+                    <id>display-classes-in-dgm-jar-with-dependencies</id>
                     <phase>generate-sources</phase>
                     <goals>
                         <goal>exec</goal>
@@ -59,6 +60,7 @@
                     </configuration>
                 </execution>
                 <execution>
+                    <id>generate-cps-dgm-classes</id>
                     <phase>generate-sources</phase>
                     <goals>
                         <goal>exec</goal>
