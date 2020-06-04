@@ -46,20 +46,6 @@
             <version>1.6.0</version>
             <executions>
                 <execution>
-                    <id>display-classes-in-dgm-jar-with-dependencies</id>
-                    <phase>generate-sources</phase>
-                    <goals>
-                        <goal>exec</goal>
-                    </goals>
-                    <configuration>
-                        <executable>${env.JAVA_HOME}/bin/jar</executable> <!-- We need a JDK, not a JRE. -->
-                        <arguments>
-                            <argument>-tf</argument>
-                            <argument>${com.cloudbees:groovy-cps-dgm-builder:jar:jar-with-dependencies}</argument>
-                        </arguments>
-                    </configuration>
-                </execution>
-                <execution>
                     <id>generate-cps-dgm-classes</id>
                     <phase>generate-sources</phase>
                     <goals>
