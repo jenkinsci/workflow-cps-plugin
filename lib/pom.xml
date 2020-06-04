@@ -34,7 +34,7 @@
             <executions>
                 <execution>
                     <goals>
-                        <!-- TODO: Why is this needed? -->
+                        <!-- Sets the path to groovy-cps-dgm-builder for exec-maven-plugin. -->
                         <goal>properties</goal>
                     </goals>
                 </execution>
