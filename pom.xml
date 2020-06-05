@@ -93,6 +93,26 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-java</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>1.8.0</version>
+                                    <message>groovy-cps-dgm-builder uses a fork of javac (sorcerer-javac), which cannot run on Java 9+ due to using packages which are no longer accessible due to the module system, which means groovy-cps cannot be built using Java 9+ since it needs to run groovy-cps-dgm-builder.</message>
+                                </requireJavaVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
                 <configuration>
                     <!-- Keep the tag names aligned with releases from when groovy-cps was independent. -->
