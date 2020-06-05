@@ -29,18 +29,6 @@
   <build>
     <plugins>
         <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-dependency-plugin</artifactId>
-            <executions>
-                <execution>
-                    <goals>
-                        <!-- Sets the path to groovy-cps-dgm-builder for exec-maven-plugin. -->
-                        <goal>properties</goal>
-                    </goals>
-                </execution>
-            </executions>
-        </plugin>
-        <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
             <version>1.6.0</version>
@@ -48,14 +36,12 @@
                 <execution>
                     <phase>generate-sources</phase>
                     <goals>
-                        <goal>exec</goal>
+                        <goal>java</goal>
                     </goals>
                     <configuration>
                         <sourceRoot>${project.build.directory}/generated-sources/dgm</sourceRoot>
-                        <executable>${env.JAVA_HOME}/bin/java</executable> <!-- We need a JDK, not a JRE. -->
+                        <mainClass>com.cloudbees.groovy.cps.tool.Driver</mainClass>
                         <arguments>
-                            <argument>-jar</argument>
-                            <argument>${com.cloudbees:groovy-cps-dgm-builder:jar:jar-with-dependencies}</argument>
                             <argument>${project.build.directory}/generated-sources/dgm</argument>
                         </arguments>
                     </configuration>
@@ -83,7 +69,7 @@
       <artifactId>groovy-cps-dgm-builder</artifactId>
       <version>${revision}${changelist}</version>
       <classifier>jar-with-dependencies</classifier>
-      <scope>runtime</scope> <!-- somehow provide to dependency:properties without actually adding to CP -->
+      <scope>runtime</scope> <!-- Needed by exec-maven-plugin, but we do not want it to be added to the classpath. -->
       <optional>true</optional>
     </dependency>
     <dependency>
