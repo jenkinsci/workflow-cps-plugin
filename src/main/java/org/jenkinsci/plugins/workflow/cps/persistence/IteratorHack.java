@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
+import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -102,6 +103,11 @@ public class IteratorHack {
     public static <E> Iterator<E> iterator(E[] array) {
         // TODO as above
         return new Itr<>(Arrays.asList(array));
+    }
+
+    public static <E> Iterator<E> iterator(Deque deque) {
+        // TODO as above
+        return new Itr<>(new ArrayList<>(deque));
     }
 
     private static final class ListItr<E> extends Itr<E> implements ListIterator<E> {
