@@ -60,8 +60,24 @@ public class SnippetizerTester {
      *      needed because of {@link StaplerReferer}
      */
     public void assertGenerateSnippet(@Nonnull String json, @Nonnull String responseText, @CheckForNull String referer) throws Exception {
+        assertGenerateSnippet(Snippetizer.GENERATE_URL, json, responseText, referer);
+    }
+
+    /**
+     * Tests a form submitting part of snippetizer.
+     *
+     * @param url
+     *      Generation URL
+     * @param json
+     *      The form submission value from the configuration page to be tested.
+     * @param responseText
+     *      Expected snippet to be generated
+     * @param referer
+     *      needed because of {@link StaplerReferer}
+     */
+    protected void assertGenerateSnippet(@Nonnull String url, @Nonnull String json, @Nonnull String responseText, @CheckForNull String referer) throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
-        WebRequest wrs = new WebRequest(new URL(r.getURL(), Snippetizer.GENERATE_URL), HttpMethod.POST);
+        WebRequest wrs = new WebRequest(new URL(r.getURL(), url), HttpMethod.POST);
         if (referer != null) {
             wrs.setAdditionalHeader("Referer", referer);
         }
