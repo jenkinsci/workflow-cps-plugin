@@ -98,7 +98,7 @@ import org.kohsuke.stapler.StaplerRequest;
      *
      * @param o The object to translate.
      * @param nestedExp
-     *      true if this object is written as a nested expression (in which case we always produce parenthesis for readability)
+     *      true if this object is written as a nested expression (in which case we always produce parentheses for readability)
      * @return A string translation of the object.
      */
     public static String object2Groovy(Object o, boolean nestedExp) throws UnsupportedOperationException {
