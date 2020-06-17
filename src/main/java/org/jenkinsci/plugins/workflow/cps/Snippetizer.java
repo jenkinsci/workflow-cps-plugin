@@ -89,7 +89,20 @@ import org.kohsuke.stapler.StaplerRequest;
      * @return A string translation of the object.
      */
     public static String object2Groovy(Object o) throws UnsupportedOperationException {
-        return object2Groovy(new StringBuilder(), o, false).toString();
+        return object2Groovy(o, false);
+    }
+
+    /**
+     * Publicly accessible version of {@link #object2Groovy(StringBuilder, Object, boolean)} that translates an object into
+     * the equivalent Pipeline Groovy string.
+     *
+     * @param o The object to translate.
+     * @param nestedExp
+     *      true if this object is written as a nested expression (in which case we always produce parentheses for readability)
+     * @return A string translation of the object.
+     */
+    public static String object2Groovy(Object o, boolean nestedExp) throws UnsupportedOperationException {
+        return object2Groovy(new StringBuilder(), o, nestedExp).toString();
     }
 
     /**
