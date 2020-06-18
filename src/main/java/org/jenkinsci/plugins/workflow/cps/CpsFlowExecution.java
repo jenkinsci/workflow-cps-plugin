@@ -712,17 +712,26 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this.owner = owner;
 
         try {
-            try {
-                initializeStorage();  // Throws exception and bombs out if we can't load FlowNodes
-            } catch (Exception ex) {
-                LOGGER.log(Level.WARNING, "Error initializing storage and loading nodes, will try to create placeholders for: "+this, ex);
-                createPlaceholderNodes(ex);
-                return;
-            }
+            initializeStorage();  // Throws exception and bombs out if we can't load FlowNodes
         } catch (Exception ex) {
-            done = true;
-            programPromise = Futures.immediateFailedFuture(ex);
-            throw new IOException("Failed to even create placeholder nodes for execution", ex);
+            try {
+                if (!canResume()) {
+                    // This case is expected for PERFORMANCE_OPTIMIZED Pipelines after a Jenkins crash (JENKINS-55287). The specific issue is
+                    // usually that only the FlowStartNode has been persisted and so we cannot find the current head node in storage.
+                    String message = "Unable to resume " + owner.getExecutable() + " because it was not saved before Jenkins shut down. Did Jenkins crash?";
+                    LOGGER.log(Level.WARNING, message, ex);
+                    ex = new AbortException(message); // Change the exception displayed in the build log to one that is more useful for users.
+                } else {
+                    LOGGER.log(Level.WARNING, "Unable to resume " + owner.getExecutable() + " because its flow nodes could not be loaded", ex);
+                }
+                createPlaceholderNodes(ex);
+            } catch (Exception ex2) {
+                ex2.addSuppressed(ex);
+                done = true;
+                programPromise = Futures.immediateFailedFuture(ex2);
+                throw new IOException("Failed to even create placeholder nodes for execution", ex2);
+            }
+            return;
         }
 
         try {
@@ -737,12 +746,17 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 }
             } else {  // See if we can/should resume build
                 if (canResume()) {
+                    // TODO: I think we need to null out persistedClean here and resave the execution so that future
+                    // resumptions are not misled by the fact that persistedClean was true before this resumption.
+                    // CpsThreadGroup.run nulls out persistedClean after every step but it does not save that value
+                    // for PERFORMANCE_OPTIMIZED Pipelines.
                     loadProgramAsync(getProgramDataFile());
                 } else {
                     // TODO if possible, consider trying to close out unterminated blocks to keep existing graph history
                     // That way we can visualize the graph in some error cases.
-                    LOGGER.log(Level.WARNING, "Pipeline state not properly persisted, cannot resume "+owner.getUrl());
-                    throw new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down.");
+                    String message = "Unable to resume " + owner.getExecutable() + " because it was not saved before Jenkins shut down. Did Jenkins crash?";
+                    LOGGER.log(Level.WARNING, message);
+                    throw new IOException(message);
                 }
             }
         } catch (Exception e) {  // Broad catch ensures that failure to load do NOT nuke the master
@@ -1526,10 +1540,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         return false;
     }
 
-    private void setPersistedClean(boolean persistedClean) {  // Workaround for some issues with anonymous classes.
-        this.persistedClean = persistedClean;
-    }
-
     /**
      * Pause or unpause the execution.
      *
@@ -1951,24 +1961,35 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      *  Key note: to avoid deadlocks we need to ensure that we don't hold a lock on this CpsFlowExecution when running saveOwner
      *   or pre-emptively lock the run before locking the execution and saving. */
     void saveOwner() {
+        /**
+         * We only want to update persistedClean if the program is over (in which case it doesn't matter), or if Jenkins
+         * is about to shut down (in which case it controls whether PERFORMANCE_OPTIMIZED Pipelines can be resumed).
+         */
+        boolean updatePersistedClean = done || Jenkins.get().isTerminating();
         try {
             if (this.owner != null && this.owner.getExecutable() instanceof Saveable) {  // Null-check covers some anomalous cases we've seen
                 Saveable saveable = (Saveable)(this.owner.getExecutable());
-                persistedClean = true;
+                if (updatePersistedClean) {
+                    persistedClean = true;
+                }
                 if (storage != null && storage.delegate != null) {
                     // Defensively flush FlowNodes to storage
                     try {
                         storage.flush();
                     } catch (Exception ex) {
                         LOGGER.log(Level.WARNING, "Error persisting FlowNodes for execution "+owner, ex);
-                        persistedClean = false;
+                        if (updatePersistedClean) {
+                            persistedClean = false;
+                        }
                     }
                 }
                 saveable.save();
             }
         } catch (IOException ex) {
             LOGGER.log(Level.WARNING, "Error persisting Run "+owner, ex);
-            persistedClean = false;
+            if (updatePersistedClean) {
+                persistedClean = false;
+            }
         }
     }
 
@@ -2031,7 +2052,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 persistOk=false;
                 LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before shutdown", ioe);
             }
-            persistedClean = persistOk;
+            if (Jenkins.get().isTerminating()) {
+                // Only modify persistedClean if Jenkins is shutting down.
+                // TODO: We could set persistedClean to true when the build is just being paused, but then we would need
+                // to null it out and save again when the build was unpaused.
+                persistedClean = persistOk;
+            }
             try {
                 saveOwner();
             } catch (Exception ex) {

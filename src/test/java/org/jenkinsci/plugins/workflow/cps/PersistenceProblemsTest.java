@@ -16,7 +16,6 @@ import org.jenkinsci.plugins.workflow.support.steps.input.InputAction;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStepExecution;
 import org.junit.Assert;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
@@ -244,7 +243,6 @@ public class PersistenceProblemsTest {
     }
 
     @Test
-    @Ignore
     public void inProgressMaxPerfCleanShutdown() throws Exception {
         final int[] build = new int[1];
         story.then( j -> {
@@ -263,14 +261,14 @@ public class PersistenceProblemsTest {
         });
     }
 
+    @Issue("JENKINS-55287")
     @Test
-    @Ignore
     public void inProgressMaxPerfDirtyShutdown() throws Exception {
         final int[] build = new int[1];
         final String[] finalNodeId = new String[1];
         story.thenWithHardShutdown( j -> {
             runBasicPauseOnInput(j, DEFAULT_JOBNAME, build, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
-            // SHOULD still save at end via persist-at-shutdown hooks
+            // Will not be saved since the persist-at-shutdown hooks will occur after the snapshot for thenWithHardShutdown is taken.
         });
         story.then( j->{
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
@@ -279,6 +277,7 @@ public class PersistenceProblemsTest {
             j.waitForCompletion(run);
             assertCompletedCleanly(run);
             Assert.assertEquals(Result.FAILURE, run.getResult());
+            j.assertLogContains("was not saved before Jenkins shut down", run);
             finalNodeId[0] = run.getExecution().getCurrentHeads().get(0).getId();
         });
         story.then(j-> {
