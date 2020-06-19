@@ -1558,7 +1558,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 if (v) {
                     g.pause();
                     checkAndAbortNonresumableBuild();  // TODO Verify if we can rely on just killing paused builds at shutdown via checkAndAbortNonresumableBuild()
-                    checkpoint();
+                    checkpoint(false);
                 } else {
                     g.unpause();
                 }
@@ -1601,7 +1601,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                 LOGGER.log(Level.WARNING, "Error waiting for Pipeline to suspend: "+exec, ex);
                             }
                         }
-                        cpsExec.checkpoint();
+                        cpsExec.checkpoint(true);
                     }
                 } catch (Exception ex) {
                     LOGGER.log(Level.WARNING, "Error persisting Pipeline execution at shutdown: "+((CpsFlowExecution) execution).owner, ex);
@@ -1957,19 +1957,18 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
+    void saveOwner() {
+        saveOwner(false);
+    }
+
     /** Save the owner that holds this execution.
      *  Key note: to avoid deadlocks we need to ensure that we don't hold a lock on this CpsFlowExecution when running saveOwner
      *   or pre-emptively lock the run before locking the execution and saving. */
-    void saveOwner() {
-        /**
-         * We only want to update persistedClean if the program is over (in which case it doesn't matter), or if Jenkins
-         * is about to shut down (in which case it controls whether PERFORMANCE_OPTIMIZED Pipelines can be resumed).
-         */
-        boolean updatePersistedClean = done || Jenkins.get().isTerminating();
+    void saveOwner(boolean shuttingDown) {
         try {
             if (this.owner != null && this.owner.getExecutable() instanceof Saveable) {  // Null-check covers some anomalous cases we've seen
                 Saveable saveable = (Saveable)(this.owner.getExecutable());
-                if (updatePersistedClean) {
+                if (shuttingDown) {
                     persistedClean = true;
                 }
                 if (storage != null && storage.delegate != null) {
@@ -1978,7 +1977,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         storage.flush();
                     } catch (Exception ex) {
                         LOGGER.log(Level.WARNING, "Error persisting FlowNodes for execution "+owner, ex);
-                        if (updatePersistedClean) {
+                        if (shuttingDown) {
                             persistedClean = false;
                         }
                     }
@@ -1987,14 +1986,17 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
         } catch (IOException ex) {
             LOGGER.log(Level.WARNING, "Error persisting Run "+owner, ex);
-            if (updatePersistedClean) {
+            if (shuttingDown) {
                 persistedClean = false;
             }
         }
     }
 
-    /** Save everything we can to disk - program, run, flownodes. */
-    private void checkpoint() {
+    /**
+     * Save everything we can to disk - program, run, flownodes.
+     * @param shuttingDown True if this checkpoint is happening because Jenkins is shutting down, false if it is happening because execution was paused.
+     */
+    private void checkpoint(boolean shuttingDown) {
         if (isComplete() || this.getDurabilityHint().isPersistWithEveryStep()) {
             // Nothing to persist OR we've already persisted it along the way.
             return;
@@ -2052,7 +2054,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 persistOk=false;
                 LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before shutdown", ioe);
             }
-            if (Jenkins.get().isTerminating()) {
+            if (shuttingDown) {
                 // Only modify persistedClean if Jenkins is shutting down.
                 // TODO: We could set persistedClean to true when the build is just being paused, but then we would need
                 // to null it out and save again when the build was unpaused.
