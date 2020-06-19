@@ -1957,38 +1957,27 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    void saveOwner() {
-        saveOwner(false);
-    }
-
     /** Save the owner that holds this execution.
      *  Key note: to avoid deadlocks we need to ensure that we don't hold a lock on this CpsFlowExecution when running saveOwner
      *   or pre-emptively lock the run before locking the execution and saving. */
-    void saveOwner(boolean shuttingDown) {
+    void saveOwner() {
         try {
             if (this.owner != null && this.owner.getExecutable() instanceof Saveable) {  // Null-check covers some anomalous cases we've seen
                 Saveable saveable = (Saveable)(this.owner.getExecutable());
-                if (shuttingDown) {
-                    persistedClean = true;
-                }
                 if (storage != null && storage.delegate != null) {
                     // Defensively flush FlowNodes to storage
                     try {
                         storage.flush();
                     } catch (Exception ex) {
                         LOGGER.log(Level.WARNING, "Error persisting FlowNodes for execution "+owner, ex);
-                        if (shuttingDown) {
-                            persistedClean = false;
-                        }
+                        persistedClean = false;
                     }
                 }
                 saveable.save();
             }
         } catch (IOException ex) {
             LOGGER.log(Level.WARNING, "Error persisting Run "+owner, ex);
-            if (shuttingDown) {
-                persistedClean = false;
-            }
+            persistedClean = false;
         }
     }
 
