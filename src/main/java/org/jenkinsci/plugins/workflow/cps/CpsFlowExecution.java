@@ -2001,7 +2001,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             // Nothing to persist OR we've already persisted it along the way.
             return;
         }
-        LOGGER.log(Level.INFO, "Attempting to save a checkpoint of {0} before shutdown", this);
+        LOGGER.log(Level.INFO, "Attempting to checkpoint all data for {0}{1}", new Object[] {
+            this, (shuttingDown ? " before shutdown" : "")
+        });
         boolean persistOk = true;
         FlowNodeStorage storage = getStorage();
         if (storage != null) {
@@ -2077,9 +2079,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         if (persistOk) {
-            LOGGER.log(Level.INFO, "Successfully saved a checkpoint of {0} before shutdown", this);
+            LOGGER.log(Level.INFO, "Successfully checkpointed {0}{1}", new Object[] {
+                this, (shuttingDown ? " before shutdown" : "")
+            });
         } else {
-            LOGGER.log(Level.WARNING, "Unable to save a checkpoint of {0} before shutdown. The build will probably fail when Jenkins restarts.", this);
+            LOGGER.log(Level.WARNING, "Unable to successfully checkpoint {0}{1}", new Object[] {
+                this, (shuttingDown ? " before shutdown, so this build will probably fail when Jenkins restarts" : "")
+            });
         }
     }
 
