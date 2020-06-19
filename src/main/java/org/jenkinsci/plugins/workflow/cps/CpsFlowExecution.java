@@ -746,10 +746,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 }
             } else {  // See if we can/should resume build
                 if (canResume()) {
-                    // TODO: I think we need to null out persistedClean here and resave the execution so that future
-                    // resumptions are not misled by the fact that persistedClean was true before this resumption.
-                    // CpsThreadGroup.run nulls out persistedClean after every step but it does not save that value
-                    // for PERFORMANCE_OPTIMIZED Pipelines.
+                    // Before we resume, we need to unset persistedClean in case Jenkins restarts again.
+                    persistedClean = null;
+                    saveOwner();
                     loadProgramAsync(getProgramDataFile());
                 } else {
                     // TODO if possible, consider trying to close out unterminated blocks to keep existing graph history
@@ -1560,6 +1559,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     checkAndAbortNonresumableBuild();  // TODO Verify if we can rely on just killing paused builds at shutdown via checkAndAbortNonresumableBuild()
                     checkpoint(false);
                 } else {
+                    // Pausing the build sets persistedClean to true so the build can resume, so if we unpause the build
+                    // we need to unset persistedClean again.
+                    persistedClean = null;
+                    saveOwner();
                     g.unpause();
                 }
                 try {
@@ -2049,12 +2052,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 persistOk=false;
                 LOGGER.log(Level.WARNING, "Error persisting FlowNode storage for: " + this, ioe);
             }
-            if (shuttingDown) {
-                // Only modify persistedClean if Jenkins is shutting down.
-                // TODO: We could set persistedClean to true when the build is just being paused, but then we would need
-                // to null it out and save again when the build was unpaused.
-                persistedClean = persistOk;
-            }
+            persistedClean = persistOk;
             try {
                 saveOwner();
             } catch (Exception ex) {
