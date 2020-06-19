@@ -105,11 +105,23 @@ public class SnippetizerTester {
      */
     public void assertRoundTrip(Step step, String expected) throws Exception {
         assertEquals(expected, Snippetizer.step2Groovy(step));
+        assertParseStep(step, expected);
+    }
+
+    /**
+     * Given a DSL script, make sure it gets parsed a the provided step object.
+     *
+     * @param expectedStep
+     *      A fully configured step object
+     * @param script
+     *      The DSL script to be parsed as step
+     */
+    public void assertParseStep(Step expectedStep, String script) throws Exception {
         CompilerConfiguration cc = new CompilerConfiguration();
         cc.setScriptBaseClass(DelegatingScript.class.getName());
         GroovyShell shell = new GroovyShell(r.jenkins.getPluginManager().uberClassLoader,new Binding(),cc);
 
-        DelegatingScript s = (DelegatingScript) shell.parse(expected);
+        DelegatingScript s = (DelegatingScript) shell.parse(script);
         s.o = new DSL(new DummyOwner()) {
             // for testing, instead of executing the step just return an instantiated Step
             @Override
@@ -123,7 +135,7 @@ public class SnippetizerTester {
         };
 
         Step actual = (Step) s.run();
-        r.assertEqualDataBoundBeans(step, actual);
+        r.assertEqualDataBoundBeans(expectedStep, actual);
     }
 
     /**
