@@ -2001,6 +2001,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             // Nothing to persist OR we've already persisted it along the way.
             return;
         }
+        LOGGER.log(Level.INFO, "Attempting to save a checkpoint of {0} before shutdown", this);
         boolean persistOk = true;
         FlowNodeStorage storage = getStorage();
         if (storage != null) {
@@ -2008,51 +2009,54 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 storage.flush();
             } catch (IOException ioe) {
                 persistOk=false;
-                LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before shutdown", ioe);
+                LOGGER.log(Level.WARNING, "Error persisting FlowNode storage for: " + this, ioe);
             }
 
             // Try to ensure we've saved the appropriate things -- the program is the last stumbling block.
             try {
                 final SettableFuture<Void> myOutcome = SettableFuture.create();
-                LOGGER.log(Level.INFO, "About to try to checkpoint the program for build"+this);
+                LOGGER.log(Level.FINE, "About to try to checkpoint the program for: {0}", this);
                 if (programPromise != null && programPromise.isDone()) {
                     runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
                         @Override
                         public void onSuccess(CpsThreadGroup result) {
                             try {
-                                LOGGER.log(Level.INFO, "Trying to save program before shutdown "+this);
+                                LOGGER.log(Level.FINE, "Trying to save program for: {0}", CpsFlowExecution.this);
                                 result.saveProgramIfPossible(true);
-                                LOGGER.log(Level.INFO, "Finished saving program before shutdown "+this);
+                                LOGGER.log(Level.FINE, "Finished saving program for: {0}", CpsFlowExecution.this);
                                 myOutcome.set(null);
                             } catch (Exception ex) {
-                                LOGGER.log(Level.WARNING, "Error persisting program: "+ex);
+                                // Logged at Level.WARNING when we call `myOutcome.get` and it throws an exception.
                                 myOutcome.setException(ex);
                             }
                         }
 
                         @Override
                         public void onFailure(Throwable t) {
-                            LOGGER.log(Level.WARNING, "Failed trying to save program before shutdown "+this);
+                            // Logged at Level.WARNING when we call `myOutcome.get` and it throws an exception.
                             myOutcome.setException(t);
                         }
                     });
                     myOutcome.get(30, TimeUnit.SECONDS);
-                    LOGGER.log(Level.FINE, "Successfully saved program for "+this);
+                    LOGGER.log(Level.FINE, "Successfully saved program for: {0}", this);
+                } else {
+                    persistOk = false;
+                    LOGGER.log(Level.WARNING, "Unable to persist program because it was never loaded for: {0}", this);
                 }
 
             } catch (TimeoutException te) {
                 persistOk = false;
-                LOGGER.log(Level.WARNING, "Timeout persisting program at execution checkpoint", te);
+                LOGGER.log(Level.WARNING, "Timeout persisting program for: " + this, te);
             } catch (ExecutionException | InterruptedException ex) {
                 persistOk = false;
-                LOGGER.log(Level.FINE, "Error saving program, that should be handled elsewhere.", ex);
+                LOGGER.log(Level.WARNING, "Error saving program for: " + this, ex);
             }
             try { // Flush node storage just in case the Program mutated it, just to be sure
                 storage.flush();
-                LOGGER.log(Level.FINE, "Successfully did final flush of storage for "+this);
+                LOGGER.log(Level.FINE, "Successfully did final flush of storage for: {0}", this);
             } catch (IOException ioe) {
                 persistOk=false;
-                LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before shutdown", ioe);
+                LOGGER.log(Level.WARNING, "Error persisting FlowNode storage for: " + this, ioe);
             }
             if (shuttingDown) {
                 // Only modify persistedClean if Jenkins is shutting down.
@@ -2063,9 +2067,19 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             try {
                 saveOwner();
             } catch (Exception ex) {
-                LOGGER.log(Level.WARNING, "Error saving build for "+this, ex);
+                persistOk = false;
+                LOGGER.log(Level.WARNING, "Error saving build for: " + this, ex);
             }
 
+        } else {
+            persistOk = false;
+            LOGGER.log(Level.WARNING, "No FlowNode storage for: {0}", this);
+        }
+
+        if (persistOk) {
+            LOGGER.log(Level.INFO, "Successfully saved a checkpoint of {0} before shutdown", this);
+        } else {
+            LOGGER.log(Level.WARNING, "Unable to save a checkpoint of {0} before shutdown. The build will probably fail when Jenkins restarts.", this);
         }
     }
 
