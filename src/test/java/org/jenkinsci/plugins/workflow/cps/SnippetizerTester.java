@@ -109,7 +109,8 @@ public class SnippetizerTester {
     }
 
     /**
-     * Given a DSL script, make sure it gets parsed a the provided step object.
+     * Given a DSL script, make sure it gets parsed as the provided step object.
+     * Useful for testing backwards compatibility when changing symbols or step parameter names. In other cases prefer {@link #assertRoundTrip}.
      *
      * @param expectedStep
      *      A fully configured step object
