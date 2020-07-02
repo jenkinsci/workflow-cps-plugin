@@ -14,6 +14,7 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.job.properties.DurabilityHintJobProperty;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputAction;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStepExecution;
+import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -27,6 +28,7 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.junit.Assert.assertEquals;
 /**
  * Verifies we can cope with all the bizarre quirks that occur when persistence fails or something unexpected happens.
  */
@@ -359,6 +361,44 @@ public class PersistenceProblemsTest {
             WorkflowRun b = p.getBuildByNumber(1);
             Assert.assertEquals("Bob", b.getDescription());
             Assert.assertEquals("4", b.getExecution().getCurrentHeads().get(0).getId());
+        });
+    }
+
+    /**
+     * Makes sure that CpsFlowExecution.persistedClean is nulled out after a successful resumption in case of future resumptions.
+     */
+    @Test
+    public void inProgressMaxPerfCleanShutdownThenDirtyShutdown() {
+        story.then(r -> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, DEFAULT_JOBNAME);
+            p.setDefinition(new CpsFlowDefinition(
+                    "echo 'initial execution'\n" +
+                    "semaphore 'clean-shutdown'\n" +
+                    "echo 'after clean shutdown'\n" +
+                    "semaphore 'dirty-shutdown'\n" +
+                    "echo 'after dirty shutdown'", true));
+            p.addProperty(new DurabilityHintJobProperty(FlowDurabilityHint.PERFORMANCE_OPTIMIZED));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("clean-shutdown/1", b);
+            r.assertLogContains("initial execution", b);
+        });
+        story.thenWithHardShutdown(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
+            WorkflowRun b = p.getLastBuild();
+            assertCleanInProgress(b);
+            SemaphoreStep.success("clean-shutdown/1", null);
+            SemaphoreStep.waitForStart("dirty-shutdown/1", b);
+            r.assertLogContains("after clean shutdown", b);
+            // Will not be able to resume after this since the persist-at-shutdown hooks will occur after the snapshot for thenWithHardShutdown is taken.
+        });
+        story.then(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
+            WorkflowRun b = p.getLastBuild();
+            r.waitForCompletion(b);
+            assertCompletedCleanly(b);
+            assertEquals(Result.FAILURE, b.getResult());
+            r.assertLogContains("was not saved before Jenkins shut down", b);
+            r.assertLogNotContains("after dirty shutdown", b);
         });
     }
 }

@@ -745,8 +745,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     saveOwner();
                 }
             } else {  // See if we can/should resume build
+                // Always set up the shell in case the build is not resumable and loadProgramFailed is called without loadProgramAsync being called first.
+                scriptClass = parseScript().getClass();
                 if (canResume()) {
-                    // Before we resume, we need to unset persistedClean in case Jenkins restarts again.
+                    // Before we resume, we need to unset persistedClean (and persist the change) in case Jenkins restarts again.
                     persistedClean = null;
                     saveOwner();
                     loadProgramAsync(getProgramDataFile());
@@ -780,8 +782,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         programPromise = result;
 
         try {
-            scriptClass = parseScript().getClass();
-
             final RiverReader r = new RiverReader(programDataFile, scriptClass.getClassLoader(), owner);
             Futures.addCallback(
                     r.restorePickles(pickleFutures = new ArrayList<>()),
@@ -1483,6 +1483,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             } finally {
                 if (synchronous) {
                     bc.abort(); // hack to skip save—we are holding a lock
+                } else if (!getDurabilityHint().isPersistWithEveryStep() && !isComplete()
+                        && nodes.stream().noneMatch(node -> node instanceof FlowStartNode || node instanceof FlowEndNode)) {
+                    // Do not save in PERFORMANCE_OPTIMIZED mode unless this is the end of the build.
+                    bc.abort();
                 } else {
                     try {
                         bc.commit();
