@@ -24,6 +24,11 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.domains.Domain;
+import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
+import hudson.Functions;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.model.Result;
@@ -46,6 +51,7 @@ import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
+import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoLowerStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoUpperStep;
 
@@ -162,6 +168,74 @@ public class DSLTest {
                 return Collections.emptySet();
             }
         }
+    }
+
+    @Test public void flattenGStringLeak1() throws Exception {
+        p.setDefinition(new CpsFlowDefinition("echo \"${env.JOB_NAME}\"", true));
+        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+    }
+
+    @Test public void flattenGStringLeak2() throws Exception {
+        p.setDefinition(new CpsFlowDefinition("def script = \"hello ${env.JOB_NAME}\"; echo(script)", true));
+        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+    }
+
+    @Test public void flattenGStringLeak3() throws Exception {
+        p.setDefinition(new CpsFlowDefinition("echo \"${'job name is ' + env.JOB_NAME}\"", true));
+        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+    }
+
+    @Test public void flattenGStringLeak4() throws Exception {
+        p.setDefinition(new CpsFlowDefinition("def s = { -> \"${env.JOB_NAME}\" }; echo(s())", true));
+        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+    }
+
+    @Test public void flattenGStringLeak5() throws Exception {
+        p.setDefinition(new CpsFlowDefinition(
+                "parallel(one: {withEnv(['foo=bar']){echo env.foo; sleep 5}}," +
+                        "two: {sleep 2; echo env.foo})", true));
+        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+    }
+
+    //  goes to DSL, but not a gstring
+    @Test public void flattenGStringLeak6() throws Exception {
+        p.setDefinition(new CpsFlowDefinition("def name  = \"${env.JOB_NAME}\"; def script = 'hello' + name; echo(script)", true));
+        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+    }
+
+    @Test public void flattenGStringLeak7() throws Exception {
+        p.setDefinition(new CpsFlowDefinition("echo \"${ -> env.JOB_NAME }\"", true));
+        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+    }
+
+    @Test public void flattenGStringLeak8() throws Exception {
+        p.setDefinition(new CpsFlowDefinition(
+                "withEnv(['foo=bar']){echo env.foo}", true));
+        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+    }
+
+    @Test public void withCredentials() throws Exception {
+        final String credentialsId = "creds";
+        final String username = "bob";
+        final String password = "s$$cr3t";
+        UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
+        CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition(""
+                + "node {\n"
+                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
+                + "  // available as an env variable, but will be masked if you try to print it out any which way\n"
+                + "  // note: single quotes prevent Groovy interpolation; expansion is by Bourne Shell, which is what you want\n"
+//                + "  sh 'echo $PASSWORD'\n"
+                + "  // this is bad!\n"
+                + "  sh \"echo $PASSWORD\"\n"
+                + "  // also available as a Groovy variable\n"
+                + "  echo USERNAME\n"
+                + "  // or inside double quotes for string interpolation\n"
+                + "  echo \"username is $USERNAME\"\n"
+                + "}\n"
+                + "}", true));
+        r.assertLogNotContains("cr3t", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
     }
 
     /**
