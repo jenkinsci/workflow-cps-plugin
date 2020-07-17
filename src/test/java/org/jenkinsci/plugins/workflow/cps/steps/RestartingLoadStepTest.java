@@ -5,10 +5,12 @@ import javax.inject.Inject;
 import groovy.lang.GroovyShell;
 import hudson.FilePath;
 import hudson.model.Result;
+import java.util.concurrent.TimeUnit;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
+import org.jenkinsci.plugins.workflow.cps.CpsThreadDumpAction;
 import org.jenkinsci.plugins.workflow.cps.GroovyShellDecorator;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -310,6 +312,7 @@ public class RestartingLoadStepTest {
             SemaphoreStep.waitForStart("wait/1", b);
             r.assertLogContains("before change: tmp", b);
             r.assertLogContains("before restart: tmp2", b);
+            System.out.println(b.getAction(CpsThreadDumpAction.class).getProgramAsXml().get(10, TimeUnit.SECONDS));
         });
         story.then(r -> {
             WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
