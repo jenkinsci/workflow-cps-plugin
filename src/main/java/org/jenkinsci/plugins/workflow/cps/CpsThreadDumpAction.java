@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.Charsets;
@@ -64,8 +65,7 @@ public final class CpsThreadDumpAction implements Action {
         return execution.getThreadDump().toString();
     }
 
-    @WebMethod(name = "program.xml") public void doProgramDotXml(StaplerRequest req, StaplerResponse rsp) throws Exception {
-        Jenkins.get().checkPermission(Jenkins.RUN_SCRIPTS);
+    public Future<String> getProgramAsXml() {
         CompletableFuture<String> f = new CompletableFuture<>();
         execution.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
             @Override public void onSuccess(CpsThreadGroup g) {
@@ -79,9 +79,14 @@ public final class CpsThreadDumpAction implements Action {
                 f.completeExceptionally(t);
             }
         });
+        return f;
+    }
+
+    @WebMethod(name = "program.xml") public void doProgramDotXml(StaplerRequest req, StaplerResponse rsp) throws Exception {
+        Jenkins.get().checkPermission(Jenkins.RUN_SCRIPTS);
         String xml;
         try {
-            xml = f.get(1, TimeUnit.MINUTES);
+            xml = getProgramAsXml().get(1, TimeUnit.MINUTES);
         } catch (Exception x) {
             HttpResponses.error(x).generateResponse(req, rsp, this);
             return;
