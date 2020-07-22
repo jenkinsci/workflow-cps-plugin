@@ -228,12 +228,12 @@ public class CpsBodyExecutionTest {
             DumbSlave s = r.createOnlineSlave();
             WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "demo");
             p.setDefinition(new CpsFlowDefinition(
-                    "def global = null\n" +
+                    "def closure = null\n" +
                     "node('" + s.getNodeName() + "') {\n" +
-                    "  global = { -> 'this closure captures CpsBodyExecution' }\n" +
+                    "  closure = { -> 'this closure captures CpsBodyExecution' }\n" +
                     "}\n" +
                     "semaphore 'wait'\n" +
-                    "echo(global())", true));
+                    "echo(closure())", true));
             WorkflowRun b = p.scheduleBuild2(0).waitForStart();
             SemaphoreStep.waitForStart("wait/1", b);
             String xml = ((CpsFlowExecution) b.getExecution()).programPromise.get().asXml();
