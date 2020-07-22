@@ -12,7 +12,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
-import static org.hamcrest.Matchers.*;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepNode;
@@ -27,7 +26,6 @@ import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
-import static org.junit.Assert.*;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -36,6 +34,11 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 public class CpsBodyExecutionTest {
 
@@ -214,14 +217,36 @@ public class CpsBodyExecutionTest {
         });
         rr.then(r -> {
             WorkflowRun b = r.jenkins.getItemByFullName("demo", WorkflowJob.class).getBuildByNumber(1);
-            SemaphoreStep.waitForStart("wait/1", b);
             SemaphoreStep.success("wait/1", null);
-            while (b.isBuilding()) {
-                // Before the fix for JENKINS-53709, the job hangs forever while attempting to rehydrate the agent.
-                r.assertLogNotContains("Jenkins doesn’t have label", b);
-                Thread.sleep(100);
-            }
-            r.assertBuildStatusSuccess(b);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+        });
+    }
+
+    @Issue("JENKINS-63164")
+    @Test public void closureCapturesCpsBodyExecution() {
+        rr.then(r -> {
+            DumbSlave s = r.createOnlineSlave();
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "demo");
+            p.setDefinition(new CpsFlowDefinition(
+                    "def global = null\n" +
+                    "node('" + s.getNodeName() + "') {\n" +
+                    "  global = { -> 'this closure captures CpsBodyExecution' }\n" +
+                    "}\n" +
+                    "semaphore 'wait'\n" +
+                    "echo(global())", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            String xml = ((CpsFlowExecution) b.getExecution()).programPromise.get().asXml();
+            System.out.print(xml);
+            assertThat(xml, not(containsString(s.getWorkspaceFor(p).getRemote())));
+            // TODO: ExecutorStepExecution.PlaceholderTask.Callback is still present in the program, should we do something about CpsBodyExecution.callbacks?
+            r.jenkins.removeNode(s);
+        });
+        rr.then(r -> {
+            WorkflowRun b = r.jenkins.getItemByFullName("demo", WorkflowJob.class).getBuildByNumber(1);
+            SemaphoreStep.success("wait/1", null);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+            r.assertLogContains("this closure captures CpsBodyExecution", b);
         });
     }
 

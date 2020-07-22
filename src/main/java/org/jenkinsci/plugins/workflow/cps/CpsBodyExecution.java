@@ -325,8 +325,16 @@ class CpsBodyExecution extends BodyExecution {
 
     private void setOutcome(Outcome o) {
         synchronized (this) {
-            if (bodyToUnexport != null && thread != null) {
-                thread.group.unexport(bodyToUnexport);
+            if (thread != null) {
+                if (bodyToUnexport != null) {
+                    thread.group.unexport(bodyToUnexport);
+                }
+                // onSuccess and onFailure are part of the program and reference the CpsBodyExecution as their outer
+                // class. They are usually unreachable from the program once the body completes, but in some cases they
+                // may still be reachable (e.g. closures that outlive the body). If the CpsBodyExecution is still part
+                // of the program, we need to make sure that we do not reference to a dead CpsThread because that may
+                // cause resumption issues (JENKINS-63164).
+                thread = null;
             }
             if (outcome!=null)
                 throw new IllegalStateException("Outcome is already set");
