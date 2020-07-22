@@ -101,7 +101,7 @@ public final class CpsThread implements Serializable {
     final FlowHead head;
 
     @Nullable
-    private final ContextVariableSet contextVariables;
+    private ContextVariableSet contextVariables;
 
     /**
      * If this thread is waiting for a {@link StepExecution} to complete (by invoking our callback),
@@ -232,6 +232,18 @@ public final class CpsThread implements Serializable {
      */
     boolean isAlive() {
         return program.isResumable();
+    }
+
+    /**
+     * When this thread is removed from its CpsThreadGroup, we null out most of its references in case something is
+     * unexpectedly holding a reference directly to the CpsThread (e.g. JENKINS-63164).
+     */
+    void cleanUp() {
+        program = null;
+        resumeValue = null;
+        step = null;
+        contextVariables = null;
+        completionHandlers.clear();
     }
 
     @CpsVmThreadOnly

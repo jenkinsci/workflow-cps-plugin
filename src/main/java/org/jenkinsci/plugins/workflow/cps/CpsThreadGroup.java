@@ -419,6 +419,7 @@ public final class CpsThreadGroup implements Serializable {
                     t.fireCompletionHandlers(o); // do this after ErrorAction is set above
 
                     threads.remove(t.id);
+                    t.cleanUp();
                     if (threads.isEmpty()) {
                         execution.onProgramEnd(o);
                         try {
