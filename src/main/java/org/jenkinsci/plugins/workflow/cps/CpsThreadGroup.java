@@ -194,7 +194,7 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     @CpsVmThreadOnly
-    public CpsThread addThread(Continuable program, FlowHead head, ContextVariableSet contextVariables) {
+    public CpsThread addThread(@Nonnull Continuable program, FlowHead head, ContextVariableSet contextVariables) {
         assertVmThread();
         CpsThread t = new CpsThread(this, iota++, program, head, contextVariables);
         threads.put(t.id, t);

@@ -114,7 +114,7 @@ public final class CpsThread implements Serializable {
      */
     private final List<FutureCallback<Object>> completionHandlers = new ArrayList<>();
 
-    CpsThread(CpsThreadGroup group, int id, Continuable program, FlowHead head, ContextVariableSet contextVariables) {
+    CpsThread(CpsThreadGroup group, int id, @Nonnull Continuable program, FlowHead head, ContextVariableSet contextVariables) {
         this.group = group;
         this.id = id;
         this.program = group.getExecution().isSandbox() ? new SandboxContinuable(program,this) : program;
@@ -231,6 +231,7 @@ public final class CpsThread implements Serializable {
      * (as opposed to have finished running, either normally or abnormally?)
      */
     boolean isAlive() {
+        assert program != null; // Otherwise this CpsThread is not even part of the CpsThreadGroup, so how is it being accessed?
         return program.isResumable();
     }
 
@@ -323,6 +324,7 @@ public final class CpsThread implements Serializable {
     }
 
     public List<StackTraceElement> getStackTrace() {
+        assert program != null; // Otherwise this CpsThread is not even part of the CpsThreadGroup, so how is it being accessed?
         return program.getStackTrace();
     }
 
