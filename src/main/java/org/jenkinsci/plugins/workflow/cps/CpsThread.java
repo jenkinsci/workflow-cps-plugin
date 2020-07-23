@@ -235,8 +235,8 @@ public final class CpsThread implements Serializable {
     }
 
     /**
-     * When this thread is removed from its CpsThreadGroup, we null out most of its references in case something is
-     * unexpectedly holding a reference directly to the CpsThread (e.g. JENKINS-63164).
+     * When this thread is removed from its {@link CpsThreadGroup}, we null out most of its references in case
+     * something is unexpectedly holding a reference directly to it (see JENKINS-63164 for an example scenario).
      */
     void cleanUp() {
         program = null;
