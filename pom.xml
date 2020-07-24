@@ -64,7 +64,8 @@
     <properties>
         <revision>2.82</revision>
         <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.176.4</jenkins.version>
+<!--        <jenkins.version>2.176.4</jenkins.version>-->
+        <jenkins.version>2.246-SNAPSHOT</jenkins.version>
         <java.level>8</java.level>
         <no-test-jar>false</no-test-jar>
         <groovy-cps.version>1.32</groovy-cps.version>
@@ -77,6 +78,11 @@
                 <version>9</version>
                 <scope>import</scope>
                 <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>org.jenkins-ci.plugins</groupId>
+                <artifactId>credentials</artifactId>
+                <version>2.3.7</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -157,6 +163,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials-binding</artifactId>
+            <version>1.24-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -254,12 +261,6 @@
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>pipeline-stage-step</artifactId>
             <version>2.3</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>credentials-binding</artifactId>
-            <version>1.23</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
