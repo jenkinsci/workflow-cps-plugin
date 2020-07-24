@@ -265,8 +265,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         boolean sync;
         ClassLoader originalLoader = Thread.currentThread().getContextClassLoader();
         try {
+            TaskListener listener = context.get(TaskListener.class);
             if (unreportedAmbiguousFunctions.remove(name)) {
-                reportAmbiguousStepInvocation(context, d);
+                reportAmbiguousStepInvocation(context, d, listener);
             }
             d.checkContextAvailability(context);
             Thread.currentThread().setContextClassLoader(CpsVmExecutorService.ORIGINAL_CONTEXT_CLASS_LOADER.get());
@@ -274,7 +275,12 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 s = d.newInstance(ps.namedArgs);
             } else {
                 DescribableModel<? extends Step> stepModel = DescribableModel.of(d.clazz);
-                s = stepModel.instantiate(ps.namedArgs, context.get(TaskListener.class));
+                s = stepModel.instantiate(ps.namedArgs, listener);//context.get(TaskListener.class));
+            }
+            if (listener != null) {
+                ps.msgs.forEach(listener.getLogger()::println);
+            } else {
+                ps.msgs.forEach(System.out::println);
             }
 
             // Persist the node - block start and end nodes do their own persistence.
@@ -429,10 +435,10 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    private void reportAmbiguousStepInvocation(CpsStepContext context, StepDescriptor d) {
+    private void reportAmbiguousStepInvocation(CpsStepContext context, StepDescriptor d, @Nullable TaskListener listener) {
         Exception e = null;
-        try {
-            TaskListener listener = context.get(TaskListener.class);
+//        try {
+//            TaskListener listener = context.get(TaskListener.class);
             if (listener != null) {
                 List<String> ambiguousClassNames = StepDescriptor.all().stream()
                         .filter(sd -> sd.getFunctionName().equals(d.getFunctionName()))
@@ -446,9 +452,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 listener.getLogger().println(message);
                 return;
             }
-        } catch (InterruptedException | IOException temp) {
-            e = temp;
-        }
+//        } catch (InterruptedException | IOException temp) {
+//            e = temp;
+//        }
         LOGGER.log(Level.FINE, "Unable to report ambiguous step invocation for: " + d.getFunctionName(), e);
     }
 
@@ -466,14 +472,16 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     static class NamedArgsAndClosure {
         final Map<String,Object> namedArgs;
         final Closure body;
+        final List<String> msgs;
 
         private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @Nullable EnvVars envVars) {
             this.namedArgs = new LinkedHashMap<>(preallocatedHashmapCapacity(namedArgs.size()));
             this.body = body;
+            this.msgs = new ArrayList<>();
 
             for (Map.Entry<?,?> entry : namedArgs.entrySet()) {
                 String k = entry.getKey().toString().intern(); // coerces GString and more
-                Object v = flattenGString(entry.getValue(), envVars);
+                Object v = flattenGString(entry.getValue(), envVars, msgs);
                 this.namedArgs.put(k, v);
             }
         }
@@ -489,7 +497,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * but better to do it here in the Groovy-specific code so we do not need to rely on that.
      * @return {@code v} or an equivalent with all {@link GString}s flattened, including in nested {@link List}s or {@link Map}s
      */
-    private static Object flattenGString(Object v, @Nullable EnvVars envVars) {
+    private static Object flattenGString(Object v, @Nullable EnvVars envVars, List<String> msgs) {
         if (v instanceof GString) {
             String flattened = v.toString();
             List<String> watchedVars = null;
@@ -497,15 +505,14 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 watchedVars = envVars.isValueWatched(flattened);
             }
             if (watchedVars != null && !watchedVars.isEmpty()) {
-                LOGGER.log(Level.WARNING, "Use single quotes to prevent leaking via Groovy interpolation. The following variables are at risk:");
-                LOGGER.log(Level.WARNING, watchedVars.toString());
+                msgs.add("The following Groovy string may be insecure. Use single quotes to prevent leaking secrets via Groovy interpolation. Affected variables: " + watchedVars.toString());
             }
             return flattened;
         } else if (v instanceof List) {
             boolean mutated = false;
             List<Object> r = new ArrayList<>();
             for (Object o : ((List<?>) v)) {
-                Object o2 = flattenGString(o, envVars);
+                Object o2 = flattenGString(o, envVars, msgs);
                 mutated |= o != o2;
                 r.add(o2);
             }
@@ -515,9 +522,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             Map<Object,Object> r = new LinkedHashMap<>(preallocatedHashmapCapacity(((Map) v).size()));
             for (Map.Entry<?,?> e : ((Map<?, ?>) v).entrySet()) {
                 Object k = e.getKey();
-                Object k2 = flattenGString(k, envVars);
+                Object k2 = flattenGString(k, envVars, msgs);
                 Object o = e.getValue();
-                Object o2 = flattenGString(o, envVars);
+                Object o2 = flattenGString(o, envVars, msgs);
                 mutated |= k != k2 || o != o2;
                 r.put(k2, o2);
             }
@@ -543,9 +550,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d), singleArgumentOnly, envVars);
     }
 
-//    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg) {
-//        return parseArgs(arg, expectsBlock, soleArgumentKey, singleRequiredArg, null);
-//    }
     /**
      * Given the Groovy style argument packing used in the sole object parameter of {@link GroovyObject#invokeMethod(String, Object)},
      * compute the named argument map and an optional closure that represents the body.
