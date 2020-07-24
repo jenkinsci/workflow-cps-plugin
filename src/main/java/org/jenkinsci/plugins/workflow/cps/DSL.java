@@ -88,6 +88,8 @@ import org.jvnet.hudson.annotation_indexer.Index;
 import org.kohsuke.stapler.ClassDescriptor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
 
+import javax.annotation.Nullable;
+
 /**
  * Calls {@link Step}s and other DSL objects.
  */
@@ -217,23 +219,29 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * @param args The arguments passed to the step.
      */
     protected Object invokeStep(StepDescriptor d, String name, Object args) {
-        final NamedArgsAndClosure ps = parseArgs(args, d);
-
-        CpsThread thread = CpsThread.current();
-
-        FlowNode an;
 
         // TODO: generalize the notion of Step taking over the FlowNode creation.
         boolean hack = d instanceof ParallelStep.DescriptorImpl || d instanceof LoadStep.DescriptorImpl;
 
-        if (ps.body == null && !hack) {
+        FlowNode an = null;
+        CpsThread thread = CpsThread.current();
+        // TODO: is this okay?
+        if (/*ps.body == null*/!d.takesImplicitBlockArgument() && !hack) {
             an = new StepAtomNode(exec, d, thread.head.get());
         } else {
             an = new StepStartNode(exec, d, thread.head.get());
         }
 
+        CpsStepContext context = new CpsStepContext(d, thread, handle, an, null);
+        EnvVars envVars = null;
+        try {
+            envVars = context.get(EnvVars.class);
+        } catch (IOException | InterruptedException e) {
+            LOGGER.log(Level.FINE, "No environment variables found for the step context");
+        }
+        NamedArgsAndClosure ps = parseArgs(args, d, envVars);
+        context.setBody(ps.body, thread);
         // Ensure ArgumentsAction is attached before we notify even synchronous listeners:
-        final CpsStepContext context = new CpsStepContext(d, thread, handle, an, ps.body);
         try {
             // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
             if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepArguments() && !(d instanceof ParallelStep.DescriptorImpl)) {
@@ -354,7 +362,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         // The only time a closure is valid is when the resulting Describable is immediately executed via a meta-step
         NamedArgsAndClosure args = parseArgs(_args, metaStep!=null && metaStep.takesImplicitBlockArgument(),
-                UninstantiatedDescribable.ANONYMOUS_KEY, singleArgumentOnly);
+                UninstantiatedDescribable.ANONYMOUS_KEY, singleArgumentOnly, null);
         UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
 
         if (metaStep==null) {
@@ -414,7 +422,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 ud = new UninstantiatedDescribable(symbol, null, dargs);
                 margs.put(p.getName(),ud);
 
-                return invokeStep(metaStep, symbol, new NamedArgsAndClosure(margs, args.body));
+                return invokeStep(metaStep, symbol, new NamedArgsAndClosure(margs, args.body, null));
             } catch (Exception e) {
                 throw new IllegalArgumentException("Failed to prepare "+symbol+" step",e);
             }
@@ -459,13 +467,13 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         final Map<String,Object> namedArgs;
         final Closure body;
 
-        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body) {
+        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @Nullable EnvVars envVars) {
             this.namedArgs = new LinkedHashMap<>(preallocatedHashmapCapacity(namedArgs.size()));
             this.body = body;
 
             for (Map.Entry<?,?> entry : namedArgs.entrySet()) {
                 String k = entry.getKey().toString().intern(); // coerces GString and more
-                Object v = flattenGString(entry.getValue());
+                Object v = flattenGString(entry.getValue(), envVars);
                 this.namedArgs.put(k, v);
             }
         }
@@ -481,14 +489,23 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * but better to do it here in the Groovy-specific code so we do not need to rely on that.
      * @return {@code v} or an equivalent with all {@link GString}s flattened, including in nested {@link List}s or {@link Map}s
      */
-    private static Object flattenGString(Object v) {
+    private static Object flattenGString(Object v, @Nullable EnvVars envVars) {
         if (v instanceof GString) {
-            return v.toString();
+            String flattened = v.toString();
+            List<String> watchedVars = null;
+            if (envVars != null) {
+                watchedVars = envVars.isValueWatched(flattened);
+            }
+            if (watchedVars != null && !watchedVars.isEmpty()) {
+                LOGGER.log(Level.WARNING, "Use single quotes to prevent leaking via Groovy interpolation. The following variables are at risk:");
+                LOGGER.log(Level.WARNING, watchedVars.toString());
+            }
+            return flattened;
         } else if (v instanceof List) {
             boolean mutated = false;
             List<Object> r = new ArrayList<>();
             for (Object o : ((List<?>) v)) {
-                Object o2 = flattenGString(o);
+                Object o2 = flattenGString(o, envVars);
                 mutated |= o != o2;
                 r.add(o2);
             }
@@ -498,9 +515,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             Map<Object,Object> r = new LinkedHashMap<>(preallocatedHashmapCapacity(((Map) v).size()));
             for (Map.Entry<?,?> e : ((Map<?, ?>) v).entrySet()) {
                 Object k = e.getKey();
-                Object k2 = flattenGString(k);
+                Object k2 = flattenGString(k, envVars);
                 Object o = e.getValue();
-                Object o2 = flattenGString(o);
+                Object o2 = flattenGString(o, envVars);
                 mutated |= k != k2 || o != o2;
                 r.put(k2, o2);
             }
@@ -510,7 +527,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    static NamedArgsAndClosure parseArgs(Object arg, StepDescriptor d) {
+    static NamedArgsAndClosure parseArgs(Object arg, StepDescriptor d, @Nullable EnvVars envVars) {
         boolean singleArgumentOnly = false;
         try {
             DescribableModel<?> stepModel = DescribableModel.of(d.clazz);
@@ -518,14 +535,17 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             if (singleArgumentOnly) {  // Can fetch the one argument we need
                 DescribableParameter dp = stepModel.getSoleRequiredParameter();
                 String paramName = (dp != null) ? dp.getName() : null;
-                return parseArgs(arg, d.takesImplicitBlockArgument(), paramName, singleArgumentOnly);
+                return parseArgs(arg, d.takesImplicitBlockArgument(), paramName, singleArgumentOnly, envVars);
             }
         } catch (NoStaplerConstructorException e) {
             // Ignore steps without databound constructors and treat them as normal.
         }
-        return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d), singleArgumentOnly);
+        return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d), singleArgumentOnly, envVars);
     }
 
+//    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg) {
+//        return parseArgs(arg, expectsBlock, soleArgumentKey, singleRequiredArg, null);
+//    }
     /**
      * Given the Groovy style argument packing used in the sole object parameter of {@link GroovyObject#invokeMethod(String, Object)},
      * compute the named argument map and an optional closure that represents the body.
@@ -548,19 +568,21 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * @param soleArgumentKey
      *      If the context in which this method call happens allow implicit sole default argument, specify its name.
      *      If null, the call must be with names arguments.
+     * @param envVars
+     *      The environment variables of the context
      */
-    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg) {
+    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, @Nullable EnvVars envVars) {
         if (arg instanceof NamedArgsAndClosure)
             return (NamedArgsAndClosure) arg;
         if (arg instanceof Map) // TODO is this clause actually used?
-            return new NamedArgsAndClosure((Map) arg, null);
+            return new NamedArgsAndClosure((Map) arg, null, envVars);
         if (arg instanceof Closure && expectsBlock)
-            return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),(Closure)arg);
+            return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),(Closure)arg, envVars);
 
         if (arg instanceof Object[]) {// this is how Groovy appears to pack argument list into one Object for invokeMethod
             List a = Arrays.asList((Object[])arg);
             if (a.size()==0)
-                return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),null);
+                return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),null, envVars);
 
             Closure c=null;
 
@@ -575,21 +597,21 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 if (!singleRequiredArg ||
                         (soleArgumentKey != null && mapArg.size() == 1 && mapArg.containsKey(soleArgumentKey))) {
                     // this is how Groovy passes in Map
-                    return new NamedArgsAndClosure(mapArg, c);
+                    return new NamedArgsAndClosure(mapArg, c, envVars);
                 }
             }
 
             switch (a.size()) {
             case 0:
-                return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),c);
+                return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),c, envVars);
             case 1:
-                return new NamedArgsAndClosure(singleParam(soleArgumentKey, a.get(0)), c);
+                return new NamedArgsAndClosure(singleParam(soleArgumentKey, a.get(0)), c, envVars);
             default:
                 throw new IllegalArgumentException("Expected named arguments but got "+a);
             }
         }
 
-        return new NamedArgsAndClosure(singleParam(soleArgumentKey, arg), null);
+        return new NamedArgsAndClosure(singleParam(soleArgumentKey, arg), null, envVars);
     }
     private static Map<String,Object> singleParam(String soleArgumentKey, Object arg) {
         if (soleArgumentKey != null) {
