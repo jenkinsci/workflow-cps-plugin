@@ -1,5 +1,11 @@
 ## Changelog
 
+### 2.82
+
+Release date: 2020-07-30
+
+* Fix: In some cases, block-scoped steps that had already completed could be persisted in serialized Pipelines, causing the already-completed steps to resume when the Pipeline resumed. ([JENKINS-63164](https://issues.jenkins-ci.org/browse/JENKINS-63164))
+
 ### 2.81
 
 Release date: 2020-06-30
