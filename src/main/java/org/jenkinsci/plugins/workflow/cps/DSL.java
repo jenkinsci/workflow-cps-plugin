@@ -41,7 +41,6 @@ import hudson.model.Queue;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -81,7 +80,6 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.flow.StepListener;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
-import org.jenkinsci.plugins.workflow.steps.EnvironmentExpander;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -227,21 +225,15 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         FlowNode an = null;
         CpsThread thread = CpsThread.current();
-        // TODO: is this okay?
-        if (/*ps.body == null*/!d.takesImplicitBlockArgument() && !hack) {
+        if (!d.takesImplicitBlockArgument() && !hack) {
             an = new StepAtomNode(exec, d, thread.head.get());
         } else {
             an = new StepStartNode(exec, d, thread.head.get());
         }
 
         CpsStepContext context = new CpsStepContext(d, thread, handle, an, null);
-        EnvironmentExpander expander = null;
-        try {
-            expander = thread.getContextVariable(EnvironmentExpander.class, context::getExecution, context::getNode);
-        } catch (IOException | InterruptedException e) {
-            LOGGER.log(Level.FINE, "No environment expanders found for the step context");
-        }
-        NamedArgsAndClosure ps = parseArgs(args, d, expander);//envVars);
+        EnvironmentWatcher envWatcher = new EnvironmentWatcher(context);
+        NamedArgsAndClosure ps = parseArgs(args, d, envWatcher);
         context.setBody(ps.body, thread);
         // Ensure ArgumentsAction is attached before we notify even synchronous listeners:
         try {
@@ -277,17 +269,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 s = d.newInstance(ps.namedArgs);
             } else {
                 DescribableModel<? extends Step> stepModel = DescribableModel.of(d.clazz);
-                s = stepModel.instantiate(ps.namedArgs, listener);//context.get(TaskListener.class));
+                s = stepModel.instantiate(ps.namedArgs, listener);
             }
-            if (expander != null) {
-                PrintStream logger;
-                if (listener != null) {
-                    logger = listener.getLogger();
-                } else {
-                    logger = System.out;
-                }
-                expander.callback(logger);
-            }
+            envWatcher.logResults(listener);
 
             // Persist the node - block start and end nodes do their own persistence.
             CpsFlowExecution.maybeAutoPersistNode(an);
@@ -443,24 +427,19 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
     private void reportAmbiguousStepInvocation(CpsStepContext context, StepDescriptor d, @Nullable TaskListener listener) {
         Exception e = null;
-//        try {
-//            TaskListener listener = context.get(TaskListener.class);
-            if (listener != null) {
-                List<String> ambiguousClassNames = StepDescriptor.all().stream()
-                        .filter(sd -> sd.getFunctionName().equals(d.getFunctionName()))
-                        .map(sd -> sd.clazz.getName())
-                        .collect(Collectors.toList());
-                String message = String.format("Warning: Invoking ambiguous Pipeline Step ‘%1$s’ (%2$s). " +
-                        "‘%1$s’ could refer to any of the following steps: %3$s. " +
-                        "You can invoke steps by class name instead to avoid ambiguity. " +
-                        "For example: steps.'%2$s'(...)",
-                        d.getFunctionName(), d.clazz.getName(), ambiguousClassNames);
-                listener.getLogger().println(message);
-                return;
-            }
-//        } catch (InterruptedException | IOException temp) {
-//            e = temp;
-//        }
+        if (listener != null) {
+            List<String> ambiguousClassNames = StepDescriptor.all().stream()
+                    .filter(sd -> sd.getFunctionName().equals(d.getFunctionName()))
+                    .map(sd -> sd.clazz.getName())
+                    .collect(Collectors.toList());
+            String message = String.format("Warning: Invoking ambiguous Pipeline Step ‘%1$s’ (%2$s). " +
+                            "‘%1$s’ could refer to any of the following steps: %3$s. " +
+                            "You can invoke steps by class name instead to avoid ambiguity. " +
+                            "For example: steps.'%2$s'(...)",
+                    d.getFunctionName(), d.clazz.getName(), ambiguousClassNames);
+            listener.getLogger().println(message);
+            return;
+        }
         LOGGER.log(Level.FINE, "Unable to report ambiguous step invocation for: " + d.getFunctionName(), e);
     }
 
@@ -480,14 +459,14 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         final Closure body;
         final List<String> msgs;
 
-        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @Nullable EnvironmentExpander expander) {//EnvVars envVars) {
+        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, EnvironmentWatcher envWatcher) {//@Nullable EnvironmentExpander expander) {//EnvVars envVars) {
             this.namedArgs = new LinkedHashMap<>(preallocatedHashmapCapacity(namedArgs.size()));
             this.body = body;
             this.msgs = new ArrayList<>();
 
             for (Map.Entry<?,?> entry : namedArgs.entrySet()) {
                 String k = entry.getKey().toString().intern(); // coerces GString and more
-                Object v = flattenGString(entry.getValue(), expander, msgs);//envVars, msgs);
+                Object v = flattenGString(entry.getValue(), envWatcher);//expander, msgs);//envVars, msgs);
                 this.namedArgs.put(k, v);
             }
         }
@@ -503,18 +482,16 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * but better to do it here in the Groovy-specific code so we do not need to rely on that.
      * @return {@code v} or an equivalent with all {@link GString}s flattened, including in nested {@link List}s or {@link Map}s
      */
-    private static Object flattenGString(Object v, @Nullable /*EnvVars envVars*/EnvironmentExpander expander, List<String> msgs) {
+    private static Object flattenGString(Object v, EnvironmentWatcher envWatcher) {
         if (v instanceof GString) {
             String flattened = v.toString();
-            if (expander != null) {
-                expander.findWatchedVars(flattened);
-            }
+            envWatcher.scan(flattened);
             return flattened;
         } else if (v instanceof List) {
             boolean mutated = false;
             List<Object> r = new ArrayList<>();
             for (Object o : ((List<?>) v)) {
-                Object o2 = flattenGString(o, expander, msgs);
+                Object o2 = flattenGString(o, envWatcher);
                 mutated |= o != o2;
                 r.add(o2);
             }
@@ -524,9 +501,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             Map<Object,Object> r = new LinkedHashMap<>(preallocatedHashmapCapacity(((Map) v).size()));
             for (Map.Entry<?,?> e : ((Map<?, ?>) v).entrySet()) {
                 Object k = e.getKey();
-                Object k2 = flattenGString(k, expander, msgs);
+                Object k2 = flattenGString(k, envWatcher);
                 Object o = e.getValue();
-                Object o2 = flattenGString(o, expander, msgs);
+                Object o2 = flattenGString(o, envWatcher);
                 mutated |= k != k2 || o != o2;
                 r.put(k2, o2);
             }
@@ -536,7 +513,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    static NamedArgsAndClosure parseArgs(Object arg, StepDescriptor d, @Nullable EnvironmentExpander expander) {//EnvVars envVars) {
+    static NamedArgsAndClosure parseArgs(Object arg, StepDescriptor d, EnvironmentWatcher envWatcher) {
         boolean singleArgumentOnly = false;
         try {
             DescribableModel<?> stepModel = DescribableModel.of(d.clazz);
@@ -544,12 +521,12 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             if (singleArgumentOnly) {  // Can fetch the one argument we need
                 DescribableParameter dp = stepModel.getSoleRequiredParameter();
                 String paramName = (dp != null) ? dp.getName() : null;
-                return parseArgs(arg, d.takesImplicitBlockArgument(), paramName, singleArgumentOnly, expander);
+                return parseArgs(arg, d.takesImplicitBlockArgument(), paramName, singleArgumentOnly, envWatcher);
             }
         } catch (NoStaplerConstructorException e) {
             // Ignore steps without databound constructors and treat them as normal.
         }
-        return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d), singleArgumentOnly, expander);
+        return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d), singleArgumentOnly, envWatcher);
     }
 
     /**
@@ -577,18 +554,18 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 //     * @param envVars
      *      The environment variables of the context
      */
-    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, @Nullable EnvironmentExpander expander)  {//EnvVars envVars) {
+    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, EnvironmentWatcher envWatcher) {
         if (arg instanceof NamedArgsAndClosure)
             return (NamedArgsAndClosure) arg;
         if (arg instanceof Map) // TODO is this clause actually used?
-            return new NamedArgsAndClosure((Map) arg, null, expander);
+            return new NamedArgsAndClosure((Map) arg, null, envWatcher);
         if (arg instanceof Closure && expectsBlock)
-            return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),(Closure)arg, expander);
+            return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),(Closure)arg, envWatcher);
 
         if (arg instanceof Object[]) {// this is how Groovy appears to pack argument list into one Object for invokeMethod
             List a = Arrays.asList((Object[])arg);
             if (a.size()==0)
-                return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),null, expander);
+                return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),null, envWatcher);
 
             Closure c=null;
 
@@ -603,21 +580,21 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 if (!singleRequiredArg ||
                         (soleArgumentKey != null && mapArg.size() == 1 && mapArg.containsKey(soleArgumentKey))) {
                     // this is how Groovy passes in Map
-                    return new NamedArgsAndClosure(mapArg, c, expander);
+                    return new NamedArgsAndClosure(mapArg, c, envWatcher);
                 }
             }
 
             switch (a.size()) {
             case 0:
-                return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),c, expander);
+                return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),c, envWatcher);
             case 1:
-                return new NamedArgsAndClosure(singleParam(soleArgumentKey, a.get(0)), c, expander);
+                return new NamedArgsAndClosure(singleParam(soleArgumentKey, a.get(0)), c, envWatcher);
             default:
                 throw new IllegalArgumentException("Expected named arguments but got "+a);
             }
         }
 
-        return new NamedArgsAndClosure(singleParam(soleArgumentKey, arg), null, expander);
+        return new NamedArgsAndClosure(singleParam(soleArgumentKey, arg), null, envWatcher);
     }
     private static Map<String,Object> singleParam(String soleArgumentKey, Object arg) {
         if (soleArgumentKey != null) {
