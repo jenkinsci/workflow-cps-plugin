@@ -10,6 +10,8 @@ import java.io.PrintStream;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class EnvironmentWatcher implements Serializable {
@@ -18,12 +20,16 @@ public class EnvironmentWatcher implements Serializable {
     private Set<String> watchedVars;
     private List<String> scanResults;
 
+    private static final Logger LOGGER = Logger.getLogger(EnvironmentWatcher.class.getName());
+
     public EnvironmentWatcher(CpsStepContext context) {
         try {
             envVars = context.get(EnvVars.class);
             expander = context.get(EnvironmentExpander.class);
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
+        } catch (IllegalArgumentException e) {
+            LOGGER.log(Level.WARNING, "Error storing the arguments for step: " + context.getStepDescriptor().getFunctionName(), e);
         }
         if (expander != null) {
             watchedVars = expander.getWatchedVars();
