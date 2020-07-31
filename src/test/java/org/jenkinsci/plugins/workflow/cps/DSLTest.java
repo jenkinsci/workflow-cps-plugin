@@ -170,50 +170,6 @@ public class DSLTest {
         }
     }
 
-    @Test public void flattenGStringLeak1() throws Exception {
-        p.setDefinition(new CpsFlowDefinition("echo \"${env.JOB_NAME}\"", true));
-        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-    }
-
-    @Test public void flattenGStringLeak2() throws Exception {
-        p.setDefinition(new CpsFlowDefinition("def script = \"hello ${env.JOB_NAME}\"; echo(script)", true));
-        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-    }
-
-    @Test public void flattenGStringLeak3() throws Exception {
-        p.setDefinition(new CpsFlowDefinition("echo \"${'job name is ' + env.JOB_NAME}\"", true));
-        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-    }
-
-    @Test public void flattenGStringLeak4() throws Exception {
-        p.setDefinition(new CpsFlowDefinition("def s = { -> \"${env.JOB_NAME}\" }; echo(s())", true));
-        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-    }
-
-    @Test public void flattenGStringLeak5() throws Exception {
-        p.setDefinition(new CpsFlowDefinition(
-                "parallel(one: {withEnv(['foo=bar']){echo env.foo; sleep 5}}," +
-                        "two: {sleep 2; echo env.foo})", true));
-        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-    }
-
-    //  goes to DSL, but not a gstring
-    @Test public void flattenGStringLeak6() throws Exception {
-        p.setDefinition(new CpsFlowDefinition("def name  = \"${env.JOB_NAME}\"; def script = 'hello' + name; echo(script)", true));
-        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-    }
-
-    @Test public void flattenGStringLeak7() throws Exception {
-        p.setDefinition(new CpsFlowDefinition("echo \"${ -> env.JOB_NAME }\"", true));
-        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-    }
-
-    @Test public void flattenGStringLeak8() throws Exception {
-        p.setDefinition(new CpsFlowDefinition(
-                "withEnv(['foo=bar']){echo env.foo}", true));
-        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-    }
-
     @Test public void withCredentials() throws Exception {
         final String credentialsId = "creds";
         final String username = "bob";
@@ -226,7 +182,6 @@ public class DSLTest {
                 + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
                 + "  // available as an env variable, but will be masked if you try to print it out any which way\n"
                 + "  // note: single quotes prevent Groovy interpolation; expansion is by Bourne Shell, which is what you want\n"
-//                + "  sh 'echo $PASSWORD'\n"
                 + "  // this is bad!\n"
                 + "  sh \"echo $PASSWORD\"\n"
                 + "  // also available as a Groovy variable\n"
@@ -235,7 +190,9 @@ public class DSLTest {
                 + "  echo \"username is $USERNAME\"\n"
                 + "}\n"
                 + "}", true));
-        r.assertLogNotContains("cr3t", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+        WorkflowRun workflowRun = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("Affected variables: [PASSWORD]", workflowRun);
+        r.assertLogContains("Affected variables: [USERNAME]", workflowRun);
     }
 
     /**

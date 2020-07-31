@@ -459,7 +459,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         final Closure body;
         final List<String> msgs;
 
-        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, EnvironmentWatcher envWatcher) {//@Nullable EnvironmentExpander expander) {//EnvVars envVars) {
+        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @Nullable EnvironmentWatcher envWatcher) {
             this.namedArgs = new LinkedHashMap<>(preallocatedHashmapCapacity(namedArgs.size()));
             this.body = body;
             this.msgs = new ArrayList<>();
@@ -482,10 +482,12 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * but better to do it here in the Groovy-specific code so we do not need to rely on that.
      * @return {@code v} or an equivalent with all {@link GString}s flattened, including in nested {@link List}s or {@link Map}s
      */
-    private static Object flattenGString(Object v, EnvironmentWatcher envWatcher) {
+    private static Object flattenGString(Object v, @Nullable EnvironmentWatcher envWatcher) {
         if (v instanceof GString) {
             String flattened = v.toString();
-            envWatcher.scan(flattened);
+            if (envWatcher != null) {
+                envWatcher.scan(flattened);
+            }
             return flattened;
         } else if (v instanceof List) {
             boolean mutated = false;
@@ -554,7 +556,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 //     * @param envVars
      *      The environment variables of the context
      */
-    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, EnvironmentWatcher envWatcher) {
+    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, @Nullable EnvironmentWatcher envWatcher) {
         if (arg instanceof NamedArgsAndClosure)
             return (NamedArgsAndClosure) arg;
         if (arg instanceof Map) // TODO is this clause actually used?

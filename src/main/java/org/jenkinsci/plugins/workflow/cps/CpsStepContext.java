@@ -162,7 +162,6 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     private @CheckForNull BodyReference body;
 
     private final int threadId;
-//    private CpsThread thread;
 
     /**
      * {@linkplain Descriptor#getId() step descriptor ID}.
@@ -184,7 +183,6 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     @CpsVmThreadOnly
     CpsStepContext(StepDescriptor step, CpsThread thread, FlowExecutionOwner executionRef, FlowNode node, @CheckForNull Closure body) {
         this.threadId = thread.id;
-//        this.thread = thread;
         this.executionRef = executionRef;
         this.id = node.getId();
         this.node = node;
