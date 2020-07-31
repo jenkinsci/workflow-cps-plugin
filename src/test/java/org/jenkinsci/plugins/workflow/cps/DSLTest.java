@@ -173,20 +173,16 @@ public class DSLTest {
     @Test public void withCredentials() throws Exception {
         final String credentialsId = "creds";
         final String username = "bob";
-        final String password = "s$$cr3t";
+        final String password = "secr3t";
         UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
         CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        String shellStep = Functions.isWindows()? "bat \"echo $PASSWORD\"\n" : "sh \"echo $PASSWORD\"\n";
         p.setDefinition(new CpsFlowDefinition(""
                 + "node {\n"
                 + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
-                + "  // available as an env variable, but will be masked if you try to print it out any which way\n"
-                + "  // note: single quotes prevent Groovy interpolation; expansion is by Bourne Shell, which is what you want\n"
-                + "  // this is bad!\n"
-                + "  sh \"echo $PASSWORD\"\n"
-                + "  // also available as a Groovy variable\n"
+                + shellStep
                 + "  echo USERNAME\n"
-                + "  // or inside double quotes for string interpolation\n"
                 + "  echo \"username is $USERNAME\"\n"
                 + "}\n"
                 + "}", true));
