@@ -89,7 +89,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
-            <version>2.23-rc564.92d97c88bfc7</version>
+            <version>2.23-rc565.4e7dd9b85962</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -130,7 +130,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
-            <version>2.23-rc564.92d97c88bfc7</version>
+            <version>2.23-rc565.4e7dd9b85962</version>
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
@@ -169,7 +169,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials-binding</artifactId>
-            <version>1.24-rc368.9646ad36e52a</version>
+            <version>1.24-rc369.e14c2682d492</version>
             <scope>test</scope>
         </dependency>
         <dependency>
