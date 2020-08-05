@@ -32,7 +32,7 @@ public class EnvironmentWatcher implements Serializable {
             LOGGER.log(Level.WARNING, "Error storing the arguments for step: " + context.getStepDescriptor().getFunctionName(), e);
         }
         if (expander != null) {
-            watchedVars = expander.getWatchedVars();
+            watchedVars = expander.getSensitiveVars();
         }
     }
 
@@ -56,9 +56,4 @@ public class EnvironmentWatcher implements Serializable {
             logger.println("The following Groovy string may be insecure. Use single quotes to prevent leaking secrets via Groovy interpolation. Affected variables: "  + scanResults.toString());
         }
     }
-
-//    @CheckForNull
-//    public List<String> getScanResults() {
-//        return scanResults;
-//    }
 }
