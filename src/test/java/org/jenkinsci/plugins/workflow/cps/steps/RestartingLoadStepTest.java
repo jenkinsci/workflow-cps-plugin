@@ -15,7 +15,6 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.junit.Assert.*;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runners.model.Statement;
@@ -292,7 +291,6 @@ public class RestartingLoadStepTest {
         });
     }
 
-    @Ignore("TODO Flaky. Sometimes the node step's execution is still part of the program after the restart, which causes the Pipeline to fail during resumption because the node step already completed according to the flow graph")
     @Test
     public void updatedBindingsOnRestart() throws Exception {
         story.then(r -> {
