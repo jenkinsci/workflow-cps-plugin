@@ -1997,8 +1997,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             // Nothing to persist OR we've already persisted it along the way.
             return;
         }
-        LOGGER.log(Level.INFO, "Attempting to checkpoint all data for {0}{1}", new Object[] {
-            this, (shuttingDown ? " before shutdown" : "")
+        LOGGER.log(Level.INFO, "Attempting to save a checkpoint of all data for {0}{1}", new Object[] {
+            this, shuttingDown ? " before shutdown" : ""
         });
         boolean persistOk = true;
         FlowNodeStorage storage = getStorage();

@@ -1,5 +1,21 @@
 ## Changelog
 
+### 2.82
+
+Release date: 2020-07-30
+
+* Fix: In some cases, block-scoped steps that had already completed could be persisted in serialized Pipelines, causing the already-completed steps to resume when the Pipeline resumed. ([JENKINS-63164](https://issues.jenkins-ci.org/browse/JENKINS-63164))
+
+### 2.81
+
+Release date: 2020-06-30
+
+* Fix: Iterators for types such as `LinkedList` that implement `Deque` in addition to `List` no longer cause intermittent serialization errors. Iterators for types that only implement `Deque` are now serializable as well. ([JENKINS-62659](https://issues.jenkins-ci.org/browse/JENKINS-62659))
+* Improvement: When using `failFast: true` with the `parallel` step and one of the parallel branches fail, the exception thrown in the other branches now includes the name of the branch that failed originally. ([PR 353](https://github.com/jenkinsci/workflow-cps-plugin/pull/353))
+* Improvement: Use four spaces for indentation in sample Pipelines instead of three. ([PR 349](https://github.com/jenkinsci/workflow-cps-plugin/pull/349))
+* Developer: Make `Snippetizer.object2Groovy` and `SnippetizerTester.assertGenerateSnippet` accessible from other plugins, and add new `SnippetizerTester.assertParseStep` method for testing backwards compatiblity of step data binding. ([PR 362](https://github.com/jenkinsci/workflow-cps-plugin/pull/362), [PR 364](https://github.com/jenkinsci/workflow-cps-plugin/pull/364))
+* Internal: Update parent POM, dependencies, and minimum core version to 2.176.4. ([PR 355](https://github.com/jenkinsci/workflow-cps-plugin/pull/355))
+
 ### 2.80
 
 Release date: 2020-02-14
