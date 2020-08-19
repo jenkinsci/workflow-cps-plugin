@@ -121,6 +121,7 @@ import hudson.security.ACL;
 import hudson.security.AccessControlled;
 import hudson.security.Permission;
 import java.beans.Introspector;
+import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -528,6 +529,15 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             heads.put(h.getId(), h);
         }
         h.newStartNode(new FlowStartNode(this, iotaStr()));
+
+        if (Thread.currentThread().isInterrupted()) {
+            // We are intentionally using `isInterrupted` so interrupt status is visible to callers.
+            // In Java 8, this should be unreachable, because if the thread was interrupted, `FlowHead.newStartNode`
+            // would have thrown an exception (either ClosedByInterruptException or StreamException). In Java 11+, for
+            // PERFORMANCE_OPTIMIZED Pipelines, `FlowHead.newStartNode` does not throw an exception if the thread is
+            // interrupted, (I think because of changes to NIO internals), so we check for interruption explicitly.
+            throw new InterruptedIOException(this + " was aborted while starting");
+        }
 
         final CpsThreadGroup g = new CpsThreadGroup(this);
 
