@@ -39,6 +39,7 @@ import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.steps.TimeoutStep;
 import org.jenkinsci.plugins.workflow.support.steps.ExecutorStep;
 import org.jenkinsci.plugins.workflow.support.steps.WorkspaceStep;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStep;
@@ -302,7 +303,7 @@ public class SnippetizerTest {
 
     @Test
     public void oneOrMoreArgsStepDocs() throws Exception {
-        SnippetizerTester.assertDocGeneration(InputStep.class);
+        SnippetizerTester.assertDocGeneration(TimeoutStep.class);
     }
 
     @Test
