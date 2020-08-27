@@ -47,13 +47,7 @@ public class EnvironmentWatcher implements Serializable {
 
     public void logResults(TaskListener listener) {
         if (scanResults != null && !scanResults.isEmpty()) {
-            PrintStream logger;
-            if (listener != null) {
-                logger = listener.getLogger();
-            } else {
-                logger = System.out;
-            }
-            logger.println("The following Groovy string may be insecure. Use single quotes to prevent leaking secrets via Groovy interpolation. Affected variables: "  + scanResults.toString());
+            listener.getLogger().println("The following Groovy string may be insecure. Use single quotes to prevent leaking secrets via Groovy interpolation. Affected variables: "  + scanResults.toString());
         }
     }
 }

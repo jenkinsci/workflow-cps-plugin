@@ -231,7 +231,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             an = new StepStartNode(exec, d, thread.head.get());
         }
 
-        CpsStepContext context = new CpsStepContext(d, thread, handle, an, null);
+        CpsStepContext context = new CpsStepContext(d, thread, handle, an);
         EnvironmentWatcher envWatcher = new EnvironmentWatcher(context);
         NamedArgsAndClosure ps = parseArgs(args, d, envWatcher);
         context.setBody(ps.body, thread);

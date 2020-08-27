@@ -155,7 +155,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     private transient List<CpsBodyInvoker> bodyInvokers = new ArrayList<>();
 
     /**
-     * While {@link CpsStepContext} has not received teh response, maintains the body closure.
+     * While {@link CpsStepContext} has not received the response, maintains the body closure.
      *
      * This is the implicit closure block passed to the step invocation.
      */
@@ -181,18 +181,17 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     private transient volatile boolean loadingThreadGroup;
 
     @CpsVmThreadOnly
-    CpsStepContext(StepDescriptor step, CpsThread thread, FlowExecutionOwner executionRef, FlowNode node, @CheckForNull Closure body) {
+    CpsStepContext(StepDescriptor step, CpsThread thread, FlowExecutionOwner executionRef, FlowNode node) {
         this.threadId = thread.id;
         this.executionRef = executionRef;
         this.id = node.getId();
         this.node = node;
-        this.body = body != null ? thread.group.export(body) : null;
         this.stepDescriptorId = step.getId();
     }
 
-    public void setBody(@Nonnull Closure body, @Nonnull CpsThread thread) {
+    public void setBody(@Nonnull Closure bodyToSet, @Nonnull CpsThread thread) {
         if (this.body == null) {
-            this.body = thread.group.export(body);
+            this.body = thread.group.export(bodyToSet);
         } else {
             throw new IllegalStateException("Context already has a body");
         }
