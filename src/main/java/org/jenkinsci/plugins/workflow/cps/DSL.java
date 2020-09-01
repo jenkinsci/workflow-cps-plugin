@@ -223,7 +223,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         // TODO: generalize the notion of Step taking over the FlowNode creation.
         boolean hack = d instanceof ParallelStep.DescriptorImpl || d instanceof LoadStep.DescriptorImpl;
 
-        FlowNode an = null;
+        FlowNode an;
         CpsThread thread = CpsThread.current();
         if (!d.takesImplicitBlockArgument() && !hack) {
             an = new StepAtomNode(exec, d, thread.head.get());
@@ -232,7 +232,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
 
         CpsStepContext context = new CpsStepContext(d, thread, handle, an);
-        EnvironmentWatcher envWatcher = new EnvironmentWatcher(context);
+        EnvironmentWatcher envWatcher = EnvironmentWatcher.of(context, exec);
         NamedArgsAndClosure ps = parseArgs(args, d, envWatcher);
         context.setBody(ps.body, thread);
         // Ensure ArgumentsAction is attached before we notify even synchronous listeners:
@@ -271,7 +271,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 DescribableModel<? extends Step> stepModel = DescribableModel.of(d.clazz);
                 s = stepModel.instantiate(ps.namedArgs, listener);
             }
-            envWatcher.logResults(listener);
+            if (envWatcher != null) {
+                envWatcher.logResults(listener);
+            }
 
             // Persist the node - block start and end nodes do their own persistence.
             CpsFlowExecution.maybeAutoPersistNode(an);
@@ -466,7 +468,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
             for (Map.Entry<?,?> entry : namedArgs.entrySet()) {
                 String k = entry.getKey().toString().intern(); // coerces GString and more
-                Object v = flattenGString(entry.getValue(), envWatcher);//expander, msgs);//envVars, msgs);
+                Object v = flattenGString(entry.getValue(), envWatcher);
                 this.namedArgs.put(k, v);
             }
         }
