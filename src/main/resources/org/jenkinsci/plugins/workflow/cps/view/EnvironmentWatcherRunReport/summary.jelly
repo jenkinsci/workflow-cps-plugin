@@ -21,17 +21,15 @@ THE SOFTWARE.
 
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:t="/lib/hudson">
-    <t:summary icon="orange-square.gif">
+    <t:summary icon="warning.png">
         Possible insecure use of sensitive variables:
         <j:if test="${it.inProgress}">
             (in progress)
         </j:if>
-        <table>
+        <ul>
             <j:forEach var="variable" items="${it.results}">
-                <tr>
-                    <td>${variable}</td>
-                </tr>
+                <li>${variable}</li>
             </j:forEach>
-        </table>
+        </ul>
     </t:summary>
 </j:jelly>
