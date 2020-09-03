@@ -1,5 +1,13 @@
 ## Changelog
 
+### 2.83
+
+Release date: 2020-09-03
+
+* Fix: Prevent Pipeline builds from resuming after being aborted while starting (fix also requires Pipeline: Job plugin version 2.40 or newer) ([JENKINS-46961](https://issues.jenkins-ci.org/browse/JENKINS-46961))
+* Improvement: Make logging related to persisting `PERFORMANCE_OPTIMIZED` Pipelines during Jenkins shutdown more consistent to help diagnose ([JENKINS-55287](https://issues.jenkins-ci.org/browse/JENKINS-55287))
+* Internal: Fix tests causing PCT failures when running against Jenkins 2.236+ ([PR 375](https://github.com/jenkinsci/workflow-cps-plugin/pull/375))
+
 ### 2.82
 
 Release date: 2020-07-30
