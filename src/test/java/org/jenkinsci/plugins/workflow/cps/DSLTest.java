@@ -32,6 +32,7 @@ import hudson.Functions;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.model.Result;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +52,6 @@ import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
-import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoLowerStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoUpperStep;
 
@@ -168,27 +168,6 @@ public class DSLTest {
                 return Collections.emptySet();
             }
         }
-    }
-
-    @Test public void withCredentials() throws Exception {
-        final String credentialsId = "creds";
-        final String username = "bob";
-        final String password = "secr3t";
-        UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
-        CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-        String shellStep = Functions.isWindows()? "bat \"echo $PASSWORD\"\n" : "sh \"echo $PASSWORD\"\n";
-        p.setDefinition(new CpsFlowDefinition(""
-                + "node {\n"
-                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
-                + shellStep
-                + "  echo USERNAME\n"
-                + "  echo \"username is $USERNAME\"\n"
-                + "}\n"
-                + "}", true));
-        WorkflowRun workflowRun = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-        r.assertLogContains("Affected variables: [PASSWORD]", workflowRun);
-        r.assertLogContains("Affected variables: [USERNAME]", workflowRun);
     }
 
     /**
@@ -445,6 +424,34 @@ public class DSLTest {
         WorkflowRun b =  r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogContains("IllegalArgumentException: WARNING: Unknown parameter(s) found for class type " +
                 "'org.jenkinsci.plugins.workflow.steps.SleepStep': comment,units", b);
+    }
+
+    //TODO: JENKINS-47101, remove safe list check and change $PASSWORD variable to $TEMP
+    @Test public void sensitiveVarsLogging() throws Exception {
+        final String credentialsId = "creds";
+        final String username = "bob";
+        final String password = "secr3t";
+        UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
+        CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        String shellStep = Functions.isWindows()? "bat \"echo $PASSWORD\"\n" : "sh \"echo $PASSWORD\"\n";
+        p.setDefinition(new CpsFlowDefinition(""
+                + "node {\n"
+                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
+                + shellStep
+                + "}\n"
+                + "}", true));
+        WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("Affected variables: [PASSWORD]", run);
+        LinearScanner scan = new LinearScanner();
+        FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("sh"));
+        ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
+        Assert.assertFalse(argAction.isUnmodifiedArguments());
+        Assert.assertTrue(argAction.getArguments().values().iterator().next() instanceof ArgumentsAction.NotStoredReason);
+    }
+
+    @Test public void argumentsSafeList() throws Exception {
+
     }
 
     public static class CLStep extends Step {

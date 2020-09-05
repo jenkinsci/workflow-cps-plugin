@@ -28,7 +28,7 @@ THE SOFTWARE.
         </j:if>
         <ul>
             <j:forEach var="variable" items="${it.results}">
-                <li>${variable}</li>
+                <li><code>${variable}</code></li>
             </j:forEach>
         </ul>
     </t:summary>
