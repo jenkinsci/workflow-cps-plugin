@@ -189,11 +189,11 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         this.stepDescriptorId = step.getId();
     }
 
-    public void setBody(@Nonnull Closure bodyToSet, @Nonnull CpsThread thread) {
-        if (this.body == null) {
-            this.body = thread.group.export(bodyToSet);
-        } else {
+    public void setBody(Closure bodyToSet, @Nonnull CpsThread thread) {
+        if (this.body != null) {
             throw new IllegalStateException("Context already has a body");
+        } else if (bodyToSet != null) {
+            this.body = thread.group.export(bodyToSet);
         }
     }
 

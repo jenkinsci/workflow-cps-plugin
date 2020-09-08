@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
+import com.cloudbees.groovy.cps.impl.CpsClosure;
 import groovy.lang.Closure;
 import groovy.lang.GString;
 import groovy.lang.GroovyObject;
@@ -43,6 +44,7 @@ import hudson.model.TaskListener;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -225,7 +227,16 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         FlowNode an;
         CpsThread thread = CpsThread.current();
-        if (!d.takesImplicitBlockArgument() && !hack) {
+        boolean hasBody = false;
+        if (args.getClass().isArray()) {
+            for (int i = 0; i < Array.getLength(args); i++) {
+                if (Array.get(args, i) instanceof CpsClosure) {
+                    hasBody = true;
+                    break;
+                }
+            }
+        }
+        if (!hasBody && !hack) {
             an = new StepAtomNode(exec, d, thread.head.get());
         } else {
             an = new StepStartNode(exec, d, thread.head.get());

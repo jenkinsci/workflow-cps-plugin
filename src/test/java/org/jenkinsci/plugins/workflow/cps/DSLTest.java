@@ -450,8 +450,17 @@ public class DSLTest {
         Assert.assertTrue(argAction.getArguments().values().iterator().next() instanceof ArgumentsAction.NotStoredReason);
     }
 
-    @Test public void argumentsSafeList() throws Exception {
+    @Test public void noBody() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        p.setDefinition((new CpsFlowDefinition("echo('hello')", true)));
+        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+    }
 
+    @Test public void noBodyError() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        p.setDefinition((new CpsFlowDefinition("node{timeout(time: 1, unit: 'SECONDS')}", true)));
+        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        r.assertLogContains("There is no body to invoke", b);
     }
 
     public static class CLStep extends Step {
