@@ -230,8 +230,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         CpsThread thread = CpsThread.current();
         boolean hasBody = false;
         if (!hack) {
-            if (args.getClass().isArray()) {
-                if (Array.get(args, Array.getLength(args) - 1) instanceof CpsClosure) {
+            if (args != null && args.getClass().isArray()) {
+                int size = Array.getLength(args);
+                if (size > 0 && Array.get(args, size - 1) instanceof CpsClosure) {
                     hasBody = true;
                 }
             }
