@@ -17,7 +17,7 @@ import java.util.logging.Logger;
 /**
  * Action to generate the UI report for watched environment variables
  */
-public class InterpolatedSecretsDetectorReportAction implements RunAction2 {
+public class InterpolatedSecretsAction implements RunAction2 {
 
     private Set<String> results;
     private transient Run<?, ?> run;
@@ -59,25 +59,4 @@ public class InterpolatedSecretsDetectorReportAction implements RunAction2 {
         this.run = run;
     }
 
-    /**
-     * Listener to add action for UI report for each run
-     */
-    @Extension
-    public static class EnvironmentWatcherListener extends FlowExecutionListener {
-        private static final Logger LOGGER = Logger.getLogger(InterpolatedSecretsDetectorReportAction.EnvironmentWatcherListener.class.getName());
-
-        @Override
-        public void onRunning(@Nonnull FlowExecution execution) {
-            FlowExecutionOwner owner = execution.getOwner();
-            try {
-                if (owner != null && owner.getExecutable() instanceof Run) {
-                    ((Run) owner.getExecutable()).addAction(new InterpolatedSecretsDetectorReportAction());
-                }
-            } catch (IOException e) {
-                LOGGER.warning(e.getMessage());
-            }
-        }
-    }
-
-    private static final long serialVersionUID = 1L;
 }

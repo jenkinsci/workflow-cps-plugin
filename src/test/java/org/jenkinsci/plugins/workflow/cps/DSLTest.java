@@ -39,7 +39,9 @@ import java.util.Map;
 import java.util.Set;
 import static org.hamcrest.Matchers.containsString;
 
+import org.hamcrest.MatcherAssert;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
+import org.jenkinsci.plugins.workflow.cps.view.InterpolatedSecretsAction;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.LinearScanner;
 import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepTypePredicate;
@@ -55,6 +57,8 @@ import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
 import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoLowerStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoUpperStep;
 
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
@@ -433,7 +437,6 @@ public class DSLTest {
         final String password = "secr3t";
         UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
         CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
-//        p = r.createProject(WorkflowJob.class, "p");
         String shellStep = Functions.isWindows()? "bat \"echo $PASSWORD\"\n" : "sh \"echo $PASSWORD\"\n";
         p.setDefinition(new CpsFlowDefinition(""
                 + "node {\n"
@@ -443,50 +446,35 @@ public class DSLTest {
                 + "}", true));
         WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("Affected variables: [PASSWORD]", run);
+        InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
+        Assert.assertNotNull(reportAction);
+        Set<String> reportResults = reportAction.getResults();
+        MatcherAssert.assertThat(reportResults.size(), is(1));
+        MatcherAssert.assertThat(reportResults.iterator().next(), is("PASSWORD"));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("sh"));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
         Assert.assertFalse(argAction.isUnmodifiedArguments());
-        Assert.assertTrue(argAction.getArguments().values().iterator().next() instanceof ArgumentsAction.NotStoredReason);
-    }
-
-    @Test public void noBody() throws Exception {
-//        p = r.createProject(WorkflowJob.class, "p");
-        p.setDefinition((new CpsFlowDefinition("echo('hello')", true)));
-        r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), instanceOf(ArgumentsAction.NotStoredReason.class));
     }
 
     @Test public void noBodyError() throws Exception {
-//        p = r.createProject(WorkflowJob.class, "p");
-        p.setDefinition((new CpsFlowDefinition("node{timeout(time: 1, unit: 'SECONDS')}", true)));
+        p.setDefinition((new CpsFlowDefinition("timeout(time: 1, unit: 'SECONDS')", true)));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogContains("timeout step must be called with a body", b);
     }
 
     @Test public void legacyStage() throws Exception {
-//        p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition(
                 "stage(name: 'A');\n" +
-                        "echo('in A');\n" +
-                        "stage(name: 'B');\n" +
-                        "echo('in B');\n" +
                         "echo('done')", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
 
     @Test public void standardStage() throws Exception {
-//        p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition(
-                "node{\n" +
-                        "   stage ('Build') {\n" +
-                        "       sh \"echo 'Building'\"\n" +
-                        "   }\n" +
-                        "   stage ('Test') {\n" +
-                        "       sh \"echo 'testing'\"\n" +
-                        "   }\n" +
-                        "    stage ('Deploy') {\n" +
-                        "       sh \"echo 'deploy'\"\n" +
-                        "   }\n" +
+                "stage('Build'){\n" +
+                        "  echo('building')\n" +
                         "}\n", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
