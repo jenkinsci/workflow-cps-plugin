@@ -86,7 +86,6 @@ import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
-import org.jenkinsci.plugins.workflow.support.steps.StageStep;
 import org.jvnet.hudson.annotation_indexer.Index;
 import org.kohsuke.stapler.ClassDescriptor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
@@ -230,16 +229,23 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         CpsThread thread = CpsThread.current();
         boolean hasBody = false;
         if (!hack) {
-            if (args != null && args.getClass().isArray()) {
-                int size = Array.getLength(args);
-                if (size > 0 && Array.get(args, size - 1) instanceof CpsClosure) {
-                    hasBody = true;
+            if  (args != null) {
+                if (args instanceof NamedArgsAndClosure) {
+                    if (((NamedArgsAndClosure) args).body != null) {
+                        hasBody = true;
+                    }
+                } else if (args.getClass().isArray()) {
+                    int size = Array.getLength(args);
+                    if (size > 0 && Array.get(args, size - 1) instanceof CpsClosure) {
+                        hasBody = true;
+                    }
                 }
             }
         }
         if (!hack && !hasBody) {
             // Legacy Stage Step support means the step has no body but still takesImplicitBlockArgument
-            if (!(d instanceof StageStep.DescriptorImpl) && d.takesImplicitBlockArgument()) {
+            if (!(d.getClass().getName().equals("org.jenkinsci.plugins.workflow.support.steps.StageStep$DescriptorImpl"))
+                    && d.takesImplicitBlockArgument()) {
                 throw new IllegalStateException(String.format("%s step must be called with a body", name));
             } else {
                 an = new StepAtomNode(exec, d, thread.head.get());
@@ -249,7 +255,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
 
         CpsStepContext context = new CpsStepContext(d, thread, handle, an);
-        EnvironmentWatcher envWatcher = EnvironmentWatcher.of(context, exec);
+        InterpolatedSecretsDetector envWatcher = InterpolatedSecretsDetector.of(context, exec);
         NamedArgsAndClosure ps = parseArgs(args, d, envWatcher);
         context.setBody(ps.body, thread);
         // Ensure ArgumentsAction is attached before we notify even synchronous listeners:
@@ -478,7 +484,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         final Closure body;
         final List<String> msgs;
 
-        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @Nullable EnvironmentWatcher envWatcher) {
+        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @Nullable InterpolatedSecretsDetector envWatcher) {
             this.namedArgs = new LinkedHashMap<>(preallocatedHashmapCapacity(namedArgs.size()));
             this.body = body;
             this.msgs = new ArrayList<>();
@@ -501,7 +507,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * but better to do it here in the Groovy-specific code so we do not need to rely on that.
      * @return {@code v} or an equivalent with all {@link GString}s flattened, including in nested {@link List}s or {@link Map}s
      */
-    private static Object flattenGString(Object v, @Nullable EnvironmentWatcher envWatcher) {
+    private static Object flattenGString(Object v, @Nullable InterpolatedSecretsDetector envWatcher) {
         if (v instanceof GString) {
             String flattened = v.toString();
             if (envWatcher != null) {
@@ -534,7 +540,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    static NamedArgsAndClosure parseArgs(Object arg, StepDescriptor d, EnvironmentWatcher envWatcher) {
+    static NamedArgsAndClosure parseArgs(Object arg, StepDescriptor d, InterpolatedSecretsDetector envWatcher) {
         boolean singleArgumentOnly = false;
         try {
             DescribableModel<?> stepModel = DescribableModel.of(d.clazz);
@@ -575,7 +581,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 //     * @param envVars
      *      The environment variables of the context
      */
-    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, @Nullable EnvironmentWatcher envWatcher) {
+    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, @Nullable InterpolatedSecretsDetector envWatcher) {
         if (arg instanceof NamedArgsAndClosure)
             return (NamedArgsAndClosure) arg;
         if (arg instanceof Map) // TODO is this clause actually used?
