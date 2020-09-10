@@ -433,7 +433,7 @@ public class DSLTest {
         final String password = "secr3t";
         UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
         CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        p = r.createProject(WorkflowJob.class, "p");
         String shellStep = Functions.isWindows()? "bat \"echo $PASSWORD\"\n" : "sh \"echo $PASSWORD\"\n";
         p.setDefinition(new CpsFlowDefinition(""
                 + "node {\n"
@@ -451,20 +451,20 @@ public class DSLTest {
     }
 
     @Test public void noBody() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition((new CpsFlowDefinition("echo('hello')", true)));
         r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
 
     @Test public void noBodyError() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition((new CpsFlowDefinition("node{timeout(time: 1, unit: 'SECONDS')}", true)));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogContains("timeout step must be called with a body", b);
     }
 
     @Test public void legacyStage() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition(
                 "stage(name: 'A');\n" +
                         "echo('in A');\n" +
@@ -475,7 +475,7 @@ public class DSLTest {
     }
 
     @Test public void standardStage() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition(
                 "node{\n" +
                         "   stage ('Build') {\n" +
