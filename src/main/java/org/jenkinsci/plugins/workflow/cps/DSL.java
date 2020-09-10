@@ -86,6 +86,7 @@ import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.support.steps.StageStep;
 import org.jvnet.hudson.annotation_indexer.Index;
 import org.kohsuke.stapler.ClassDescriptor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
@@ -228,16 +229,20 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         FlowNode an;
         CpsThread thread = CpsThread.current();
         boolean hasBody = false;
-        if (args.getClass().isArray()) {
-            for (int i = 0; i < Array.getLength(args); i++) {
-                if (Array.get(args, i) instanceof CpsClosure) {
+        if (!hack) {
+            if (args.getClass().isArray()) {
+                if (Array.get(args, Array.getLength(args) - 1) instanceof CpsClosure) {
                     hasBody = true;
-                    break;
                 }
             }
         }
-        if (!hasBody && !hack) {
-            an = new StepAtomNode(exec, d, thread.head.get());
+        if (!hack && !hasBody) {
+            // Legacy Stage Step support means the step has no body but still takesImplicitBlockArgument
+            if (!(d instanceof StageStep.DescriptorImpl) && d.takesImplicitBlockArgument()) {
+                throw new IllegalStateException(String.format("%s step must be called with a body", name));
+            } else {
+                an = new StepAtomNode(exec, d, thread.head.get());
+            }
         } else {
             an = new StepStartNode(exec, d, thread.head.get());
         }

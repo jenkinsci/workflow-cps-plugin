@@ -426,7 +426,7 @@ public class DSLTest {
                 "'org.jenkinsci.plugins.workflow.steps.SleepStep': comment,units", b);
     }
 
-    //TODO: JENKINS-47101, remove safe list check and change $PASSWORD variable to $TEMP
+    //TODO: JENKINS-47101, remove safe list check and change $PASSWORD variable to an old safe list variable
     @Test public void sensitiveVarsLogging() throws Exception {
         final String credentialsId = "creds";
         final String username = "bob";
@@ -460,7 +460,35 @@ public class DSLTest {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition((new CpsFlowDefinition("node{timeout(time: 1, unit: 'SECONDS')}", true)));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
-        r.assertLogContains("There is no body to invoke", b);
+        r.assertLogContains("timeout step must be called with a body", b);
+    }
+
+    @Test public void legacyStage() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition(
+                "stage(name: 'A');\n" +
+                        "echo('in A');\n" +
+                        "stage(name: 'B');\n" +
+                        "echo('in B');\n" +
+                        "echo('done')", true));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+    }
+
+    @Test public void standardStage() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition(
+                "node{\n" +
+                        "   stage ('Build') {\n" +
+                        "       sh \"echo 'Building'\"\n" +
+                        "   }\n" +
+                        "   stage ('Test') {\n" +
+                        "       sh \"echo 'testing'\"\n" +
+                        "   }\n" +
+                        "    stage ('Deploy') {\n" +
+                        "       sh \"echo 'deploy'\"\n" +
+                        "   }\n" +
+                        "}\n", true));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
 
     public static class CLStep extends Step {
