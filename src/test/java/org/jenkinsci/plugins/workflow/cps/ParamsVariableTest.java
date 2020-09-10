@@ -30,6 +30,7 @@ import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
 import hudson.model.PasswordParameterDefinition;
 import hudson.model.PasswordParameterValue;
+import hudson.model.Result;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -65,7 +66,8 @@ public class ParamsVariableTest {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("echo(/TEXT=${params.TEXT}/)",true));
         p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("TEXT", "")));
-        r.assertLogContains("TEXT=null", r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("TEXT", /* not possible via UI, but to simulate other ParameterValue impls */null)))));
+        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("TEXT", /* not possible via UI, but to simulate other ParameterValue impls */null))));
+        r.assertLogContains("Null value not allowed as an environment variable: TEXT", b);
     }
 
 }
