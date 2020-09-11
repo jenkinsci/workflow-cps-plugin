@@ -452,7 +452,7 @@ public class DSLTest {
         MatcherAssert.assertThat(reportResults.size(), is(1));
         MatcherAssert.assertThat(reportResults.iterator().next(), is("PASSWORD"));
         LinearScanner scan = new LinearScanner();
-        FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("sh"));
+        FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(Functions.isWindows()? "bat" : "sh"));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
         Assert.assertFalse(argAction.isUnmodifiedArguments());
         MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), instanceOf(ArgumentsAction.NotStoredReason.class));
