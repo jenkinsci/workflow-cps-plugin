@@ -234,9 +234,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                     if (((NamedArgsAndClosure) args).body != null) {
                         hasBody = true;
                     }
-                } else if (args.getClass().isArray()) {
-                    int size = Array.getLength(args);
-                    if (size > 0 && Array.get(args, size - 1) instanceof CpsClosure) {
+                } else if (args instanceof Object[]) {
+                    Object[] array = (Object[]) args;
+                    if (array.length > 0 && array[array.length - 1] instanceof CpsClosure) {
                         hasBody = true;
                     }
                 }
