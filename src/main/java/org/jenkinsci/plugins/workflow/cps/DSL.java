@@ -44,7 +44,6 @@ import hudson.model.TaskListener;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -227,21 +226,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         FlowNode an;
         CpsThread thread = CpsThread.current();
-        boolean hasBody = false;
-        if (!hack) {
-            if  (args != null) {
-                if (args instanceof NamedArgsAndClosure) {
-                    if (((NamedArgsAndClosure) args).body != null) {
-                        hasBody = true;
-                    }
-                } else if (args instanceof Object[]) {
-                    Object[] array = (Object[]) args;
-                    if (array.length > 0 && array[array.length - 1] instanceof CpsClosure) {
-                        hasBody = true;
-                    }
-                }
-            }
-        }
+        boolean hasBody = hack? false : argsHasBody(args);
+
         if (!hack && !hasBody) {
             // Legacy Stage Step support means the step has no body but still takesImplicitBlockArgument
             if (!(d.getClass().getName().equals("org.jenkinsci.plugins.workflow.support.steps.StageStep$DescriptorImpl"))
@@ -356,6 +342,23 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
+    // Check if step arguments contain a step body
+    private boolean argsHasBody(Object args) {
+        if  (args != null) {
+            if (args instanceof NamedArgsAndClosure) {
+                if (((NamedArgsAndClosure) args).body != null) {
+                    return true;
+                }
+            } else if (args instanceof Object[]) {
+                Object[] array = (Object[]) args;
+                if (array.length > 0 && array[array.length - 1] instanceof CpsClosure) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private static String loadSoleArgumentKey(StepDescriptor d) {
         try {
             String[] names = new ClassDescriptor(d.clazz).loadConstructorParamNames();
@@ -451,7 +454,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     }
 
     private void reportAmbiguousStepInvocation(CpsStepContext context, StepDescriptor d, @Nullable TaskListener listener) {
-        Exception e = null;
         if (listener != null) {
             List<String> ambiguousClassNames = StepDescriptor.all().stream()
                     .filter(sd -> sd.getFunctionName().equals(d.getFunctionName()))
@@ -465,7 +467,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             listener.getLogger().println(message);
             return;
         }
-        LOGGER.log(Level.FINE, "Unable to report ambiguous step invocation for: " + d.getFunctionName(), e);
+        LOGGER.log(Level.FINE, "Unable to report ambiguous step invocation for: " + d.getFunctionName());
     }
 
     /** Returns the capacity we need to allocate for a HashMap so it will hold all elements without needing to resize. */

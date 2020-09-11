@@ -16,10 +16,10 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class InterpolatedSecretsDetector {
-    private EnvVars envVars;
-    private Set<String> watchedVars;
+    private final EnvVars envVars;
+    private final Set<String> watchedVars;
     private List<String> scanResults;
-    private CpsFlowExecution exec;
+    private final CpsFlowExecution exec;
 
     private static final Logger LOGGER = Logger.getLogger(InterpolatedSecretsDetector.class.getName());
 

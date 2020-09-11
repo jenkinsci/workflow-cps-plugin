@@ -1,18 +1,10 @@
 package org.jenkinsci.plugins.workflow.cps.view;
 
-import hudson.Extension;
 import hudson.model.Run;
 import jenkins.model.RunAction2;
-import org.jenkinsci.plugins.workflow.flow.FlowExecution;
-import org.jenkinsci.plugins.workflow.flow.FlowExecutionListener;
-import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
-
-import javax.annotation.Nonnull;
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Logger;
 
 /**
  * Action to generate the UI report for watched environment variables
