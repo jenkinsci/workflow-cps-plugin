@@ -240,8 +240,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
 
         CpsStepContext context = new CpsStepContext(d, thread, handle, an);
-        InterpolatedSecretsDetector envWatcher = InterpolatedSecretsDetector.of(context, exec);
-        NamedArgsAndClosure ps = parseArgs(args, d, envWatcher);
+        InterpolatedSecretsDetector secretsDetector = InterpolatedSecretsDetector.of(context, exec);
+        NamedArgsAndClosure ps = parseArgs(args, d, secretsDetector);
         context.setBody(ps.body, thread);
         // Ensure ArgumentsAction is attached before we notify even synchronous listeners:
         try {
@@ -279,8 +279,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 DescribableModel<? extends Step> stepModel = DescribableModel.of(d.clazz);
                 s = stepModel.instantiate(ps.namedArgs, listener);
             }
-            if (envWatcher != null) {
-                envWatcher.logResults(listener);
+            if (secretsDetector != null) {
+                secretsDetector.logResults(listener);
             }
 
             // Persist the node - block start and end nodes do their own persistence.
@@ -485,14 +485,14 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         final Closure body;
         final List<String> msgs;
 
-        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @Nullable InterpolatedSecretsDetector envWatcher) {
+        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @Nullable InterpolatedSecretsDetector secretsDetector) {
             this.namedArgs = new LinkedHashMap<>(preallocatedHashmapCapacity(namedArgs.size()));
             this.body = body;
             this.msgs = new ArrayList<>();
 
             for (Map.Entry<?,?> entry : namedArgs.entrySet()) {
                 String k = entry.getKey().toString().intern(); // coerces GString and more
-                Object v = flattenGString(entry.getValue(), envWatcher);
+                Object v = flattenGString(entry.getValue(), secretsDetector);
                 this.namedArgs.put(k, v);
             }
         }
@@ -541,7 +541,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    static NamedArgsAndClosure parseArgs(Object arg, StepDescriptor d, InterpolatedSecretsDetector envWatcher) {
+    static NamedArgsAndClosure parseArgs(Object arg, StepDescriptor d, InterpolatedSecretsDetector secretsDetector) {
         boolean singleArgumentOnly = false;
         try {
             DescribableModel<?> stepModel = DescribableModel.of(d.clazz);
@@ -549,12 +549,12 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             if (singleArgumentOnly) {  // Can fetch the one argument we need
                 DescribableParameter dp = stepModel.getSoleRequiredParameter();
                 String paramName = (dp != null) ? dp.getName() : null;
-                return parseArgs(arg, d.takesImplicitBlockArgument(), paramName, singleArgumentOnly, envWatcher);
+                return parseArgs(arg, d.takesImplicitBlockArgument(), paramName, singleArgumentOnly, secretsDetector);
             }
         } catch (NoStaplerConstructorException e) {
             // Ignore steps without databound constructors and treat them as normal.
         }
-        return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d), singleArgumentOnly, envWatcher);
+        return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d), singleArgumentOnly, secretsDetector);
     }
 
     /**
@@ -582,18 +582,18 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 //     * @param envVars
      *      The environment variables of the context
      */
-    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, @Nullable InterpolatedSecretsDetector envWatcher) {
+    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, @Nullable InterpolatedSecretsDetector secretsDetector) {
         if (arg instanceof NamedArgsAndClosure)
             return (NamedArgsAndClosure) arg;
         if (arg instanceof Map) // TODO is this clause actually used?
-            return new NamedArgsAndClosure((Map) arg, null, envWatcher);
+            return new NamedArgsAndClosure((Map) arg, null, secretsDetector);
         if (arg instanceof Closure && expectsBlock)
-            return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),(Closure)arg, envWatcher);
+            return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),(Closure)arg, secretsDetector);
 
         if (arg instanceof Object[]) {// this is how Groovy appears to pack argument list into one Object for invokeMethod
             List a = Arrays.asList((Object[])arg);
             if (a.size()==0)
-                return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),null, envWatcher);
+                return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),null, secretsDetector);
 
             Closure c=null;
 
@@ -608,21 +608,21 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 if (!singleRequiredArg ||
                         (soleArgumentKey != null && mapArg.size() == 1 && mapArg.containsKey(soleArgumentKey))) {
                     // this is how Groovy passes in Map
-                    return new NamedArgsAndClosure(mapArg, c, envWatcher);
+                    return new NamedArgsAndClosure(mapArg, c, secretsDetector);
                 }
             }
 
             switch (a.size()) {
             case 0:
-                return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),c, envWatcher);
+                return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),c, secretsDetector);
             case 1:
-                return new NamedArgsAndClosure(singleParam(soleArgumentKey, a.get(0)), c, envWatcher);
+                return new NamedArgsAndClosure(singleParam(soleArgumentKey, a.get(0)), c, secretsDetector);
             default:
                 throw new IllegalArgumentException("Expected named arguments but got "+a);
             }
         }
 
-        return new NamedArgsAndClosure(singleParam(soleArgumentKey, arg), null, envWatcher);
+        return new NamedArgsAndClosure(singleParam(soleArgumentKey, arg), null, secretsDetector);
     }
     private static Map<String,Object> singleParam(String soleArgumentKey, Object arg) {
         if (soleArgumentKey != null) {
