@@ -68,6 +68,7 @@
         <java.level>8</java.level>
         <no-test-jar>false</no-test-jar>
         <groovy-cps.version>1.32</groovy-cps.version>
+        <workflow-step-api.version>2.23-rc567.0fe52fbdf6b5</workflow-step-api.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -84,7 +85,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
-            <version>2.23-rc566.c1fa948b49be</version>
+            <version>${workflow-step-api.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -125,7 +126,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
-            <version>2.23-rc566.c1fa948b49be</version>
+            <version>${workflow-step-api.version}</version>
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>

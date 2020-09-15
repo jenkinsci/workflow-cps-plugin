@@ -38,7 +38,7 @@ public class InterpolatedSecretsDetector {
 
     private InterpolatedSecretsDetector(@Nonnull EnvVars envVars, @Nonnull EnvironmentExpander expander, @Nonnull CpsFlowExecution exec) {
         this.envVars = envVars;
-        watchedVars = expander.getSensitiveVars();
+        watchedVars = expander.getSensitiveVariables();
         this.exec = exec;
     }
 
