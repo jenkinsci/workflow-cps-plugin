@@ -24,7 +24,7 @@ THE SOFTWARE.
     <t:summary icon="warning.png">
         ${%Possible insecure use of sensitive variables:}
         <j:if test="${it.inProgress}">
-            ${%(in progress)}
+            (${%in progress})
         </j:if>
         <ul>
             <j:forEach var="variable" items="${it.results}">
