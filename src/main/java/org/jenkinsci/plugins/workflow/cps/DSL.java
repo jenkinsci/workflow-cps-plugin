@@ -26,7 +26,6 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
-import com.cloudbees.groovy.cps.impl.CpsClosure;
 import groovy.lang.Closure;
 import groovy.lang.GString;
 import groovy.lang.GroovyObject;
@@ -351,7 +350,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 }
             } else if (args instanceof Object[]) {
                 Object[] array = (Object[]) args;
-                if (array.length > 0 && array[array.length - 1] instanceof CpsClosure) {
+                if (array.length > 0 && array[array.length - 1] instanceof Closure) {
                     return true;
                 }
             }
@@ -509,18 +508,18 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * but better to do it here in the Groovy-specific code so we do not need to rely on that.
      * @return {@code v} or an equivalent with all {@link GString}s flattened, including in nested {@link List}s or {@link Map}s
      */
-    private static Object flattenGString(Object v, @Nullable InterpolatedSecretsDetector envWatcher) {
+    private static Object flattenGString(Object v, @Nullable InterpolatedSecretsDetector secretsDetector) {
         if (v instanceof GString) {
             String flattened = v.toString();
-            if (envWatcher != null) {
-                envWatcher.scan(flattened);
+            if (secretsDetector != null) {
+                secretsDetector.scan(flattened);
             }
             return flattened;
         } else if (v instanceof List) {
             boolean mutated = false;
             List<Object> r = new ArrayList<>();
             for (Object o : ((List<?>) v)) {
-                Object o2 = flattenGString(o, envWatcher);
+                Object o2 = flattenGString(o, secretsDetector);
                 mutated |= o != o2;
                 r.add(o2);
             }
@@ -530,9 +529,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             Map<Object,Object> r = new LinkedHashMap<>(preallocatedHashmapCapacity(((Map) v).size()));
             for (Map.Entry<?,?> e : ((Map<?, ?>) v).entrySet()) {
                 Object k = e.getKey();
-                Object k2 = flattenGString(k, envWatcher);
+                Object k2 = flattenGString(k, secretsDetector);
                 Object o = e.getValue();
-                Object o2 = flattenGString(o, envWatcher);
+                Object o2 = flattenGString(o, secretsDetector);
                 mutated |= k != k2 || o != o2;
                 r.put(k2, o2);
             }

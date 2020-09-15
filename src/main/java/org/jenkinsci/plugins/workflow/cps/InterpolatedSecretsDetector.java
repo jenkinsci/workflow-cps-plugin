@@ -36,7 +36,7 @@ public class InterpolatedSecretsDetector {
         return null;
     }
 
-    public InterpolatedSecretsDetector(@Nonnull EnvVars envVars, @Nonnull EnvironmentExpander expander, @Nonnull CpsFlowExecution exec) {
+    private InterpolatedSecretsDetector(@Nonnull EnvVars envVars, @Nonnull EnvironmentExpander expander, @Nonnull CpsFlowExecution exec) {
         this.envVars = envVars;
         watchedVars = expander.getSensitiveVars();
         this.exec = exec;
@@ -62,6 +62,4 @@ public class InterpolatedSecretsDetector {
             }
         }
     }
-
-    private static final long serialVersionUID = 1L;
 }
