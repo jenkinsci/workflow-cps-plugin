@@ -160,7 +160,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials-binding</artifactId>
-            <version>1.24-rc370.8c9bfdc92872</version>
+            <version>1.24-rc374.2fd9f7804b0e</version>
             <scope>test</scope>
         </dependency>
         <dependency>

@@ -212,13 +212,18 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         return invokeStep(d, d.getFunctionName(), args);
     }
 
+    protected Object invokeStep(StepDescriptor d, String name, Object args) {
+        return invokeStep(d, name, args, null);
+    }
+
     /**
      * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
      * @param d The {@link StepDescriptor} being invoked.
      * @param name The name used to invoke the step. May be {@link StepDescriptor#getFunctionName}, a symbol as in {@link StepDescriptor#metaStepsOf}, or {@code d.clazz.getName()}.
      * @param args The arguments passed to the step.
+     * @param describableArgs The raw arguments to the describable (when called from {@link #invokeDescribable(String, Object)}
      */
-    protected Object invokeStep(StepDescriptor d, String name, Object args) {
+    protected Object invokeStep(StepDescriptor d, String name, Object args, @Nullable Object describableArgs) {
 
         // TODO: generalize the notion of Step taking over the FlowNode creation.
         boolean hack = d instanceof ParallelStep.DescriptorImpl || d instanceof LoadStep.DescriptorImpl;
@@ -241,6 +246,10 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         CpsStepContext context = new CpsStepContext(d, thread, handle, an);
         InterpolatedSecretsDetector secretsDetector = InterpolatedSecretsDetector.of(context, exec);
+        if (describableArgs != null) {
+            // parse the raw describable arguments here to check for interpolated secrets
+            parseArgs(describableArgs, d, secretsDetector);
+        }
         NamedArgsAndClosure ps = parseArgs(args, d, secretsDetector);
         context.setBody(ps.body, thread);
         // Ensure ArgumentsAction is attached before we notify even synchronous listeners:
@@ -376,6 +385,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         StepDescriptor metaStep = metaSteps.size()==1 ? metaSteps.get(0) : null;
 
         boolean singleArgumentOnly = false;
+        InterpolatedSecretsDetector secretsDetector = null;
         if (metaStep != null) {
             Descriptor symbolDescriptor = SymbolLookup.get().findDescriptor((Class)(metaStep.getMetaStepArgumentType()), symbol);
             DescribableModel<?> symbolModel = DescribableModel.of(symbolDescriptor.clazz);
@@ -385,7 +395,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         // The only time a closure is valid is when the resulting Describable is immediately executed via a meta-step
         NamedArgsAndClosure args = parseArgs(_args, metaStep!=null && metaStep.takesImplicitBlockArgument(),
-                UninstantiatedDescribable.ANONYMOUS_KEY, singleArgumentOnly, null);
+                UninstantiatedDescribable.ANONYMOUS_KEY, singleArgumentOnly, secretsDetector);
         UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
 
         if (metaStep==null) {
@@ -445,7 +455,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 ud = new UninstantiatedDescribable(symbol, null, dargs);
                 margs.put(p.getName(),ud);
 
-                return invokeStep(metaStep, symbol, new NamedArgsAndClosure(margs, args.body, null));
+                return invokeStep(metaStep, symbol, new NamedArgsAndClosure(margs, args.body, null), _args);
             } catch (Exception e) {
                 throw new IllegalArgumentException("Failed to prepare "+symbol+" step",e);
             }

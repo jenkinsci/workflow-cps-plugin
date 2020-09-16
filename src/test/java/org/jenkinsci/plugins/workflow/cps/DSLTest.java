@@ -458,6 +458,32 @@ public class DSLTest {
         MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), instanceOf(ArgumentsAction.NotStoredReason.class));
     }
 
+    @Test public void describableInterpolation() throws Exception {
+        final String credentialsId = "creds";
+        final String username = "bob";
+        final String password = "secr3t";
+        UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
+        CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
+        p.setDefinition(new CpsFlowDefinition(""
+                + "node {\n"
+                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
+                + "archiveArtifacts(\"${PASSWORD}\")"
+                + "}\n"
+                + "}", true));
+        WorkflowRun run = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        r.assertLogContains("Affected variables: [PASSWORD]", run);
+        InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
+        Assert.assertNotNull(reportAction);
+        Set<String> reportResults = reportAction.getResults();
+        MatcherAssert.assertThat(reportResults.size(), is(1));
+        MatcherAssert.assertThat(reportResults.iterator().next(), is("PASSWORD"));
+        // TODO: Code below currently fails
+//        LinearScanner scan = new LinearScanner();
+//        FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("archiveArtifacts"));
+//        ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
+//        Assert.assertFalse(argAction.isUnmodifiedArguments());
+//        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), instanceOf(ArgumentsAction.NotStoredReason.class));
+    }
     @Test public void noBodyError() throws Exception {
         p.setDefinition((new CpsFlowDefinition("timeout(time: 1, unit: 'SECONDS')", true)));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
