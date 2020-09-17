@@ -526,6 +526,10 @@ public final class CpsThreadGroup implements Serializable {
      */
     @CpsVmThreadOnly
     void saveProgram() throws IOException {
+        if (execution.isResumeBlocked()) {
+            // In case flag added after start, also consider: Util.deleteFile(execution.getProgramDataFile());
+            return;
+        }
         File f = execution.getProgramDataFile();
         saveProgram(f);
     }
