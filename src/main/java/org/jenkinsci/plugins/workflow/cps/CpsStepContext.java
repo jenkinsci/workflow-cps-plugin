@@ -181,20 +181,13 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     private transient volatile boolean loadingThreadGroup;
 
     @CpsVmThreadOnly
-    CpsStepContext(StepDescriptor step, CpsThread thread, FlowExecutionOwner executionRef, FlowNode node) {
+    CpsStepContext(StepDescriptor step, CpsThread thread, FlowExecutionOwner executionRef, FlowNode node, @CheckForNull Closure body) {
         this.threadId = thread.id;
         this.executionRef = executionRef;
         this.id = node.getId();
         this.node = node;
+        this.body = body != null ? thread.group.export(body) : null;
         this.stepDescriptorId = step.getId();
-    }
-
-    public void setBody(Closure bodyToSet, @Nonnull CpsThread thread) {
-        if (this.body != null) {
-            throw new IllegalStateException("Context already has a body");
-        } else if (bodyToSet != null) {
-            this.body = thread.group.export(bodyToSet);
-        }
     }
 
     /**

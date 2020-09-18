@@ -445,7 +445,7 @@ public class DSLTest {
                 + "}\n"
                 + "}", true));
         WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-        r.assertLogContains("Affected variables: [PASSWORD]", run);
+        r.assertLogContains("Affected variable(s): [PASSWORD]", run);
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
         Set<String> reportResults = reportAction.getResults();
@@ -471,7 +471,7 @@ public class DSLTest {
                 + "}\n"
                 + "}", true));
         WorkflowRun run = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
-        r.assertLogContains("Affected variables: [PASSWORD]", run);
+        r.assertLogContains("Affected variable(s): [PASSWORD]", run);
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
         Set<String> reportResults = reportAction.getResults();
@@ -484,6 +484,18 @@ public class DSLTest {
 //        Assert.assertFalse(argAction.isUnmodifiedArguments());
 //        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), instanceOf(ArgumentsAction.NotStoredReason.class));
     }
+
+    @Test public void noMetaStep() throws Exception {
+        p.setDefinition(new CpsFlowDefinition("monomorphStep([firstArg:'one', secondArg:'two'])", true));
+        r.assertLogContains("First arg: one, second arg: two", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+        WorkflowRun run = p.getLastBuild();
+        LinearScanner scanner = new LinearScanner();
+        FlowNode node = scanner.findFirstMatch(run.getExecution().getCurrentHeads(), new NodeStepTypePredicate("monomorphStep"));
+        ArgumentsAction argumentsAction = node.getPersistentAction(ArgumentsAction.class);
+        Assert.assertNotNull(argumentsAction);
+        Assert.assertEquals("one,two", ArgumentsAction.getStepArgumentsAsString(node));
+    }
+
     @Test public void noBodyError() throws Exception {
         p.setDefinition((new CpsFlowDefinition("timeout(time: 1, unit: 'SECONDS')", true)));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
