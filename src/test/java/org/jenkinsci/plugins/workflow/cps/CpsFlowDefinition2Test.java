@@ -35,12 +35,14 @@ import java.util.logging.Level;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
@@ -515,6 +517,25 @@ public class CpsFlowDefinition2Test {
                 "assert output == 'ybase'\n", true));
         WorkflowRun r = jenkins.buildAndAssertSuccess(job);
         jenkins.assertLogContains("OUTPUT: ybase", r);
+    }
+
+    @Ignore("Currently fails due to leaked executor")
+    @Issue("JENKINS-57253")
+    @Test
+    public void unexpectedBreakStatement() throws Exception {
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
+        job.setDefinition(new CpsFlowDefinition("node {\n" +
+                "  semaphore 'wait'\n" +
+                "  break\n" +
+                "}\n", true));
+        assertEquals(0, jenkins.jenkins.toComputer().countBusy());
+        WorkflowRun b = job.scheduleBuild2(0).waitForStart();
+        SemaphoreStep.waitForStart("wait/1", b);
+        assertEquals(1, jenkins.jenkins.toComputer().countBusy());
+        SemaphoreStep.success("wait/1", null);
+        jenkins.assertBuildStatus(Result.FAILURE, jenkins.waitForCompletion(b));
+        jenkins.assertLogContains("unexpected break statement", b);
+        assertEquals(0, jenkins.jenkins.toComputer().countBusy());
     }
 
     @Issue("SECURITY-1186")
