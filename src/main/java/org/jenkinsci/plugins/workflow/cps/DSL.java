@@ -222,12 +222,19 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * @param args The arguments passed to the step.
      */
     protected Object invokeStep(StepDescriptor d, String name, Object args) {
-        Set<String> interpolatedStrings;
+        Set<String> interpolatedStrings = null;
         if (args instanceof NamedArgsAndClosure) {
-            interpolatedStrings = ((NamedArgsAndClosure) args).getInterpolatedStrings();
-        } else {
+            interpolatedStrings = ((NamedArgsAndClosure) args).interpolatedStrings;
+        } else if (args instanceof Object[]) {
+            Object[] array = (Object[]) args;
+            if (array.length > 0 && array[array.length - 1] instanceof InterpolatedUninstantiatedDescribable) {
+                interpolatedStrings = ((InterpolatedUninstantiatedDescribable) array[array.length - 1]).getInterpolatedStrings();
+            }
+        }
+        if (interpolatedStrings == null) {
             interpolatedStrings = new HashSet<>();
         }
+
         final NamedArgsAndClosure ps = parseArgs(args, d, interpolatedStrings);
 
         CpsThread thread = CpsThread.current();
@@ -248,14 +255,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             an = new StepStartNode(exec, d, thread.head.get());
         }
 
-        final CpsStepContext context = new CpsStepContext(d, thread, handle, an, ps.body);
-        try {
-            logInterpolationWarnings(interpolatedStrings, context);
-        } catch (IOException | InterruptedException e) {
-            LOGGER.log(Level.WARNING, "Unable to log interpolated string warnings");
-        }
-
         // Ensure ArgumentsAction is attached before we notify even synchronous listeners:
+        final CpsStepContext context = new CpsStepContext(d, thread, handle, an, ps.body);
         try {
             // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
             if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepArguments() && !(d instanceof ParallelStep.DescriptorImpl)) {
@@ -280,6 +281,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         ClassLoader originalLoader = Thread.currentThread().getContextClassLoader();
         try {
             TaskListener listener = context.get(TaskListener.class);
+            logInterpolationWarnings(interpolatedStrings, context, listener);
             if (unreportedAmbiguousFunctions.remove(name)) {
                 reportAmbiguousStepInvocation(context, d, listener);
             }
@@ -350,7 +352,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    private void logInterpolationWarnings(Set<String> interpolatedStrings, CpsStepContext context) throws IOException, InterruptedException {
+    private void logInterpolationWarnings(Set<String> interpolatedStrings, CpsStepContext context, TaskListener listener) throws IOException, InterruptedException {
         if (!interpolatedStrings.isEmpty()) {
             EnvVars contextEnvVars = context.get(EnvVars.class);
             EnvironmentExpander contextExpander = context.get(EnvironmentExpander.class);
@@ -360,7 +362,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                     .collect(Collectors.toList());
 
             if (scanResults != null && !scanResults.isEmpty()) {
-                context.get(TaskListener.class).getLogger().println("The following Groovy string(s) may be insecure. Use single quotes to prevent leaking secrets via Groovy interpolation. Affected variable(s): "  + scanResults.toString());
+                listener.getLogger().println("The following Groovy string(s) may be insecure. Use single quotes to prevent leaking secrets via Groovy interpolation. Affected variable(s): "  + scanResults.toString());
                 FlowExecutionOwner owner = exec.getOwner();
                 if (owner != null && owner.getExecutable() instanceof Run) {
                     InterpolatedSecretsAction runReport = ((Run) owner.getExecutable()).getAction(InterpolatedSecretsAction.class);
@@ -405,7 +407,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         // The only time a closure is valid is when the resulting Describable is immediately executed via a meta-step
         NamedArgsAndClosure args = parseArgs(_args, metaStep!=null && metaStep.takesImplicitBlockArgument(),
                 UninstantiatedDescribable.ANONYMOUS_KEY, singleArgumentOnly, interpolatedStrings);
-        UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
 
         if (metaStep==null) {
             // there's no meta-step associated with it, so this symbol is not executable.
@@ -417,8 +418,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // also note that in this case 'd' is not trustworthy, as depending on
             // where this UninstantiatedDescribable is ultimately used, the symbol
             // might be resolved with a specific type.
-            return ud;
+            return new InterpolatedUninstantiatedDescribable(symbol, null, args.namedArgs, interpolatedStrings);
         } else {
+            UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
             Descriptor d = SymbolLookup.get().findDescriptor((Class)(metaStep.getMetaStepArgumentType()), symbol);
             try {
                 // execute this Describable through a meta-step
@@ -518,11 +520,17 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 this.namedArgs.put(k, v);
             }
         }
-
-        private Set<String> getInterpolatedStrings() {
-            return Collections.unmodifiableSet(interpolatedStrings);
-        }
     }
+
+//    static class InterpolatedUninstantiatedDescribable {
+//        final UninstantiatedDescribable ud;
+//        final Set<String> interpolatedStrings;
+//
+//        private InterpolatedUninstantiatedDescribable(UninstantiatedDescribable ud, Set<String> interpolatedStrings) {
+//            this.ud = ud;
+//            this.interpolatedStrings = interpolatedStrings;
+//        }
+//    }
 
     /**
      * Coerce {@link GString}, to save {@link StepDescriptor#newInstance(Map)} from being made aware of that.
