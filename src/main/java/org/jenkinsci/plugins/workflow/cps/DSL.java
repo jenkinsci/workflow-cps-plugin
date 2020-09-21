@@ -353,27 +353,31 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     }
 
     private void logInterpolationWarnings(Set<String> interpolatedStrings, CpsStepContext context, TaskListener listener) throws IOException, InterruptedException {
-        if (!interpolatedStrings.isEmpty()) {
-            EnvVars contextEnvVars = context.get(EnvVars.class);
-            EnvironmentExpander contextExpander = context.get(EnvironmentExpander.class);
+        if (interpolatedStrings.isEmpty()) {
+            return;
+        }
+        EnvVars contextEnvVars = context.get(EnvVars.class);
+        EnvironmentExpander contextExpander = context.get(EnvironmentExpander.class);
+        if (contextEnvVars == null || contextExpander == null) {
+            return;
+        }
 
-            List<String> scanResults = contextExpander.getSensitiveVariables().stream()
-                    .filter(e -> interpolatedStrings.stream().anyMatch(g -> g.contains(contextEnvVars.get(e))))
-                    .collect(Collectors.toList());
+        List<String> scanResults = contextExpander.getSensitiveVariables().stream()
+                .filter(e -> interpolatedStrings.stream().anyMatch(g -> g.contains(contextEnvVars.get(e))))
+                .collect(Collectors.toList());
 
-            if (scanResults != null && !scanResults.isEmpty()) {
-                listener.getLogger().println("The following Groovy string(s) may be insecure. Use single quotes to prevent leaking secrets via Groovy interpolation. Affected variable(s): "  + scanResults.toString());
-                FlowExecutionOwner owner = exec.getOwner();
-                if (owner != null && owner.getExecutable() instanceof Run) {
-                    InterpolatedSecretsAction runReport = ((Run) owner.getExecutable()).getAction(InterpolatedSecretsAction.class);
-                    if (runReport == null) {
-                        runReport = new InterpolatedSecretsAction();
-                        ((Run) owner.getExecutable()).addAction(runReport);
-                    }
-                    runReport.record(scanResults);
-                } else {
-                    LOGGER.log(Level.FINE, "Unable to generate Interpolated Secrets Report");
+        if (scanResults != null && !scanResults.isEmpty()) {
+            listener.getLogger().println("The following Groovy string(s) may be insecure. Use single quotes to prevent leaking secrets via Groovy interpolation. Affected variable(s): "  + scanResults.toString());
+            FlowExecutionOwner owner = exec.getOwner();
+            if (owner != null && owner.getExecutable() instanceof Run) {
+                InterpolatedSecretsAction runReport = ((Run) owner.getExecutable()).getAction(InterpolatedSecretsAction.class);
+                if (runReport == null) {
+                    runReport = new InterpolatedSecretsAction();
+                    ((Run) owner.getExecutable()).addAction(runReport);
                 }
+                runReport.record(scanResults);
+            } else {
+                LOGGER.log(Level.FINE, "Unable to generate Interpolated Secrets Report");
             }
         }
     }
