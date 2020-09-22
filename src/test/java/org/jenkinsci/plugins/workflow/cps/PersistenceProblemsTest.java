@@ -16,7 +16,6 @@ import org.jenkinsci.plugins.workflow.support.steps.input.InputAction;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStepExecution;
 import org.junit.Assert;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
@@ -244,7 +243,6 @@ public class PersistenceProblemsTest {
     }
 
     @Test
-    @Ignore
     public void inProgressMaxPerfCleanShutdown() throws Exception {
         final int[] build = new int[1];
         story.then( j -> {
@@ -264,7 +262,6 @@ public class PersistenceProblemsTest {
     }
 
     @Test
-    @Ignore
     public void inProgressMaxPerfDirtyShutdown() throws Exception {
         final int[] build = new int[1];
         final String[] finalNodeId = new String[1];

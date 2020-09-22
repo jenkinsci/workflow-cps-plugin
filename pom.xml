@@ -62,7 +62,7 @@
         </pluginRepository>
     </pluginRepositories>
     <properties>
-        <revision>2.83</revision>
+        <revision>2.84</revision>
         <changelist>-SNAPSHOT</changelist>
         <jenkins.version>2.176.4</jenkins.version>
         <java.level>8</java.level>
