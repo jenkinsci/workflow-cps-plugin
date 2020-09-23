@@ -46,15 +46,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 
 /**
@@ -67,24 +64,27 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     @CheckForNull
     private Map<String,Object> arguments;
 
+    private Set<String> sensitiveVariables;
 
     boolean isUnmodifiedBySanitization = true;
 
     private static final Logger LOGGER = Logger.getLogger(ArgumentsActionImpl.class.getName());
 
-    public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars env, @CheckForNull Set<String> sensitiveVariables) {
-        arguments = serializationCheck(sanitizeMapAndRecordMutation(stepArguments, env, sensitiveVariables));
+    public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars env, @Nonnull Set<String> sensitiveVariables) {
+        this.sensitiveVariables = sensitiveVariables;
+        arguments = serializationCheck(sanitizeMapAndRecordMutation(stepArguments, env));
     }
 
     /** Create a step, sanitizing strings for secured content */
     public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments) {
-        this(stepArguments, new EnvVars(), null);
+        this(stepArguments, new EnvVars(), Collections.emptySet());
     }
 
     /** For testing use only */
-    ArgumentsActionImpl(){
+    ArgumentsActionImpl(@Nonnull Set<String> sensitiveVariables){
         this.isUnmodifiedBySanitization = false;
         this.arguments = Collections.emptyMap();
+        this.sensitiveVariables = sensitiveVariables;
     }
 
     /** See if sensitive environment variable content is in a string */
@@ -128,7 +128,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
      * Sanitize a list recursively
      */
     @CheckForNull
-    Object sanitizeListAndRecordMutation(@Nonnull List objects, @CheckForNull EnvVars variables, @CheckForNull Set<String> sensitiveVariables) {
+    Object sanitizeListAndRecordMutation(@Nonnull List objects, @CheckForNull EnvVars variables) {
         // Package scoped so we can test it directly
 
         if (isOversized(objects)) {
@@ -139,7 +139,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         boolean isMutated = false;
         List output = new ArrayList(objects.size());
         for (Object o : objects) {
-            Object modded = sanitizeObjectAndRecordMutation(o, variables, sensitiveVariables);
+            Object modded = sanitizeObjectAndRecordMutation(o, variables);
 
             if (modded != o) {
                 // Sanitization stripped out some values, so we need to store the mutated object
@@ -155,13 +155,13 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
     /** For object arrays, we sanitize recursively, as with Lists */
     @CheckForNull
-    Object sanitizeArrayAndRecordMutation(@Nonnull Object[] objects, @CheckForNull EnvVars variables, @CheckForNull Set<String> sensitiveVariables) {
+    Object sanitizeArrayAndRecordMutation(@Nonnull Object[] objects, @CheckForNull EnvVars variables) {
         if (isOversized(objects)) {
             this.isUnmodifiedBySanitization = false;
             return NotStoredReason.OVERSIZE_VALUE;
         }
         List inputList = Arrays.asList(objects);
-        Object sanitized = sanitizeListAndRecordMutation(inputList, variables, sensitiveVariables);
+        Object sanitized = sanitizeListAndRecordMutation(inputList, variables);
         if (sanitized == inputList) { // Works because if not mutated, we return original input instance
             return objects;
         } else if (sanitized instanceof List) {
@@ -180,7 +180,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
      */
     @CheckForNull
     @SuppressWarnings("unchecked")
-    Object sanitizeObjectAndRecordMutation(@CheckForNull Object o, @CheckForNull EnvVars vars, @CheckForNull Set<String> sensitiveVariables) {
+    Object sanitizeObjectAndRecordMutation(@CheckForNull Object o, @CheckForNull EnvVars vars) {
         // Package scoped so we can test it directly
         Object tempVal = o;
         DescribableModel m = null;
@@ -214,13 +214,13 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         Object modded = tempVal;
         if (modded instanceof Map) {
             // Recursive sanitization, oh my!
-            modded = sanitizeMapAndRecordMutation((Map)modded, vars, sensitiveVariables);
+            modded = sanitizeMapAndRecordMutation((Map)modded, vars);
         } else if (modded instanceof List) {
-            modded = sanitizeListAndRecordMutation((List) modded, vars, sensitiveVariables);
+            modded = sanitizeListAndRecordMutation((List) modded, vars);
         } else if (modded != null && modded.getClass().isArray()) {
             Class componentType = modded.getClass().getComponentType();
             if (!componentType.isPrimitive()) {  // Object arrays get recursively sanitized
-                modded = sanitizeArrayAndRecordMutation((Object[])modded, vars, sensitiveVariables);
+                modded = sanitizeArrayAndRecordMutation((Object[])modded, vars);
             } else {  // Primitive arrays aren't a valid type here
                 this.isUnmodifiedBySanitization = true;
                 return NotStoredReason.UNSERIALIZABLE;
@@ -280,16 +280,16 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     }
 
     /**
-     * Goes through {@link #sanitizeObjectAndRecordMutation(Object, EnvVars, Set)} for each value in a map input.
+     * Goes through {@link #sanitizeObjectAndRecordMutation(Object, EnvVars)} for each value in a map input.
      */
     @Nonnull
-    Map<String,Object> sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables, @CheckForNull Set<String> sensitiveVariables) {
+    Map<String,Object> sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables) {
         // Package scoped so we can test it directly
         HashMap<String, Object> output = Maps.newHashMapWithExpectedSize(mapContents.size());
 
         boolean isMutated = false;
         for (Map.Entry<String,?> param : mapContents.entrySet()) {
-            Object modded = sanitizeObjectAndRecordMutation(param.getValue(), variables, sensitiveVariables);
+            Object modded = sanitizeObjectAndRecordMutation(param.getValue(), variables);
 
             if (modded != param.getValue()) {
                 // Sanitization stripped out some values, so we need to store the mutated object

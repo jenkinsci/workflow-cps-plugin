@@ -91,6 +91,7 @@ import org.kohsuke.stapler.ClassDescriptor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
 
 import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -257,7 +258,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         final CpsStepContext context = new CpsStepContext(d, thread, handle, an, ps.body);
         EnvVars allEnv = null;
-        Set<String> sensitiveVariables = null;
+        Set<String> sensitiveVariables = Collections.emptySet();
         try {
             allEnv = context.get(EnvVars.class);
             EnvironmentExpander envExpander = context.get(EnvironmentExpander.class);
@@ -362,8 +363,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    private void logInterpolationWarnings(Set<String> interpolatedStrings, @CheckForNull EnvVars envVars, Set<String> sensitiveVariables, TaskListener listener) throws IOException, InterruptedException {
-        if (interpolatedStrings.isEmpty() || envVars == null || envVars.isEmpty() || sensitiveVariables == null || sensitiveVariables.isEmpty()) {
+    private void logInterpolationWarnings(Set<String> interpolatedStrings, @CheckForNull EnvVars envVars, @Nonnull Set<String> sensitiveVariables, TaskListener listener) throws IOException, InterruptedException {
+        if (interpolatedStrings.isEmpty() || envVars == null || envVars.isEmpty() || sensitiveVariables.isEmpty()) {
             return;
         }
 
@@ -530,16 +531,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             }
         }
     }
-
-//    static class InterpolatedUninstantiatedDescribable {
-//        final UninstantiatedDescribable ud;
-//        final Set<String> interpolatedStrings;
-//
-//        private InterpolatedUninstantiatedDescribable(UninstantiatedDescribable ud, Set<String> interpolatedStrings) {
-//            this.ud = ud;
-//            this.interpolatedStrings = interpolatedStrings;
-//        }
-//    }
 
     /**
      * Coerce {@link GString}, to save {@link StepDescriptor#newInstance(Map)} from being made aware of that.
