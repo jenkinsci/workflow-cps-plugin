@@ -128,7 +128,7 @@ public class SnippetizerTester {
             @Override
             protected Object invokeStep(StepDescriptor d, String name, Object args) {
                 try {
-                    return d.newInstance(parseArgs(args, d, null).namedArgs);
+                    return d.newInstance(parseArgs(args, d).namedArgs);
                 } catch (Exception e) {
                     throw new AssertionError(e);
                 }

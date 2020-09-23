@@ -223,20 +223,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * @param args The arguments passed to the step.
      */
     protected Object invokeStep(StepDescriptor d, String name, Object args) {
-        Set<String> interpolatedStrings = null;
-        if (args instanceof NamedArgsAndClosure) {
-            interpolatedStrings = ((NamedArgsAndClosure) args).interpolatedStrings;
-        } else if (args instanceof Object[]) {
-            Object[] array = (Object[]) args;
-            if (array.length > 0 && array[array.length - 1] instanceof InterpolatedUninstantiatedDescribable) {
-                interpolatedStrings = ((InterpolatedUninstantiatedDescribable) array[array.length - 1]).getInterpolatedStrings();
-            }
-        }
-        if (interpolatedStrings == null) {
-            interpolatedStrings = new HashSet<>();
-        }
-
-        final NamedArgsAndClosure ps = parseArgs(args, d, interpolatedStrings);
+        final NamedArgsAndClosure ps = parseArgs(args, d);
 
         CpsThread thread = CpsThread.current();
 
@@ -292,7 +279,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         ClassLoader originalLoader = Thread.currentThread().getContextClassLoader();
         try {
             TaskListener listener = context.get(TaskListener.class);
-            logInterpolationWarnings(interpolatedStrings, allEnv, sensitiveVariables, listener);
+            logInterpolationWarnings(ps.interpolatedStrings, allEnv, sensitiveVariables, listener);
             if (unreportedAmbiguousFunctions.remove(name)) {
                 reportAmbiguousStepInvocation(context, d, listener);
             }
@@ -518,7 +505,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         final List<String> msgs;
         final Set<String> interpolatedStrings;
 
-        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, Set<String> interpolatedStrings) {
+        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @Nonnull Set<String> interpolatedStrings) {
             this.namedArgs = new LinkedHashMap<>(preallocatedHashmapCapacity(namedArgs.size()));
             this.body = body;
             this.msgs = new ArrayList<>();
@@ -542,12 +529,10 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * but better to do it here in the Groovy-specific code so we do not need to rely on that.
      * @return {@code v} or an equivalent with all {@link GString}s flattened, including in nested {@link List}s or {@link Map}s
      */
-    private static Object flattenGString(Object v, @CheckForNull Set<String> interpolatedStrings) {
+    private static Object flattenGString(Object v, @Nonnull Set<String> interpolatedStrings) {
         if (v instanceof GString) {
             String flattened = v.toString();
-            if (interpolatedStrings != null) {
-                interpolatedStrings.add(flattened);
-            }
+            interpolatedStrings.add(flattened);
             return flattened;
         } else if (v instanceof List) {
             boolean mutated = false;
@@ -575,7 +560,22 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    static NamedArgsAndClosure parseArgs(Object arg, StepDescriptor d, Set<String> interpolatedStrings) {
+    static NamedArgsAndClosure parseArgs(Object arg, StepDescriptor d) {
+        Set<String> interpolatedStrings = new HashSet<>();
+        if (arg instanceof NamedArgsAndClosure) {
+            interpolatedStrings = ((NamedArgsAndClosure) arg).interpolatedStrings;
+        } else if (arg instanceof Object[]) {
+            Object[] array = (Object[]) arg;
+            for (Object o : array) {
+                if (o instanceof InterpolatedUninstantiatedDescribable) {
+                    interpolatedStrings.addAll(((InterpolatedUninstantiatedDescribable) o).getInterpolatedStrings());
+                }
+            }
+            if (array.length > 0 && array[array.length - 1] instanceof InterpolatedUninstantiatedDescribable) {
+                interpolatedStrings = ((InterpolatedUninstantiatedDescribable) array[array.length - 1]).getInterpolatedStrings();
+            }
+        }
+
         boolean singleArgumentOnly = false;
         try {
             DescribableModel<?> stepModel = DescribableModel.of(d.clazz);
@@ -616,7 +616,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 //     * @param envVars
      *      The environment variables of the context
      */
-    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, Set<String> interpolatedStrings) {
+    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, @Nonnull Set<String> interpolatedStrings) {
         if (arg instanceof NamedArgsAndClosure)
             return (NamedArgsAndClosure) arg;
         if (arg instanceof Map) // TODO is this clause actually used?

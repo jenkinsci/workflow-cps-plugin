@@ -477,12 +477,6 @@ public class DSLTest {
         Set<String> reportResults = reportAction.getResults();
         MatcherAssert.assertThat(reportResults.size(), is(1));
         MatcherAssert.assertThat(reportResults.iterator().next(), is("PASSWORD"));
-        // TODO: Code below currently fails
-//        LinearScanner scan = new LinearScanner();
-//        FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("archiveArtifacts"));
-//        ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
-//        Assert.assertFalse(argAction.isUnmodifiedArguments());
-//        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), instanceOf(ArgumentsAction.NotStoredReason.class));
     }
 
     @Test public void describableNoMetaStep() throws Exception {
@@ -498,13 +492,6 @@ public class DSLTest {
                 + "}\n"
                 + "}", true));
         r.assertLogContains("First arg: ****, second arg: two", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
-        // TODO: Code below currently fails
-//        WorkflowRun run = p.getLastBuild();
-//        LinearScanner scanner = new LinearScanner();
-//        FlowNode node = scanner.findFirstMatch(run.getExecution().getCurrentHeads(), new NodeStepTypePredicate("monomorphStep"));
-//        ArgumentsAction argumentsAction = node.getPersistentAction(ArgumentsAction.class);
-//        Assert.assertNotNull(argumentsAction);
-//        Assert.assertEquals("one,two", ArgumentsAction.getStepArgumentsAsString(node));
     }
 
     @Test public void noBodyError() throws Exception {
