@@ -255,18 +255,28 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             an = new StepStartNode(exec, d, thread.head.get());
         }
 
-        // Ensure ArgumentsAction is attached before we notify even synchronous listeners:
         final CpsStepContext context = new CpsStepContext(d, thread, handle, an, ps.body);
+        EnvVars allEnv = null;
+        Set<String> sensitiveVariables = null;
+        try {
+            allEnv = context.get(EnvVars.class);
+            EnvironmentExpander envExpander = context.get(EnvironmentExpander.class);
+            if (envExpander != null) {
+                sensitiveVariables = envExpander.getSensitiveVariables();
+            }
+        } catch (IOException | InterruptedException e) {
+            LOGGER.log(Level.WARNING, "Unable to retrieve environment variables", e);
+        }
+        // Ensure ArgumentsAction is attached before we notify even synchronous listeners:
         try {
             // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
             if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepArguments() && !(d instanceof ParallelStep.DescriptorImpl)) {
                 // Get the environment variables to find ones that might be credentials bindings
                 Computer comp = context.get(Computer.class);
-                EnvVars allEnv = new EnvVars(context.get(EnvVars.class));
                 if (comp != null && allEnv != null) {
                     allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
                 }
-                an.addAction(new ArgumentsActionImpl(ps.namedArgs, allEnv));
+                an.addAction(new ArgumentsActionImpl(ps.namedArgs, allEnv, sensitiveVariables));
             }
         } catch (Exception e) {
             // Avoid breaking execution because we can't store some sort of crazy Step argument
@@ -281,7 +291,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         ClassLoader originalLoader = Thread.currentThread().getContextClassLoader();
         try {
             TaskListener listener = context.get(TaskListener.class);
-            logInterpolationWarnings(interpolatedStrings, context, listener);
+            logInterpolationWarnings(interpolatedStrings, allEnv, sensitiveVariables, listener);
             if (unreportedAmbiguousFunctions.remove(name)) {
                 reportAmbiguousStepInvocation(context, d, listener);
             }
@@ -352,18 +362,13 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    private void logInterpolationWarnings(Set<String> interpolatedStrings, CpsStepContext context, TaskListener listener) throws IOException, InterruptedException {
-        if (interpolatedStrings.isEmpty()) {
-            return;
-        }
-        EnvVars contextEnvVars = context.get(EnvVars.class);
-        EnvironmentExpander contextExpander = context.get(EnvironmentExpander.class);
-        if (contextEnvVars == null || contextExpander == null) {
+    private void logInterpolationWarnings(Set<String> interpolatedStrings, @CheckForNull EnvVars envVars, Set<String> sensitiveVariables, TaskListener listener) throws IOException, InterruptedException {
+        if (interpolatedStrings.isEmpty() || envVars == null || envVars.isEmpty() || sensitiveVariables == null || sensitiveVariables.isEmpty()) {
             return;
         }
 
-        List<String> scanResults = contextExpander.getSensitiveVariables().stream()
-                .filter(e -> interpolatedStrings.stream().anyMatch(g -> g.contains(contextEnvVars.get(e))))
+        List<String> scanResults = sensitiveVariables.stream()
+                .filter(e -> interpolatedStrings.stream().anyMatch(g -> g.contains(envVars.get(e))))
                 .collect(Collectors.toList());
 
         if (scanResults != null && !scanResults.isEmpty()) {

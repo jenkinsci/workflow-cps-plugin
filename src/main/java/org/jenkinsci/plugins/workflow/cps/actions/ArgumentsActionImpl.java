@@ -54,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 
 /**
@@ -71,13 +72,13 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
     private static final Logger LOGGER = Logger.getLogger(ArgumentsActionImpl.class.getName());
 
-    public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars env) {
-        arguments = serializationCheck(sanitizeMapAndRecordMutation(stepArguments, env));
+    public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars env, @CheckForNull Set<String> sensitiveVariables) {
+        arguments = serializationCheck(sanitizeMapAndRecordMutation(stepArguments, env, sensitiveVariables));
     }
 
     /** Create a step, sanitizing strings for secured content */
     public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments) {
-        this(stepArguments, new EnvVars());
+        this(stepArguments, new EnvVars(), null);
     }
 
     /** For testing use only */
@@ -87,26 +88,11 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     }
 
     /** See if sensitive environment variable content is in a string */
-    public static boolean isStringSafe(@CheckForNull String input, @CheckForNull EnvVars variables, @Nonnull Set<String> safeEnvVariables) {
-        if (input == null || variables == null || variables.size() == 0) {
-            return true;
+    public static boolean isStringSensitive(@CheckForNull String input, @CheckForNull EnvVars variables, @CheckForNull Set<String> sensitiveVariables) {
+        if (input == null || variables == null || variables.size() == 0 || sensitiveVariables == null || sensitiveVariables.size() ==0) {
+            return false;
         }
-        StringBuilder pattern = new StringBuilder();
-        int count = 0;
-        for (Map.Entry<String,String> ent : variables.entrySet()) {
-            String val = ent.getValue();
-            if (val == null || val.isEmpty() || safeEnvVariables.contains(ent.getKey())) {  // Skip values that are safe
-                continue;
-            }
-            if (count > 0) {
-                pattern.append('|');
-            }
-            pattern.append(Pattern.quote(val));
-            count++;
-        }
-        return (count > 0)
-                ? !Pattern.compile(pattern.toString()).matcher(input).find()
-                : true;
+        return sensitiveVariables.stream().map(variables::get).anyMatch(input::contains);
     }
 
     /** Restrict stored arguments to a reasonable subset of types so we don't retain totally arbitrary objects
@@ -138,103 +124,11 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         return c.isPrimitive() || (c.isArray() && !(c.getComponentType().isPrimitive()));  // Primitive arrays are not legal here
     }
 
-    /** Normal environment variables, as opposed to ones that might come from credentials bindings */
-    private static final HashSet<String> SAFE_ENVIRONMENT_VARIABLES = new HashSet<>(Arrays.asList(
-            // Pipeline/Jenkins variables in normal builds
-            "BRANCH_NAME",
-            "BUILD_DISPLAY_NAME",
-            "BUILD_ID",
-            "BUILD_NUMBER",
-            "BUILD_TAG",
-            "BUILD_URL",
-            "CHANGE_AUTHOR",
-            "CHANGE_AUTHOR_DISPLAY_NAME",
-            "CHANGE_AUTHOR_EMAIL",
-            "CHANGE_ID",
-            "CHANGE_TARGET",
-            "CHANGE_TITLE",
-            "CHANGE_URL",
-            "EXECUTOR_NUMBER",
-            "HUDSON_COOKIE",
-            "HUDSON_HOME",
-            "HUDSON_SERVER_COOKIE",
-            "HUDSON_URL",
-            "JENKINS_HOME",
-            "JENKINS_SERVER_COOKIE",
-            "JENKINS_URL",
-            "JOB_BASE_NAME",
-            "JOB_NAME",
-            "JOB_URL",
-            "NODE_LABELS",
-            "NODE_NAME",
-            "STAGE_NAME",
-            "WORKSPACE",
-
-            // Normal system variables for posix environments
-            "HOME",
-            "LANG",
-            "LOGNAME",
-            "MAIL",
-            "NLSPATH",
-            "PATH",
-            "PWD",
-            "SHELL",
-            "SHLVL",
-            "TERM",
-            "USER",
-            "XFILESEARCHPATH",
-
-            // Windows system variables
-            "ALLUSERSPROFILE",
-            "APPDATA",
-            "CD",
-            "ClientName",
-            "CMDEXTVERSION",
-            "CMDCMDLINE",
-            "CommonProgramFiles",
-            "COMPUTERNAME",
-            "COMSPEC",
-            "DATE",
-            "ERRORLEVEL",
-            "HighestNumaNodeNumber",
-            "HOMEDRIVE",
-            "HOMEPATH",
-            "LOCALAPPDATA",
-            "LOGONSERVER",
-            "NUMBER_OF_PROCESSORS",
-            "OS",
-            "PATHEXT",
-            "PROCESSOR_ARCHITECTURE",
-            "PROCESSOR_ARCHITEW6432",
-            "PROCESSOR_IDENTIFIER",
-            "PROCESSOR_LEVEL",
-            "PROCESSOR_REVISION",
-            "ProgramW6432",
-            "ProgramData",
-            "ProgramFiles",
-            "ProgramFiles (x86)",
-            "PROMPT",
-            "PSModulePath",
-            "Public",
-            "RANDOM",
-            "%SessionName%",
-            "SYSTEMDRIVE",
-            "SYSTEMROOT",
-            "TEMP", "TMP",
-            "TIME",
-            "UserDnsDomain",
-            "USERDOMAIN",
-            "USERDOMAIN_roamingprofile",
-//            "USERNAME",  // Not whitelisted because this is a likely variable name for credentials binding
-            "USERPROFILE",
-            "WINDIR"
-    ));
-
     /**
      * Sanitize a list recursively
      */
     @CheckForNull
-    Object sanitizeListAndRecordMutation(@Nonnull List objects, @CheckForNull EnvVars variables) {
+    Object sanitizeListAndRecordMutation(@Nonnull List objects, @CheckForNull EnvVars variables, @CheckForNull Set<String> sensitiveVariables) {
         // Package scoped so we can test it directly
 
         if (isOversized(objects)) {
@@ -245,7 +139,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         boolean isMutated = false;
         List output = new ArrayList(objects.size());
         for (Object o : objects) {
-            Object modded = sanitizeObjectAndRecordMutation(o, variables);
+            Object modded = sanitizeObjectAndRecordMutation(o, variables, sensitiveVariables);
 
             if (modded != o) {
                 // Sanitization stripped out some values, so we need to store the mutated object
@@ -261,13 +155,13 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
     /** For object arrays, we sanitize recursively, as with Lists */
     @CheckForNull
-    Object sanitizeArrayAndRecordMutation(@Nonnull Object[] objects, @CheckForNull EnvVars variables) {
+    Object sanitizeArrayAndRecordMutation(@Nonnull Object[] objects, @CheckForNull EnvVars variables, @CheckForNull Set<String> sensitiveVariables) {
         if (isOversized(objects)) {
             this.isUnmodifiedBySanitization = false;
             return NotStoredReason.OVERSIZE_VALUE;
         }
         List inputList = Arrays.asList(objects);
-        Object sanitized = sanitizeListAndRecordMutation(inputList, variables);
+        Object sanitized = sanitizeListAndRecordMutation(inputList, variables, sensitiveVariables);
         if (sanitized == inputList) { // Works because if not mutated, we return original input instance
             return objects;
         } else if (sanitized instanceof List) {
@@ -279,14 +173,14 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
     /** Recursively sanitize a single object by:
      *   - Exploding {@link Step}s and {@link UninstantiatedDescribable}s into their Maps to sanitize
-     *   - Removing unsafe strings using {@link #isStringSafe(String, EnvVars, Set)} and replace with {@link NotStoredReason#MASKED_VALUE}
+     *   - Removing unsafe strings using {@link #isStringSensitive(String, EnvVars, Set)} and replace with {@link NotStoredReason#MASKED_VALUE}
      *   - Removing oversized objects using {@link #isOversized(Object)} and replacing with {@link NotStoredReason#OVERSIZE_VALUE}
      *  While making an effort not to retain needless copies of objects and to re-use originals where possible
      *   (including the Step or UninstantiatedDescribable)
      */
     @CheckForNull
     @SuppressWarnings("unchecked")
-    Object sanitizeObjectAndRecordMutation(@CheckForNull Object o, @CheckForNull EnvVars vars) {
+    Object sanitizeObjectAndRecordMutation(@CheckForNull Object o, @CheckForNull EnvVars vars, @CheckForNull Set<String> sensitiveVariables) {
         // Package scoped so we can test it directly
         Object tempVal = o;
         DescribableModel m = null;
@@ -320,18 +214,18 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         Object modded = tempVal;
         if (modded instanceof Map) {
             // Recursive sanitization, oh my!
-            modded = sanitizeMapAndRecordMutation((Map)modded, vars);
+            modded = sanitizeMapAndRecordMutation((Map)modded, vars, sensitiveVariables);
         } else if (modded instanceof List) {
-            modded = sanitizeListAndRecordMutation((List) modded, vars);
+            modded = sanitizeListAndRecordMutation((List) modded, vars, sensitiveVariables);
         } else if (modded != null && modded.getClass().isArray()) {
             Class componentType = modded.getClass().getComponentType();
             if (!componentType.isPrimitive()) {  // Object arrays get recursively sanitized
-                modded = sanitizeArrayAndRecordMutation((Object[])modded, vars);
+                modded = sanitizeArrayAndRecordMutation((Object[])modded, vars, sensitiveVariables);
             } else {  // Primitive arrays aren't a valid type here
                 this.isUnmodifiedBySanitization = true;
                 return NotStoredReason.UNSERIALIZABLE;
             }
-        } else if (modded instanceof String && vars != null && !vars.isEmpty() && !isStringSafe((String)modded, vars, SAFE_ENVIRONMENT_VARIABLES)) {
+        } else if (modded instanceof String && vars != null && !vars.isEmpty() && isStringSensitive((String)modded, vars, sensitiveVariables)) {
             this.isUnmodifiedBySanitization = false;
             return NotStoredReason.MASKED_VALUE;
         }
@@ -386,16 +280,16 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     }
 
     /**
-     * Goes through {@link #sanitizeObjectAndRecordMutation(Object, EnvVars)} for each value in a map input.
+     * Goes through {@link #sanitizeObjectAndRecordMutation(Object, EnvVars, Set)} for each value in a map input.
      */
     @Nonnull
-    Map<String,Object> sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables) {
+    Map<String,Object> sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables, @CheckForNull Set<String> sensitiveVariables) {
         // Package scoped so we can test it directly
         HashMap<String, Object> output = Maps.newHashMapWithExpectedSize(mapContents.size());
 
         boolean isMutated = false;
         for (Map.Entry<String,?> param : mapContents.entrySet()) {
-            Object modded = sanitizeObjectAndRecordMutation(param.getValue(), variables);
+            Object modded = sanitizeObjectAndRecordMutation(param.getValue(), variables, sensitiveVariables);
 
             if (modded != param.getValue()) {
                 // Sanitization stripped out some values, so we need to store the mutated object
