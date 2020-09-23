@@ -571,9 +571,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                     interpolatedStrings.addAll(((InterpolatedUninstantiatedDescribable) o).getInterpolatedStrings());
                 }
             }
-            if (array.length > 0 && array[array.length - 1] instanceof InterpolatedUninstantiatedDescribable) {
-                interpolatedStrings = ((InterpolatedUninstantiatedDescribable) array[array.length - 1]).getInterpolatedStrings();
-            }
         }
 
         boolean singleArgumentOnly = false;
