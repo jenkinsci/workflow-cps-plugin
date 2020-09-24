@@ -771,6 +771,19 @@ public class CpsFlowDefinition2Test {
         jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b4);
     }
 
+    @Issue("SECURITY-1658")
+    @Test public void blockInitialExpressionsInClosureExpressions() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        // Initial expressions are dropped in CPS-transformed closures.
+        p.setDefinition(new CpsFlowDefinition("({ param = 'test' -> echo(/param is $param/) })()", true));
+        WorkflowRun b1 = jenkins.buildAndAssertSuccess(p);
+        jenkins.assertLogContains("param is null", b1);
+        // Using @NonCPS
+        p.setDefinition(new CpsFlowDefinition("def @NonCPS method() { ({ j = Jenkins.getInstance() -> true })() }; method()", true));
+        WorkflowRun b2 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b2);
+    }
+
     @Issue("SECURITY-1710")
     @Test public void blockInitialExpressionsForParamsInCpsTransformedMethods() throws Exception {
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
