@@ -436,15 +436,15 @@ public class DSLTest {
         final String password = "secr3t";
         UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
         CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
-        String shellStep = Functions.isWindows()? "bat \"echo $PASSWORD\"\n" : "sh \"echo $PASSWORD\"\n";
+        String shellStep = Functions.isWindows()? "bat" : "sh";
         p.setDefinition(new CpsFlowDefinition(""
                 + "node {\n"
                 + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
-                + shellStep
+                + shellStep + " \"echo $PASSWORD\"\n"
                 + "}\n"
                 + "}", true));
         WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-        r.assertLogContains("Warning: A secret was passed to \"sh\" using Groovy String interpolation, which is insecure. Affected argument(s) used the following variable(s): [PASSWORD]", run);
+        r.assertLogContains("Warning: A secret was passed to \""+ shellStep + "\" using Groovy String interpolation, which is insecure. Affected argument(s) used the following variable(s): [PASSWORD]", run);
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
         Set<String> reportResults = reportAction.getResults();
