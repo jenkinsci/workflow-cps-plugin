@@ -404,6 +404,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         // The only time a closure is valid is when the resulting Describable is immediately executed via a meta-step
         NamedArgsAndClosure args = parseArgs(_args, metaStep!=null && metaStep.takesImplicitBlockArgument(),
                 UninstantiatedDescribable.ANONYMOUS_KEY, singleArgumentOnly, interpolatedStrings);
+        UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
 
         if (metaStep==null) {
             // there's no meta-step associated with it, so this symbol is not executable.
@@ -415,13 +416,12 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // also note that in this case 'd' is not trustworthy, as depending on
             // where this UninstantiatedDescribable is ultimately used, the symbol
             // might be resolved with a specific type.
-            return new InterpolatedUninstantiatedDescribable(symbol, null, args.namedArgs, interpolatedStrings);
+            args.uninstantiatedDescribable = ud;
+            return args;
         } else {
-            UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
             Descriptor d = SymbolLookup.get().findDescriptor((Class)(metaStep.getMetaStepArgumentType()), symbol);
             try {
                 // execute this Describable through a meta-step
-
                 // split args between MetaStep (represented by mm) and Describable (represented by dm)
                 DescribableModel<?> mm = DescribableModel.of(metaStep.clazz);
                 DescribableModel<?> dm = DescribableModel.of(d.clazz);
@@ -504,6 +504,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         final Closure body;
         final List<String> msgs;
         final Set<String> interpolatedStrings;
+        UninstantiatedDescribable uninstantiatedDescribable = null;
 
         private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @Nonnull Set<String> interpolatedStrings) {
             this.namedArgs = new LinkedHashMap<>(preallocatedHashmapCapacity(namedArgs.size()));
@@ -545,8 +546,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             return mutated ? r : v;
         } else if (v instanceof Map) {
             boolean mutated = false;
-            Map<Object,Object> r = new LinkedHashMap<>(preallocatedHashmapCapacity(((Map) v).size()));
-            for (Map.Entry<?,?> e : ((Map<?, ?>) v).entrySet()) {
+            Map<Object, Object> r = new LinkedHashMap<>(preallocatedHashmapCapacity(((Map) v).size()));
+            for (Map.Entry<?, ?> e : ((Map<?, ?>) v).entrySet()) {
                 Object k = e.getKey();
                 Object k2 = flattenGString(k, interpolatedStrings);
                 Object o = e.getValue();
@@ -555,6 +556,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 r.put(k2, o2);
             }
             return mutated ? r : v;
+        } else if (v instanceof NamedArgsAndClosure) {
+            UninstantiatedDescribable ud = ((NamedArgsAndClosure) v).uninstantiatedDescribable;
+            return ud != null? ud : v;
         } else {
             return v;
         }
@@ -567,8 +571,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         } else if (arg instanceof Object[]) {
             Object[] array = (Object[]) arg;
             for (Object o : array) {
-                if (o instanceof InterpolatedUninstantiatedDescribable) {
-                    interpolatedStrings.addAll(((InterpolatedUninstantiatedDescribable) o).getInterpolatedStrings());
+                if (o instanceof NamedArgsAndClosure) {
+                    interpolatedStrings.addAll(((NamedArgsAndClosure) o).interpolatedStrings);
                 }
             }
         }
