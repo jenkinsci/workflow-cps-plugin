@@ -279,7 +279,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         ClassLoader originalLoader = Thread.currentThread().getContextClassLoader();
         try {
             TaskListener listener = context.get(TaskListener.class);
-            logInterpolationWarnings(ps.interpolatedStrings, allEnv, sensitiveVariables, listener);
+            logInterpolationWarnings(name, ps.interpolatedStrings, allEnv, sensitiveVariables, listener);
             if (unreportedAmbiguousFunctions.remove(name)) {
                 reportAmbiguousStepInvocation(context, d, listener);
             }
@@ -350,7 +350,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    private void logInterpolationWarnings(Set<String> interpolatedStrings, @CheckForNull EnvVars envVars, @Nonnull Set<String> sensitiveVariables, TaskListener listener) throws IOException, InterruptedException {
+    private void logInterpolationWarnings(String stepName, Set<String> interpolatedStrings, @CheckForNull EnvVars envVars, @Nonnull Set<String> sensitiveVariables, TaskListener listener) throws IOException, InterruptedException {
         if (interpolatedStrings.isEmpty() || envVars == null || envVars.isEmpty() || sensitiveVariables.isEmpty()) {
             return;
         }
@@ -360,7 +360,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 .collect(Collectors.toList());
 
         if (scanResults != null && !scanResults.isEmpty()) {
-            listener.getLogger().println("The following Groovy string(s) may be insecure. Use single quotes to prevent leaking secrets via Groovy interpolation. Affected variable(s): "  + scanResults.toString());
+            String warning = String.format("Warning: A secret was passed to \"%s\" using Groovy String interpolation, which is insecure. Affected argument(s) used the following variable(s): %s%nSee <LINK> for details.",
+                    stepName, scanResults.toString());
+            listener.getLogger().println(warning);
             FlowExecutionOwner owner = exec.getOwner();
             if (owner != null && owner.getExecutable() instanceof Run) {
                 InterpolatedSecretsAction runReport = ((Run) owner.getExecutable()).getAction(InterpolatedSecretsAction.class);

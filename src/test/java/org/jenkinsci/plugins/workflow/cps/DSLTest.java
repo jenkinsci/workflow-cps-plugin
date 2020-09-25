@@ -430,7 +430,6 @@ public class DSLTest {
                 "'org.jenkinsci.plugins.workflow.steps.SleepStep': comment,units", b);
     }
 
-    //TODO: JENKINS-47101, remove safe list check and change $PASSWORD variable to an old safe list variable
     @Test public void sensitiveVarsLogging() throws Exception {
         final String credentialsId = "creds";
         final String username = "bob";
@@ -445,7 +444,7 @@ public class DSLTest {
                 + "}\n"
                 + "}", true));
         WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-        r.assertLogContains("Affected variable(s): [PASSWORD]", run);
+        r.assertLogContains("Warning: A secret was passed to \"sh\" using Groovy String interpolation, which is insecure. Affected argument(s) used the following variable(s): [PASSWORD]", run);
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
         Set<String> reportResults = reportAction.getResults();
@@ -471,7 +470,7 @@ public class DSLTest {
                 + "}\n"
                 + "}", true));
         WorkflowRun run = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
-        r.assertLogContains("Affected variable(s): [PASSWORD]", run);
+        r.assertLogContains("Warning: A secret was passed to \"archiveArtifacts\" using Groovy String interpolation, which is insecure. Affected argument(s) used the following variable(s): [PASSWORD]", run);
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
         Set<String> reportResults = reportAction.getResults();
