@@ -486,7 +486,39 @@ public class DSLTest {
         MatcherAssert.assertThat(warning.get(0), is("archiveArtifacts"));
         Map args = (Map)warning.get(1);
         MatcherAssert.assertThat(args.size(), is(1));
-        MatcherAssert.assertThat(args.get("anonymous"), is(Arrays.asList("PASSWORD")));
+        MatcherAssert.assertThat(args.get("<anonymous>"), is(Arrays.asList("PASSWORD")));
+    }
+
+    @Test public void multipleSensitiveVariables() throws Exception {
+        final String credentialsId = "creds";
+        final String username = "bob";
+        final String password = "secr3t";
+        UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
+        CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
+        String shellStep = Functions.isWindows()? "bat" : "sh";
+        p.setDefinition(new CpsFlowDefinition(""
+                + "node {\n"
+                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
+                + shellStep + " \"echo $PASSWORD $USERNAME $PASSWORD\"\n"
+                + "}\n"
+                + "}", true));
+        WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("Warning: A secret was passed to \""+ shellStep + "\"", run);
+        r.assertLogContains("Affected argument(s) used the following variable(s): {script=[PASSWORD, USERNAME]}", run);
+        InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
+        Assert.assertNotNull(reportAction);
+        List<List<Object>> reportResults = reportAction.getWarnings();
+        MatcherAssert.assertThat(reportResults.size(), is(1));
+        List<Object> warning = reportResults.get(0);
+        MatcherAssert.assertThat(warning.get(0), is("sh"));
+        Map args = (Map)warning.get(1);
+        MatcherAssert.assertThat(args.size(), is(1));
+        MatcherAssert.assertThat(args.get("script"), is(Arrays.asList("PASSWORD", "USERNAME")));
+        LinearScanner scan = new LinearScanner();
+        FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(Functions.isWindows()? "bat" : "sh"));
+        ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
+        Assert.assertFalse(argAction.isUnmodifiedArguments());
+        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), instanceOf(ArgumentsAction.NotStoredReason.class));
     }
 
     @Test public void describableNoMetaStep() throws Exception {

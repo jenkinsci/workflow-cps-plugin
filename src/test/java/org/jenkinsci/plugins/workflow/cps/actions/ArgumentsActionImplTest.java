@@ -159,9 +159,9 @@ public class ArgumentsActionImplTest {
         passwordBinding.put("mypass", "p4ssw0rd");
         Set<String> sensitiveVariables = new HashSet<>();
         sensitiveVariables.add("mypass");
-        Assert.assertNull("Input with no variables is safe", ArgumentsActionImpl.getAffectedVariable(input, new EnvVars(), sensitiveVariables));
-        MatcherAssert.assertThat("Input containing bound value is unsafe", "mypass".equals(ArgumentsActionImpl.getAffectedVariable(input, new EnvVars(passwordBinding), sensitiveVariables)));
-        Assert.assertNull("EnvVars that do not occur are safe", ArgumentsActionImpl.getAffectedVariable("I have no passwords", new EnvVars(passwordBinding), sensitiveVariables));
+        MatcherAssert.assertThat("Input with no variables is safe", ArgumentsActionImpl.getAffectedVariables(input, new EnvVars(), sensitiveVariables).isEmpty());
+        MatcherAssert.assertThat("Input containing bound value is unsafe", Arrays.asList("mypass").equals(ArgumentsActionImpl.getAffectedVariables(input, new EnvVars(passwordBinding), sensitiveVariables)));
+        MatcherAssert.assertThat("EnvVars that do not occur are safe", ArgumentsActionImpl.getAffectedVariables("I have no passwords", new EnvVars(passwordBinding), sensitiveVariables).isEmpty());
     }
 
     @Test

@@ -48,12 +48,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
+import java.util.stream.Collectors;
 
 /**
  * Implements {@link ArgumentsAction} by storing step arguments, with sanitization.
@@ -92,18 +91,15 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     }
 
     /** See if sensitive environment variable content is in a string and return the variable or null, if there is none*/
-    public static String getAffectedVariable(@CheckForNull String input, @CheckForNull EnvVars variables, @CheckForNull Set<String> sensitiveVariables) {
+    @Nonnull
+    public static List<String> getAffectedVariables(@CheckForNull String input, @CheckForNull EnvVars variables, @CheckForNull Set<String> sensitiveVariables) {
         if (input == null || variables == null || variables.size() == 0 || sensitiveVariables == null || sensitiveVariables.size() ==0) {
-            return null;
+            return Collections.emptyList();
         }
 
-        try {
-            return sensitiveVariables.stream()
-                    .filter(e -> input.contains(variables.get(e)))
-                    .findFirst().get();
-        } catch (NoSuchElementException e) {
-            return null;
-        }
+        return sensitiveVariables.stream()
+                .filter(e -> input.contains(variables.get(e)))
+                .collect(Collectors.toList());
     }
 
     /** Restrict stored arguments to a reasonable subset of types so we don't retain totally arbitrary objects
@@ -184,7 +180,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
     /** Recursively sanitize a single object by:
      *   - Exploding {@link Step}s and {@link UninstantiatedDescribable}s into their Maps to sanitize
-     *   - Removing unsafe strings using {@link #getAffectedVariable(String, EnvVars, Set)} (String, EnvVars, Set)} and replace with {@link NotStoredReason#MASKED_VALUE}
+     *   - Removing unsafe strings using {@link #getAffectedVariables(String, EnvVars, Set)} (String, EnvVars, Set)} and replace with {@link NotStoredReason#MASKED_VALUE}
      *   - Removing oversized objects using {@link #isOversized(Object)} and replacing with {@link NotStoredReason#OVERSIZE_VALUE}
      *  While making an effort not to retain needless copies of objects and to re-use originals where possible
      *   (including the Step or UninstantiatedDescribable)
@@ -237,9 +233,9 @@ public class ArgumentsActionImpl extends ArgumentsAction {
                 return NotStoredReason.UNSERIALIZABLE;
             }
         } else if (modded instanceof String && vars != null && !vars.isEmpty()) {
-            String affectedVariable = getAffectedVariable((String)modded, vars, sensitiveVariables);
-            if (affectedVariable != null) {
-                sanitizedArgumentVariables.add(affectedVariable);
+            List<String> affectedVariables = getAffectedVariables((String)modded, vars, sensitiveVariables);
+            if (affectedVariables != null && !affectedVariables.isEmpty()) {
+                sanitizedArgumentVariables.addAll(affectedVariables);
                 this.isUnmodifiedBySanitization = false;
                 return NotStoredReason.MASKED_VALUE;
             }

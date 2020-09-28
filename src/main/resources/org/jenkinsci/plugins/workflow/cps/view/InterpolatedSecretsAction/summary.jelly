@@ -20,7 +20,7 @@ THE SOFTWARE.
 -->
 
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:t="/lib/hudson">
+<j:jelly xmlns:j="jelly:core" xmlns:t="/lib/hudson" xmlns:st="jelly:stapler">
     <t:summary icon="warning.png">
         ${%Possible insecure use of sensitive variables}
         <!-- TODO: add page that explains this problem  -->
@@ -28,14 +28,16 @@ THE SOFTWARE.
         <j:if test="${it.inProgress}">
             (${%in progress})
         </j:if>
+        <j:if test="${it.warnings.size() > 0}">
         <ul>
             <j:forEach var="warning" items="${it.warnings}">
-                <li><code>${warning.get(0)}( </code>
+                <li><code>${warning.get(0)}(</code><st:nbsp/>
                     <j:forEach var="arguments" items="${warning.get(1).entrySet()}">
-                        <code>${arguments} </code>
+                        <code>${arguments}</code><st:nbsp/>
                     </j:forEach>
                     <code>)</code></li>
             </j:forEach>
         </ul>
+        </j:if>
     </t:summary>
 </j:jelly>
