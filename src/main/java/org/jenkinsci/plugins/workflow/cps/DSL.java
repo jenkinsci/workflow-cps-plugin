@@ -46,6 +46,7 @@ import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -256,6 +257,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             LOGGER.log(Level.WARNING, "Unable to retrieve environment variables", e);
         }
         // Ensure ArgumentsAction is attached before we notify even synchronous listeners:
+        ArgumentsActionImpl argumentsAction = null;
         try {
             // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
             if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepArguments() && !(d instanceof ParallelStep.DescriptorImpl)) {
@@ -264,7 +266,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 if (comp != null && allEnv != null) {
                     allEnv.entrySet().removeAll(comp.getEnvironment().entrySet());
                 }
-                an.addAction(new ArgumentsActionImpl(ps.namedArgs, allEnv, sensitiveVariables));
+                argumentsAction = new ArgumentsActionImpl(ps.namedArgs, allEnv, sensitiveVariables);
+                an.addAction(argumentsAction);
             }
         } catch (Exception e) {
             // Avoid breaking execution because we can't store some sort of crazy Step argument
@@ -279,7 +282,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         ClassLoader originalLoader = Thread.currentThread().getContextClassLoader();
         try {
             TaskListener listener = context.get(TaskListener.class);
-            logInterpolationWarnings(name, ps.interpolatedStrings, allEnv, sensitiveVariables, listener);
+            logInterpolationWarnings(name, argumentsAction, ps.interpolatedStrings, allEnv, sensitiveVariables, listener);
             if (unreportedAmbiguousFunctions.remove(name)) {
                 reportAmbiguousStepInvocation(context, d, listener);
             }
@@ -350,8 +353,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    private void logInterpolationWarnings(String stepName, Set<String> interpolatedStrings, @CheckForNull EnvVars envVars, @Nonnull Set<String> sensitiveVariables, TaskListener listener) throws IOException, InterruptedException {
-        if (interpolatedStrings.isEmpty() || envVars == null || envVars.isEmpty() || sensitiveVariables.isEmpty()) {
+    private void logInterpolationWarnings(String stepName, @CheckForNull ArgumentsActionImpl argumentsAction, Set<String> interpolatedStrings, @CheckForNull EnvVars envVars, @Nonnull Set<String> sensitiveVariables, TaskListener listener) throws IOException, InterruptedException {
+        if (argumentsAction == null || interpolatedStrings.isEmpty() || envVars == null || envVars.isEmpty() || sensitiveVariables.isEmpty()) {
             return;
         }
 
@@ -360,8 +363,19 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 .collect(Collectors.toList());
 
         if (scanResults != null && !scanResults.isEmpty()) {
-            String warning = String.format("Warning: A secret was passed to \"%s\" using Groovy String interpolation, which is insecure. Affected argument(s) used the following variable(s): %s%nSee <LINK> for details.",
-                    stepName, scanResults.toString());
+            Map<String, List<String>> interpolatedArguments = new HashMap<>();
+            // inspect the sanitized arguments to see if any interpolated strings were used
+            for (Entry<String, List<String>> sanitizedEntries : argumentsAction.getSanitizedArguments().entrySet()) {
+                List<String> sanitizedVariables = sanitizedEntries.getValue();
+                for (String interpolatedVariable : scanResults) {
+                    if (sanitizedVariables.contains(interpolatedVariable)) {
+                        interpolatedArguments.computeIfAbsent(sanitizedEntries.getKey(), k -> new ArrayList<>()).add(interpolatedVariable);
+                    }
+                }
+            }
+
+            String warning = String.format("Warning: A secret was passed to \"%s\" using Groovy String interpolation, which is insecure.%n\t\t Affected argument(s) used the following variable(s): %s%n\t\t See <LINK> for details.",
+                    stepName, interpolatedArguments.toString());
             listener.getLogger().println(warning);
             FlowExecutionOwner owner = exec.getOwner();
             if (owner != null && owner.getExecutable() instanceof Run) {
@@ -370,7 +384,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                     runReport = new InterpolatedSecretsAction();
                     ((Run) owner.getExecutable()).addAction(runReport);
                 }
-                runReport.record(scanResults);
+                runReport.record(stepName, interpolatedArguments);
             } else {
                 LOGGER.log(Level.FINE, "Unable to generate Interpolated Secrets Report");
             }

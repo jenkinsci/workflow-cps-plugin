@@ -15,6 +15,7 @@ import hudson.XmlFile;
 import hudson.model.Action;
 import hudson.tasks.ArtifactArchiver;
 import org.apache.commons.lang.RandomStringUtils;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsMapContaining;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
@@ -158,10 +159,9 @@ public class ArgumentsActionImplTest {
         passwordBinding.put("mypass", "p4ssw0rd");
         Set<String> sensitiveVariables = new HashSet<>();
         sensitiveVariables.add("mypass");
-        Assert.assertFalse("Input with no variables is safe", ArgumentsActionImpl.isStringSensitive(input, new EnvVars(), sensitiveVariables));
-        Assert.assertTrue("Input containing bound value is unsafe", ArgumentsActionImpl.isStringSensitive(input, new EnvVars(passwordBinding), sensitiveVariables));
-
-        Assert.assertFalse("EnvVars that do not occur are safe", ArgumentsActionImpl.isStringSensitive("I have no passwords", new EnvVars(passwordBinding), sensitiveVariables));
+        Assert.assertNull("Input with no variables is safe", ArgumentsActionImpl.getAffectedVariable(input, new EnvVars(), sensitiveVariables));
+        MatcherAssert.assertThat("Input containing bound value is unsafe", "mypass".equals(ArgumentsActionImpl.getAffectedVariable(input, new EnvVars(passwordBinding), sensitiveVariables)));
+        Assert.assertNull("EnvVars that do not occur are safe", ArgumentsActionImpl.getAffectedVariable("I have no passwords", new EnvVars(passwordBinding), sensitiveVariables));
     }
 
     @Test

@@ -48,6 +48,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -64,7 +65,10 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     @CheckForNull
     private Map<String,Object> arguments;
 
-    private Set<String> sensitiveVariables;
+    private transient Set<String> sensitiveVariables;
+
+    private List<String> sanitizedArgumentVariables = new ArrayList<>();
+    private Map<String, List<String>> sanitizedArguments = new HashMap<>();
 
     boolean isUnmodifiedBySanitization = true;
 
@@ -87,12 +91,19 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         this.sensitiveVariables = sensitiveVariables;
     }
 
-    /** See if sensitive environment variable content is in a string */
-    public static boolean isStringSensitive(@CheckForNull String input, @CheckForNull EnvVars variables, @CheckForNull Set<String> sensitiveVariables) {
+    /** See if sensitive environment variable content is in a string and return the variable or null, if there is none*/
+    public static String getAffectedVariable(@CheckForNull String input, @CheckForNull EnvVars variables, @CheckForNull Set<String> sensitiveVariables) {
         if (input == null || variables == null || variables.size() == 0 || sensitiveVariables == null || sensitiveVariables.size() ==0) {
-            return false;
+            return null;
         }
-        return sensitiveVariables.stream().map(variables::get).anyMatch(input::contains);
+
+        try {
+            return sensitiveVariables.stream()
+                    .filter(e -> input.contains(variables.get(e)))
+                    .findFirst().get();
+        } catch (NoSuchElementException e) {
+            return null;
+        }
     }
 
     /** Restrict stored arguments to a reasonable subset of types so we don't retain totally arbitrary objects
@@ -173,7 +184,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
     /** Recursively sanitize a single object by:
      *   - Exploding {@link Step}s and {@link UninstantiatedDescribable}s into their Maps to sanitize
-     *   - Removing unsafe strings using {@link #isStringSensitive(String, EnvVars, Set)} and replace with {@link NotStoredReason#MASKED_VALUE}
+     *   - Removing unsafe strings using {@link #getAffectedVariable(String, EnvVars, Set)} (String, EnvVars, Set)} and replace with {@link NotStoredReason#MASKED_VALUE}
      *   - Removing oversized objects using {@link #isOversized(Object)} and replacing with {@link NotStoredReason#OVERSIZE_VALUE}
      *  While making an effort not to retain needless copies of objects and to re-use originals where possible
      *   (including the Step or UninstantiatedDescribable)
@@ -225,9 +236,13 @@ public class ArgumentsActionImpl extends ArgumentsAction {
                 this.isUnmodifiedBySanitization = true;
                 return NotStoredReason.UNSERIALIZABLE;
             }
-        } else if (modded instanceof String && vars != null && !vars.isEmpty() && isStringSensitive((String)modded, vars, sensitiveVariables)) {
-            this.isUnmodifiedBySanitization = false;
-            return NotStoredReason.MASKED_VALUE;
+        } else if (modded instanceof String && vars != null && !vars.isEmpty()) {
+            String affectedVariable = getAffectedVariable((String)modded, vars, sensitiveVariables);
+            if (affectedVariable != null) {
+                sanitizedArgumentVariables.add(affectedVariable);
+                this.isUnmodifiedBySanitization = false;
+                return NotStoredReason.MASKED_VALUE;
+            }
         }
 
         if (modded != tempVal) {
@@ -294,6 +309,8 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             if (modded != param.getValue()) {
                 // Sanitization stripped out some values, so we need to store the mutated object
                 output.put(param.getKey(), modded);
+                sanitizedArguments.put(param.getKey(), new ArrayList<>(sanitizedArgumentVariables));
+                sanitizedArgumentVariables.clear();
                 isMutated = true; //isUnmodifiedBySanitization was already set
             } else { // Any mutation was just from exploding step/uninstantiated describable, and we can just use the original
                 output.put(param.getKey(), param.getValue());
@@ -306,6 +323,10 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     /** Accessor for testing use */
     static int getMaxRetainedLength() {
         return MAX_RETAINED_LENGTH;
+    }
+
+    public Map<String, List<String>> getSanitizedArguments() {
+        return sanitizedArguments.isEmpty() ? Collections.EMPTY_MAP : sanitizedArguments;
     }
 
     @Nonnull

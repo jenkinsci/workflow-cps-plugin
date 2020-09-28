@@ -33,6 +33,7 @@ import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.model.Result;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -444,12 +445,17 @@ public class DSLTest {
                 + "}\n"
                 + "}", true));
         WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-        r.assertLogContains("Warning: A secret was passed to \""+ shellStep + "\" using Groovy String interpolation, which is insecure. Affected argument(s) used the following variable(s): [PASSWORD]", run);
+        r.assertLogContains("Warning: A secret was passed to \""+ shellStep + "\"", run);
+        r.assertLogContains("Affected argument(s) used the following variable(s): {script=[PASSWORD]}", run);
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
-        Set<String> reportResults = reportAction.getResults();
+        List<List<Object>> reportResults = reportAction.getWarnings();
         MatcherAssert.assertThat(reportResults.size(), is(1));
-        MatcherAssert.assertThat(reportResults.iterator().next(), is("PASSWORD"));
+        List<Object> warning = reportResults.get(0);
+        MatcherAssert.assertThat(warning.get(0), is("sh"));
+        Map args = (Map)warning.get(1);
+        MatcherAssert.assertThat(args.size(), is(1));
+        MatcherAssert.assertThat(args.get("script"), is(Arrays.asList("PASSWORD")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(Functions.isWindows()? "bat" : "sh"));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
@@ -470,12 +476,17 @@ public class DSLTest {
                 + "}\n"
                 + "}", true));
         WorkflowRun run = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
-        r.assertLogContains("Warning: A secret was passed to \"archiveArtifacts\" using Groovy String interpolation, which is insecure. Affected argument(s) used the following variable(s): [PASSWORD]", run);
+        r.assertLogContains("Warning: A secret was passed to \"archiveArtifacts\"", run);
+        r.assertLogContains("Affected argument(s) used the following variable(s): {<anonymous>=[PASSWORD]}", run);
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
-        Set<String> reportResults = reportAction.getResults();
+        List<List<Object>> reportResults = reportAction.getWarnings();
         MatcherAssert.assertThat(reportResults.size(), is(1));
-        MatcherAssert.assertThat(reportResults.iterator().next(), is("PASSWORD"));
+        List<Object> warning = reportResults.get(0);
+        MatcherAssert.assertThat(warning.get(0), is("archiveArtifacts"));
+        Map args = (Map)warning.get(1);
+        MatcherAssert.assertThat(args.size(), is(1));
+        MatcherAssert.assertThat(args.get("anonymous"), is(Arrays.asList("PASSWORD")));
     }
 
     @Test public void describableNoMetaStep() throws Exception {
@@ -490,7 +501,10 @@ public class DSLTest {
                 + "monomorphWithSymbolStep(monomorphSymbol([firstArg:\"${PASSWORD}\", secondArg:'two']))"
                 + "}\n"
                 + "}", true));
-        r.assertLogContains("First arg: ****, second arg: two", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
+        WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("First arg: ****, second arg: two", run);
+        r.assertLogContains("Warning: A secret was passed to \"monomorphWithSymbolStep\"", run);
+        r.assertLogContains("Affected argument(s) used the following variable(s): {firstArg=[PASSWORD]}", run);
     }
 
     @Test public void noBodyError() throws Exception {

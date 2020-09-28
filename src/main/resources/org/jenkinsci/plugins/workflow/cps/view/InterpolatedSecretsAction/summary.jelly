@@ -29,8 +29,12 @@ THE SOFTWARE.
             (${%in progress})
         </j:if>
         <ul>
-            <j:forEach var="variable" items="${it.results}">
-                <li><code>${variable}</code></li>
+            <j:forEach var="warning" items="${it.warnings}">
+                <li><code>${warning.get(0)}( </code>
+                    <j:forEach var="arguments" items="${warning.get(1).entrySet()}">
+                        <code>${arguments} </code>
+                    </j:forEach>
+                    <code>)</code></li>
             </j:forEach>
         </ul>
     </t:summary>
