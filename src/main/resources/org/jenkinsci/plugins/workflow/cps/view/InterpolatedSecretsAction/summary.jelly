@@ -23,8 +23,7 @@ THE SOFTWARE.
 <j:jelly xmlns:j="jelly:core" xmlns:t="/lib/hudson" xmlns:st="jelly:stapler">
     <t:summary icon="warning.png">
         ${%Possible insecure use of sensitive variables}
-        <!-- TODO: add page that explains this problem  -->
-        <a href="http://add-page-here" target="_blank">(${%click here for an explanation})</a>:
+        <a href="https://jenkins.io/redirect/groovy-string-interpolation" target="_blank">(${%click here for an explanation})</a>:
         <j:if test="${it.inProgress}">
             (${%in progress})
         </j:if>

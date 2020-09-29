@@ -514,7 +514,10 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    // TODO: add java doc
+    /**
+     * This class holds the argument map and optional body of the step that is to be invoked.
+     * The UninstantiatedDescribable field is set when the associated symbol is being built as the parameter of a step to be invoked.
+     */
     static class NamedArgsAndClosure {
         final Map<String,Object> namedArgs;
         final Closure body;
@@ -544,6 +547,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * For reference, Groovy does {@linkplain ReflectionCache#getCachedClass ReflectionCache.getCachedClass(types[i]).}{@linkplain CachedClass#coerceArgument coerceArgument(a)}.
      * Note that {@link DescribableModel#instantiate} would also handle {@link GString} in {@code coerce},
      * but better to do it here in the Groovy-specific code so we do not need to rely on that.
+     * Record all instances of interpolated Groovy strings. We can check this collection later to see if sensitive variables were used.
      * @return {@code v} or an equivalent with all {@link GString}s flattened, including in nested {@link List}s or {@link Map}s
      */
     private static Object flattenGString(Object v, @Nonnull Set<String> interpolatedStrings) {
@@ -630,8 +634,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * @param soleArgumentKey
      *      If the context in which this method call happens allow implicit sole default argument, specify its name.
      *      If null, the call must be with names arguments.
-//     * @param envVars
-     *      The environment variables of the context
+     * @param interpolatedStrings
+     *      The collection of interpolated Groovy strings.
      */
     static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, @Nonnull Set<String> interpolatedStrings) {
         if (arg instanceof NamedArgsAndClosure)
