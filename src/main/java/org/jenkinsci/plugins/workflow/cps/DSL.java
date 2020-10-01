@@ -363,7 +363,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 .collect(Collectors.toList());
 
         if (scanResults != null && !scanResults.isEmpty()) {
-            String warning = String.format("Warning: A secret was passed to \"%s\" using Groovy String interpolation, which is insecure.%n\t\t Affected argument(s) used the following variable(s): %s%n\t\t See <LINK> for details.",
+            String warning = String.format("Warning: A secret was passed to \"%s\" using Groovy String interpolation, which is insecure.%n\t\t Affected argument(s) used the following variable(s): %s%n\t\t See https://jenkins.io/redirect/groovy-string-interpolation for details.",
                     stepName, scanResults.toString());
             listener.getLogger().println(warning);
 
