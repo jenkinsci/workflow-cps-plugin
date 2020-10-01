@@ -30,9 +30,9 @@ THE SOFTWARE.
         <j:if test="${it.hasWarnings}">
             <ul>
                 <j:forEach var="warning" items="${it.warnings}">
-                    <li><code>${warning}</code></li>
+                    <li><code>${warning.stepSignature}</code></li>
                     <ul>
-                        <li><code>${warning.interpolatedVariables}</code></li>
+                        <li>interpolated variables: <code>${warning.interpolatedVariables}</code></li>
                     </ul>
                 </j:forEach>
             </ul>

@@ -84,7 +84,7 @@ public class InterpolatedSecretsAction implements RunAction2 {
     }
 
     @ExportedBean
-    static class InterpolatedWarnings implements Serializable {
+    public static class InterpolatedWarnings implements Serializable {
         final String stepName;
         final Map<String, Object> stepArguments;
         final List<String> interpolatedVariables;
@@ -104,6 +104,11 @@ public class InterpolatedSecretsAction implements RunAction2 {
             }
             sb.append(")");
             return sb.toString();
+        }
+
+        @Exported
+        public List<String> getInterpolatedVariables() {
+            return interpolatedVariables;
         }
 
         @Override
