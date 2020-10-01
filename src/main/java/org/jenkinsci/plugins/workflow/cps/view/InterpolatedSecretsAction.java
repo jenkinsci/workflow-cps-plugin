@@ -41,22 +41,6 @@ public class InterpolatedSecretsAction implements RunAction2 {
         interpolatedWarnings.add(new InterpolatedWarnings(stepName, stepArguments, interpolatedVariables));
     }
 
-    public List<String> getWarningsOutput() {
-        List<String> outputList = new ArrayList<>();
-        StringBuilder sb = new StringBuilder();
-
-        for (InterpolatedWarnings warning : interpolatedWarnings) {
-            sb.append(warning.stepName + "(");
-            for (Map.Entry<String, Object> argEntry : warning.stepArguments.entrySet()) {
-                sb.append(argEntry.getKey() + ": " + argEntry.getValue().toString());
-            }
-            sb.append(")\n");
-            sb.append("interpolated variable(s): " + warning.interpolatedVariables.toString());
-        }
-        outputList.add(sb.toString());
-        return outputList;
-    }
-
     public List<InterpolatedWarnings> getWarnings() {
        return interpolatedWarnings;
     }
@@ -109,11 +93,6 @@ public class InterpolatedSecretsAction implements RunAction2 {
         @Exported
         public List<String> getInterpolatedVariables() {
             return interpolatedVariables;
-        }
-
-        @Override
-        public String toString() {
-            return getStepSignature();
         }
     }
 }

@@ -33,6 +33,7 @@ import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.model.Result;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -449,7 +450,11 @@ public class DSLTest {
         r.assertLogContains("Affected argument(s) used the following variable(s): [PASSWORD]", run);
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
-        MatcherAssert.assertThat(reportAction.getWarningsOutput(), is(shellStep + "(script: echo ${PASSWORD})\n  interpolated variable(s): [PASSWORD]"));
+        List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
+        MatcherAssert.assertThat(warnings.size(), is(1));
+        InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
+        MatcherAssert.assertThat(stepWarning.getStepSignature(), is(shellStep + "(script: echo ${PASSWORD})"));
+        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
@@ -474,7 +479,11 @@ public class DSLTest {
         r.assertLogContains("Affected argument(s) used the following variable(s): [PASSWORD]", run);
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
-        MatcherAssert.assertThat(reportAction.getWarningsOutput(), is("archiveArtifacts(delegate: @archiveArtifacts(<anonymous>=${PASSWORD}))\n  interpolated variable(s): [PASSWORD]"));
+        List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
+        MatcherAssert.assertThat(warnings.size(), is(1));
+        InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
+        MatcherAssert.assertThat(stepWarning.getStepSignature(), is("archiveArtifacts(delegate: @archiveArtifacts(<anonymous>=${PASSWORD}))"));
+        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
     }
 
     @Test public void multipleSensitiveVariables() throws Exception {
@@ -495,7 +504,11 @@ public class DSLTest {
         r.assertLogContains("Affected argument(s) used the following variable(s): [PASSWORD, USERNAME]", run);
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
-        MatcherAssert.assertThat(reportAction.getWarningsOutput(), is(shellStep + "(script: echo ${PASSWORD} ${USERNAME} ${PASSWORD})\n  interpolated variable(s): [PASSWORD, USERNAME]"));
+        List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
+        MatcherAssert.assertThat(warnings.size(), is(1));
+        InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
+        MatcherAssert.assertThat(stepWarning.getStepSignature(), is(shellStep + "(script: echo ${PASSWORD} ${USERNAME} ${PASSWORD})"));
+        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD", "USERNAME")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
@@ -521,7 +534,11 @@ public class DSLTest {
         r.assertLogContains("Affected argument(s) used the following variable(s): [PASSWORD]", run);
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
-        MatcherAssert.assertThat(reportAction.getWarningsOutput(), is("monomorphWithSymbolStep(data: @monomorphSymbol(secondArg=two,firstArg=${PASSWORD}))\n  interpolated variable(s): [PASSWORD]"));
+        List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
+        MatcherAssert.assertThat(warnings.size(), is(1));
+        InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
+        MatcherAssert.assertThat(stepWarning.getStepSignature(), is("monomorphWithSymbolStep(data: @monomorphSymbol(secondArg=two,firstArg=${PASSWORD}))"));
+        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("monomorphWithSymbolStep"));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
