@@ -33,7 +33,6 @@ import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.model.Result;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +40,7 @@ import java.util.Set;
 import static org.hamcrest.Matchers.containsString;
 
 import org.hamcrest.MatcherAssert;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.cps.view.InterpolatedSecretsAction;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -446,21 +446,15 @@ public class DSLTest {
                 + "}", true));
         WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("Warning: A secret was passed to \""+ shellStep + "\"", run);
-        r.assertLogContains("Affected argument(s) used the following variable(s): {script=[PASSWORD]}", run);
+        r.assertLogContains("Affected argument(s) used the following variable(s): [PASSWORD]", run);
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
-        List<List<Object>> reportResults = reportAction.getWarnings();
-        MatcherAssert.assertThat(reportResults.size(), is(1));
-        List<Object> warning = reportResults.get(0);
-        MatcherAssert.assertThat(warning.get(0), is(shellStep));
-        Map args = (Map)warning.get(1);
-        MatcherAssert.assertThat(args.size(), is(1));
-        MatcherAssert.assertThat(args.get("script"), is(Arrays.asList("PASSWORD")));
+        MatcherAssert.assertThat(reportAction.getWarningsOutput(), is(shellStep + "(script: echo ${PASSWORD})\n  interpolated variable(s): [PASSWORD]"));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
         Assert.assertFalse(argAction.isUnmodifiedArguments());
-        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), instanceOf(ArgumentsAction.NotStoredReason.class));
+        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), is("echo ${PASSWORD}"));
     }
 
     @Test public void describableInterpolation() throws Exception {
@@ -477,16 +471,10 @@ public class DSLTest {
                 + "}", true));
         WorkflowRun run = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogContains("Warning: A secret was passed to \"archiveArtifacts\"", run);
-        r.assertLogContains("Affected argument(s) used the following variable(s): {<anonymous>=[PASSWORD]}", run);
+        r.assertLogContains("Affected argument(s) used the following variable(s): [PASSWORD]", run);
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
-        List<List<Object>> reportResults = reportAction.getWarnings();
-        MatcherAssert.assertThat(reportResults.size(), is(1));
-        List<Object> warning = reportResults.get(0);
-        MatcherAssert.assertThat(warning.get(0), is("archiveArtifacts"));
-        Map args = (Map)warning.get(1);
-        MatcherAssert.assertThat(args.size(), is(1));
-        MatcherAssert.assertThat(args.get("<anonymous>"), is(Arrays.asList("PASSWORD")));
+        MatcherAssert.assertThat(reportAction.getWarningsOutput(), is("archiveArtifacts(delegate: @archiveArtifacts(<anonymous>=${PASSWORD}))\n  interpolated variable(s): [PASSWORD]"));
     }
 
     @Test public void multipleSensitiveVariables() throws Exception {
@@ -504,21 +492,15 @@ public class DSLTest {
                 + "}", true));
         WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("Warning: A secret was passed to \""+ shellStep + "\"", run);
-        r.assertLogContains("Affected argument(s) used the following variable(s): {script=[PASSWORD, USERNAME]}", run);
+        r.assertLogContains("Affected argument(s) used the following variable(s): [PASSWORD, USERNAME]", run);
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
-        List<List<Object>> reportResults = reportAction.getWarnings();
-        MatcherAssert.assertThat(reportResults.size(), is(1));
-        List<Object> warning = reportResults.get(0);
-        MatcherAssert.assertThat(warning.get(0), is(shellStep));
-        Map args = (Map)warning.get(1);
-        MatcherAssert.assertThat(args.size(), is(1));
-        MatcherAssert.assertThat(args.get("script"), is(Arrays.asList("PASSWORD", "USERNAME")));
+        MatcherAssert.assertThat(reportAction.getWarningsOutput(), is(shellStep + "(script: echo ${PASSWORD} ${USERNAME} ${PASSWORD})\n  interpolated variable(s): [PASSWORD, USERNAME]"));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
         Assert.assertFalse(argAction.isUnmodifiedArguments());
-        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), instanceOf(ArgumentsAction.NotStoredReason.class));
+        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), is("echo ${PASSWORD} ${USERNAME} ${PASSWORD}"));
     }
 
     @Test public void describableNoMetaStep() throws Exception {
@@ -536,7 +518,17 @@ public class DSLTest {
         WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("First arg: ****, second arg: two", run);
         r.assertLogContains("Warning: A secret was passed to \"monomorphWithSymbolStep\"", run);
-        r.assertLogContains("Affected argument(s) used the following variable(s): {firstArg=[PASSWORD]}", run);
+        r.assertLogContains("Affected argument(s) used the following variable(s): [PASSWORD]", run);
+        InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
+        Assert.assertNotNull(reportAction);
+        MatcherAssert.assertThat(reportAction.getWarningsOutput(), is("monomorphWithSymbolStep(data: @monomorphSymbol(secondArg=two,firstArg=${PASSWORD}))\n  interpolated variable(s): [PASSWORD]"));
+        LinearScanner scan = new LinearScanner();
+        FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("monomorphWithSymbolStep"));
+        ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
+        Assert.assertFalse(argAction.isUnmodifiedArguments());
+        Object var = argAction.getArguments().values().iterator().next();
+        MatcherAssert.assertThat(var, instanceOf(UninstantiatedDescribable.class));
+        MatcherAssert.assertThat(((UninstantiatedDescribable)var).getArguments().toString(), is("{secondArg=two, firstArg=${PASSWORD}}"));
     }
 
     @Test public void noBodyError() throws Exception {

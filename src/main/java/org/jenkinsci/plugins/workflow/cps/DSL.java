@@ -251,7 +251,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             allEnv = context.get(EnvVars.class);
             EnvironmentExpander envExpander = context.get(EnvironmentExpander.class);
             if (envExpander != null) {
-                sensitiveVariables = envExpander.getSensitiveVariables();
+                sensitiveVariables = new HashSet<>(envExpander.getSensitiveVariables());
             }
         } catch (IOException | InterruptedException e) {
             LOGGER.log(Level.WARNING, "Unable to retrieve environment variables", e);
@@ -363,20 +363,10 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 .collect(Collectors.toList());
 
         if (scanResults != null && !scanResults.isEmpty()) {
-            Map<String, List<String>> interpolatedArguments = new HashMap<>();
-            // inspect the sanitized arguments to see if any interpolated strings were used
-            for (Entry<String, List<String>> sanitizedEntries : argumentsAction.getSanitizedArguments().entrySet()) {
-                List<String> sanitizedVariables = sanitizedEntries.getValue();
-                for (String interpolatedVariable : scanResults) {
-                    if (sanitizedVariables.contains(interpolatedVariable)) {
-                        interpolatedArguments.computeIfAbsent(sanitizedEntries.getKey(), k -> new ArrayList<>()).add(interpolatedVariable);
-                    }
-                }
-            }
-
             String warning = String.format("Warning: A secret was passed to \"%s\" using Groovy String interpolation, which is insecure.%n\t\t Affected argument(s) used the following variable(s): %s%n\t\t See <LINK> for details.",
-                    stepName, interpolatedArguments.toString());
+                    stepName, scanResults.toString());
             listener.getLogger().println(warning);
+
             FlowExecutionOwner owner = exec.getOwner();
             if (owner != null && owner.getExecutable() instanceof Run) {
                 InterpolatedSecretsAction runReport = ((Run) owner.getExecutable()).getAction(InterpolatedSecretsAction.class);
@@ -384,7 +374,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                     runReport = new InterpolatedSecretsAction();
                     ((Run) owner.getExecutable()).addAction(runReport);
                 }
-                runReport.record(stepName, interpolatedArguments);
+                runReport.record(stepName, argumentsAction.getArguments(), scanResults);
             } else {
                 LOGGER.log(Level.FINE, "Unable to generate Interpolated Secrets Report");
             }
@@ -405,7 +395,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     protected Object invokeDescribable(String symbol, Object _args) {
-        Set<String> interpolatedStrings = new HashSet<>();
         List<StepDescriptor> metaSteps = StepDescriptor.metaStepsOf(symbol);
         StepDescriptor metaStep = metaSteps.size()==1 ? metaSteps.get(0) : null;
 
@@ -419,7 +408,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         // The only time a closure is valid is when the resulting Describable is immediately executed via a meta-step
         NamedArgsAndClosure args = parseArgs(_args, metaStep!=null && metaStep.takesImplicitBlockArgument(),
-                UninstantiatedDescribable.ANONYMOUS_KEY, singleArgumentOnly, interpolatedStrings);
+                UninstantiatedDescribable.ANONYMOUS_KEY, singleArgumentOnly);
         UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
 
         if (metaStep==null) {
@@ -479,7 +468,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 ud = new UninstantiatedDescribable(symbol, null, dargs);
                 margs.put(p.getName(),ud);
 
-                return invokeStep(metaStep, symbol, new NamedArgsAndClosure(margs, args.body, interpolatedStrings));
+                return invokeStep(metaStep, symbol, new NamedArgsAndClosure(margs, args.body, args.interpolatedStrings));
             } catch (Exception e) {
                 throw new IllegalArgumentException("Failed to prepare "+symbol+" step",e);
             }
@@ -518,18 +507,18 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * This class holds the argument map and optional body of the step that is to be invoked.
      * The UninstantiatedDescribable field is set when the associated symbol is being built as the parameter of a step to be invoked.
      */
-    static class NamedArgsAndClosure {
+    static class NamedArgsAndClosure implements Serializable {
         final Map<String,Object> namedArgs;
         final Closure body;
         final List<String> msgs;
         final Set<String> interpolatedStrings;
         UninstantiatedDescribable uninstantiatedDescribable = null;
 
-        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @Nonnull Set<String> interpolatedStrings) {
+        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @Nonnull Set<String> foundInterpolatedStrings) {
             this.namedArgs = new LinkedHashMap<>(preallocatedHashmapCapacity(namedArgs.size()));
             this.body = body;
             this.msgs = new ArrayList<>();
-            this.interpolatedStrings = interpolatedStrings;
+            this.interpolatedStrings = new HashSet<>(foundInterpolatedStrings);
 
             for (Map.Entry<?,?> entry : namedArgs.entrySet()) {
                 String k = entry.getKey().toString().intern(); // coerces GString and more
@@ -610,6 +599,10 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // Ignore steps without databound constructors and treat them as normal.
         }
         return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d), singleArgumentOnly, interpolatedStrings);
+    }
+
+    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg) {
+        return parseArgs(arg, expectsBlock, soleArgumentKey, singleRequiredArg, new HashSet<>());
     }
 
     /**
