@@ -45,6 +45,7 @@ import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -574,11 +575,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     }
 
     static NamedArgsAndClosure parseArgs(Object arg, StepDescriptor d) {
-        Set<String> interpolatedStrings = new HashSet<>();
-        if (arg instanceof NamedArgsAndClosure) {
-            interpolatedStrings = ((NamedArgsAndClosure) arg).interpolatedStrings;
-        }
-
         boolean singleArgumentOnly = false;
         try {
             DescribableModel<?> stepModel = DescribableModel.of(d.clazz);
@@ -586,12 +582,12 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             if (singleArgumentOnly) {  // Can fetch the one argument we need
                 DescribableParameter dp = stepModel.getSoleRequiredParameter();
                 String paramName = (dp != null) ? dp.getName() : null;
-                return parseArgs(arg, d.takesImplicitBlockArgument(), paramName, singleArgumentOnly, interpolatedStrings);
+                return parseArgs(arg, d.takesImplicitBlockArgument(), paramName, singleArgumentOnly, new HashSet<>());
             }
         } catch (NoStaplerConstructorException e) {
             // Ignore steps without databound constructors and treat them as normal.
         }
-        return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d), singleArgumentOnly, interpolatedStrings);
+        return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d), singleArgumentOnly, new HashSet<>());
     }
 
     static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg) {
