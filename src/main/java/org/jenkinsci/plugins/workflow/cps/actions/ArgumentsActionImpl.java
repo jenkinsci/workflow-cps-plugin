@@ -46,13 +46,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 /**
  * Implements {@link ArgumentsAction} by storing step arguments, with sanitization.
@@ -71,7 +71,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     private static final Logger LOGGER = Logger.getLogger(ArgumentsActionImpl.class.getName());
 
     public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars env, @Nonnull Set<String> sensitiveVariables) {
-        this.sensitiveVariables = sensitiveVariables;
+        this.sensitiveVariables = new HashSet<>(sensitiveVariables);
         arguments = serializationCheck(sanitizeMapAndRecordMutation(stepArguments, env));
     }
 
@@ -296,7 +296,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
         boolean isMutated = false;
         for (Map.Entry<String,?> param : mapContents.entrySet()) {
-            Object modded = sanitizeObjectAndRecordMutation(param.getValue(), variables);//, sanitizedArgumentVariables);
+            Object modded = sanitizeObjectAndRecordMutation(param.getValue(), variables);
             if (modded != param.getValue()) {
                 // Sanitization stripped out some values, so we need to store the mutated object
                 output.put(param.getKey(), modded);

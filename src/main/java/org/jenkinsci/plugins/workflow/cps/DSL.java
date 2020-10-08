@@ -282,7 +282,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         ClassLoader originalLoader = Thread.currentThread().getContextClassLoader();
         try {
             TaskListener listener = context.get(TaskListener.class);
-            logInterpolationWarnings(name, argumentsAction, ps.interpolatedStrings, allEnv, sensitiveVariables, listener);
+            logInterpolationWarnings(name, argumentsAction, an.getId(), ps.interpolatedStrings, allEnv, sensitiveVariables, listener);
             if (unreportedAmbiguousFunctions.remove(name)) {
                 reportAmbiguousStepInvocation(context, d, listener);
             }
@@ -353,7 +353,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    private void logInterpolationWarnings(String stepName, @CheckForNull ArgumentsActionImpl argumentsAction, Set<String> interpolatedStrings, @CheckForNull EnvVars envVars, @Nonnull Set<String> sensitiveVariables, TaskListener listener) throws IOException, InterruptedException {
+    private void logInterpolationWarnings(String stepName, @CheckForNull ArgumentsActionImpl argumentsAction, String nodeId, Set<String> interpolatedStrings, @CheckForNull EnvVars envVars, @Nonnull Set<String> sensitiveVariables, TaskListener listener) throws IOException, InterruptedException {
         if (argumentsAction == null || interpolatedStrings.isEmpty() || envVars == null || envVars.isEmpty() || sensitiveVariables.isEmpty()) {
             return;
         }
@@ -374,7 +374,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                     runReport = new InterpolatedSecretsAction();
                     ((Run) owner.getExecutable()).addAction(runReport);
                 }
-                runReport.record(stepName, argumentsAction.getArguments(), scanResults);
+                runReport.record(stepName, scanResults, nodeId);
             } else {
                 LOGGER.log(Level.FINE, "Unable to generate Interpolated Secrets Report");
             }
@@ -505,13 +505,13 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
     /**
      * This class holds the argument map and optional body of the step that is to be invoked.
-     * The UninstantiatedDescribable field is set when the associated symbol is being built as the parameter of a step to be invoked.
      */
     static class NamedArgsAndClosure implements Serializable {
         final Map<String,Object> namedArgs;
         final Closure body;
         final List<String> msgs;
         final Set<String> interpolatedStrings;
+        // UninstantiatedDescribable is set when the associated symbol is being built as the parameter of a step to be invoked.
         UninstantiatedDescribable uninstantiatedDescribable = null;
 
         private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @Nonnull Set<String> foundInterpolatedStrings) {
@@ -577,13 +577,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         Set<String> interpolatedStrings = new HashSet<>();
         if (arg instanceof NamedArgsAndClosure) {
             interpolatedStrings = ((NamedArgsAndClosure) arg).interpolatedStrings;
-        } else if (arg instanceof Object[]) {
-            Object[] array = (Object[]) arg;
-            for (Object o : array) {
-                if (o instanceof NamedArgsAndClosure) {
-                    interpolatedStrings.addAll(((NamedArgsAndClosure) o).interpolatedStrings);
-                }
-            }
         }
 
         boolean singleArgumentOnly = false;
@@ -631,17 +624,28 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      *      The collection of interpolated Groovy strings.
      */
     static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, @Nonnull Set<String> interpolatedStrings) {
-        if (arg instanceof NamedArgsAndClosure)
+        if (arg instanceof NamedArgsAndClosure) {
+            interpolatedStrings.addAll(((NamedArgsAndClosure) arg).interpolatedStrings);
             return (NamedArgsAndClosure) arg;
-        if (arg instanceof Map) // TODO is this clause actually used?
+        }
+        if (arg instanceof Map) { // TODO is this clause actually used?
             return new NamedArgsAndClosure((Map) arg, null, interpolatedStrings);
-        if (arg instanceof Closure && expectsBlock)
+        }
+        if (arg instanceof Closure && expectsBlock) {
             return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),(Closure)arg, interpolatedStrings);
+        }
 
         if (arg instanceof Object[]) {// this is how Groovy appears to pack argument list into one Object for invokeMethod
             List a = Arrays.asList((Object[])arg);
-            if (a.size()==0)
-                return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),null, interpolatedStrings);
+            if (a.size()==0) {
+                return new NamedArgsAndClosure(Collections.<String, Object>emptyMap(), null, interpolatedStrings);
+            } else {
+                for (Object o : a) {
+                    if (o instanceof NamedArgsAndClosure) {
+                        interpolatedStrings.addAll(((NamedArgsAndClosure) o).interpolatedStrings);
+                    }
+                }
+            }
 
             Closure c=null;
 

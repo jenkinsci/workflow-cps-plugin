@@ -27,7 +27,7 @@ THE SOFTWARE.
         <j:if test="${it.inProgress}">
             (${%in progress})
         </j:if>
-        <j:if test="${it.hasWarnings}">
+        <j:if test="${it.hasWarnings()}">
             <ul>
                 <j:forEach var="warning" items="${it.warnings}">
                     <li><code>${warning.stepSignature}</code></li>
