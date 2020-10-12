@@ -236,7 +236,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>config-file-provider</artifactId>
-            <version>2.13</version>
+            <version>3.7.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
