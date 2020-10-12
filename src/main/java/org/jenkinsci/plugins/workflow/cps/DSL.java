@@ -45,9 +45,7 @@ import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -422,6 +420,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // also note that in this case 'd' is not trustworthy, as depending on
             // where this UninstantiatedDescribable is ultimately used, the symbol
             // might be resolved with a specific type.
+
+            // we returning the NamedArgsAndClosure instead of the UninstantiatedDescribable in order to preserve
+            // the discovered interpolated strings.
             args.uninstantiatedDescribable = ud;
             return args;
         } else {
@@ -521,10 +522,37 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             this.msgs = new ArrayList<>();
             this.interpolatedStrings = new HashSet<>(foundInterpolatedStrings);
 
+            namedArgs = (Map<?, ?>) collectInterpolatedStrings(namedArgs, interpolatedStrings);
             for (Map.Entry<?,?> entry : namedArgs.entrySet()) {
                 String k = entry.getKey().toString().intern(); // coerces GString and more
                 Object v = flattenGString(entry.getValue(), interpolatedStrings);
                 this.namedArgs.put(k, v);
+            }
+        }
+
+        /**
+         * Recursively search argument values for instances of {@link NamedArgsAndClosure} and convert them to {@link UninstantiatedDescribable}.
+         * These instances were created in {@link DSL#invokeDescribable(String, Object)} for symbols with no meta-step.
+         * Gather all the interpolated strings from each instance of {@link NamedArgsAndClosure}.
+         */
+        private static Object collectInterpolatedStrings(Object argValue, Set<String> interpolatedStrings) {
+            if (argValue instanceof NamedArgsAndClosure) {
+                interpolatedStrings.addAll(((NamedArgsAndClosure) argValue).interpolatedStrings);
+                return ((NamedArgsAndClosure) argValue).uninstantiatedDescribable;
+            } else if (argValue instanceof Map) {
+                Map<Object, Object> r = new LinkedHashMap<>(preallocatedHashmapCapacity(((Map) argValue).size()));
+                for (Map.Entry e : ((Map<Object, Object>) argValue).entrySet()) {
+                    r.put(e.getKey(), collectInterpolatedStrings(e.getValue(), interpolatedStrings));
+                }
+                return r;
+            } else if (argValue instanceof List) {
+                List<Object> r = new ArrayList<>();
+                for (int i = 0; i < ((List) argValue).size(); i++) {
+                    r.add(collectInterpolatedStrings(((List<?>) argValue).get(i), interpolatedStrings));
+                }
+                return r;
+            } else {
+                return argValue;
             }
         }
     }
@@ -566,9 +594,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 r.put(k2, o2);
             }
             return mutated ? r : v;
-        } else if (v instanceof NamedArgsAndClosure) {
-            UninstantiatedDescribable ud = ((NamedArgsAndClosure) v).uninstantiatedDescribable;
-            return ud != null? ud : v;
         } else {
             return v;
         }
@@ -621,7 +646,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      */
     static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, @Nonnull Set<String> interpolatedStrings) {
         if (arg instanceof NamedArgsAndClosure) {
-            interpolatedStrings.addAll(((NamedArgsAndClosure) arg).interpolatedStrings);
             return (NamedArgsAndClosure) arg;
         }
         if (arg instanceof Map) { // TODO is this clause actually used?
@@ -635,12 +659,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             List a = Arrays.asList((Object[])arg);
             if (a.size()==0) {
                 return new NamedArgsAndClosure(Collections.<String, Object>emptyMap(), null, interpolatedStrings);
-            } else {
-                for (Object o : a) {
-                    if (o instanceof NamedArgsAndClosure) {
-                        interpolatedStrings.addAll(((NamedArgsAndClosure) o).interpolatedStrings);
-                    }
-                }
             }
 
             Closure c=null;
