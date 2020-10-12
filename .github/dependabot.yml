@@ -1,0 +1,10 @@
+version: 2
+updates:
+  # Intentionally not adding automatic NPM updates because I do
+  # not trust the plugin's tests to catch issues caused by updates.
+  - package-ecosystem: "maven"
+    directory: "/"
+    reviewers:
+      - "dwnusbaum"
+    schedule:
+      interval: "daily"
