@@ -13,8 +13,11 @@ import org.kohsuke.stapler.export.ExportedBean;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Action to generate the UI report for watched environment variables
@@ -84,7 +87,48 @@ public class InterpolatedSecretsAction implements RunAction2 {
         @Exported
         public String getStepSignature() {
             StringBuilder sb = new StringBuilder();
-            String failReason = null;
+            Map<String, Object> stepArguments;
+            try {
+                stepArguments = getStepArguments(run, nodeId);
+            } catch (IllegalStateException e) {
+                return "Unable to construct " +  stepName + ": " + e.getMessage();
+            }
+
+            sb.append(stepName + "(");
+            Set<Map.Entry<String, Object>> entrySet = stepArguments.entrySet();
+            if (!entrySet.isEmpty()) {
+                // Give some sort of order to the step arguments
+                TreeSet<String> sortedArgs = new TreeSet<>();
+                for (Map.Entry<String, Object> argEntry : stepArguments.entrySet()) {
+                    Object value = argEntry.getValue();
+                    String valueString = String.valueOf(value);
+                    if (value instanceof ArgumentsAction.NotStoredReason) {
+                        switch ((ArgumentsAction.NotStoredReason) value) {
+                            case OVERSIZE_VALUE:
+                                valueString = "argument omitted due to length";
+                                break;
+                            case UNSERIALIZABLE:
+                                valueString = "unable to serialize argument";
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                    sortedArgs.add(argEntry.getKey() + ": " + valueString);
+                }
+                Iterator<String> it = sortedArgs.iterator();
+                sb.append(it.next());
+                while (it.hasNext()) {
+                    sb.append(", " + it.next());
+                }
+            }
+            sb.append(")");
+            return sb.toString();
+        }
+
+        @Nonnull
+        private Map<String, Object> getStepArguments(Run run, String nodeId) throws IllegalStateException {
+            String failReason;
             if (run instanceof FlowExecutionOwner.Executable) {
                 try {
                     FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
@@ -93,26 +137,7 @@ public class InterpolatedSecretsAction implements RunAction2 {
                         if (node != null) {
                             ArgumentsAction argumentsAction = node.getPersistentAction(ArgumentsAction.class);
                             if (argumentsAction != null) {
-                                Map<String, Object> stepArguments = argumentsAction.getArguments();
-                                sb.append(stepName + "(");
-                                for (Map.Entry<String, Object> argEntry : stepArguments.entrySet()) {
-                                    Object value = argEntry.getValue();
-                                    String valueString = String.valueOf(value);
-                                    if (value instanceof ArgumentsAction.NotStoredReason) {
-                                        switch ((ArgumentsAction.NotStoredReason) value) {
-                                            case OVERSIZE_VALUE:
-                                                valueString = "argument omitted due to length";
-                                                break;
-                                            case UNSERIALIZABLE:
-                                                valueString = "unable to serialize argument";
-                                                break;
-                                            default:
-                                                break;
-                                        }
-                                    }
-                                    sb.append(argEntry.getKey() + ": " + valueString);
-                                }
-                                sb.append(")");
+                                return argumentsAction.getArguments();
                             } else {
                                 failReason = "null arguments action";
                             }
@@ -128,12 +153,7 @@ public class InterpolatedSecretsAction implements RunAction2 {
             } else {
                 failReason = "not an instance of FlowExecutionOwner.Executable";
             }
-
-            if (failReason != null) {
-                return "Unable to construct " +  stepName;
-            } else {
-                return sb.toString();
-            }
+            throw new IllegalStateException(failReason);
         }
 
         @Exported

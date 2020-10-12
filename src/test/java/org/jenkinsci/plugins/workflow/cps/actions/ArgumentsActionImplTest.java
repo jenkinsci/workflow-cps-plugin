@@ -425,21 +425,7 @@ public class ArgumentsActionImplTest {
         filtered = scanner.filteredNodes(exec, new DescriptorMatchPredicate(EchoStep.DescriptorImpl.class));
         for (FlowNode f : filtered) {
             act = f.getPersistentAction(ArgumentsActionImpl.class);
-            String id = f.getId();
-            switch (id) {
-                case "7":
-                    Assert.assertEquals("${PASSWORD}'", act.getArguments().get("message"));
-                    break;
-                case "8":
-                case "9":
-                    Assert.assertEquals("${USERNAME}", act.getArguments().get("message"));
-                    break;
-                case "16":
-                    Assert.assertEquals("${USERNAME} ${PASSWORD}", act.getArguments().get("message"));
-                    break;
-                default:
-                    Assert.fail();
-            }
+            MatcherAssert.assertThat((String) act.getArguments().get("message"), allOf(not(containsString("bob")), not(containsString("s3cr3t"))));
         }
 
         List<FlowNode> allStepped = scanner.filteredNodes(run.getExecution().getCurrentHeads(), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class));

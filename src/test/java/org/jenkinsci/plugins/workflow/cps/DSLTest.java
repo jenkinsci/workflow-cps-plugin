@@ -59,6 +59,7 @@ import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
 import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoLowerStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoUpperStep;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.*;
@@ -432,7 +433,8 @@ public class DSLTest {
                 "'org.jenkinsci.plugins.workflow.steps.SleepStep': comment,units", b);
     }
 
-    @Test public void sensitiveVarsLogging() throws Exception {
+    @Issue("JENKINS-63254")
+    @Test public void sensitiveVariableInterpolation() throws Exception {
         final String credentialsId = "creds";
         final String username = "bob";
         final String password = "secr3t";
@@ -462,7 +464,8 @@ public class DSLTest {
         MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), is("echo ${PASSWORD}"));
     }
 
-    @Test public void describableInterpolation() throws Exception {
+    @Issue("JENKINS-63254")
+    @Test public void sensitiveVariableInterpolationWithMetaStep() throws Exception {
         final String credentialsId = "creds";
         final String username = "bob";
         final String password = "secr3t";
@@ -516,7 +519,8 @@ public class DSLTest {
         MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), is("echo ${PASSWORD} ${USERNAME} ${PASSWORD}"));
     }
 
-    @Test public void describableNoMetaStep() throws Exception {
+    @Issue("JENKINS-63254")
+    @Test public void sensitiveVariableInterpolationWithNestedDescribable() throws Exception {
         final String credentialsId = "creds";
         final String username = "bob";
         final String password = "secr3t";
@@ -546,6 +550,36 @@ public class DSLTest {
         Object var = argAction.getArguments().values().iterator().next();
         MatcherAssert.assertThat(var, instanceOf(UninstantiatedDescribable.class));
         MatcherAssert.assertThat(((UninstantiatedDescribable)var).getArguments().toString(), is("{secondArg=two, firstArg=${PASSWORD}}"));
+    }
+
+    @Issue("JENKINS-63254")
+    @Test public void complexSensitiveVariableInterpolationWithNestedDescribable() throws Exception {
+        final String credentialsId = "creds";
+        final String username = "bob";
+        final String password = "secr3t";
+        UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
+        CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
+        p.setDefinition(new CpsFlowDefinition(""
+                + "node {\n"
+                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
+                + "monomorphListSymbolStep([monomorphSymbol(firstArg: monomorphWithSymbolStep(monomorphSymbol([firstArg: \"innerFirstArgIs${PASSWORD}\", secondArg: \"innerSecondArgIs${USERNAME}\"])), secondArg: \"hereismy${PASSWORD}\"), monomorphSymbol(firstArg: \"${PASSWORD}\", secondArg: \"${USERNAME}\")])"
+                + "}\n"
+                + "}", true));
+        WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("Warning: A secret was passed to \"monomorphWithSymbolStep\"", run);
+        r.assertLogContains("Affected argument(s) used the following variable(s): [PASSWORD, USERNAME]", run);
+        r.assertLogContains("Warning: A secret was passed to \"monomorphListSymbolStep\"", run);
+        r.assertLogNotContains("Affected argument(s) used the following variable(s): [PASSWORD]", run);
+        InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
+        Assert.assertNotNull(reportAction);
+        List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
+        MatcherAssert.assertThat(warnings.size(), is(2));
+        InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
+        MatcherAssert.assertThat(stepWarning.getStepSignature(), is("monomorphWithSymbolStep(data: @monomorphSymbol(secondArg=innerSecondArgIs${USERNAME},firstArg=innerFirstArgIs${PASSWORD}))"));
+        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), equalTo(Arrays.asList("PASSWORD", "USERNAME")));
+        InterpolatedSecretsAction.InterpolatedWarnings listStepWarning = warnings.get(1);
+        MatcherAssert.assertThat(listStepWarning.getStepSignature(), is("monomorphListSymbolStep(data: [@monomorphSymbol(secondArg=hereismy${PASSWORD},firstArg=null), @monomorphSymbol(secondArg=${USERNAME},firstArg=${PASSWORD})])"));
+        MatcherAssert.assertThat(listStepWarning.getInterpolatedVariables(), equalTo(Arrays.asList("PASSWORD", "USERNAME")));
     }
 
     @Test public void noBodyError() throws Exception {
