@@ -421,8 +421,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // where this UninstantiatedDescribable is ultimately used, the symbol
             // might be resolved with a specific type.
 
-            // we returning the NamedArgsAndClosure instead of the UninstantiatedDescribable in order to preserve
-            // the discovered interpolated strings.
+            // we are returning the NamedArgsAndClosure instead of the UninstantiatedDescribable in order to preserve
+            // the discovered interpolated strings that are stored in the NamedArgsAndClosure.
             args.uninstantiatedDescribable = ud;
             return args;
         } else {
