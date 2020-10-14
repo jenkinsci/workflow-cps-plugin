@@ -541,7 +541,7 @@ public class DSLTest {
         List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
         MatcherAssert.assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
-        MatcherAssert.assertThat(stepWarning.getStepSignature(), is("monomorphWithSymbolStep(data: @monomorphSymbol(secondArg=two,firstArg=${PASSWORD}))"));
+        MatcherAssert.assertThat(stepWarning.getStepSignature(), is("monomorphWithSymbolStep(data: @monomorphSymbol(firstArg=${PASSWORD},secondArg=two))"));
         MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("monomorphWithSymbolStep"));
@@ -549,7 +549,7 @@ public class DSLTest {
         Assert.assertFalse(argAction.isUnmodifiedArguments());
         Object var = argAction.getArguments().values().iterator().next();
         MatcherAssert.assertThat(var, instanceOf(UninstantiatedDescribable.class));
-        MatcherAssert.assertThat(((UninstantiatedDescribable)var).getArguments().toString(), is("{secondArg=two, firstArg=${PASSWORD}}"));
+        MatcherAssert.assertThat(((UninstantiatedDescribable)var).getArguments().toString(), is("{firstArg=${PASSWORD}, secondArg=two}"));
     }
 
     @Issue("JENKINS-63254")
@@ -575,10 +575,10 @@ public class DSLTest {
         List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
         MatcherAssert.assertThat(warnings.size(), is(2));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
-        MatcherAssert.assertThat(stepWarning.getStepSignature(), is("monomorphWithSymbolStep(data: @monomorphSymbol(secondArg=innerSecondArgIs${USERNAME},firstArg=innerFirstArgIs${PASSWORD}))"));
+        MatcherAssert.assertThat(stepWarning.getStepSignature(), is("monomorphWithSymbolStep(data: @monomorphSymbol(firstArg=innerFirstArgIs${PASSWORD},secondArg=innerSecondArgIs${USERNAME}))"));
         MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), equalTo(Arrays.asList("PASSWORD", "USERNAME")));
         InterpolatedSecretsAction.InterpolatedWarnings listStepWarning = warnings.get(1);
-        MatcherAssert.assertThat(listStepWarning.getStepSignature(), is("monomorphListSymbolStep(data: [@monomorphSymbol(secondArg=hereismy${PASSWORD},firstArg=null), @monomorphSymbol(secondArg=${USERNAME},firstArg=${PASSWORD})])"));
+        MatcherAssert.assertThat(listStepWarning.getStepSignature(), is("monomorphListSymbolStep(data: [@monomorphSymbol(firstArg=null,secondArg=hereismy${PASSWORD}), @monomorphSymbol(firstArg=${PASSWORD},secondArg=${USERNAME})])"));
         MatcherAssert.assertThat(listStepWarning.getInterpolatedVariables(), equalTo(Arrays.asList("PASSWORD", "USERNAME")));
     }
 

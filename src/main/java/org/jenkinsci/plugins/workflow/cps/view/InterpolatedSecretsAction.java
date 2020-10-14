@@ -97,8 +97,7 @@ public class InterpolatedSecretsAction implements RunAction2 {
             sb.append(stepName + "(");
             Set<Map.Entry<String, Object>> entrySet = stepArguments.entrySet();
             if (!entrySet.isEmpty()) {
-                // Give some sort of order to the step arguments
-                TreeSet<String> sortedArgs = new TreeSet<>();
+                boolean first = true;
                 for (Map.Entry<String, Object> argEntry : stepArguments.entrySet()) {
                     Object value = argEntry.getValue();
                     String valueString = String.valueOf(value);
@@ -114,12 +113,12 @@ public class InterpolatedSecretsAction implements RunAction2 {
                                 break;
                         }
                     }
-                    sortedArgs.add(argEntry.getKey() + ": " + valueString);
-                }
-                Iterator<String> it = sortedArgs.iterator();
-                sb.append(it.next());
-                while (it.hasNext()) {
-                    sb.append(", " + it.next());
+                    if (first) {
+                        first = false;
+                    } else {
+                        sb.append(", ");
+                    }
+                    sb.append(argEntry.getKey() + ": " + valueString);
                 }
             }
             sb.append(")");

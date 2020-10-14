@@ -47,6 +47,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -292,7 +293,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     @Nonnull
     Map<String,Object> sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables) {
         // Package scoped so we can test it directly
-        HashMap<String, Object> output = Maps.newHashMapWithExpectedSize(mapContents.size());
+        LinkedHashMap<String, Object> output = new LinkedHashMap<>(mapContents.size());
 
         boolean isMutated = false;
         for (Map.Entry<String,?> param : mapContents.entrySet()) {
