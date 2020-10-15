@@ -69,7 +69,7 @@
         <java.level>8</java.level>
         <no-test-jar>false</no-test-jar>
         <groovy-cps.version>1.32</groovy-cps.version>
-        <workflow-step-api.version>2.23-rc567.0fe52fbdf6b5</workflow-step-api.version>
+        <workflow-step-api.version>2.23</workflow-step-api.version> <!-- TODO: Delete when in BOM -->
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -162,7 +162,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials-binding</artifactId>
-            <version>1.24-rc375.06428a051632</version>
+            <version>1.24</version> <!-- TODO: Delete when in BOM -->
             <scope>test</scope>
         </dependency>
         <dependency>
