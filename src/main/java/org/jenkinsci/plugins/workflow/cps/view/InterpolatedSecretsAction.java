@@ -98,7 +98,7 @@ public class InterpolatedSecretsAction implements RunAction2 {
             Set<Map.Entry<String, Object>> entrySet = stepArguments.entrySet();
             if (!entrySet.isEmpty()) {
                 boolean first = true;
-                for (Map.Entry<String, Object> argEntry : stepArguments.entrySet()) {
+                for (Map.Entry<String, Object> argEntry : entrySet) {
                     Object value = argEntry.getValue();
                     String valueString = String.valueOf(value);
                     if (value instanceof ArgumentsAction.NotStoredReason) {

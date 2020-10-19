@@ -407,7 +407,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
         // The only time a closure is valid is when the resulting Describable is immediately executed via a meta-step
         NamedArgsAndClosure args = parseArgs(_args, metaStep!=null && metaStep.takesImplicitBlockArgument(),
-                UninstantiatedDescribable.ANONYMOUS_KEY, singleArgumentOnly);
+                UninstantiatedDescribable.ANONYMOUS_KEY, singleArgumentOnly, new HashSet<>());
         UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
 
         if (metaStep==null) {
@@ -507,9 +507,13 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
     /**
      * This class holds the argument map and optional body of the step that is to be invoked.
+     *
+     * <p>Some steps have complex argument types (e.g. `checkout` takes {@link hudson.scm.SCM}). When user use symbol-based
+     * syntax with those arguments, an instance of this class is created as the result of {@link DSL#invokeDescribable(String, Object)}.
+     * The instance is returned to the Groovy program so that it can be passed to {@link DSL#invokeStep(StepDescriptor, String, Object)}
+     * later, so it must implement {@link Serializable}.
      */
-    static class NamedArgsAndClosure implements Serializable {
-        final Map<String,Object> namedArgs;
+    static class NamedArgsAndClosure implements Serializable { final Map<String,Object> namedArgs;
         final Closure body;
         final List<String> msgs;
         final Set<String> interpolatedStrings;
@@ -613,10 +617,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // Ignore steps without databound constructors and treat them as normal.
         }
         return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d), singleArgumentOnly, new HashSet<>());
-    }
-
-    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg) {
-        return parseArgs(arg, expectsBlock, soleArgumentKey, singleRequiredArg, new HashSet<>());
     }
 
     /**
