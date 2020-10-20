@@ -2,6 +2,7 @@ package org.jenkinsci.plugins.workflow.cps.view;
 
 import hudson.model.Run;
 import jenkins.model.RunAction2;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -149,7 +150,7 @@ public class InterpolatedSecretsAction implements RunAction2 {
                         valueString = String.valueOf(value);
                         break;
                 }
-            } else if (value instanceof Map || value  instanceof List) {
+            } else if (value instanceof Map || value  instanceof List || value instanceof UninstantiatedDescribable) {
                 valueString = argumentToString(value);
             } else {
                 valueString = String.valueOf(value);
@@ -163,6 +164,20 @@ public class InterpolatedSecretsAction implements RunAction2 {
             valueString = ((List<?>) arg).stream()
                     .map(InterpolatedSecretsAction::argumentToString)
                     .collect(Collectors.joining(", ", "[", "]"));
+        } else if (arg instanceof UninstantiatedDescribable) {
+            UninstantiatedDescribable ud = (UninstantiatedDescribable) arg;
+            String udName = null;
+            if (ud.getSymbol() != null) {
+                udName = '@' + ud.getSymbol();
+            }
+            if (ud.getKlass() != null) {
+                udName = '$' + ud.getKlass() + udName;
+            }
+
+            Map<String, ?> udArgs = ud.getArguments();
+            valueString = udArgs.entrySet().stream()
+                    .map(InterpolatedSecretsAction::argumentToString)
+                    .collect(Collectors.joining(", ", udName + "(", ")"));
         } else {
             valueString = String.valueOf(arg);
         }
