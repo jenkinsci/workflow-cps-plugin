@@ -13,11 +13,9 @@ import org.kohsuke.stapler.export.ExportedBean;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
  * Action to generate the UI report for watched environment variables
@@ -77,7 +75,7 @@ public class InterpolatedSecretsAction implements RunAction2 {
         final Run run;
         final String nodeId;
 
-        private InterpolatedWarnings(@Nonnull String stepName, @Nonnull List<String> interpolatedVariables, @Nonnull Run run, @Nonnull String nodeId) {
+        InterpolatedWarnings(@Nonnull String stepName, @Nonnull List<String> interpolatedVariables, @Nonnull Run run, @Nonnull String nodeId) {
             this.stepName = stepName;
             this.interpolatedVariables = interpolatedVariables;
             this.run = run;
@@ -86,7 +84,6 @@ public class InterpolatedSecretsAction implements RunAction2 {
 
         @Exported
         public String getStepSignature() {
-            StringBuilder sb = new StringBuilder();
             Map<String, Object> stepArguments;
             try {
                 stepArguments = getStepArguments(run, nodeId);
@@ -94,35 +91,9 @@ public class InterpolatedSecretsAction implements RunAction2 {
                 return "Unable to construct " +  stepName + ": " + e.getMessage();
             }
 
-            sb.append(stepName + "(");
-            Set<Map.Entry<String, Object>> entrySet = stepArguments.entrySet();
-            if (!entrySet.isEmpty()) {
-                boolean first = true;
-                for (Map.Entry<String, Object> argEntry : entrySet) {
-                    Object value = argEntry.getValue();
-                    String valueString = String.valueOf(value);
-                    if (value instanceof ArgumentsAction.NotStoredReason) {
-                        switch ((ArgumentsAction.NotStoredReason) value) {
-                            case OVERSIZE_VALUE:
-                                valueString = "argument omitted due to length";
-                                break;
-                            case UNSERIALIZABLE:
-                                valueString = "unable to serialize argument";
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                    if (first) {
-                        first = false;
-                    } else {
-                        sb.append(", ");
-                    }
-                    sb.append(argEntry.getKey() + ": " + valueString);
-                }
-            }
-            sb.append(")");
-            return sb.toString();
+            return stepArguments.entrySet().stream()
+                    .map(InterpolatedSecretsAction::argumentToString)
+                    .collect(Collectors.joining(", ", stepName + "(", ")"));
         }
 
         @Nonnull
@@ -159,5 +130,38 @@ public class InterpolatedSecretsAction implements RunAction2 {
         public List<String> getInterpolatedVariables() {
             return interpolatedVariables;
         }
+    }
+
+    private static String argumentToString(Map.Entry<String, Object> argEntry) {
+        Object value = argEntry.getValue();
+        String valueString;
+        if (value instanceof ArgumentsAction.NotStoredReason) {
+            switch ((ArgumentsAction.NotStoredReason) value) {
+                case OVERSIZE_VALUE:
+                    valueString = "argument omitted due to length";
+                    break;
+                case UNSERIALIZABLE:
+                    valueString = "unable to serialize argument";
+                    break;
+                default:
+                    valueString = String.valueOf(value);
+                    break;
+            }
+        } else if (value instanceof Map) {
+            valueString = mapToString((Map<String, Object>) value);
+        } else if (value instanceof List) {
+            valueString = ((List<Map<String, Object>>) value).stream()
+                    .map(InterpolatedSecretsAction::mapToString)
+                    .collect(Collectors.joining(", ", "[", "]"));
+        } else {
+            valueString = String.valueOf(value);
+        }
+        return argEntry.getKey() + ": " + valueString;
+    }
+
+    private static String mapToString(Map<String, Object> valueMap) {
+        return valueMap.entrySet().stream()
+                .map(InterpolatedSecretsAction::argumentToString)
+                .collect(Collectors.joining(", ", "[", "]"));
     }
 }

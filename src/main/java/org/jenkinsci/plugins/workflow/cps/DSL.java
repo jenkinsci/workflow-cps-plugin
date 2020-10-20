@@ -537,7 +537,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         /**
          * Recursively search argument values for instances of {@link NamedArgsAndClosure} and convert them to {@link UninstantiatedDescribable}.
          * These instances were created in {@link DSL#invokeDescribable(String, Object)} for symbols with no meta-step.
-         * Gather all the interpolated strings from each instance of {@link NamedArgsAndClosure}.
+         * Gathers all the interpolated strings from each instance of {@link NamedArgsAndClosure}.
          */
         private static Object collectInterpolatedStrings(Object argValue, Set<String> interpolatedStrings) {
             if (argValue instanceof NamedArgsAndClosure) {
