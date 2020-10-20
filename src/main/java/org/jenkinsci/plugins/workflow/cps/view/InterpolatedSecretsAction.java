@@ -132,31 +132,42 @@ public class InterpolatedSecretsAction implements RunAction2 {
         }
     }
 
-    private static String argumentToString(Map.Entry<String, Object> argEntry) {
-        Object value = argEntry.getValue();
+    private static String argumentToString(Object arg) {
         String valueString;
-        if (value instanceof ArgumentsAction.NotStoredReason) {
-            switch ((ArgumentsAction.NotStoredReason) value) {
-                case OVERSIZE_VALUE:
-                    valueString = "argument omitted due to length";
-                    break;
-                case UNSERIALIZABLE:
-                    valueString = "unable to serialize argument";
-                    break;
-                default:
-                    valueString = String.valueOf(value);
-                    break;
+        if (arg instanceof Map.Entry) {
+            Map.Entry argEntry = (Map.Entry<String, Object>) arg;
+            Object value = argEntry.getValue();
+            if (value instanceof ArgumentsAction.NotStoredReason) {
+                switch ((ArgumentsAction.NotStoredReason) value) {
+                    case OVERSIZE_VALUE:
+                        valueString = "argument omitted due to length";
+                        break;
+                    case UNSERIALIZABLE:
+                        valueString = "unable to serialize argument";
+                        break;
+                    default:
+                        valueString = String.valueOf(value);
+                        break;
+                }
+            } else if (value instanceof Map || value  instanceof List) {
+                valueString = argumentToString(value);
+            } else {
+                valueString = String.valueOf(value);
             }
-        } else if (value instanceof Map) {
-            valueString = mapToString((Map<String, Object>) value);
-        } else if (value instanceof List) {
-            valueString = ((List<Map<String, Object>>) value).stream()
-                    .map(InterpolatedSecretsAction::mapToString)
+            return argEntry.getKey() + ": " + valueString;
+        } else if (arg instanceof Map) {
+            valueString = ((Map<?, ?>) arg).entrySet().stream()
+                    .map(InterpolatedSecretsAction::argumentToString)
+                    .collect(Collectors.joining(", ", "[", "]"));
+        } else if (arg instanceof List) {
+            valueString = ((List<?>) arg).stream()
+                    .map(InterpolatedSecretsAction::argumentToString)
                     .collect(Collectors.joining(", ", "[", "]"));
         } else {
-            valueString = String.valueOf(value);
+            valueString = String.valueOf(arg);
         }
-        return argEntry.getKey() + ": " + valueString;
+
+        return valueString;
     }
 
     private static String mapToString(Map<String, Object> valueMap) {
