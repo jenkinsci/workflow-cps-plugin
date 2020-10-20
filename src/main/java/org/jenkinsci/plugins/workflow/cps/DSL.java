@@ -26,11 +26,13 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
 import groovy.lang.GString;
 import groovy.lang.GroovyObject;
 import groovy.lang.GroovyObjectSupport;
 import groovy.lang.GroovyRuntimeException;
+import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.ExtensionList;
 import hudson.Util;
@@ -87,6 +89,8 @@ import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jvnet.hudson.annotation_indexer.Index;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.ClassDescriptor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
 
@@ -99,6 +103,10 @@ import javax.annotation.Nullable;
  */
 @PersistIn(PROGRAM)
 public class DSL extends GroovyObjectSupport implements Serializable {
+    @SuppressFBWarnings("MS_SHOULD_BE_FINAL") // Used to control warning behavior of unsafe Groovy interpolation
+    @Restricted(NoExternalUse.class)
+    public static String UNSAFE_GROOVY_INTERPOLATION = DSL.class.getName() + ".UNSAFE_GROOVY_INTERPOLATION";
+
     private final FlowExecutionOwner handle;
     private transient CpsFlowExecution exec;
     private transient Map<String,StepDescriptor> functions;
@@ -353,6 +361,16 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     }
 
     private void logInterpolationWarnings(String stepName, @CheckForNull ArgumentsActionImpl argumentsAction, String nodeId, Set<String> interpolatedStrings, @CheckForNull EnvVars envVars, @Nonnull Set<String> sensitiveVariables, TaskListener listener) throws IOException, InterruptedException {
+        if (UNSAFE_GROOVY_INTERPOLATION.equals("ignore")) {
+            return;
+        }
+        boolean shouldFail;
+        if (UNSAFE_GROOVY_INTERPOLATION.equals("fail")) {
+            shouldFail = true;
+        } else {
+            shouldFail = false;
+        }
+
         if (argumentsAction == null || interpolatedStrings.isEmpty() || envVars == null || envVars.isEmpty() || sensitiveVariables.isEmpty()) {
             return;
         }
@@ -362,8 +380,14 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 .collect(Collectors.toList());
 
         if (scanResults != null && !scanResults.isEmpty()) {
-            String warning = String.format("Warning: A secret was passed to \"%s\" using Groovy String interpolation, which is insecure.%n\t\t Affected argument(s) used the following variable(s): %s%n\t\t See https://jenkins.io/redirect/groovy-string-interpolation for details.",
-                    stepName, scanResults.toString());
+            String warningType;
+            if (shouldFail) {
+                warningType = "Error";
+            } else {
+                warningType = "Warning";
+            }
+            String warning = String.format("%s: A secret was passed to \"%s\" using Groovy String interpolation, which is insecure.%n\t\t Affected argument(s) used the following variable(s): %s%n\t\t See https://jenkins.io/redirect/groovy-string-interpolation for details.",
+                    warningType, stepName, scanResults.toString());
             listener.getLogger().println(warning);
 
             FlowExecutionOwner owner = exec.getOwner();
@@ -376,6 +400,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 runReport.record(stepName, scanResults, nodeId);
             } else {
                 LOGGER.log(Level.FINE, "Unable to generate Interpolated Secrets Report");
+            }
+            if (shouldFail) {
+                throw new AbortException("Unsafe Groovy interpolation");
             }
         }
     }
