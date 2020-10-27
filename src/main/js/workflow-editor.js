@@ -1,5 +1,10 @@
-var $ = require('jquery');
-var jenkinsJSModules = require('jenkins-js-modules');
+import $ from 'jquery';
+import jenkinsJSModules from 'jenkins-js-modules';
+import 'raf/polyfill';
+// Import the resizable module to allow the textarea to be expanded
+import 'jquery-ui/ui/widgets/resizable';
+import { addSamplesWidget } from './samples';
+
 var editorIdCounter = 0;
 
 // The Jenkins 'ace-editor:ace-editor-122' plugin doesn't support a synchronous
@@ -8,7 +13,6 @@ var editorIdCounter = 0;
 // specific version of ACE, from which we create an editor instance for workflow.
 jenkinsJSModules.import('ace-editor:ace-editor-122')
     .onFulfilled(function (acePack) {
-
         $('.workflow-editor-wrapper').each(function() {
             initEditor($(this));
         });
@@ -64,6 +68,8 @@ jenkinsJSModules.import('ace-editor:ace-editor-122')
                         editor.session.clearAnnotations();
                         var url = textarea.attr("checkUrl") + 'Compile';
 
+
+                        // eslint-disable-next-line no-undef
                         new Ajax.Request(url, { // jshint ignore:line
                             method: textarea.attr('checkMethod') || 'POST',
                             parameters: {
@@ -97,7 +103,7 @@ jenkinsJSModules.import('ace-editor:ace-editor-122')
                         // we add a samples widget to let the user select some samples that
                         // can be used to get them going.
                         if (editor.getValue() === '') {
-                            require('./samples').addSamplesWidget(editor, editorId, aceContainer.attr('samplesUrl'));
+                            addSamplesWidget(editor, editorId, aceContainer.attr('samplesUrl'));
                         }
                     }
                     showSamplesWidget();
@@ -106,15 +112,18 @@ jenkinsJSModules.import('ace-editor:ace-editor-122')
                 // Make the editor resizable using jQuery UI resizable (http://api.jqueryui.com/resizable).
                 // ACE Editor doesn't have this as a config option.
                 $wfEditor.wrap('<div class="jquery-ui-1"></div>');
-                // $wfEditor.resizable({
-                //     handles: "s", // Only allow vertical resize off the bottom/south border
-                //     resize: function() {
-                //         editor.resize();
-                //     }
-                // });
-                // Make the bottom border a bit thicker as a visual cue.
-                // May not be enough for some people's taste.
-                $wfEditor.css('border-bottom-width', '0.4em');
+                $wfEditor.resizable({
+                    handles: "s", // Only allow vertical resize off the bottom/south border
+                    minHeight: 100,
+                    resize: function () {
+                        requestAnimationFrame(() => {
+                            editor.resize();
+                            if (window.layoutUpdateCallback) {
+                                window.layoutUpdateCallback.call();
+                            }
+                        })
+                    },
+                });
             });
 
             wrapper.show();
