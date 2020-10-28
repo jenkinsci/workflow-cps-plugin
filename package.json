@@ -7,10 +7,10 @@
   "scripts": {
     "dev": "webpack --config webpack.config.js",
     "prod": "webpack --config webpack.config.js --mode=production",
-    "start": "npm run dev -- --watch",
+    "start": "yarn dev -- --watch",
     "lint:js": "eslint src/main/js --ext js",
-    "mvnbuild": "npm run prod",
-    "mvntest": "npm run lint:js"
+    "mvnbuild": "yarn prod",
+    "mvntest": "yarn lint:js"
   },
   "repository": {
     "type": "git",
