@@ -1,5 +1,6 @@
 import $ from 'jquery';
 import jenkinsJSModules from 'jenkins-js-modules';
+// Polyfill for window.requestAnimationFrame
 import 'raf/polyfill';
 // Import the resizable module to allow the textarea to be expanded
 import 'jquery-ui/ui/widgets/resizable';
@@ -116,8 +117,12 @@ jenkinsJSModules.import('ace-editor:ace-editor-122')
                     handles: "s", // Only allow vertical resize off the bottom/south border
                     minHeight: 100,
                     resize: function () {
+                        // Use requestAnimationFrame to throttle resizes to happen before frame render
                         requestAnimationFrame(() => {
                             editor.resize();
+                            // window.layoutUpdateCallback is defined in Jenkins core.
+                            // call it to allow buttonbars that are fixed on the screen to be pushed down
+                            // when the editor size is increased.
                             if (window.layoutUpdateCallback) {
                                 window.layoutUpdateCallback.call();
                             }
