@@ -1,7 +1,7 @@
-exports.addSamplesWidget = function(editor, editorId, samplesUrl) {
-    var samples = [];
+import $ from 'jquery';
 
-    var $ = require('jqueryui-detached').getJQueryUI();
+export function addSamplesWidget(editor, editorId, samplesUrl) {
+    var samples = [];
 
     if ($('#workflow-editor-wrapper .samples').length) {
         // Already there.
@@ -10,8 +10,9 @@ exports.addSamplesWidget = function(editor, editorId, samplesUrl) {
 
     var $aceEditor = $('#' + editorId);
     var sampleSelect = $('<select></select>');
-    
+
     sampleSelect.append('<option >try sample Pipeline...</option>');
+    // eslint-disable-next-line no-undef
     new Ajax.Request(samplesUrl, {
         onSuccess : function(data) {
             samples = data.responseJSON.samples;
@@ -20,7 +21,7 @@ exports.addSamplesWidget = function(editor, editorId, samplesUrl) {
             }
         }
     });
-    
+
     var samplesDiv = $('<div class="samples"></div>');
     samplesDiv.append(sampleSelect);
 
@@ -35,8 +36,8 @@ exports.addSamplesWidget = function(editor, editorId, samplesUrl) {
     sampleSelect.change(function() {
         var theSample = getSample(sampleSelect.val(), samples);
         editor.setValue(theSample, 1);
-    });    
-};
+    });
+}
 
 function getSample(sampleName, samples) {
     for (var i = 0; i < samples.length; i++) {
