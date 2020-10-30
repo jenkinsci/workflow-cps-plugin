@@ -1,5 +1,17 @@
 ## Changelog
 
+### 2.84
+
+Release date: 2020-10-30
+
+* Improvement: Make the Pipeline editor resizable ([JENKINS-31592](https://issues.jenkins-ci.org/browse/JENKINS-31592), [JENKINS-32297](https://issues.jenkins-ci.org/browse/JENKINS-32297), [JENKINS-38276](https://issues.jenkins-ci.org/browse/JENKINS-38276), [PR #391](https://github.com/jenkinsci/workflow-cps-plugin/pull/391))
+* Fix: Do not save Pipeline state to `program.dat` when Pipeline resumption is disabled ([PR #377](https://github.com/jenkinsci/workflow-cps-plugin/pull/377))
+* Internal: Update jQuery by migrating frontend toolchain from `js-builder` to Webpack ([PR #391](https://github.com/jenkinsci/workflow-cps-plugin/pull/391))
+* Internal: Update parent POM and various dependencies ([PR #380](https://github.com/jenkinsci/workflow-cps-plugin/pull/380), [PR #384](https://github.com/jenkinsci/workflow-cps-plugin/pull/384), [PR #385](https://github.com/jenkinsci/workflow-cps-plugin/pull/385), [PR #387](https://github.com/jenkinsci/workflow-cps-plugin/pull/387), [PR #388](https://github.com/jenkinsci/workflow-cps-plugin/pull/388), [PR #389](https://github.com/jenkinsci/workflow-cps-plugin/pull/389), [PR #390](https://github.com/jenkinsci/workflow-cps-plugin/pull/390))
+* Internal: Update some tests to use `JenkinsSessionRule` ([PR #381](https://github.com/jenkinsci/workflow-cps-plugin/pull/381))
+* Internal: Add regression tests for SECURITY-2020 ([PR #379](https://github.com/jenkinsci/workflow-cps-plugin/pull/379))
+* Internal: Enable Dependabot on repository ([PR #382](https://github.com/jenkinsci/workflow-cps-plugin/pull/382))
+
 ### 2.83
 
 Release date: 2020-09-03
