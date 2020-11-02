@@ -45,6 +45,7 @@ import java.util.stream.Collectors;
  * Action to generate the UI report for watched environment variables
  */
 @Restricted(NoExternalUse.class)
+@ExportedBean
 public class InterpolatedSecretsAction implements RunAction2 {
 
     private List<InterpolatedWarnings> interpolatedWarnings = new ArrayList<>();
@@ -66,6 +67,7 @@ public class InterpolatedSecretsAction implements RunAction2 {
         interpolatedWarnings.add(new InterpolatedWarnings(stepName, interpolatedVariables, run, nodeId));
     }
 
+    @Exported
     public List<InterpolatedWarnings> getWarnings() {
        return interpolatedWarnings;
     }
@@ -93,11 +95,11 @@ public class InterpolatedSecretsAction implements RunAction2 {
     }
 
     @ExportedBean
-    public static class InterpolatedWarnings {
+    public static class InterpolatedWarnings implements RunAction2 {
         final String stepName;
         final List<String> interpolatedVariables;
-        final Run run;
         final String nodeId;
+        private transient Run run;
 
         InterpolatedWarnings(@Nonnull String stepName, @Nonnull List<String> interpolatedVariables, @Nonnull Run run, @Nonnull String nodeId) {
             this.stepName = stepName;
@@ -153,6 +155,31 @@ public class InterpolatedSecretsAction implements RunAction2 {
         @Exported
         public List<String> getInterpolatedVariables() {
             return interpolatedVariables;
+        }
+
+        @Override
+        public void onAttached(Run<?, ?> run) {
+            this.run = run;
+        }
+
+        @Override
+        public void onLoad(Run<?, ?> run) {
+            this.run = run;
+        }
+
+        @Override
+        public String getIconFileName() {
+            return null;
+        }
+
+        @Override
+        public String getDisplayName() {
+            return null;
+        }
+
+        @Override
+        public String getUrlName() {
+            return null;
         }
     }
 
