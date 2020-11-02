@@ -105,7 +105,7 @@ import javax.annotation.Nullable;
 public class DSL extends GroovyObjectSupport implements Serializable {
     @SuppressFBWarnings("MS_SHOULD_BE_FINAL") // Used to control warning behavior of unsafe Groovy interpolation
     @Restricted(NoExternalUse.class)
-    public static String UNSAFE_GROOVY_INTERPOLATION = DSL.class.getName() + ".UNSAFE_GROOVY_INTERPOLATION";
+    public static String UNSAFE_GROOVY_INTERPOLATION = System.getProperty(DSL.class.getName() + ".UNSAFE_GROOVY_INTERPOLATION", "warn");
 
     private final FlowExecutionOwner handle;
     private transient CpsFlowExecution exec;
@@ -388,8 +388,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             }
             String warning = String.format("%s: A secret was passed to \"%s\" using Groovy String interpolation, which is insecure.%n\t\t Affected argument(s) used the following variable(s): %s%n\t\t See https://jenkins.io/redirect/groovy-string-interpolation for details.",
                     warningType, stepName, scanResults.toString());
-            listener.getLogger().println(warning);
-
             FlowExecutionOwner owner = exec.getOwner();
             if (owner != null && owner.getExecutable() instanceof Run) {
                 InterpolatedSecretsAction runReport = ((Run) owner.getExecutable()).getAction(InterpolatedSecretsAction.class);
@@ -402,7 +400,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 LOGGER.log(Level.FINE, "Unable to generate Interpolated Secrets Report");
             }
             if (shouldFail) {
-                throw new AbortException("Unsafe Groovy interpolation");
+                throw new AbortException(warning);
+            } else {
+                listener.getLogger().println(warning);
             }
         }
     }
