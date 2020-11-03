@@ -87,15 +87,21 @@ public class InterpolatedSecretsAction implements RunAction2 {
     @Override
     public void onAttached(Run<?, ?> run) {
         this.run = run;
+        for (InterpolatedWarnings warning : interpolatedWarnings) {
+            warning.run = run;
+        }
     }
 
     @Override
     public void onLoad(Run<?, ?> run) {
         this.run = run;
+        for (InterpolatedWarnings warning : interpolatedWarnings) {
+            warning.run = run;
+        }
     }
 
     @ExportedBean
-    public static class InterpolatedWarnings implements RunAction2 {
+    public static class InterpolatedWarnings {
         final String stepName;
         final List<String> interpolatedVariables;
         final String nodeId;
@@ -157,30 +163,6 @@ public class InterpolatedSecretsAction implements RunAction2 {
             return interpolatedVariables;
         }
 
-        @Override
-        public void onAttached(Run<?, ?> run) {
-            this.run = run;
-        }
-
-        @Override
-        public void onLoad(Run<?, ?> run) {
-            this.run = run;
-        }
-
-        @Override
-        public String getIconFileName() {
-            return null;
-        }
-
-        @Override
-        public String getDisplayName() {
-            return null;
-        }
-
-        @Override
-        public String getUrlName() {
-            return null;
-        }
     }
 
     private static String argumentToString(Object arg) {
@@ -220,7 +202,7 @@ public class InterpolatedSecretsAction implements RunAction2 {
             if (ud.getSymbol() != null) {
                 valueString = udArgs.entrySet().stream()
                         .map(InterpolatedSecretsAction::argumentToString)
-                        .collect(Collectors.joining(", ", "@" + ud.getSymbol() + "(", ")"));
+                        .collect(Collectors.joining(", ", ud.getSymbol() + "(", ")"));
             } else {
                 if (udArgs.isEmpty()) {
                     valueString = "[$class: " + ud.getKlass() + "]";
