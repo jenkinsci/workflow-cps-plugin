@@ -216,28 +216,24 @@ public class InterpolatedSecretsAction implements RunAction2 {
                     .collect(Collectors.joining(", ", "[", "]"));
         } else if (arg instanceof UninstantiatedDescribable) {
             UninstantiatedDescribable ud = (UninstantiatedDescribable) arg;
-            String udName = null;
-            if (ud.getSymbol() != null) {
-                udName = '@' + ud.getSymbol();
-            }
-            if (ud.getKlass() != null) {
-                udName = '$' + ud.getKlass() + udName;
-            }
-
             Map<String, ?> udArgs = ud.getArguments();
-            valueString = udArgs.entrySet().stream()
-                    .map(InterpolatedSecretsAction::argumentToString)
-                    .collect(Collectors.joining(", ", udName + "(", ")"));
+            if (ud.getSymbol() != null) {
+                valueString = udArgs.entrySet().stream()
+                        .map(InterpolatedSecretsAction::argumentToString)
+                        .collect(Collectors.joining(", ", "@" + ud.getSymbol() + "(", ")"));
+            } else {
+                if (udArgs.isEmpty()) {
+                    valueString = "[$class: " + ud.getKlass() + "]";
+                } else {
+                    valueString = udArgs.entrySet().stream()
+                            .map(InterpolatedSecretsAction::argumentToString)
+                            .collect(Collectors.joining(", ", "[$class: " + ud.getKlass() + ",", "]"));
+                }
+            }
         } else {
             valueString = String.valueOf(arg);
         }
 
         return valueString;
-    }
-
-    private static String mapToString(Map<String, Object> valueMap) {
-        return valueMap.entrySet().stream()
-                .map(InterpolatedSecretsAction::argumentToString)
-                .collect(Collectors.joining(", ", "[", "]"));
     }
 }
