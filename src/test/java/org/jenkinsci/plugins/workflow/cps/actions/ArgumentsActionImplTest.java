@@ -13,6 +13,10 @@ import hudson.EnvVars;
 import hudson.Functions;
 import hudson.XmlFile;
 import hudson.model.Action;
+import hudson.model.ParametersAction;
+import hudson.model.ParametersDefinitionProperty;
+import hudson.model.PasswordParameterDefinition;
+import hudson.model.PasswordParameterValue;
 import hudson.tasks.ArtifactArchiver;
 import org.apache.commons.lang.RandomStringUtils;
 import org.hamcrest.MatcherAssert;
@@ -48,6 +52,7 @@ import org.junit.Assume;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 import org.jvnet.hudson.test.BuildWatcher;
@@ -619,6 +624,22 @@ public class ArgumentsActionImplTest {
                 equalTo(TimeUnit.MINUTES));
         Assert.assertThat(nodes.get(2).getPersistentAction(ArgumentsAction.class).getArgumentValueOrReason("value"),
                 equalTo(NotStoredReason.UNSERIALIZABLE));
+    }
+
+    @Issue("JENKINS-47101")
+    @Test public void passwordParametersSanitized() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class);
+        p.addProperty(new ParametersDefinitionProperty(
+                Arrays.asList(new PasswordParameterDefinition("MYPASSWORD", "mysecret", "description"))));
+        p.setDefinition(new CpsFlowDefinition("echo(\"$MYPASSWORD\")", true));
+        ParametersAction paramsAction = new ParametersAction(Arrays.asList(new PasswordParameterValue("MYPASSWORD", "mysecret")));
+        WorkflowRun b = p.scheduleBuild2(0, paramsAction).waitForStart();
+        r.assertBuildStatusSuccess(r.waitForCompletion(b));
+        LinearScanner scan = new LinearScanner();
+        FlowNode shNode = scan.findFirstMatch(b.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("echo"));
+        ArgumentsAction args = shNode.getPersistentAction(ArgumentsAction.class);
+        assertThat(args.isUnmodifiedArguments(), equalTo(false));
+        assertThat(args.getArguments(), hasEntry("message", "${MYPASSWORD}"));
     }
 
     public static class NopStep extends Step {
