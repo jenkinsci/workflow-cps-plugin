@@ -69,6 +69,7 @@
         <java.level>8</java.level>
         <no-test-jar>false</no-test-jar>
         <groovy-cps.version>1.32</groovy-cps.version>
+        <workflow-support-plugin.version>3.6-rc759.3e4ba3120e7a</workflow-support-plugin.version>  <!-- TODO: https://github.com/jenkinsci/workflow-support-plugin/pull/110 -->
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -93,7 +94,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-support</artifactId>
-            <version>3.6-rc759.3e4ba3120e7a</version> <!-- TODO: https://github.com/jenkinsci/workflow-support-plugin/pull/110 -->
+            <version>${workflow-support-plugin.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -132,6 +133,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-support</artifactId>
+            <version>${workflow-support-plugin.version}</version>
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
