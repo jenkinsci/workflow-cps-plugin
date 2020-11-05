@@ -67,8 +67,8 @@ public class InterpolatedSecretsAction implements RunAction2 {
         return null;
     }
 
-    public void record(@Nonnull String stepName, @Nonnull List<String> interpolatedVariables, @Nonnull String nodeId) {
-        interpolatedWarnings.add(new InterpolatedWarnings(stepName, interpolatedVariables, run, nodeId));
+    public void record(@Nonnull String stepName, @Nonnull List<String> interpolatedVariables) {
+        interpolatedWarnings.add(new InterpolatedWarnings(stepName, interpolatedVariables));
     }
 
     @Exported
@@ -91,155 +91,31 @@ public class InterpolatedSecretsAction implements RunAction2 {
     @Override
     public void onAttached(Run<?, ?> run) {
         this.run = run;
-        for (InterpolatedWarnings warning : interpolatedWarnings) {
-            warning.run = run;
-        }
     }
 
     @Override
     public void onLoad(Run<?, ?> run) {
         this.run = run;
-        for (InterpolatedWarnings warning : interpolatedWarnings) {
-            warning.run = run;
-        }
     }
 
     @ExportedBean
     public static class InterpolatedWarnings {
         final String stepName;
         final List<String> interpolatedVariables;
-        final String nodeId;
-        private transient Run run;
 
-        InterpolatedWarnings(@Nonnull String stepName, @Nonnull List<String> interpolatedVariables, @Nonnull Run run, @Nonnull String nodeId) {
+        InterpolatedWarnings(@Nonnull String stepName, @Nonnull List<String> interpolatedVariables) {
             this.stepName = stepName;
             this.interpolatedVariables = interpolatedVariables;
-            this.run = run;
-            this.nodeId = nodeId;
         }
 
         @Exported
-        public String getStepSignature() {
-            Map<String, Object> stepArguments;
-            FlowNode node;
-            try {
-                node = getFlowNode(run, nodeId);
-                ArgumentsAction argumentsAction = node.getPersistentAction(ArgumentsAction.class);
-                if (argumentsAction == null) {
-                    throw new IllegalStateException("null arguments action");
-                }
-                stepArguments = argumentsAction.getArguments();
-            } catch (IllegalStateException e) {
-                return "Unable to construct " +  stepName + ": " + e.getMessage();
-            }
-
-            if (node instanceof StepNode) {
-                StepDescriptor descriptor = ((StepNode)node).getDescriptor();
-                if (descriptor != null && descriptor.isMetaStep()) {
-                    DescribableParameter p = DescribableModel.of(descriptor.clazz).getFirstRequiredParameter();
-                    if (p != null) {
-                        Object arg = ArgumentsAction.getResolvedArguments(node).get(p.getName());
-                        if (arg instanceof UninstantiatedDescribable) {
-                            return argumentToString(arg);
-                        } else {
-                            return stepName + "(" + argumentToString(arg) + ")";
-                        }
-                    }
-                }
-            }
-
-            return stepArguments.entrySet().stream()
-                    .map(InterpolatedSecretsAction::argumentToString)
-                    .collect(Collectors.joining(", ", stepName + "(", ")"));
-        }
-
-        @Nonnull
-        private FlowNode getFlowNode(Run run, String nodeId) {
-            String failReason;
-            if (run instanceof FlowExecutionOwner.Executable) {
-                try {
-                    FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
-                    if (owner != null) {
-                        FlowNode node = owner.get().getNode(nodeId);
-                        if (node != null) {
-                            return node;
-                        } else {
-                            failReason = "null flow node";
-                        }
-                    } else {
-                        failReason = "null flow execution owner";
-                    }
-                } catch (IOException e) {
-                    failReason = "could not get flow node";
-                }
-            } else {
-                failReason = "not an instance of FlowExecutionOwner.Executable";
-            }
-            throw new IllegalStateException(failReason);
+        public String getStepName() {
+            return stepName;
         }
 
         @Exported
         public List<String> getInterpolatedVariables() {
             return interpolatedVariables;
         }
-    }
-
-    private static String argumentToString(Object arg) {
-        String valueString;
-        if (arg instanceof Map.Entry) {
-            Map.Entry argEntry = (Map.Entry<String, Object>) arg;
-            Object value = argEntry.getValue();
-            if (value instanceof ArgumentsAction.NotStoredReason) {
-                switch ((ArgumentsAction.NotStoredReason) value) {
-                    case OVERSIZE_VALUE:
-                        valueString = "argument omitted due to length";
-                        break;
-                    case UNSERIALIZABLE:
-                        valueString = "unable to serialize argument";
-                        break;
-                    default:
-                        valueString = String.valueOf(value);
-                        break;
-                }
-            } else if (value instanceof Map || value  instanceof List || value instanceof UninstantiatedDescribable) {
-                valueString = argumentToString(value);
-            } else {
-                valueString = String.valueOf(value);
-            }
-            return argEntry.getKey() + ": " + valueString;
-        } else if (arg instanceof Map) {
-            valueString = ((Map<?, ?>) arg).entrySet().stream()
-                    .map(InterpolatedSecretsAction::argumentToString)
-                    .collect(Collectors.joining(", ", "[", "]"));
-        } else if (arg instanceof List) {
-            valueString = ((List<?>) arg).stream()
-                    .map(InterpolatedSecretsAction::argumentToString)
-                    .collect(Collectors.joining(", ", "[", "]"));
-        } else if (arg instanceof UninstantiatedDescribable) {
-            UninstantiatedDescribable ud = (UninstantiatedDescribable) arg;
-            Map<String, ?> udArgs = ud.getArguments();
-            if (ud.getSymbol() != null) {
-                String prefix = ud.getSymbol() + "(";
-                if (ud.hasSoleRequiredArgument() && udArgs.size() == 1) {
-                    valueString = prefix + argumentToString(udArgs.values().iterator().next()) + ")";
-                } else {
-                    valueString = udArgs.entrySet().stream()
-                            .map(InterpolatedSecretsAction::argumentToString)
-                            .collect(Collectors.joining(", ", prefix, ")"));
-                }
-            } else {
-                if (udArgs.isEmpty()) {
-                    valueString = "[$class: " + ud.getKlass() + "]";
-                } else {
-                    valueString = udArgs.entrySet().stream()
-                            .map(InterpolatedSecretsAction::argumentToString)
-                            .collect(Collectors.joining(", ", "[$class: " + ud.getKlass() + ",", "]"));
-                }
-            }
-        } else {
-            valueString = String.valueOf(arg);
-        }
-
-        return valueString;
     }
 }

@@ -395,7 +395,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                     runReport = new InterpolatedSecretsAction();
                     ((Run) owner.getExecutable()).addAction(runReport);
                 }
-                runReport.record(stepName, scanResults, nodeId);
+                runReport.record(stepName, scanResults);
             } else {
                 LOGGER.log(Level.FINE, "Unable to generate Interpolated Secrets Report");
             }

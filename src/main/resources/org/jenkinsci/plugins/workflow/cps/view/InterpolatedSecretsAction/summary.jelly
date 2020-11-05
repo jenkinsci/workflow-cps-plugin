@@ -22,7 +22,7 @@ THE SOFTWARE.
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:t="/lib/hudson">
     <t:summary icon="warning.png">
-        ${%Possible insecure use of sensitive variables}
+        ${%The following steps that have been detected may have insecure interpolation of sensitive variables}
         <a href="https://jenkins.io/redirect/groovy-string-interpolation" target="_blank">(${%click here for an explanation})</a>:
         <j:if test="${it.inProgress}">
             (${%in progress})
@@ -30,10 +30,7 @@ THE SOFTWARE.
         <j:if test="${it.hasWarnings()}">
             <ul>
                 <j:forEach var="warning" items="${it.warnings}">
-                    <li><code>${warning.stepSignature}</code></li>
-                    <ul>
-                        <li>interpolated variables: <code>${warning.interpolatedVariables}</code></li>
-                    </ul>
+                    <li><code>${warning.stepName}: ${warning.interpolatedVariables}</code></li>
                 </j:forEach>
             </ul>
         </j:if>
