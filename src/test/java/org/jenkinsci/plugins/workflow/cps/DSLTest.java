@@ -485,7 +485,7 @@ public class DSLTest {
         List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
         MatcherAssert.assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
-        MatcherAssert.assertThat(stepWarning.getStepSignature(), is("archiveArtifacts(delegate: archiveArtifacts(<anonymous>: ${PASSWORD}))"));
+        MatcherAssert.assertThat(stepWarning.getStepSignature(), is("archiveArtifacts(${PASSWORD})"));
         MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
     }
 

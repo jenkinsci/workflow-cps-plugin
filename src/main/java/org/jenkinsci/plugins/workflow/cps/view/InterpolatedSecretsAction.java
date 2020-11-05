@@ -25,10 +25,14 @@ package org.jenkinsci.plugins.workflow.cps.view;
 
 import hudson.model.Run;
 import jenkins.model.RunAction2;
+import org.jenkinsci.plugins.structs.describable.DescribableModel;
+import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graph.StepNode;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.export.Exported;
@@ -117,10 +121,31 @@ public class InterpolatedSecretsAction implements RunAction2 {
         @Exported
         public String getStepSignature() {
             Map<String, Object> stepArguments;
+            FlowNode node;
             try {
-                stepArguments = getStepArguments(run, nodeId);
+                node = getFlowNode(run, nodeId);
+                ArgumentsAction argumentsAction = node.getPersistentAction(ArgumentsAction.class);
+                if (argumentsAction == null) {
+                    throw new IllegalStateException("null arguments action");
+                }
+                stepArguments = argumentsAction.getArguments();
             } catch (IllegalStateException e) {
                 return "Unable to construct " +  stepName + ": " + e.getMessage();
+            }
+
+            if (node instanceof StepNode) {
+                StepDescriptor descriptor = ((StepNode)node).getDescriptor();
+                if (descriptor != null && descriptor.isMetaStep()) {
+                    DescribableParameter p = DescribableModel.of(descriptor.clazz).getFirstRequiredParameter();
+                    if (p != null) {
+                        Object arg = ArgumentsAction.getResolvedArguments(node).get(p.getName());
+                        if (arg instanceof UninstantiatedDescribable) {
+                            return argumentToString(arg);
+                        } else {
+                            return stepName + "(" + argumentToString(arg) + ")";
+                        }
+                    }
+                }
             }
 
             return stepArguments.entrySet().stream()
@@ -129,7 +154,7 @@ public class InterpolatedSecretsAction implements RunAction2 {
         }
 
         @Nonnull
-        private Map<String, Object> getStepArguments(Run run, String nodeId) throws IllegalStateException {
+        private FlowNode getFlowNode(Run run, String nodeId) {
             String failReason;
             if (run instanceof FlowExecutionOwner.Executable) {
                 try {
@@ -137,12 +162,7 @@ public class InterpolatedSecretsAction implements RunAction2 {
                     if (owner != null) {
                         FlowNode node = owner.get().getNode(nodeId);
                         if (node != null) {
-                            ArgumentsAction argumentsAction = node.getPersistentAction(ArgumentsAction.class);
-                            if (argumentsAction != null) {
-                                return argumentsAction.getArguments();
-                            } else {
-                                failReason = "null arguments action";
-                            }
+                            return node;
                         } else {
                             failReason = "null flow node";
                         }
@@ -162,7 +182,6 @@ public class InterpolatedSecretsAction implements RunAction2 {
         public List<String> getInterpolatedVariables() {
             return interpolatedVariables;
         }
-
     }
 
     private static String argumentToString(Object arg) {
@@ -200,9 +219,14 @@ public class InterpolatedSecretsAction implements RunAction2 {
             UninstantiatedDescribable ud = (UninstantiatedDescribable) arg;
             Map<String, ?> udArgs = ud.getArguments();
             if (ud.getSymbol() != null) {
-                valueString = udArgs.entrySet().stream()
-                        .map(InterpolatedSecretsAction::argumentToString)
-                        .collect(Collectors.joining(", ", ud.getSymbol() + "(", ")"));
+                String prefix = ud.getSymbol() + "(";
+                if (ud.hasSoleRequiredArgument() && udArgs.size() == 1) {
+                    valueString = prefix + argumentToString(udArgs.values().iterator().next()) + ")";
+                } else {
+                    valueString = udArgs.entrySet().stream()
+                            .map(InterpolatedSecretsAction::argumentToString)
+                            .collect(Collectors.joining(", ", prefix, ")"));
+                }
             } else {
                 if (udArgs.isEmpty()) {
                     valueString = "[$class: " + ud.getKlass() + "]";
