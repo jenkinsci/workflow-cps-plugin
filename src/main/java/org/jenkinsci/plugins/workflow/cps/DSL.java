@@ -425,10 +425,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         StepDescriptor metaStep = metaSteps.size()==1 ? metaSteps.get(0) : null;
 
         boolean singleArgumentOnly = false;
-        DescribableModel<?> symbolModel = null;
         if (metaStep != null) {
             Descriptor symbolDescriptor = SymbolLookup.get().findDescriptor((Class)(metaStep.getMetaStepArgumentType()), symbol);
-            symbolModel = DescribableModel.of(symbolDescriptor.clazz);
+            DescribableModel<?> symbolModel = DescribableModel.of(symbolDescriptor.clazz);
 
             singleArgumentOnly = symbolModel.hasSingleRequiredParameter() && symbolModel.getParameters().size() == 1;
         }
@@ -437,7 +436,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         NamedArgsAndClosure args = parseArgs(_args, metaStep!=null && metaStep.takesImplicitBlockArgument(),
                 UninstantiatedDescribable.ANONYMOUS_KEY, singleArgumentOnly, new HashSet<>());
         UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
-        ud.setModel(symbolModel);
 
         if (metaStep==null) {
             // there's no meta-step associated with it, so this symbol is not executable.
