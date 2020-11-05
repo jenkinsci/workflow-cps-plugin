@@ -62,7 +62,7 @@
         </pluginRepository>
     </pluginRepositories>
     <properties>
-        <revision>2.84</revision>
+        <revision>2.85</revision>
         <changelist>-SNAPSHOT</changelist>
         <gitHubRepo>${project.artifactId}-plugin</gitHubRepo>
         <jenkins.version>2.176.4</jenkins.version>
@@ -70,6 +70,9 @@
         <no-test-jar>false</no-test-jar>
         <groovy-cps.version>1.32</groovy-cps.version>
         <workflow-support-plugin.version>3.6-rc759.b1425935abde</workflow-support-plugin.version>  <!-- TODO: https://github.com/jenkinsci/workflow-support-plugin/pull/110 -->
+        <node.version>12.19.0</node.version>
+        <npm.version>6.14.8</npm.version>
+        <frontend-version>1.10.0</frontend-version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -188,10 +191,6 @@
                     <artifactId>guava</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.ui</groupId>
-            <artifactId>jquery-detached</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.ui</groupId>
