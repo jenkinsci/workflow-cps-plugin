@@ -2,7 +2,7 @@
 
 ### 2.85
 
-Release date: 2020-11-05
+Release date: TBD
 
 * Improvement: Add warnings when secrets are used with Groovy String interpolation. ([JENKINS-63254](https://issues.jenkins-ci.org/browse/JENKINS-63254))
 * Fix: Allow masking of secret variables that use the same name as system variables. ([JENKINS-47101](https://issues.jenkins-ci.org/browse/JENKINS-47101))
