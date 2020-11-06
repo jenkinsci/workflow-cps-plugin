@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+The MIT License
+Copyright (c) 2020, CloudBees, Inc.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:t="/lib/hudson">
+    <t:summary icon="warning.png">
+        ${%The following steps that have been detected may have insecure interpolation of sensitive variables}
+        <a href="https://jenkins.io/redirect/groovy-string-interpolation" target="_blank">(${%click here for an explanation})</a>:
+        <j:if test="${it.inProgress}">
+            (${%in progress})
+        </j:if>
+        <j:if test="${it.hasWarnings()}">
+            <ul>
+                <j:forEach var="warning" items="${it.warnings}">
+                    <li><code>${warning.stepName}: ${warning.interpolatedVariables}</code></li>
+                </j:forEach>
+            </ul>
+        </j:if>
+    </t:summary>
+</j:jelly>

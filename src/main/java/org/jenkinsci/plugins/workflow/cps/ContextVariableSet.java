@@ -81,6 +81,7 @@ final class ContextVariableSet implements Serializable {
         }
     }
 
+    @FunctionalInterface
     interface ThrowingSupplier<T> {
         T get() throws IOException;
     }

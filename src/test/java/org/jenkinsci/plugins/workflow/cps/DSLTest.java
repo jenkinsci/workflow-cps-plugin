@@ -24,16 +24,26 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.domains.Domain;
+import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
+import hudson.Functions;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.model.Result;
+
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import static org.hamcrest.Matchers.containsString;
 
+import org.hamcrest.MatcherAssert;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
+import org.jenkinsci.plugins.workflow.cps.view.InterpolatedSecretsAction;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.LinearScanner;
 import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepTypePredicate;
@@ -49,6 +59,9 @@ import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
 import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoLowerStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoUpperStep;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
@@ -418,6 +431,177 @@ public class DSLTest {
         WorkflowRun b =  r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogContains("IllegalArgumentException: WARNING: Unknown parameter(s) found for class type " +
                 "'org.jenkinsci.plugins.workflow.steps.SleepStep': comment,units", b);
+    }
+
+    @Issue("JENKINS-63254")
+    @Test public void sensitiveVariableInterpolation() throws Exception {
+        final String credentialsId = "creds";
+        final String username = "bob";
+        final String password = "secr3t";
+        UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
+        CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
+        String shellStep = Functions.isWindows()? "bat" : "sh";
+        p.setDefinition(new CpsFlowDefinition(""
+                + "node {\n"
+                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
+                + shellStep + " \"echo $PASSWORD\"\n"
+                + "}\n"
+                + "}", true));
+        WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("Warning: A secret was passed to \""+ shellStep + "\"", run);
+        r.assertLogContains("Affected argument(s) used the following variable(s): [PASSWORD]", run);
+        InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
+        Assert.assertNotNull(reportAction);
+        List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
+        MatcherAssert.assertThat(warnings.size(), is(1));
+        InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
+        MatcherAssert.assertThat(stepWarning.getStepName(), is(shellStep));
+        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+        LinearScanner scan = new LinearScanner();
+        FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
+        ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
+        Assert.assertFalse(argAction.isUnmodifiedArguments());
+        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), is("echo ${PASSWORD}"));
+    }
+
+    @Issue("JENKINS-63254")
+    @Test public void sensitiveVariableInterpolationWithMetaStep() throws Exception {
+        final String credentialsId = "creds";
+        final String username = "bob";
+        final String password = "secr3t";
+        UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
+        CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
+        p.setDefinition(new CpsFlowDefinition(""
+                + "node {\n"
+                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
+                + "archiveArtifacts(\"${PASSWORD}\")"
+                + "}\n"
+                + "}", true));
+        WorkflowRun run = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        r.assertLogContains("Warning: A secret was passed to \"archiveArtifacts\"", run);
+        r.assertLogContains("Affected argument(s) used the following variable(s): [PASSWORD]", run);
+        InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
+        Assert.assertNotNull(reportAction);
+        List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
+        MatcherAssert.assertThat(warnings.size(), is(1));
+        InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
+        MatcherAssert.assertThat(stepWarning.getStepName(), is("archiveArtifacts"));
+        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+    }
+
+    @Test public void multipleSensitiveVariables() throws Exception {
+        final String credentialsId = "creds";
+        final String username = "bob";
+        final String password = "secr3t";
+        UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
+        CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
+        String shellStep = Functions.isWindows()? "bat" : "sh";
+        p.setDefinition(new CpsFlowDefinition(""
+                + "node {\n"
+                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
+                + shellStep + " \"echo $PASSWORD $USERNAME $PASSWORD\"\n"
+                + "}\n"
+                + "}", true));
+        WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("Warning: A secret was passed to \""+ shellStep + "\"", run);
+        r.assertLogContains("Affected argument(s) used the following variable(s): [PASSWORD, USERNAME]", run);
+        InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
+        Assert.assertNotNull(reportAction);
+        List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
+        MatcherAssert.assertThat(warnings.size(), is(1));
+        InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
+        MatcherAssert.assertThat(stepWarning.getStepName(), is(shellStep));
+        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD", "USERNAME")));
+        LinearScanner scan = new LinearScanner();
+        FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
+        ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
+        Assert.assertFalse(argAction.isUnmodifiedArguments());
+        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), is("echo ${PASSWORD} ${USERNAME} ${PASSWORD}"));
+    }
+
+    @Issue("JENKINS-63254")
+    @Test public void sensitiveVariableInterpolationWithNestedDescribable() throws Exception {
+        final String credentialsId = "creds";
+        final String username = "bob";
+        final String password = "secr3t";
+        UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
+        CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
+        p.setDefinition(new CpsFlowDefinition(""
+                + "node {\n"
+                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
+                + "monomorphWithSymbolStep(monomorphSymbol([firstArg:\"${PASSWORD}\", secondArg:'two']))"
+                + "}\n"
+                + "}", true));
+        WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("First arg: ****, second arg: two", run);
+        r.assertLogContains("Warning: A secret was passed to \"monomorphWithSymbolStep\"", run);
+        r.assertLogContains("Affected argument(s) used the following variable(s): [PASSWORD]", run);
+        InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
+        Assert.assertNotNull(reportAction);
+        List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
+        MatcherAssert.assertThat(warnings.size(), is(1));
+        InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
+        MatcherAssert.assertThat(stepWarning.getStepName(), is("monomorphWithSymbolStep"));
+//        MatcherAssert.assertThat(stepWarning.getStepName(), is("monomorphWithSymbolStep(data: monomorphSymbol(firstArg: ${PASSWORD}, secondArg: two))"));
+        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+        LinearScanner scan = new LinearScanner();
+        FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("monomorphWithSymbolStep"));
+        ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
+        Assert.assertFalse(argAction.isUnmodifiedArguments());
+        Object var = argAction.getArguments().values().iterator().next();
+        MatcherAssert.assertThat(var, instanceOf(UninstantiatedDescribable.class));
+        MatcherAssert.assertThat(((UninstantiatedDescribable)var).getArguments().toString(), is("{firstArg=${PASSWORD}, secondArg=two}"));
+    }
+
+    @Issue("JENKINS-63254")
+    @Test public void complexSensitiveVariableInterpolationWithNestedDescribable() throws Exception {
+        final String credentialsId = "creds";
+        final String username = "bob";
+        final String password = "secr3t";
+        UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
+        CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
+        p.setDefinition(new CpsFlowDefinition(""
+                + "node {\n"
+                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
+                + "monomorphListSymbolStep([monomorphSymbol(firstArg: monomorphWithSymbolStep(monomorphSymbol([firstArg: \"innerFirstArgIs${PASSWORD}\", secondArg: \"innerSecondArgIs${USERNAME}\"])), secondArg: \"hereismy${PASSWORD}\"), monomorphSymbol(firstArg: \"${PASSWORD}\", secondArg: \"${USERNAME}\")])"
+                + "}\n"
+                + "}", true));
+        WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        r.assertLogContains("Warning: A secret was passed to \"monomorphWithSymbolStep\"", run);
+        r.assertLogContains("Affected argument(s) used the following variable(s): [PASSWORD, USERNAME]", run);
+        r.assertLogContains("Warning: A secret was passed to \"monomorphListSymbolStep\"", run);
+        r.assertLogNotContains("Affected argument(s) used the following variable(s): [PASSWORD]", run);
+        InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
+        Assert.assertNotNull(reportAction);
+        List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
+        MatcherAssert.assertThat(warnings.size(), is(2));
+        InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
+        MatcherAssert.assertThat(stepWarning.getStepName(), is("monomorphWithSymbolStep"));
+        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), equalTo(Arrays.asList("PASSWORD", "USERNAME")));
+        InterpolatedSecretsAction.InterpolatedWarnings listStepWarning = warnings.get(1);
+        MatcherAssert.assertThat(listStepWarning.getStepName(), is("monomorphListSymbolStep"));
+        MatcherAssert.assertThat(listStepWarning.getInterpolatedVariables(), equalTo(Arrays.asList("PASSWORD", "USERNAME")));
+    }
+
+    @Test public void noBodyError() throws Exception {
+        p.setDefinition((new CpsFlowDefinition("timeout(time: 1, unit: 'SECONDS')", true)));
+        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        r.assertLogContains("timeout step must be called with a body", b);
+    }
+
+    @Test public void legacyStage() throws Exception {
+        p.setDefinition(new CpsFlowDefinition(
+                "stage(name: 'A');\n" +
+                        "echo('done')", true));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+    }
+
+    @Test public void standardStage() throws Exception {
+        p.setDefinition(new CpsFlowDefinition(
+                "stage('Build'){\n" +
+                        "  echo('building')\n" +
+                        "}\n", true));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
 
     public static class CLStep extends Step {
