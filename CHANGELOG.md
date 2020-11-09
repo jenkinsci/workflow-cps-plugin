@@ -2,9 +2,13 @@
 
 ### 2.85
 
-Release date: TBD
+Release date: 2020-11-09
 
 * Improvement: Add warnings when secrets are used with Groovy String interpolation. ([JENKINS-63254](https://issues.jenkins-ci.org/browse/JENKINS-63254))
+    * Warnings are configured by setting `org.jenkinsci.plugins.workflow.cps.DSL.UNSAFE_GROOVY_INTERPOLATION` to the following values:
+        * `ignore`: warnings are disabled
+        * `fail`: warnings will cause Pipeline builds to fail
+        * not setting any value will display warnings to the console log and build page
 * Fix: Allow masking of secret variables that use the same name as system variables. ([JENKINS-47101](https://issues.jenkins-ci.org/browse/JENKINS-47101))
 * Fix: Throw an error when a step that requires a body has no body. ([PR #370](https://github.com/jenkinsci/workflow-cps-plugin/pull/370))
 
