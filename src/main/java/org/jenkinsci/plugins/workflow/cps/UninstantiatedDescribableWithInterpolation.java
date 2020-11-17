@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class UninstantiatedDescribableWithInterpolation extends UninstantiatedDescribable {
+    private static final long serialVersionUID = 1L;
     private final Set<String> interpolatedStrings;
 
     public UninstantiatedDescribableWithInterpolation(String symbol, String klass, Map<String, ?> arguments, Set<String> interpolatedStrings) {

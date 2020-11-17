@@ -447,6 +447,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // where this UninstantiatedDescribable is ultimately used, the symbol
             // might be resolved with a specific type.
 
+            // Note: Declarative relies on an instance of UninstantiatedDescribable being returned here in some cases where there is no Pipeline step involved, e.g. for the `triggers` directive.
             return new UninstantiatedDescribableWithInterpolation(symbol, null, args.namedArgs, args.interpolatedStrings);
         } else {
             UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
