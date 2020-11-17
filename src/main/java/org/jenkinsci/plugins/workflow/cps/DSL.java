@@ -435,7 +435,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         // The only time a closure is valid is when the resulting Describable is immediately executed via a meta-step
         NamedArgsAndClosure args = parseArgs(_args, metaStep!=null && metaStep.takesImplicitBlockArgument(),
                 UninstantiatedDescribable.ANONYMOUS_KEY, singleArgumentOnly, new HashSet<>());
-        UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
 
         if (metaStep==null) {
             // there's no meta-step associated with it, so this symbol is not executable.
@@ -448,11 +447,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // where this UninstantiatedDescribable is ultimately used, the symbol
             // might be resolved with a specific type.
 
-            // we are returning the NamedArgsAndClosure instead of the UninstantiatedDescribable in order to preserve
-            // the discovered interpolated strings that are stored in the NamedArgsAndClosure.
-            args.uninstantiatedDescribable = ud;
-            return args;
+            return new UninstantiatedDescribableWithInterpolation(symbol, null, args.namedArgs, args.interpolatedStrings);
         } else {
+            UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
             Descriptor d = SymbolLookup.get().findDescriptor((Class)(metaStep.getMetaStepArgumentType()), symbol);
             try {
                 // execute this Describable through a meta-step
@@ -544,8 +541,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         final Closure body;
         final List<String> msgs;
         final Set<String> interpolatedStrings;
-        // UninstantiatedDescribable is set when the associated symbol is being built as the parameter of a step to be invoked.
-        UninstantiatedDescribable uninstantiatedDescribable = null;
 
         private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @Nonnull Set<String> foundInterpolatedStrings) {
             this.namedArgs = new LinkedHashMap<>(preallocatedHashmapCapacity(namedArgs.size()));
@@ -567,9 +562,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
          * Gathers all the interpolated strings from each instance of {@link NamedArgsAndClosure}.
          */
         private static Object collectInterpolatedStrings(Object argValue, Set<String> interpolatedStrings) {
-            if (argValue instanceof NamedArgsAndClosure) {
-                interpolatedStrings.addAll(((NamedArgsAndClosure) argValue).interpolatedStrings);
-                return ((NamedArgsAndClosure) argValue).uninstantiatedDescribable;
+            if (argValue instanceof UninstantiatedDescribableWithInterpolation) {
+                interpolatedStrings.addAll(((UninstantiatedDescribableWithInterpolation) argValue).getInterpolatedStrings());
+                return argValue;
             } else if (argValue instanceof Map) {
                 Map<Object, Object> r = new LinkedHashMap<>(preallocatedHashmapCapacity(((Map) argValue).size()));
                 for (Map.Entry e : ((Map<Object, Object>) argValue).entrySet()) {
