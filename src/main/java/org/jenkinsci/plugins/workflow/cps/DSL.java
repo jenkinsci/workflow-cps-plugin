@@ -289,7 +289,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         ClassLoader originalLoader = Thread.currentThread().getContextClassLoader();
         try {
             TaskListener listener = context.get(TaskListener.class);
-            logInterpolationWarnings(name, argumentsAction, an.getId(), ps.interpolatedStrings, allEnv, sensitiveVariables, listener);
+            logInterpolationWarnings(name, argumentsAction, ps.interpolatedStrings, allEnv, sensitiveVariables, listener);
             if (unreportedAmbiguousFunctions.remove(name)) {
                 reportAmbiguousStepInvocation(context, d, listener);
             }
@@ -360,7 +360,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    private void logInterpolationWarnings(String stepName, @CheckForNull ArgumentsActionImpl argumentsAction, String nodeId, Set<String> interpolatedStrings, @CheckForNull EnvVars envVars, @Nonnull Set<String> sensitiveVariables, TaskListener listener) throws IOException, InterruptedException {
+    private void logInterpolationWarnings(String stepName, @CheckForNull ArgumentsActionImpl argumentsAction, Set<String> interpolatedStrings, @CheckForNull EnvVars envVars, @Nonnull Set<String> sensitiveVariables, TaskListener listener) throws IOException {
         if (UNSAFE_GROOVY_INTERPOLATION.equals("ignore")) {
             return;
         }
@@ -533,12 +533,10 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     /**
      * This class holds the argument map and optional body of the step that is to be invoked.
      *
-     * <p>Some steps have complex argument types (e.g. `checkout` takes {@link hudson.scm.SCM}). When user use symbol-based
-     * syntax with those arguments, an instance of this class is created as the result of {@link DSL#invokeDescribable(String, Object)}.
-     * The instance is returned to the Groovy program so that it can be passed to {@link DSL#invokeStep(StepDescriptor, String, Object)}
-     * later, so it must implement {@link Serializable}.
+     * <p>Groovy strings that are interpolated are collected to be tested against sensitive environment variables in </p>
      */
-    static class NamedArgsAndClosure implements Serializable { final Map<String,Object> namedArgs;
+    static class NamedArgsAndClosure {
+        final Map<String,Object> namedArgs;
         final Closure body;
         final List<String> msgs;
         final Set<String> interpolatedStrings;
@@ -558,9 +556,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
 
         /**
-         * Recursively search argument values for instances of {@link NamedArgsAndClosure} and convert them to {@link UninstantiatedDescribable}.
+         * Recursively search argument values for instances of {@link UninstantiatedDescribableWithInterpolation}.
          * These instances were created in {@link DSL#invokeDescribable(String, Object)} for symbols with no meta-step.
-         * Gathers all the interpolated strings from each instance of {@link NamedArgsAndClosure}.
+         * Gathers all the interpolated strings from each instance of {@link UninstantiatedDescribableWithInterpolation}.
          */
         private static Object collectInterpolatedStrings(Object argValue, Set<String> interpolatedStrings) {
             if (argValue instanceof UninstantiatedDescribableWithInterpolation) {
