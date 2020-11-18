@@ -4,7 +4,7 @@
 
 Release date: 2020-11-18
 
-* Fix: Replace use of NamedArgsAndClosure as return value for invokeDescribable. ([JENKINS-64185](https://issues.jenkins-ci.org/browse/JENKINS-64185))
+* Fix: Revert changes to usage of `NamedArgsAndClosure` class in version 2.85 that caused various regressions for Declarative Pipelines. ([JENKINS-64185](https://issues.jenkins-ci.org/browse/JENKINS-64185))
 
 ### 2.85
 
