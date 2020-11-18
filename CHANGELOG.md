@@ -1,5 +1,11 @@
 ## Changelog
 
+### 2.86
+
+Release date: 2020-11-18
+
+* Fix: Replace use of NamedArgsAndClosure as return value for invokeDescribable. ([JENKINS-64185](https://issues.jenkins-ci.org/browse/JENKINS-64185))
+
 ### 2.85
 
 Release date: 2020-11-09
