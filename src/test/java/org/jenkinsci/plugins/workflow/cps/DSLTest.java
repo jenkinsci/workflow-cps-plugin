@@ -642,16 +642,21 @@ public class DSLTest {
         String shellStep = Functions.isWindows()? "bat" : "sh";
         p.setDefinition(new CpsFlowDefinition(""
                 + "node {\n"
-                + shellStep + " \"echo ${params.TEXT} ${params.PASS}\"\n"
+                + shellStep + " \"echo ${params.TEXT} ${params.PASSWORD}\"\n"
                 + "}", true));
         p.addProperty(new ParametersDefinitionProperty(
                 new StringParameterDefinition("TEXT", ""),
-                new PasswordParameterDefinition("PASS", "", null)));
+                new PasswordParameterDefinition("PASSWORD", "", null)));
         WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(
                 new StringParameterValue("TEXT", "hello"),
-                new PasswordParameterValue("PASS", ""))));
+                new PasswordParameterValue("PASSWORD", ""))));
         r.assertLogNotContains("Warning: A secret was passed", run);
         r.assertLogNotContains("Affected argument(s) used the following", run);
+        LinearScanner scan = new LinearScanner();
+        FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
+        ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
+        Assert.assertTrue(argAction.isUnmodifiedArguments());
+        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), is("echo hello "));
     }
 
     public static class CLStep extends Step {
