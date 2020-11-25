@@ -31,6 +31,10 @@ import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import hudson.Functions;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
+import hudson.model.ParametersAction;
+import hudson.model.ParametersDefinitionProperty;
+import hudson.model.PasswordParameterDefinition;
+import hudson.model.PasswordParameterValue;
 import hudson.model.Result;
 
 import java.util.Arrays;
@@ -40,6 +44,8 @@ import java.util.Map;
 import java.util.Set;
 import static org.hamcrest.Matchers.containsString;
 
+import hudson.model.StringParameterDefinition;
+import hudson.model.StringParameterValue;
 import org.hamcrest.MatcherAssert;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
@@ -542,7 +548,6 @@ public class DSLTest {
         MatcherAssert.assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
         MatcherAssert.assertThat(stepWarning.getStepName(), is("monomorphWithSymbolStep"));
-//        MatcherAssert.assertThat(stepWarning.getStepName(), is("monomorphWithSymbolStep(data: monomorphSymbol(firstArg: ${PASSWORD}, secondArg: two))"));
         MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("monomorphWithSymbolStep"));
@@ -602,6 +607,51 @@ public class DSLTest {
                         "  echo('building')\n" +
                         "}\n", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+    }
+
+    @Test public void passwordParameter() throws Exception {
+        String shellStep = Functions.isWindows()? "bat" : "sh";
+        p.setDefinition(new CpsFlowDefinition(""
+                + "node {\n"
+                + shellStep + " \"echo ${params.TEXT} ${params.PASSWORD}\"\n"
+                + "}", true));
+        p.addProperty(new ParametersDefinitionProperty(
+                new StringParameterDefinition("TEXT", ""),
+                new PasswordParameterDefinition("PASSWORD", "", null)));
+        WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(
+                new StringParameterValue("TEXT", "hello"),
+                new PasswordParameterValue("PASSWORD", "s3cr3t"))));
+        r.assertLogContains("Warning: A secret was passed to \""+ shellStep + "\"", run);
+        r.assertLogContains("Affected argument(s) used the following variable(s): [PASSWORD]", run);
+        InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
+        Assert.assertNotNull(reportAction);
+        List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
+        MatcherAssert.assertThat(warnings.size(), is(1));
+        InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
+        MatcherAssert.assertThat(stepWarning.getStepName(), is(shellStep));
+        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+        LinearScanner scan = new LinearScanner();
+        FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
+        ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
+        Assert.assertFalse(argAction.isUnmodifiedArguments());
+        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), is("echo hello ${PASSWORD}"));
+    }
+
+    @Issue("JENKINS-64282")
+    @Test public void emptyPasswordParameter() throws Exception {
+        String shellStep = Functions.isWindows()? "bat" : "sh";
+        p.setDefinition(new CpsFlowDefinition(""
+                + "node {\n"
+                + shellStep + " \"echo ${params.TEXT} ${params.PASS}\"\n"
+                + "}", true));
+        p.addProperty(new ParametersDefinitionProperty(
+                new StringParameterDefinition("TEXT", ""),
+                new PasswordParameterDefinition("PASS", "", null)));
+        WorkflowRun run = r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(
+                new StringParameterValue("TEXT", "hello"),
+                new PasswordParameterValue("PASS", ""))));
+        r.assertLogNotContains("Warning: A secret was passed", run);
+        r.assertLogNotContains("Affected argument(s) used the following", run);
     }
 
     public static class CLStep extends Step {
