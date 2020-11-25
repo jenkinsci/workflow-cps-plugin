@@ -609,7 +609,8 @@ public class DSLTest {
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
 
-    @Test public void passwordParameter() throws Exception {
+    @Issue("JENKINS-47101")
+    @Test public void passwordParametersSanitized() throws Exception {
         String shellStep = Functions.isWindows()? "bat" : "sh";
         p.setDefinition(new CpsFlowDefinition(""
                 + "node {\n"
@@ -638,7 +639,7 @@ public class DSLTest {
     }
 
     @Issue("JENKINS-64282")
-    @Test public void emptyPasswordParameter() throws Exception {
+    @Test public void emptyPasswordParametersIgnored() throws Exception {
         String shellStep = Functions.isWindows()? "bat" : "sh";
         p.setDefinition(new CpsFlowDefinition(""
                 + "node {\n"

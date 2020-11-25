@@ -626,22 +626,6 @@ public class ArgumentsActionImplTest {
                 equalTo(NotStoredReason.UNSERIALIZABLE));
     }
 
-    @Issue("JENKINS-47101")
-    @Test public void passwordParametersSanitized() throws Exception {
-        WorkflowJob p = r.createProject(WorkflowJob.class);
-        p.addProperty(new ParametersDefinitionProperty(
-                Arrays.asList(new PasswordParameterDefinition("MYPASSWORD", "mysecret", "description"))));
-        p.setDefinition(new CpsFlowDefinition("echo(\"$MYPASSWORD\")", true));
-        ParametersAction paramsAction = new ParametersAction(Arrays.asList(new PasswordParameterValue("MYPASSWORD", "mysecret")));
-        WorkflowRun b = p.scheduleBuild2(0, paramsAction).waitForStart();
-        r.assertBuildStatusSuccess(r.waitForCompletion(b));
-        LinearScanner scan = new LinearScanner();
-        FlowNode shNode = scan.findFirstMatch(b.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("echo"));
-        ArgumentsAction args = shNode.getPersistentAction(ArgumentsAction.class);
-        assertThat(args.isUnmodifiedArguments(), equalTo(false));
-        assertThat(args.getArguments(), hasEntry("message", "${MYPASSWORD}"));
-    }
-
     public static class NopStep extends Step {
         @DataBoundConstructor
         public NopStep(Object value) {}
