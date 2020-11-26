@@ -95,6 +95,10 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         }
         String modded = input;
         for (String sensitive : sensitiveVariables) {
+            String sensitiveValue = variables.get(sensitive);
+            if (sensitiveValue.isEmpty()) {
+                continue;
+            }
             modded = modded.replace(variables.get(sensitive), "${" + sensitive + "}");
         }
         return modded;
