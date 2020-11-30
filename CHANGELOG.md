@@ -1,5 +1,11 @@
 ## Changelog
 
+### 2.87
+
+Release date: 2020-11-30
+
+* Improvement: Do not check empty value environment variables for Groovy string interpolation. ([JENKINS-64282](https://issues.jenkins-ci.org/browse/JENKINS-64282))
+
 ### 2.86
 
 Release date: 2020-11-18
