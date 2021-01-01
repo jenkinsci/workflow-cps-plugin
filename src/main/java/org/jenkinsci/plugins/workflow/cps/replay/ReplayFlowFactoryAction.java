@@ -100,4 +100,5 @@ public class ReplayFlowFactoryAction extends InvisibleAction implements CpsFlowF
     public boolean isSandbox() {
         return sandbox;
     }
+
 }
