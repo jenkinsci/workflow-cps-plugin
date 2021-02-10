@@ -40,6 +40,7 @@ import javax.annotation.Nonnull;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
+import org.jenkinsci.plugins.workflow.cps.steps.LoadStringStep;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
 
 /**
@@ -78,6 +79,7 @@ public final class CpsBodyInvoker extends BodyInvoker {
      * @see CpsBodyExecution#bodyToUnexport
      * @see ParallelStep
      * @see LoadStep
+     * @see LoadStringStep
      */
     private final boolean unexport;
 

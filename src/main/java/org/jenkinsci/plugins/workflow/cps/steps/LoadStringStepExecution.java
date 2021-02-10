@@ -1,0 +1,63 @@
+package org.jenkinsci.plugins.workflow.cps.steps;
+
+import com.google.inject.Inject;
+import groovy.lang.Script;
+import hudson.model.TaskListener;
+import org.codehaus.groovy.control.MultipleCompilationErrorsException;
+import org.jenkinsci.plugins.workflow.cps.CpsCompilationErrorsException;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
+import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
+import org.jenkinsci.plugins.workflow.cps.CpsThread;
+import org.jenkinsci.plugins.workflow.cps.replay.ReplayAction;
+import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
+import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
+import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
+
+/**
+ * Loads another Groovy script and executes it.
+ *
+ * @author Kohsuke Kawaguchi
+ */
+public class LoadStringStepExecution extends AbstractStepExecutionImpl {
+
+    @Inject(optional=true)
+    private transient LoadStringStep step;
+
+    @StepContextParameter
+    private transient TaskListener listener;
+
+    @Override
+    public boolean start() throws Exception {
+        CpsStepContext cps = (CpsStepContext) getContext();
+        CpsThread t = CpsThread.current();
+
+        CpsFlowExecution execution = t.getExecution();
+
+        String text = step.getContent();
+        String clazz = execution.getNextScriptName(step.getContent());
+        String newText = ReplayAction.replace(execution, clazz);
+        if (newText != null) {
+            listener.getLogger().println("Replacing Groovy text with edited version");
+            text = newText;
+        }
+
+        Script script;
+        try {
+            script = execution.getShell().parse(text);
+        } catch (MultipleCompilationErrorsException e) {
+            // Convert to a serializable exception, see JENKINS-40109.
+            throw new CpsCompilationErrorsException(e);
+        }
+
+        // execute body as another thread that shares the same head as this thread
+        // as the body can pause.
+        cps.newBodyInvoker(t.getGroup().export(script), true)
+                .withCallback(BodyExecutionCallback.wrap(cps))
+                .start(); // when the body is done, the load step is done
+
+        return false;
+    }
+
+    private static final long serialVersionUID = 1L;
+
+}
