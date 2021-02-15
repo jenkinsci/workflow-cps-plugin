@@ -99,6 +99,10 @@ z.root>dt {
   padding-bottom: 0
 }
 
+.snippetizer-help {
+  height: 20px;
+}
+
 .array-title {
   border-left: 1px solid #eee;
   padding-left: 10px;

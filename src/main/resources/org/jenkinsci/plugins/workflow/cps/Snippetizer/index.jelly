@@ -42,34 +42,6 @@ THE SOFTWARE.
                 <!-- Similar to f:dropdownDescriptorSelector, but adds fallback content to block, and JENKINS-25130 adds per-selection help: -->
                 <j:set var="item" value="${it.getItem(request)}"/>
                 <d:taglib uri="local">
-                    <d:tag name="row">
-                        <j:choose>
-                          <j:when test="${divBasedFormLayout}">
-                                <div class="tr">
-                                    <d:invokeBody/>
-                                </div>
-                            </j:when>
-                            <j:otherwise>
-                                <tr>
-                                    <d:invokeBody/>
-                                </tr>
-                            </j:otherwise>
-                        </j:choose>
-                    </d:tag>
-                      <d:tag name="td">
-                        <j:choose>
-                          <j:when test="${divBasedFormLayout}">
-                            <div>
-                              <d:invokeBody/>
-                            </div>
-                          </j:when>
-                          <j:otherwise>
-                            <td colspan="3">
-                              <d:invokeBody/>
-                            </td>
-                          </j:otherwise>
-                        </j:choose> 
-                      </d:tag>
                     <d:tag name="listSteps">
                         <j:forEach var="quasiDescriptor" items="${quasiDescriptors}">
                             <j:set var="descriptor" value="${quasiDescriptor.real}"/>
@@ -80,10 +52,19 @@ THE SOFTWARE.
                                     <j:set var="help" value="${descriptor.helpFile}"/>
                                     
                                     <j:if test="${help != null}">
-                                        <local:row>
-                                            <local:td />
-                                            <f:helpLink url="${help}"/>
-                                        </local:row>
+                                        <j:choose>
+                                            <j:when test="${divBasedFormLayout}">
+                                                <div class="setting-name help-sibling snippetizer-help">
+                                                    <f:helpLink url="${help}"/>
+                                                </div>
+                                            </j:when>
+                                            <j:otherwise>
+                                                <tr>
+                                                    <td colspan="3"/>
+                                                    <f:helpLink url="${help}"/>
+                                                </tr>
+                                            </j:otherwise>
+                                        </j:choose>
                                         <f:helpArea/>
                                     </j:if>
                                     <st:include from="${descriptor}" page="${descriptor.configPage}" optional="true">
