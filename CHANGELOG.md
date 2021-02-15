@@ -2,10 +2,10 @@
 
 ### 2.88
 
-Release date: 2021-02-16
+Release date: 2021-02-15
 
-* Internal: Update various dependencies ([PR #404](https://github.com/jenkinsci/workflow-cps-plugin/pull/404), [PR #405](https://github.com/jenkinsci/workflow-cps-plugin/pull/405), [PR #412](https://github.com/jenkinsci/workflow-cps-plugin/pull/412), [PR #413](https://github.com/jenkinsci/workflow-cps-plugin/pull/413))
 * Fix: Lightweight checkout ignored pipeline durability settings ([JENKINS-63305](https://issues.jenkins.io/browse/JENKINS-63305))
+* Internal: Update various dependencies ([PR #404](https://github.com/jenkinsci/workflow-cps-plugin/pull/404), [PR #405](https://github.com/jenkinsci/workflow-cps-plugin/pull/405), [PR #412](https://github.com/jenkinsci/workflow-cps-plugin/pull/412), [PR #413](https://github.com/jenkinsci/workflow-cps-plugin/pull/413))
 
 ### 2.87
 
