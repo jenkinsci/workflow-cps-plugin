@@ -42,6 +42,36 @@ THE SOFTWARE.
                 <!-- Similar to f:dropdownDescriptorSelector, but adds fallback content to block, and JENKINS-25130 adds per-selection help: -->
                 <j:set var="item" value="${it.getItem(request)}"/>
                 <d:taglib uri="local">
+                    <!-- this tag wraps the dropdown list in a div but only in div-based forms
+                        using a div in table-based forms will crash the layout generation -->
+                    <d:tag name="snippetizerOptionsWrapper">
+                       <j:choose>
+                           <j:when test="${divBasedFormLayout}">
+                               <style>
+                                   .snippetizer-options-wrapper .setting-input.dropdownList {
+                                       max-width: calc(100% - 2rem);
+                                   }
+
+                                   .snippetizer-help {
+                                       position: relative;
+                                   }
+
+                                   .snippetizer-help a.help-button {
+                                       position: absolute;
+                                       top: -2rem;
+                                   }
+                               </style>
+
+                               <div class="snippetizer-options-wrapper">
+                                   <d:invokeBody />
+                               </div>
+                           </j:when>
+                           <j:otherwise>
+                               <d:invokeBody />
+                           </j:otherwise>
+                       </j:choose>
+                    </d:tag>
+
                     <d:tag name="listSteps">
                         <j:forEach var="quasiDescriptor" items="${quasiDescriptors}">
                             <j:set var="descriptor" value="${quasiDescriptor.real}"/>
@@ -54,8 +84,8 @@ THE SOFTWARE.
                                     <j:if test="${help != null}">
                                         <j:choose>
                                             <j:when test="${divBasedFormLayout}">
-                                                <div class="setting-name help-sibling snippetizer-help">
-                                                    <f:helpLink url="${help}"/>
+                                                <div class="snippetizer-help">
+                                                    <f:entry help="${help}" />
                                                 </div>
                                             </j:when>
                                             <j:otherwise>
@@ -77,11 +107,15 @@ THE SOFTWARE.
                         </j:forEach>
                     </d:tag>
                 </d:taglib>
-                <f:dropdownList name="prototype" title="${%Sample Step}">
-                    <local:listSteps quasiDescriptors="${it.getQuasiDescriptors(false)}"/>
-                    <f:dropdownListBlock title="${%— Advanced/Deprecated —}"/>
-                    <local:listSteps quasiDescriptors="${it.getQuasiDescriptors(true)}"/>
-                </f:dropdownList>
+
+                <local:snippetizerOptionsWrapper>
+                    <f:dropdownList name="prototype" title="${%Sample Step}">
+                        <local:listSteps quasiDescriptors="${it.getQuasiDescriptors(false)}"/>
+                        <f:dropdownListBlock title="${%— Advanced/Deprecated —}"/>
+                        <local:listSteps quasiDescriptors="${it.getQuasiDescriptors(true)}"/>
+                    </f:dropdownList>
+                </local:snippetizerOptionsWrapper>
+
                 <j:set var="id" value="${h.generateId()}"/>
                 <f:block>
                     <input type="button" value="${%Generate Pipeline Script}" onclick="handlePrototype_${id}(); return false" class="submit-button primary"/>
