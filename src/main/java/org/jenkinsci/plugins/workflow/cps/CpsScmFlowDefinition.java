@@ -31,7 +31,6 @@ import hudson.FilePath;
 import hudson.Functions;
 import hudson.model.Action;
 import hudson.model.Computer;
-import hudson.model.Item;
 import hudson.model.Job;
 import hudson.model.Node;
 import hudson.model.Queue;
@@ -118,7 +117,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                         String script = fs.child(expandedScriptPath).contentAsString();
                         listener.getLogger().println("Obtained " + expandedScriptPath + " from " + scm.getKey());
                         Queue.Executable exec = owner.getExecutable();
-                        FlowDurabilityHint hint = (exec instanceof Item) ? DurabilityHintProvider.suggestedFor((Item) exec) : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
+                        FlowDurabilityHint hint = (exec instanceof Run) ? DurabilityHintProvider.suggestedFor(((Run)exec).getParent()) : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
                         return new CpsFlowExecution(script, true, owner, hint);
                     } catch (FileNotFoundException e) {
                         throw new AbortException("Unable to find " + expandedScriptPath + " from " + scm.getKey());
