@@ -39,14 +39,18 @@ import hudson.triggers.SCMTrigger;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import jenkins.model.Jenkins;
 import jenkins.plugins.git.GitSampleRepoRule;
 import jenkins.plugins.git.GitStep;
+import org.jenkinsci.plugins.workflow.TestDurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.actions.WorkspaceAction;
+import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import static org.junit.Assert.*;
+import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -150,7 +154,7 @@ public class CpsScmFlowDefinitionTest {
         assertEquals(Collections.emptyList(), changeSets);
     }
 
-    @Issue("JENKINS-33273")
+    @Issue({"JENKINS-33273", "JENKINS-63305"})
     @Test public void lightweight() throws Exception {
         sampleRepo.init();
         sampleRepo.write("flow.groovy", "echo 'version one'");
@@ -160,8 +164,11 @@ public class CpsScmFlowDefinitionTest {
         GitStep step = new GitStep(sampleRepo.toString());
         CpsScmFlowDefinition def = new CpsScmFlowDefinition(step.createSCM(), "flow.groovy");
         def.setLightweight(true);
+        TestDurabilityHintProvider provider = Jenkins.get().getExtensionList(TestDurabilityHintProvider.class).get(0);
+        provider.registerHint("p", FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
         p.setDefinition(def);
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, b.getExecution().getDurabilityHint());
         r.assertLogNotContains("Cloning the remote Git repository", b);
         r.assertLogNotContains("Retrying after 10 seconds", b);
         r.assertLogContains("Obtained flow.groovy from git " + sampleRepo, b);
