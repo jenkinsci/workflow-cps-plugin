@@ -42,35 +42,6 @@ THE SOFTWARE.
                 <!-- Similar to f:dropdownDescriptorSelector, but adds fallback content to block, and JENKINS-25130 adds per-selection help: -->
                 <j:set var="item" value="${it.getItem(request)}"/>
                 <d:taglib uri="local">
-                    <!-- this tag wraps the dropdown list in a div but only in div-based forms
-                        using a div in table-based forms will crash the layout generation -->
-                    <d:tag name="snippetizerOptionsWrapper">
-                       <j:choose>
-                           <j:when test="${divBasedFormLayout}">
-                               <style>
-                                   .snippetizer-options-wrapper .setting-input.dropdownList {
-                                       max-width: calc(100% - 2rem);
-                                   }
-
-                                   .snippetizer-help {
-                                       position: relative;
-                                   }
-
-                                   .snippetizer-help a.help-button {
-                                       position: absolute;
-                                       top: -2rem;
-                                   }
-                               </style>
-
-                               <div class="snippetizer-options-wrapper">
-                                   <d:invokeBody />
-                               </div>
-                           </j:when>
-                           <j:otherwise>
-                               <d:invokeBody />
-                           </j:otherwise>
-                       </j:choose>
-                    </d:tag>
 
                     <d:tag name="listSteps">
                         <j:forEach var="quasiDescriptor" items="${quasiDescriptors}">
@@ -80,23 +51,7 @@ THE SOFTWARE.
                                     <j:set var="it" value="${item}"/>
                                     <j:set var="instance" value="${null}"/>
                                     <j:set var="help" value="${descriptor.helpFile}"/>
-                                    
-                                    <j:if test="${help != null}">
-                                        <j:choose>
-                                            <j:when test="${divBasedFormLayout}">
-                                                <div class="snippetizer-help">
-                                                    <f:entry help="${help}" />
-                                                </div>
-                                            </j:when>
-                                            <j:otherwise>
-                                                <tr>
-                                                    <td colspan="3"/>
-                                                    <f:helpLink url="${help}"/>
-                                                </tr>
-                                            </j:otherwise>
-                                        </j:choose>
-                                        <f:helpArea/>
-                                    </j:if>
+                                    <f:entry title="STEP: &lt;code&gt;${quasiDescriptor.symbol}&lt;code&gt;" help="${help}" />
                                     <st:include from="${descriptor}" page="${descriptor.configPage}" optional="true">
                                         <f:block>
                                             ${%This step has not yet defined any visual configuration.}
@@ -108,13 +63,11 @@ THE SOFTWARE.
                     </d:tag>
                 </d:taglib>
 
-                <local:snippetizerOptionsWrapper>
-                    <f:dropdownList name="prototype" title="${%Sample Step}">
-                        <local:listSteps quasiDescriptors="${it.getQuasiDescriptors(false)}"/>
-                        <f:dropdownListBlock title="${%— Advanced/Deprecated —}"/>
-                        <local:listSteps quasiDescriptors="${it.getQuasiDescriptors(true)}"/>
-                    </f:dropdownList>
-                </local:snippetizerOptionsWrapper>
+                <f:dropdownList name="prototype" title="${%Sample Step}">
+                    <local:listSteps quasiDescriptors="${it.getQuasiDescriptors(false)}"/>
+                    <f:dropdownListBlock title="${%— Advanced/Deprecated —}"/>
+                    <local:listSteps quasiDescriptors="${it.getQuasiDescriptors(true)}"/>
+                </f:dropdownList>
 
                 <j:set var="id" value="${h.generateId()}"/>
                 <f:block>
