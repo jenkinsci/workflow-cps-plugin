@@ -51,7 +51,7 @@ THE SOFTWARE.
                                     <j:set var="it" value="${item}"/>
                                     <j:set var="instance" value="${null}"/>
                                     <j:set var="help" value="${descriptor.helpFile}"/>
-                                    <f:entry title="&lt;strong&gt;&lt;code&gt;${symbol}&lt;code&gt;&lt;/strong&gt;" help="${help}" />
+                                    <f:entry title="STEP: ${symbol}" help="${help}" />
                                     <st:include from="${descriptor}" page="${descriptor.configPage}" optional="true">
                                         <f:block>
                                             ${%This step has not yet defined any visual configuration.}
