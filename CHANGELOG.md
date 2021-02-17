@@ -2,9 +2,9 @@
 
 ### 2.89
 
-Release date: 2021-02-16
+Release date: 2021-02-17
 
-* Fix: Help link positioning for for Snippet Generator with tables-to-divs  ([PR #411](https://github.com/jenkinsci/workflow-cps-plugin/pull/411)
+* Fix: Help link positioning for Snippet Generator with tables-to-divs  ([PR #411](https://github.com/jenkinsci/workflow-cps-plugin/pull/411)
 
 ### 2.88
 
