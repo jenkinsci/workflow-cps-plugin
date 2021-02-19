@@ -376,7 +376,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
 
         List<String> scanResults = sensitiveVariables.stream()
-                .filter(e -> !(envVars.get(e).isEmpty()) && interpolatedStrings.stream().anyMatch(g -> g.contains(envVars.get(e))))
+                .filter(e -> !envVars.get(e, "").isEmpty() && interpolatedStrings.stream().anyMatch(g -> g.contains(envVars.get(e))))
                 .collect(Collectors.toList());
 
         if (scanResults != null && !scanResults.isEmpty()) {
