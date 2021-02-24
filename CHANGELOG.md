@@ -2,7 +2,7 @@
 
 ### 2.90
 
-Release date: 2021-02024
+Release date: 2021-02-24
 
 * Fix: use `EnvVars.get()` instead of `TreeMap.get()` to guard against stray null value environment variables ([JENKINS-64729](https://issues.jenkins.io/browse/JENKINS-64729))
 
