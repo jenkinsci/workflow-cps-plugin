@@ -69,7 +69,7 @@
         <java.level>8</java.level>
         <no-test-jar>false</no-test-jar>
         <groovy-cps.version>1.32</groovy-cps.version>
-        <workflow-support-plugin.version>3.7</workflow-support-plugin.version>
+        <workflow-support-plugin.version>3.8</workflow-support-plugin.version>
         <node.version>12.19.0</node.version>
         <npm.version>6.14.8</npm.version>
     </properties>
