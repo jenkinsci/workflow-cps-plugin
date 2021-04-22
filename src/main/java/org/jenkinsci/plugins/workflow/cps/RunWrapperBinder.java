@@ -34,7 +34,7 @@ import org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper;
         return "currentBuild";
     }
 
-    @Override public Object getValue(CpsScript script) throws Exception {
+    @Override public RunWrapper getValue(CpsScript script) throws Exception {
         Run<?,?> build = script.$build();
         if (build != null) {
             return new RunWrapper(build, true);
