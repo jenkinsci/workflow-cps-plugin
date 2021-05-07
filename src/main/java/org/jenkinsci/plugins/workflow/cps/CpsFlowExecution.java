@@ -755,7 +755,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     throw new IOException("Cannot resume build -- was not cleanly saved when Jenkins shut down.");
                 }
             }
-        } catch (Exception e) {  // Broad catch ensures that failure to load do NOT nuke the master
+        } catch (Exception e) {  // Broad catch ensures that failure to load do NOT nuke the controller
             SettableFuture<CpsThreadGroup> p = SettableFuture.create();
             programPromise = p;
             loadProgramFailed(e, p);
@@ -2080,7 +2080,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             return;
         }
         try {
-            owner.getListener().getLogger().println("Failing build: shutting down master and build is marked to not resume");
+            owner.getListener().getLogger().println("Failing build: shutting down controller and build is marked to not resume");
             final Throwable x = new FlowInterruptedException(Result.ABORTED);
             Futures.addCallback(this.getCurrentExecutions(/* cf. JENKINS-26148 */true), new FutureCallback<List<StepExecution>>() {
                 @Override public void onSuccess(List<StepExecution> l) {

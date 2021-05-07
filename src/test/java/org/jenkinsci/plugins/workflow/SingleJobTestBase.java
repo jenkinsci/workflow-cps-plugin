@@ -109,7 +109,7 @@ public abstract class SingleJobTestBase extends Assert {
 
     public DumbSlave createSlave(JenkinsRule j) throws Exception {
         DumbSlave s = j.createSlave();
-        s.getComputer().connect(false).get(); // wait for the slave to fully get connected
+        s.getComputer().connect(false).get(); // wait for the agent to fully get connected
         return s;
     }
 

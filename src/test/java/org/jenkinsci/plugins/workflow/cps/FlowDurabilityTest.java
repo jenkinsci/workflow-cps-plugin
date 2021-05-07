@@ -549,7 +549,7 @@ public class FlowDurabilityTest {
     }
 
 
-    /** Verify that if the master dies messily and we're not durable against that, build fails cleanly.
+    /** Verify that if the controller dies messily and we're not durable against that, build fails cleanly.
      */
     @Test
     public void testDurableAgainstCleanRestartFailsWithDirtyShutdown() throws Exception {
@@ -573,7 +573,7 @@ public class FlowDurabilityTest {
         });
     }
 
-    /** Verify that if the master dies messily and FlowNode storage is lost entirely we fail the build cleanly.
+    /** Verify that if the controller dies messily and FlowNode storage is lost entirely we fail the build cleanly.
      */
     @Test
     @Issue("JENKINS-48824")
