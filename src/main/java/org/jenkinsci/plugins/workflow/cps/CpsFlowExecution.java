@@ -1911,7 +1911,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override public void addContents(Container container) {
-            container.add(new Content("nodes/controller/pipeline-timings.txt") {
+            container.add(new Content("nodes/master/pipeline-timings.txt") {
                 @Override public void writeTo(OutputStream outputStream) throws IOException {
                     PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, Charsets.UTF_8));
                     for (Job<?, ?> job : Jenkins.get().getAllItems(Job.class)) {

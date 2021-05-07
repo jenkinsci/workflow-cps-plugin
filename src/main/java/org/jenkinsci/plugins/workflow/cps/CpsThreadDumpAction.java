@@ -103,7 +103,7 @@ public final class CpsThreadDumpAction implements Action {
         }
 
         @Override public void addContents(Container container) {
-            container.add(new Content("nodes/controller/pipeline-thread-dump.txt") {
+            container.add(new Content("nodes/master/pipeline-thread-dump.txt") {
                 @Override public void writeTo(OutputStream outputStream) throws IOException {
                     PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, Charsets.UTF_8));
                     for (FlowExecution flow : FlowExecutionList.get()) {
