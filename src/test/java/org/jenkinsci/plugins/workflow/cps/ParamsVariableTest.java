@@ -66,7 +66,7 @@ public class ParamsVariableTest {
 
     @Issue("JENKINS-42367")
     @Test public void nullValue() throws Exception {
-        Assume.assumeTrue(Jenkins.getVersion().isOlderThan(new VersionNumber("2.281")));
+        Assume.assumeTrue(Jenkins.getVersion().isOlderThan(new VersionNumber("2.281"))); // TODO delete test when updating baseline
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("echo(/TEXT=${params.TEXT}/)",true));
         p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("TEXT", "")));
