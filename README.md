@@ -66,7 +66,7 @@ such as `Object.toString()`,
 should in general be marked `@NonCPS` since it will commonly be binary code calling them.
 
 Some kinds of objects are intrinsically not safe to serialize as such, yet we want to retain a reference to them in the program graph.
-An example is the `Executor` (~ executor slot on a controller or agent node) which is part of the context passed by a `node` step to any step in its block, especially `sh`/`bat`.
+An example is the `Executor` (~ executor slot on a built-in or agent node) which is part of the context passed by a `node` step to any step in its block, especially `sh`/`bat`.
 Pipeline uses the `Pickle` API to substitute serialization-safe versions of these objects.
 When a `WorkflowRun` is loaded from disk after a restart, the program state is deserialized, and pickles are deserialized (“rehydrated”) in parallel.
 If and when all pickles are successfully deserialized and the resulting objects placed back in the program state, the program begins running again, and `StepExecution.onResume` is called to restore timers and the like.
