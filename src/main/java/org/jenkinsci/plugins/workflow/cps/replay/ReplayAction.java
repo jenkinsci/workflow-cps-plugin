@@ -154,7 +154,7 @@ public class ReplayAction implements Action {
 
         CpsFlowExecution exec = getExecutionLazy();
         if (exec != null) {
-            return exec.isSandbox() || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS); // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-master code
+            return exec.isSandbox() || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS); // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-controller code
         } else {
             // If the execution hasn't been lazy-loaded then we will wait to do deeper checks until someone tries to lazy load
             // OR until isReplayableSandboxTest is invoked b/c they actually try to replay the build
@@ -167,7 +167,7 @@ public class ReplayAction implements Action {
         CpsFlowExecution exec = getExecutionBlocking();
         if (exec != null) {
             if (!exec.isSandbox()) {
-                // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-master code
+                // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-controller code
                 return Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS);
             }
             return true;

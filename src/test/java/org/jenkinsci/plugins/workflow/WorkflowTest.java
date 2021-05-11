@@ -296,9 +296,9 @@ public class WorkflowTest extends SingleJobTestBase {
                 Map<String,String> slaveEnv = new HashMap<>();
                 slaveEnv.put("BUILD_TAG", null);
                 slaveEnv.put("PERMACHINE", "set");
-                createSpecialEnvSlave(story.j, "slave", null, slaveEnv);
+                createSpecialEnvSlave(story.j, "agent", null, slaveEnv);
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition("node('slave') {\n"
+                p.setDefinition(new CpsFlowDefinition("node('agent') {\n"
                         + "  if (isUnix()) {sh 'echo tag=$BUILD_TAG PERMACHINE=$PERMACHINE'} else {bat 'echo tag=%BUILD_TAG% PERMACHINE=%PERMACHINE%'}\n"
                         + "  env.BUILD_TAG='custom'\n"
                         + "  if (isUnix()) {sh 'echo tag2=$BUILD_TAG'} else {bat 'echo tag2=%BUILD_TAG%'}\n"
