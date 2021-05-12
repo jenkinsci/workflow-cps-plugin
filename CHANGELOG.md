@@ -1,5 +1,12 @@
 ## Changelog
 
+### 2.91
+
+Release date: 2021-05-12
+
+* Documentation: Terminology changes ([JENKINS-65398](https://issues.jenkins.io/browse/JENKINS-65398))
+* Internal: Bump plugin from 4.16 to 4.18 ([PR #432](https://github.com/jenkinsci/workflow-cps-plugin/pull/432))
+
 ### 2.90
 
 Release date: 2021-02-24
@@ -10,7 +17,7 @@ Release date: 2021-02-24
 
 Release date: 2021-02-17
 
-* Fix: Help link positioning for Snippet Generator with tables-to-divs  ([PR #411](https://github.com/jenkinsci/workflow-cps-plugin/pull/411)
+* Fix: Help link positioning for Snippet Generator with tables-to-divs ([PR #411](https://github.com/jenkinsci/workflow-cps-plugin/pull/411)
 
 ### 2.88
 
