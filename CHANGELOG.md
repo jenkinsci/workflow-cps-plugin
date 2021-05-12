@@ -1,11 +1,6 @@
 ## Changelog
 
-### 2.91
-
-Release date: 2021-05-12
-
-* Documentation: Terminology changes ([JENKINS-65398](https://issues.jenkins.io/browse/JENKINS-65398))
-* Internal: Bump plugin from 4.16 to 4.18 ([PR #432](https://github.com/jenkinsci/workflow-cps-plugin/pull/432))
+* For newer versions, see [GitHub Releases](https://github.com/jenkinsci/workflow-cps-plugin/releases)
 
 ### 2.90
 
