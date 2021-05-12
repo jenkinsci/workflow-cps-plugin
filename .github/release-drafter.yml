@@ -1,3 +1,3 @@
 _extends: .github
 name-template: v$NEXT_MINOR_VERSION 🌈
-tag-template: worklow-cps-$NEXT_MINOR_VERSION
+tag-template: workflow-cps-$NEXT_MINOR_VERSION
