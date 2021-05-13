@@ -5,12 +5,12 @@
         <st:include page="sidepanel.jelly" it="${it.owner}"/>
         <l:main-panel>
             <j:if test="${it.enabled or it.rebuildEnabled}">
-                <h1>${%Replay(it.owner.displayName)}</h1>
-                <p>
-                    <j:out value="${%blurb}"/>
-                </p>
                 <j:choose>
                     <j:when test="${it.enabled and it.replayableSandboxTest}">
+                        <h1>${%Replay(it.owner.displayName)}</h1>
+                        <p>
+                            <j:out value="${%blurb}"/>
+                        </p>
                         <f:form action="run" method="POST" name="config">
                             <f:entry field="mainScript" title="${%Main Script}">
                                 <wfe:workflow-editor script="${it.originalScript}" checkUrl="${rootURL}/${it.owner.url}${it.urlName}/checkScript" checkDependsOn=""/>
@@ -29,6 +29,10 @@
                         </f:form>
                     </j:when>
                     <j:otherwise>
+                        <h1>${%Rebuild(it.owner.displayName)}</h1>
+                        <p>
+                            <j:out value="${%blurb.rebuild}"/>
+                        </p>
                         <f:form action="rebuild" method="POST" name="rebuild">
                             <f:bottomButtonBar>
                                 <f:submit value="${%Run}"/>

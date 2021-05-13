@@ -96,7 +96,7 @@ public class ReplayAction implements Action {
     }
 
     @Override public String getDisplayName() {
-        return Messages.ReplayAction_displayName();
+        return isEnabled() ? Messages.ReplayAction_displayName() : Messages.ReplayAction_rebuild_displayName();
     }
 
     @Override public String getIconFileName() {
