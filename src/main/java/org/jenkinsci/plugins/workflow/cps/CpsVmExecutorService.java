@@ -12,7 +12,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import jenkins.model.Jenkins;
-import jenkins.util.InterceptingExecutorService;
 
 /**
  * {@link ExecutorService} for running CPS VM.
