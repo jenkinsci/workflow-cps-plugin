@@ -40,9 +40,11 @@ import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 import hudson.ExtensionList;
 import hudson.Functions;
+import hudson.Main;
 import hudson.Util;
 import hudson.model.Result;
 import jenkins.model.Jenkins;
+import jenkins.util.Timer;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -67,6 +69,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -123,6 +126,13 @@ public final class CpsThreadGroup implements Serializable {
     transient boolean busy;
 
     /**
+     * True if the build was automatically paused because quiet mode is enabled.
+     * Used to avoid printing more than one pause message or scheduling more than one resumption task per build.
+     * Independent of {@link #paused}.
+     */
+    private transient AtomicBoolean pausedByQuietMode;
+
+    /**
      * True if the execution suspension is requested.
      *
      * <p>
@@ -164,17 +174,12 @@ public final class CpsThreadGroup implements Serializable {
         execution = CpsFlowExecution.PROGRAM_STATE_SERIALIZATION.get();
         setupTransients();
         assert execution!=null;
-        if (scripts != null) { // compatibility: the field will be null in old programs
+        if (/* compatibility: the field will be null in old programs */ scripts != null && !scripts.isEmpty()) {
             GroovyShell shell = execution.getShell();
-            assert shell.getContext().getVariables().isEmpty();
-            if (!scripts.isEmpty()) {
-                // Take the canonical bindings from the main script and relink that object with that of the shell and all other loaded scripts which kept the same bindings.
-                shell.getContext().getVariables().putAll(scripts.get(0).getBinding().getVariables());
-                for (Script script : scripts) {
-                    if (script.getBinding().getVariables().equals(shell.getContext().getVariables())) {
-                        script.setBinding(shell.getContext());
-                    }
-                }
+            // Take the canonical bindings from the main script and relink that object with that of the shell and all other loaded scripts which kept the same bindings.
+            shell.getContext().getVariables().putAll(scripts.get(0).getBinding().getVariables());
+            for (Script script : scripts) {
+                script.setBinding(shell.getContext());
             }
         }
         return this;
@@ -182,13 +187,14 @@ public final class CpsThreadGroup implements Serializable {
 
     private void setupTransients() {
         runner = new CpsVmExecutorService(this);
+        pausedByQuietMode = new AtomicBoolean();
         if (paused == null) { // earlier versions did not have this field.
             paused = new AtomicBoolean();
         }
     }
 
     @CpsVmThreadOnly
-    public CpsThread addThread(Continuable program, FlowHead head, ContextVariableSet contextVariables) {
+    public CpsThread addThread(@Nonnull Continuable program, FlowHead head, ContextVariableSet contextVariables) {
         assertVmThread();
         CpsThread t = new CpsThread(this, iota++, program, head, contextVariables);
         threads.put(t.id, t);
@@ -271,7 +277,31 @@ public final class CpsThreadGroup implements Serializable {
                 @SuppressFBWarnings(value="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE", justification="runner.submit() result")
                 public Void call() throws Exception {
                     Jenkins j = Jenkins.getInstanceOrNull();
+                    if (j != null && !j.isQuietingDown() && execution != null && pausedByQuietMode.compareAndSet(true, false)) {
+                        try {
+                            execution.getOwner().getListener().getLogger().println("Resuming (Shutdown was canceled)");
+                        } catch (IOException e) {
+                            LOGGER.log(Level.WARNING, null, e);
+                        }
+                    }
                     if (paused.get() || j == null || (execution != null && j.isQuietingDown())) {
+                        if (j != null && j.isQuietingDown() && execution != null && pausedByQuietMode.compareAndSet(false, true)) {
+                            try {
+                                execution.getOwner().getListener().getLogger().println("Pausing (Preparing for shutdown)");
+                            } catch (IOException e) {
+                               LOGGER.log(Level.WARNING, null, e);
+                            }
+                            Timer.get().schedule(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (j.isQuietingDown()) {
+                                        Timer.get().schedule(this, Main.isUnitTest ? 1 : 10, TimeUnit.SECONDS);
+                                    } else {
+                                        scheduleRun();
+                                    }
+                                }
+                            }, Main.isUnitTest ? 1 : 10, TimeUnit.SECONDS);
+                        }
                         // by doing the pause check inside, we make sure that scheduleRun() returns a
                         // future that waits for any previously scheduled tasks to be completed.
                         saveProgramIfPossible(true);
@@ -389,6 +419,7 @@ public final class CpsThreadGroup implements Serializable {
                     t.fireCompletionHandlers(o); // do this after ErrorAction is set above
 
                     threads.remove(t.id);
+                    t.cleanUp();
                     if (threads.isEmpty()) {
                         execution.onProgramEnd(o);
                         try {
@@ -495,6 +526,10 @@ public final class CpsThreadGroup implements Serializable {
      */
     @CpsVmThreadOnly
     void saveProgram() throws IOException {
+        if (execution.isResumeBlocked()) {
+            // In case flag added after start, also consider: Util.deleteFile(execution.getProgramDataFile());
+            return;
+        }
         File f = execution.getProgramDataFile();
         saveProgram(f);
     }

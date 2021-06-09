@@ -1,5 +1,105 @@
 ## Changelog
 
+* For newer versions, see [GitHub Releases](https://github.com/jenkinsci/workflow-cps-plugin/releases)
+
+### 2.90
+
+Release date: 2021-02-24
+
+* Fix: use `EnvVars.get()` instead of `TreeMap.get()` to guard against stray null value environment variables ([JENKINS-64729](https://issues.jenkins.io/browse/JENKINS-64729))
+
+### 2.89
+
+Release date: 2021-02-17
+
+* Fix: Help link positioning for Snippet Generator with tables-to-divs ([PR #411](https://github.com/jenkinsci/workflow-cps-plugin/pull/411)
+
+### 2.88
+
+Release date: 2021-02-15
+
+* Fix: Lightweight checkout ignored pipeline durability settings ([JENKINS-63305](https://issues.jenkins.io/browse/JENKINS-63305))
+* Internal: Update various dependencies ([PR #404](https://github.com/jenkinsci/workflow-cps-plugin/pull/404), [PR #405](https://github.com/jenkinsci/workflow-cps-plugin/pull/405), [PR #412](https://github.com/jenkinsci/workflow-cps-plugin/pull/412), [PR #413](https://github.com/jenkinsci/workflow-cps-plugin/pull/413))
+
+### 2.87
+
+Release date: 2020-11-30
+
+* Improvement: Do not check empty value environment variables for Groovy string interpolation. ([JENKINS-64282](https://issues.jenkins-ci.org/browse/JENKINS-64282))
+
+### 2.86
+
+Release date: 2020-11-18
+
+* Fix: Revert changes to usage of `NamedArgsAndClosure` class in version 2.85 that caused various regressions for Declarative Pipelines. ([JENKINS-64185](https://issues.jenkins-ci.org/browse/JENKINS-64185))
+
+### 2.85
+
+Release date: 2020-11-09
+
+* Improvement: Add warnings when secrets are used with Groovy String interpolation. ([JENKINS-63254](https://issues.jenkins-ci.org/browse/JENKINS-63254))
+    * Warnings are configured by setting `org.jenkinsci.plugins.workflow.cps.DSL.UNSAFE_GROOVY_INTERPOLATION` to the following values:
+        * `ignore`: warnings are disabled
+        * `fail`: warnings will cause Pipeline builds to fail
+        * not setting any value will display warnings to the console log and build page
+* Fix: Allow masking of secret variables that use the same name as system variables. ([JENKINS-47101](https://issues.jenkins-ci.org/browse/JENKINS-47101))
+* Fix: Throw an error when a step that requires a body has no body. ([PR #370](https://github.com/jenkinsci/workflow-cps-plugin/pull/370))
+
+### 2.84
+
+Release date: 2020-10-30
+
+* Improvement: Make the Pipeline editor resizable ([JENKINS-31592](https://issues.jenkins-ci.org/browse/JENKINS-31592), [JENKINS-32297](https://issues.jenkins-ci.org/browse/JENKINS-32297), [JENKINS-38276](https://issues.jenkins-ci.org/browse/JENKINS-38276), [PR #391](https://github.com/jenkinsci/workflow-cps-plugin/pull/391))
+* Fix: Do not save Pipeline state to `program.dat` when Pipeline resumption is disabled ([PR #377](https://github.com/jenkinsci/workflow-cps-plugin/pull/377))
+* Internal: Update jQuery by migrating frontend toolchain from `js-builder` to Webpack ([PR #391](https://github.com/jenkinsci/workflow-cps-plugin/pull/391))
+* Internal: Update parent POM and various dependencies ([PR #380](https://github.com/jenkinsci/workflow-cps-plugin/pull/380), [PR #384](https://github.com/jenkinsci/workflow-cps-plugin/pull/384), [PR #385](https://github.com/jenkinsci/workflow-cps-plugin/pull/385), [PR #387](https://github.com/jenkinsci/workflow-cps-plugin/pull/387), [PR #388](https://github.com/jenkinsci/workflow-cps-plugin/pull/388), [PR #389](https://github.com/jenkinsci/workflow-cps-plugin/pull/389), [PR #390](https://github.com/jenkinsci/workflow-cps-plugin/pull/390))
+* Internal: Update some tests to use `JenkinsSessionRule` ([PR #381](https://github.com/jenkinsci/workflow-cps-plugin/pull/381))
+* Internal: Add regression tests for SECURITY-2020 ([PR #379](https://github.com/jenkinsci/workflow-cps-plugin/pull/379))
+* Internal: Enable Dependabot on repository ([PR #382](https://github.com/jenkinsci/workflow-cps-plugin/pull/382))
+
+### 2.83
+
+Release date: 2020-09-03
+
+* Fix: Prevent Pipeline builds from resuming after being aborted while starting (fix also requires Pipeline: Job plugin version 2.40 or newer) ([JENKINS-46961](https://issues.jenkins-ci.org/browse/JENKINS-46961))
+* Improvement: Make logging related to persisting `PERFORMANCE_OPTIMIZED` Pipelines during Jenkins shutdown more consistent to help diagnose ([JENKINS-55287](https://issues.jenkins-ci.org/browse/JENKINS-55287))
+* Internal: Fix tests causing PCT failures when running against Jenkins 2.236+ ([PR 375](https://github.com/jenkinsci/workflow-cps-plugin/pull/375))
+
+### 2.82
+
+Release date: 2020-07-30
+
+* Fix: In some cases, block-scoped steps that had already completed could be persisted in serialized Pipelines, causing the already-completed steps to resume when the Pipeline resumed. ([JENKINS-63164](https://issues.jenkins-ci.org/browse/JENKINS-63164))
+
+### 2.81
+
+Release date: 2020-06-30
+
+* Fix: Iterators for types such as `LinkedList` that implement `Deque` in addition to `List` no longer cause intermittent serialization errors. Iterators for types that only implement `Deque` are now serializable as well. ([JENKINS-62659](https://issues.jenkins-ci.org/browse/JENKINS-62659))
+* Improvement: When using `failFast: true` with the `parallel` step and one of the parallel branches fail, the exception thrown in the other branches now includes the name of the branch that failed originally. ([PR 353](https://github.com/jenkinsci/workflow-cps-plugin/pull/353))
+* Improvement: Use four spaces for indentation in sample Pipelines instead of three. ([PR 349](https://github.com/jenkinsci/workflow-cps-plugin/pull/349))
+* Developer: Make `Snippetizer.object2Groovy` and `SnippetizerTester.assertGenerateSnippet` accessible from other plugins, and add new `SnippetizerTester.assertParseStep` method for testing backwards compatiblity of step data binding. ([PR 362](https://github.com/jenkinsci/workflow-cps-plugin/pull/362), [PR 364](https://github.com/jenkinsci/workflow-cps-plugin/pull/364))
+* Internal: Update parent POM, dependencies, and minimum core version to 2.176.4. ([PR 355](https://github.com/jenkinsci/workflow-cps-plugin/pull/355))
+
+### 2.80
+
+Release date: 2020-02-14
+
+* Fix: Always link the bindings of scripts loaded via the `load` step back to the binding for the main Pipeline script when a Pipeline is resumed. Previously, the bindings in the loaded script could become out of date in some cases. ([PR 348](https://github.com/jenkinsci/workflow-cps-plugin/pull/348))
+* Developer: Introduced `GroovySample` extension point to allow plugins to dynamically add samples to (or filter samples from) the dropdown menu shown when configuring a Pipeline script in Jenkins. ([PR 350](https://github.com/jenkinsci/workflow-cps-plugin/pull/350))
+
+### 2.79
+
+Release date: 2020-02-12
+
+* Security: Fix sandbox bypass vulnerability. ([SECURITY-1710](https://jenkins.io/security/advisory/2020-02-12/#SECURITY-1710))
+
+### 2.78
+
+Release date: 2019-12-10
+
+* Fix: Resume Pipeline execution if Jenkins shutdown is canceled. Previously, when Pipelines were paused because Jenkins was preparing for shutdown, they remained paused even if shutdown was canceled. ([JENKINS-34256](https://issues.jenkins-ci.org/browse/JENKINS-34256))
+
 ### 2.77
 
 Release date: 2019-11-26
@@ -247,7 +347,7 @@ Release date: 2018-04-12
 
 Release date: 2018-04-08
 
-* **Major bugfix / improvements**: numerous fixes & improvements to make Pipeline persistence & resume more robust (across all Durability Settings)  
+* **Major bugfix / improvements**: numerous fixes & improvements to make Pipeline persistence & resume more robust (across all Durability Settings)
     * These do not have individual JIRAs because they were spinoffs from testing other work, discovered with fuzzing-like approaches
     * Many of these bugs would result in irreproducible errors that may have been reported - **link any related JIRAs here**: (TBD)
     * Improves error-handling logic

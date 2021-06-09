@@ -14,13 +14,18 @@ import static java.util.Arrays.*;
 import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
+import jenkins.model.CauseOfInterruption;
 
 import org.apache.commons.io.IOUtils;
 import org.jenkinsci.plugins.workflow.SingleJobTestBase;
+import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.actions.ThreadNameAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsThreadGroup;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
@@ -144,7 +149,14 @@ public class ParallelStepTest extends SingleJobTestBase {
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();
                 Assert.assertFalse("a should have aborted", jenkins().getWorkspaceFor(p).child("a.done").exists());
-
+                for (FlowNode n : new DepthFirstScanner().allNodes(e)) {
+                    ErrorAction err = n.getPersistentAction(ErrorAction.class);
+                    if (err != null) {
+                        if (err.getError() instanceof FlowInterruptedException) {
+                            assertEquals("Failed in branch b", ((FlowInterruptedException) err.getError()).getCauses().stream().map(CauseOfInterruption::getShortDescription).collect(Collectors.joining("; ")));
+                        }
+                    }
+                }
             }
         });
     }

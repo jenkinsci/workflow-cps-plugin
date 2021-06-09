@@ -30,10 +30,14 @@ import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
 import hudson.model.PasswordParameterDefinition;
 import hudson.model.PasswordParameterValue;
+import hudson.model.Result;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
+import hudson.util.VersionNumber;
+import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.Rule;
 import org.jvnet.hudson.test.Issue;
@@ -62,10 +66,12 @@ public class ParamsVariableTest {
 
     @Issue("JENKINS-42367")
     @Test public void nullValue() throws Exception {
+        Assume.assumeTrue(Jenkins.getVersion().isOlderThan(new VersionNumber("2.281"))); // TODO delete test when updating baseline
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("echo(/TEXT=${params.TEXT}/)",true));
         p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("TEXT", "")));
-        r.assertLogContains("TEXT=null", r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("TEXT", /* not possible via UI, but to simulate other ParameterValue impls */null)))));
+        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("TEXT", /* not possible via UI, but to simulate other ParameterValue impls */null))));
+        r.assertLogContains("Null value not allowed as an environment variable: TEXT", b);
     }
 
 }

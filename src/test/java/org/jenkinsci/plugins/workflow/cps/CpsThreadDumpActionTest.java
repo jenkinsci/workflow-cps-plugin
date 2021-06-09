@@ -25,6 +25,8 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import static org.hamcrest.Matchers.*;
+
+import hudson.model.queue.QueueTaskFuture;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
@@ -40,11 +42,13 @@ public class CpsThreadDumpActionTest {
     @Test public void doProgramDotXml() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("node {semaphore 'wait'}", true));
-        WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+        final QueueTaskFuture<WorkflowRun> f = p.scheduleBuild2(0);
+        WorkflowRun b = f.waitForStart();
         SemaphoreStep.waitForStart("wait/1", b);
         String xml = r.createWebClient().goTo(b.getUrl() + b.getAction(CpsThreadDumpAction.class).getUrlName() + "/program.xml", "text/xml").getWebResponse().getContentAsString();
         System.out.println(xml);
         assertThat(xml, containsString("SemaphoreStep"));
+        SemaphoreStep.success("wait/1", null);
+        r.assertBuildStatusSuccess(f);
     }
-
 }

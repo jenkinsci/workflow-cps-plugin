@@ -6,7 +6,7 @@
 
 ## Introduction
 
-A key component of the Pipeline plugin suite, this provides the standard execution engine for Pipeline steps, based on a custom [Groovy](http://www.groovy-lang.org/) interpreter that runs inside the Jenkins master process.
+A key component of the Pipeline plugin suite, this provides the standard execution engine for Pipeline steps, based on a custom [Groovy](http://www.groovy-lang.org/) interpreter that runs inside the Jenkins controller process.
 
 (In principle other execution engines could be supported, with `FlowDefinition` being the API entry point, but none has been prototyped and it would likely be a very substantial effort to write one.)
 
@@ -66,7 +66,7 @@ such as `Object.toString()`,
 should in general be marked `@NonCPS` since it will commonly be binary code calling them.
 
 Some kinds of objects are intrinsically not safe to serialize as such, yet we want to retain a reference to them in the program graph.
-An example is the `Executor` (~ executor slot on a master or agent node) which is part of the context passed by a `node` step to any step in its block, especially `sh`/`bat`.
+An example is the `Executor` (~ executor slot on a built-in or agent node) which is part of the context passed by a `node` step to any step in its block, especially `sh`/`bat`.
 Pipeline uses the `Pickle` API to substitute serialization-safe versions of these objects.
 When a `WorkflowRun` is loaded from disk after a restart, the program state is deserialized, and pickles are deserialized (“rehydrated”) in parallel.
 If and when all pickles are successfully deserialized and the resulting objects placed back in the program state, the program begins running again, and `StepExecution.onResume` is called to restore timers and the like.
@@ -75,4 +75,4 @@ All program logic is run inside a “CPS VM thread”, which is just a Java thre
 The `parallel` step uses “green threads” (also known as coöperative multitasking): it records logical thread (~ branch) names for various actions, but does not literally run them simultaneously.
 The program may seem to perform tasks concurrently, but only because most steps run asynchronously, while the VM thread is idle, and they may overlap in time.
 No Java thread is consumed except during the typically brief intervals when Groovy code is actually being run on the VM thread.
-The executor widget only displays an entry for the “flyweight” executor on the master node when the VM thread is busy; normally it is hidden.
+The executor widget only displays an entry for the “flyweight” executor on the built-in node when the VM thread is busy; normally it is hidden.

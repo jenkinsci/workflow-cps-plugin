@@ -155,7 +155,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     private transient List<CpsBodyInvoker> bodyInvokers = new ArrayList<>();
 
     /**
-     * While {@link CpsStepContext} has not received teh response, maintains the body closure.
+     * While {@link CpsStepContext} has not received the response, maintains the body closure.
      *
      * This is the implicit closure block passed to the step invocation.
      */

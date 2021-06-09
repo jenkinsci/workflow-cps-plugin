@@ -177,13 +177,14 @@ public class FlowDurabilityTest {
         return run;
     }
 
-    static WorkflowRun createAndRunSleeperJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint) throws Exception {
+    private WorkflowRun createAndRunSleeperJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint, boolean resumeBlocked) throws Exception {
         Item prev = jenkins.getItemByFullName(jobName);
         if (prev != null) {
             prev.delete();
         }
 
         WorkflowJob job = jenkins.createProject(WorkflowJob.class, jobName);
+        job.setResumeBlocked(resumeBlocked);
         CpsFlowDefinition def = new CpsFlowDefinition("node {\n " +
                 "sleep 30 \n" +
                 "} \n" +
@@ -192,7 +193,7 @@ public class FlowDurabilityTest {
         provider.registerHint(jobName, durabilityHint);
         job.setDefinition(def);
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
-        Thread.sleep(4000L);  // Hacky but we just need to ensure this can start up
+        story.j.waitForMessage("Sleeping for", run);
         Assert.assertFalse(run.getExecution().isComplete());
         Assert.assertFalse(((CpsFlowExecution)(run.getExecution())).done);
         Assert.assertEquals(durabilityHint, run.getExecution().getDurabilityHint());
@@ -440,7 +441,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED, false);
                 FlowExecution exec = run.getExecution();
                 assertBaseStorageType(exec, BulkFlowNodeStorage.class);
                 logStart[0] = JenkinsRule.getLog(run);
@@ -470,7 +471,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED, false);
                 FlowExecution exec = run.getExecution();
                 assertBaseStorageType(exec, BulkFlowNodeStorage.class);
                 logStart[0] = JenkinsRule.getLog(run);
@@ -548,7 +549,7 @@ public class FlowDurabilityTest {
     }
 
 
-    /** Verify that if the master dies messily and we're not durable against that, build fails cleanly.
+    /** Verify that if the controller dies messily and we're not durable against that, build fails cleanly.
      */
     @Test
     public void testDurableAgainstCleanRestartFailsWithDirtyShutdown() throws Exception {
@@ -556,7 +557,7 @@ public class FlowDurabilityTest {
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED, false);
                 Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
                 logStart[0] = JenkinsRule.getLog(run);
             }
@@ -572,7 +573,7 @@ public class FlowDurabilityTest {
         });
     }
 
-    /** Verify that if the master dies messily and FlowNode storage is lost entirely we fail the build cleanly.
+    /** Verify that if the controller dies messily and FlowNode storage is lost entirely we fail the build cleanly.
      */
     @Test
     @Issue("JENKINS-48824")
@@ -581,7 +582,7 @@ public class FlowDurabilityTest {
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED, false);
                 Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
                 logStart[0] = JenkinsRule.getLog(run);
                 CpsFlowExecution exec = (CpsFlowExecution)(run.getExecution());
@@ -613,7 +614,7 @@ public class FlowDurabilityTest {
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED, false);
                 Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
                 logStart[0] = JenkinsRule.getLog(run);
                 if (run.getExecution() instanceof CpsFlowExecution) {
@@ -708,7 +709,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY);
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY, false);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
@@ -736,12 +737,13 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY);
-                run.getParent().setResumeBlocked(true);
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY, true);
                 FlowExecution exec = run.getExecution();
+                Assert.assertTrue(((CpsFlowExecution) exec).isResumeBlocked());
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
                 }
+                Assert.assertFalse(((CpsFlowExecution) exec).getProgramDataFile().exists());
                 logStart[0] = JenkinsRule.getLog(run);
                 nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
                 nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
@@ -762,20 +764,16 @@ public class FlowDurabilityTest {
     @Issue("JENKINS-49961")
     public void testResumeBlockedAddedAfterRunStart() throws Exception {
         final String jobName = "survivesEverything";
-        final String[] logStart = new String[1];
         final List<FlowNode> nodesOut = new ArrayList<>();
 
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY);
-                run.getParent().setResumeBlocked(false);
+                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY, false);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
                 }
-                logStart[0] = JenkinsRule.getLog(run);
                 nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
                 nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
                 run.getParent().setResumeBlocked(true);

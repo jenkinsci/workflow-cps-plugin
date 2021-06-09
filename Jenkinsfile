@@ -1,1 +1,5 @@
-buildPlugin(useAci: true, configurations: buildPlugin.recommendedConfigurations())
+buildPlugin(useAci: false, configurations: [
+  [ platform: "linux", jdk: "8", jenkins: null ],
+  [ platform: "windows", jdk: "8", jenkins: null ],
+  [ platform: "linux", jdk: "11", jenkins: "2.276", javaLevel: 8 ]
+])

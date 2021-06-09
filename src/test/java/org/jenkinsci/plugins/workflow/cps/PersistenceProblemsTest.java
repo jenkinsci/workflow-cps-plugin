@@ -16,7 +16,6 @@ import org.jenkinsci.plugins.workflow.support.steps.input.InputAction;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStepExecution;
 import org.junit.Assert;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
@@ -24,7 +23,7 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
-import java.io.File;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -166,8 +165,7 @@ public class PersistenceProblemsTest {
 
             // Hack but deletes the file from disk
             CpsFlowExecution cpsExec = (CpsFlowExecution)(run.getExecution());
-            File f = new File(cpsExec.getStorageDir(), finalId+".xml");
-            f.delete();
+            Files.delete(cpsExec.getStorageDir().toPath().resolve(finalId+".xml"));
             executionAndBuildResult[0] = ((CpsFlowExecution)(run.getExecution())).getResult();
             executionAndBuildResult[1] = run.getResult();
         });
@@ -245,7 +243,6 @@ public class PersistenceProblemsTest {
     }
 
     @Test
-    @Ignore
     public void inProgressMaxPerfCleanShutdown() throws Exception {
         final int[] build = new int[1];
         story.then( j -> {
@@ -265,7 +262,6 @@ public class PersistenceProblemsTest {
     }
 
     @Test
-    @Ignore
     public void inProgressMaxPerfDirtyShutdown() throws Exception {
         final int[] build = new int[1];
         final String[] finalNodeId = new String[1];
@@ -313,7 +309,11 @@ public class PersistenceProblemsTest {
         story.thenWithHardShutdown( j -> {
             WorkflowRun run = runBasicPauseOnInput(j, DEFAULT_JOBNAME, build);
             CpsFlowExecution cpsExec = (CpsFlowExecution)(run.getExecution());
-            cpsExec.getProgramDataFile().delete();
+            // Wait until program.dat is written and then delete it.
+            while (!Files.exists(cpsExec.getProgramDataFile().toPath())) {
+                Thread.sleep(100);
+            }
+            Files.delete(cpsExec.getProgramDataFile().toPath());
         });
         story.then( j->{
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);

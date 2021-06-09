@@ -101,7 +101,7 @@ public final class CpsThread implements Serializable {
     final FlowHead head;
 
     @Nullable
-    private final ContextVariableSet contextVariables;
+    private ContextVariableSet contextVariables;
 
     /**
      * If this thread is waiting for a {@link StepExecution} to complete (by invoking our callback),
@@ -114,7 +114,7 @@ public final class CpsThread implements Serializable {
      */
     private final List<FutureCallback<Object>> completionHandlers = new ArrayList<>();
 
-    CpsThread(CpsThreadGroup group, int id, Continuable program, FlowHead head, ContextVariableSet contextVariables) {
+    CpsThread(CpsThreadGroup group, int id, @Nonnull Continuable program, FlowHead head, ContextVariableSet contextVariables) {
         this.group = group;
         this.id = id;
         this.program = group.getExecution().isSandbox() ? new SandboxContinuable(program,this) : program;
@@ -231,7 +231,20 @@ public final class CpsThread implements Serializable {
      * (as opposed to have finished running, either normally or abnormally?)
      */
     boolean isAlive() {
+        assert program != null; // Otherwise this CpsThread is not even part of the CpsThreadGroup, so how is it being accessed?
         return program.isResumable();
+    }
+
+    /**
+     * When this thread is removed from its {@link CpsThreadGroup}, we null out most of its references in case
+     * something is unexpectedly holding a reference directly to it (see JENKINS-63164 for an example scenario).
+     */
+    void cleanUp() {
+        program = null;
+        resumeValue = null;
+        step = null;
+        contextVariables = null;
+        completionHandlers.clear();
     }
 
     @CpsVmThreadOnly
@@ -311,6 +324,7 @@ public final class CpsThread implements Serializable {
     }
 
     public List<StackTraceElement> getStackTrace() {
+        assert program != null; // Otherwise this CpsThread is not even part of the CpsThreadGroup, so how is it being accessed?
         return program.getStackTrace();
     }
 

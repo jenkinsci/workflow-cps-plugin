@@ -27,14 +27,24 @@ package org.jenkinsci.plugins.workflow.cps;
 import com.cloudbees.groovy.cps.CpsTransformer;
 import hudson.Functions;
 import hudson.model.Computer;
+import hudson.model.Describable;
 import hudson.model.Executor;
 import hudson.model.Result;
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.Set;
 
 import java.util.logging.Level;
+import jenkins.model.Jenkins;
 
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.steps.StepExecutions;
 
 import static org.junit.Assert.*;
 
@@ -48,6 +58,8 @@ import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.TestExtension;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 import static org.hamcrest.Matchers.instanceOf;
 
@@ -759,4 +771,89 @@ public class CpsFlowDefinition2Test {
         jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b4);
     }
 
+    @Issue("SECURITY-1658")
+    @Test public void blockInitialExpressionsInClosureExpressions() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        // Initial expressions are dropped in CPS-transformed closures.
+        p.setDefinition(new CpsFlowDefinition("({ param = 'test' -> echo(/param is $param/) })()", true));
+        WorkflowRun b1 = jenkins.buildAndAssertSuccess(p);
+        jenkins.assertLogContains("param is null", b1);
+        // Using @NonCPS
+        p.setDefinition(new CpsFlowDefinition("def @NonCPS method() { ({ j = Jenkins.getInstance() -> true })() }; method()", true));
+        WorkflowRun b2 = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b2);
+    }
+
+    @Issue("SECURITY-1710")
+    @Test public void blockInitialExpressionsForParamsInCpsTransformedMethods() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition("def m(p = Jenkins.getInstance()) { true }; m()", true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        jenkins.assertLogContains("staticMethod jenkins.model.Jenkins getInstance", b);
+    }
+
+    @Issue("SECURITY-2020")
+    @Test public void stepWithUnsafeParameter() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(
+                "import com.cloudbees.groovy.cps.NonCPS\n" +
+                "import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition2Test.UnsafeDescribable\n" +
+                "class UnsafeDescribableImpl implements UnsafeDescribable {\n" +
+                "  @NonCPS void doSomething() {\n" +
+                "    Jenkins.get().setSystemMessage('Hello, world!')\n" +
+                "  }\n" +
+                "  @NonCPS Descriptor<UnsafeDescribableImpl> getDescriptor() {\n" +
+                "    null\n" +
+                "  }\n" +
+                "}\n" +
+                "unsafeParameter(new UnsafeDescribableImpl())", true));
+        WorkflowRun b = jenkins.buildAndAssertStatus(Result.FAILURE, p);
+        jenkins.assertLogContains("Rejecting unsandboxed static method call: jenkins.model.Jenkins.get()", b);
+        assertNull(Jenkins.get().getDescription());
+    }
+
+    @Issue("SECURITY-2020")
+    @Test public void cpsScriptInheritance() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(
+                "import com.cloudbees.groovy.cps.NonCPS\n" +
+                "import org.jenkinsci.plugins.workflow.cps.CpsScript\n" +
+                "class MyScript extends CpsScript {\n" +
+                "  @NonCPS public Binding getBinding() {\n" +
+                "    Jenkins.get().setSystemMessage('Hello, world!')\n" +
+                "    super.getBinding()\n" +
+                "  }\n" +
+                "  public Object run() { }\n" +
+                "}\n", true));
+        WorkflowRun b = jenkins.buildAndAssertStatus(Result.FAILURE, p);
+        jenkins.assertLogContains("Rejecting unsandboxed static method call: jenkins.model.Jenkins.get()", b);
+        assertNull(Jenkins.get().getDescription());
+    }
+
+    public static class UnsafeParameterStep extends Step implements Serializable {
+        private final UnsafeDescribable val;
+        @DataBoundConstructor
+        public UnsafeParameterStep(UnsafeDescribable val) {
+            this.val = val;
+        }
+        public StepExecution start(StepContext context) throws Exception {
+            return StepExecutions.synchronousNonBlocking(context, c -> {
+                val.doSomething();
+                return null;
+            });
+        }
+        @TestExtension
+        public static class DescriptorImpl extends StepDescriptor {
+            public String getFunctionName() {
+                return "unsafeParameter";
+            }
+            public Set<? extends Class<?>> getRequiredContext() {
+                return Collections.emptySet();
+            }
+        }
+    }
+
+    public static interface UnsafeDescribable extends Describable<UnsafeDescribable> {
+        void doSomething();
+    }
 }

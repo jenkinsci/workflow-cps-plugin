@@ -13,8 +13,13 @@ import hudson.EnvVars;
 import hudson.Functions;
 import hudson.XmlFile;
 import hudson.model.Action;
+import hudson.model.ParametersAction;
+import hudson.model.ParametersDefinitionProperty;
+import hudson.model.PasswordParameterDefinition;
+import hudson.model.PasswordParameterValue;
 import hudson.tasks.ArtifactArchiver;
 import org.apache.commons.lang.RandomStringUtils;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsMapContaining;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
@@ -47,6 +52,7 @@ import org.junit.Assume;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 import org.jvnet.hudson.test.BuildWatcher;
@@ -156,35 +162,31 @@ public class ArgumentsActionImplTest {
         String input = "I have a secret p4ssw0rd";
         HashMap<String,String> passwordBinding = new HashMap<>();
         passwordBinding.put("mypass", "p4ssw0rd");
-        Assert.assertTrue("Input with no variables is safe", ArgumentsActionImpl.isStringSafe(input, new EnvVars(), Collections.EMPTY_SET));
-        Assert.assertFalse("Input containing bound value is unsafe", ArgumentsActionImpl.isStringSafe(input, new EnvVars(passwordBinding), Collections.EMPTY_SET));
-
-        Assert.assertTrue("EnvVars that do not occur are safe", ArgumentsActionImpl.isStringSafe("I have no passwords", new EnvVars(passwordBinding), Collections.EMPTY_SET));
-
-        HashMap<String, String> safeBinding = new HashMap<>();
-        safeBinding.put("harmless", "secret");
-        HashSet<String> safeVars = new HashSet<>();
-        safeVars.add("harmless");
-        passwordBinding.put("harmless", "secret");
-        Assert.assertTrue("Input containing whitelisted bound value is safe", ArgumentsActionImpl.isStringSafe(input, new EnvVars(safeBinding), safeVars));
-        Assert.assertFalse("Input containing one safe and one unsafe bound value is unsafe", ArgumentsActionImpl.isStringSafe(input, new EnvVars(passwordBinding), safeVars));
+        Set<String> sensitiveVariables = new HashSet<>();
+        sensitiveVariables.add("mypass");
+        MatcherAssert.assertThat("Input with no variables is safe", ArgumentsActionImpl.replaceSensitiveVariables(input, new EnvVars(), sensitiveVariables), is(input));
+        MatcherAssert.assertThat("Input containing bound value is unsafe", ArgumentsActionImpl.replaceSensitiveVariables(input, new EnvVars(passwordBinding), sensitiveVariables), is("I have a secret ${mypass}"));
+        MatcherAssert.assertThat("EnvVars that do not occur are safe", ArgumentsActionImpl.replaceSensitiveVariables("I have no passwords", new EnvVars(passwordBinding), sensitiveVariables), is("I have no passwords"));
     }
 
     @Test
     public void testRecursiveSanitizationOfContent() {
-        int maxLen = ArgumentsActionImpl.getMaxRetainedLength();
-        ArgumentsActionImpl impl = new ArgumentsActionImpl();
-
         EnvVars env = new EnvVars();
         String secretUsername = "secretuser";
         env.put("USERVARIABLE", secretUsername); // assume secretuser is a bound credential
+
+        Set<String> sensitiveVariables = new HashSet<>();
+        sensitiveVariables.add("USERVARIABLE");
+
+        int maxLen = ArgumentsActionImpl.getMaxRetainedLength();
+        ArgumentsActionImpl impl = new ArgumentsActionImpl(sensitiveVariables);
 
         char[] oversized = new char[maxLen+10];
         Arrays.fill(oversized, 'a');
         String oversizedString = new String (oversized);
 
         // Simplest masking of secret and oversized value
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, impl.sanitizeObjectAndRecordMutation(secretUsername, env));
+        Assert.assertEquals("${USERVARIABLE}", impl.sanitizeObjectAndRecordMutation(secretUsername, env));
         Assert.assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
 
@@ -196,12 +198,12 @@ public class ArgumentsActionImplTest {
         Step mystep = new EchoStep("I have a "+secretUsername);
         Map<String, ?> singleSanitization = (Map<String,Object>)(impl.sanitizeObjectAndRecordMutation(mystep, env));
         Assert.assertEquals(1, singleSanitization.size());
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, singleSanitization.get("message"));
+        Assert.assertEquals("I have a ${USERVARIABLE}", singleSanitization.get("message"));
         Assert.assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
         singleSanitization = ((UninstantiatedDescribable) (impl.sanitizeObjectAndRecordMutation(mystep.getDescriptor().uninstantiate(mystep), env))).getArguments();
         Assert.assertEquals(1, singleSanitization.size());
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, singleSanitization.get("message"));
+        Assert.assertEquals("I have a ${USERVARIABLE}", singleSanitization.get("message"));
         Assert.assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
 
@@ -210,7 +212,7 @@ public class ArgumentsActionImplTest {
         dangerous.put("name", secretUsername);
         Map<String, Object> sanitizedMap = impl.sanitizeMapAndRecordMutation(dangerous, env);
         Assert.assertNotEquals(sanitizedMap, dangerous);
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, sanitizedMap.get("name"));
+        Assert.assertEquals("${USERVARIABLE}", sanitizedMap.get("name"));
         Assert.assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
 
@@ -223,7 +225,7 @@ public class ArgumentsActionImplTest {
         List sanitized = (List)impl.sanitizeListAndRecordMutation(unsanitizedList, env);
         Assert.assertEquals(3, sanitized.size());
         Assert.assertFalse(impl.isUnmodifiedArguments());
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, sanitized.get(2));
+        Assert.assertEquals("${USERVARIABLE}", sanitized.get(2));
         impl.isUnmodifiedBySanitization = true;
 
         Assert.assertEquals(unsanitizedList, impl.sanitizeObjectAndRecordMutation(unsanitizedList, new EnvVars()));
@@ -235,18 +237,20 @@ public class ArgumentsActionImplTest {
         EnvVars env = new EnvVars();
         String secretUsername = "IAmA";
         env.put("USERVARIABLE", secretUsername); // assume secretuser is a bound credential
+        Set<String> sensitiveVariables = new HashSet<>();
+        sensitiveVariables.add("USERVARIABLE");
 
         HashMap<String, Object> args = new HashMap<>();
         args.put("ints", new int[]{1,2,3});
         args.put("strings", new String[]{"heh",secretUsername,"lumberjack"});
-        ArgumentsActionImpl filtered = new ArgumentsActionImpl(args, env);
+        ArgumentsActionImpl filtered = new ArgumentsActionImpl(args, env, sensitiveVariables);
 
         Map<String, Object> filteredArgs = filtered.getArguments();
         Assert.assertEquals(2, filteredArgs.size());
         Assert.assertThat(filteredArgs, IsMapContaining.hasEntry("ints", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
         Assert.assertThat(filteredArgs, IsMapContaining.hasKey("strings"));
         Object[] contents = (Object[])(filteredArgs.get("strings"));
-        Assert.assertArrayEquals(new Object[]{"heh", ArgumentsAction.NotStoredReason.MASKED_VALUE, "lumberjack"}, (Object[])(filteredArgs.get("strings")));
+        Assert.assertArrayEquals(new Object[]{"heh", "${USERVARIABLE}", "lumberjack"}, (Object[])(filteredArgs.get("strings")));
     }
 
     @Test
@@ -280,24 +284,26 @@ public class ArgumentsActionImplTest {
         passwordBinding.put("mypass", "p4ssw0rd");
         Map<String, Object> arguments = new HashMap<>();
         arguments.put("message", "I have a secret p4ssw0rd");
+        Set<String> sensitiveVariables = new HashSet<>();
+        sensitiveVariables.add("mypass");
 
         Field maxSizeF = ArgumentsAction.class.getDeclaredField("MAX_RETAINED_LENGTH");
         maxSizeF.setAccessible(true);
         int maxSize = maxSizeF.getInt(null);
 
         // Same string, unsanitized
-        ArgumentsActionImpl argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars());
+        ArgumentsActionImpl argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars(), sensitiveVariables);
         Assert.assertTrue(argumentsActionImpl.isUnmodifiedArguments());
         Assert.assertEquals(arguments.get("message"), argumentsActionImpl.getArgumentValueOrReason("message"));
         Assert.assertEquals(1, argumentsActionImpl.getArguments().size());
         Assert.assertEquals("I have a secret p4ssw0rd", argumentsActionImpl.getArguments().get("message"));
 
         // Test sanitizing arguments now
-        argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars(passwordBinding));
+        argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars(passwordBinding), sensitiveVariables);
         Assert.assertFalse(argumentsActionImpl.isUnmodifiedArguments());
-        Assert.assertEquals(ArgumentsActionImpl.NotStoredReason.MASKED_VALUE, argumentsActionImpl.getArgumentValueOrReason("message"));
+        Assert.assertEquals("I have a secret ${mypass}", argumentsActionImpl.getArgumentValueOrReason("message"));
         Assert.assertEquals(1, argumentsActionImpl.getArguments().size());
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, argumentsActionImpl.getArguments().get("message"));
+        Assert.assertEquals("I have a secret ${mypass}", argumentsActionImpl.getArguments().get("message"));
 
         // Mask oversized values
         arguments.clear();
@@ -424,8 +430,7 @@ public class ArgumentsActionImplTest {
         filtered = scanner.filteredNodes(exec, new DescriptorMatchPredicate(EchoStep.DescriptorImpl.class));
         for (FlowNode f : filtered) {
             act = f.getPersistentAction(ArgumentsActionImpl.class);
-            Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, act.getArguments().get("message"));
-            Assert.assertNull(ArgumentsAction.getStepArgumentsAsString(f));
+            MatcherAssert.assertThat((String) act.getArguments().get("message"), allOf(not(containsString("bob")), not(containsString("s3cr3t"))));
         }
 
         List<FlowNode> allStepped = scanner.filteredNodes(run.getExecution().getCurrentHeads(), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class));

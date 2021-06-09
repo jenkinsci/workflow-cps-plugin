@@ -60,29 +60,28 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
 import org.jenkinsci.plugins.workflow.support.pickles.TryRepeatedly;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.*;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.JenkinsSessionRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
-import org.jvnet.hudson.test.RestartableJenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
 
 public class CpsFlowExecutionTest {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-    @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
+    @Rule public JenkinsSessionRule sessions = new JenkinsSessionRule();
     @Rule public LoggerRule logger = new LoggerRule();
 
-    @Test public void getCurrentExecutions() {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+    @Test public void getCurrentExecutions() throws Throwable {
+        sessions.then(r -> {
+                WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition(
                         "echo 'a step'; semaphore 'one'; retry(2) {semaphore 'two'; node {semaphore 'three'}; semaphore 'four'}; semaphore 'five'; " +
                         "parallel a: {node {semaphore 'six'}}, b: {semaphore 'seven'}; semaphore 'eight'", true));
@@ -96,11 +95,9 @@ public class CpsFlowExecutionTest {
                 SemaphoreStep.success("two/1", null);
                 SemaphoreStep.waitForStart("three/1", b);
                 assertStepExecutions(e, "retry {}", "node {}", "semaphore");
-            }
         });
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+        sessions.then(r -> {
+                WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
                 WorkflowRun b = p.getLastBuild();
                 CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
                 assertTrue(e.isSandbox());
@@ -128,9 +125,8 @@ public class CpsFlowExecutionTest {
                 SemaphoreStep.waitForStart("eight/1", b);
                 assertStepExecutions(e, "semaphore");
                 SemaphoreStep.success("eight/1", null);
-                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
+                r.assertBuildStatusSuccess(r.waitForCompletion(b));
                 assertStepExecutions(e);
-            }
         });
     }
     private static void assertStepExecutions(FlowExecution e, String... steps) throws Exception {
@@ -157,22 +153,21 @@ public class CpsFlowExecutionTest {
     }
 
     @Issue("JENKINS-25736")
-    @Test public void pause() {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
-                story.j.jenkins.setSecurityRealm(story.j.createDummySecurityRealm());
-                story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
+    @Test public void pause() throws Throwable {
+        sessions.then(r -> {
+                WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+                r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
+                r.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
                     grant(Jenkins.READ, Item.READ).everywhere().toEveryone().
                     grant(Jenkins.ADMINISTER).everywhere().to("admin").
                     grant(Item.BUILD, Item.CANCEL).onItems(p).to("dev"));
-                story.j.jenkins.save();
+                r.jenkins.save();
                 p.setDefinition(new CpsFlowDefinition("echo 'before'; semaphore 'one'; echo 'after'", true));
                 WorkflowRun b = p.scheduleBuild2(0).waitForStart();
                 SemaphoreStep.waitForStart("one/1", b);
                 final CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
                 assertFalse(e.isPaused());
-                JenkinsRule.WebClient wc = story.j.createWebClient();
+                JenkinsRule.WebClient wc = r.createWebClient();
                 String toggleUrlRel = b.getUrl() + PauseUnpauseAction.URL + "/toggle";
                 WebRequest wrs = new WebRequest(wc.createCrumbedUrl(toggleUrlRel), HttpMethod.POST);
                 try { // like JenkinsRule.assertFails but taking a WebRequest:
@@ -182,7 +177,7 @@ public class CpsFlowExecutionTest {
                 }
                 wc.login("admin").getPage(wrs);
                 assertTrue(e.isPaused());
-                story.j.waitForMessage("before", b);
+                r.waitForMessage("before", b);
                 SemaphoreStep.success("one/1", null);
 
                 // not a very strong way of ensuring that the pause actually happens
@@ -191,105 +186,197 @@ public class CpsFlowExecutionTest {
                 assertTrue(e.isPaused());
 
                 // link should only be displayed conditionally:
-                String toggleUrlAbs = story.j.contextPath + "/" + toggleUrlRel;
-                story.j.createWebClient().login("admin").getPage(b).getAnchorByHref(toggleUrlAbs);
+                String toggleUrlAbs = r.contextPath + "/" + toggleUrlRel;
+                r.createWebClient().login("admin").getPage(b).getAnchorByHref(toggleUrlAbs);
                 try {
-                    story.j.createWebClient().getPage(b).getAnchorByHref(toggleUrlAbs);
+                    r.createWebClient().getPage(b).getAnchorByHref(toggleUrlAbs);
                     fail("link should not be present for anonymous user without CANCEL");
                 } catch (ElementNotFoundException x) {
                     // good
                 }
-            }
         });
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+        sessions.then(r -> {
+                WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
                 WorkflowRun b = p.getLastBuild();
                 assertTrue(b.isBuilding());
                 CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
                 assertTrue(e.isPaused());
-                JenkinsRule.WebClient wc = story.j.createWebClient();
+                JenkinsRule.WebClient wc = r.createWebClient();
                 WebRequest wrs = new WebRequest(wc.createCrumbedUrl(b.getUrl() + PauseUnpauseAction.URL + "/toggle"), HttpMethod.POST);
                 wc.login("dev").getPage(wrs);
                 assertFalse(e.isPaused());
-                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
+                r.assertBuildStatusSuccess(r.waitForCompletion(b));
                 assertFalse(e.isPaused());
-            }
         });
     }
 
     @Issue("JENKINS-32015")
-    @Test public void quietDown() {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+    @Test public void quietDown() throws Throwable {
+        sessions.then(r -> {
+                WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
                 WorkflowRun b = p.scheduleBuild2(0).waitForStart();
                 SemaphoreStep.waitForStart("wait/1", b);
-                story.j.jenkins.doQuietDown(true, 0);
+                r.jenkins.doQuietDown(true, 0);
                 SemaphoreStep.success("wait/1", null);
+                r.waitForMessage("Pausing (Preparing for shutdown)", b);
                 ((CpsFlowExecution) b.getExecution()).waitForSuspension();
                 assertTrue(b.isBuilding());
-            }
         });
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+        sessions.then(r -> {
+                WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
                 WorkflowRun b = p.getLastBuild();
-                story.j.assertLogContains("I am done", story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b)));
-            }
+                r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
         });
     }
 
-    @Test public void timing() {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+    @Issue("JENKINS-34256")
+    @Test public void quietDownThenCancelQuietDown() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            r.jenkins.doQuietDown(true, 0);
+            SemaphoreStep.success("wait/1", null);
+            r.waitForMessage("Pausing (Preparing for shutdown)", b);
+            assertTrue(b.isBuilding());
+            r.assertLogNotContains("I am done", b);
+            r.jenkins.doCancelQuietDown();
+            r.waitForMessage("Resuming (Shutdown was canceled)", b);
+            r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
+        });
+    }
+
+    @Issue("JENKINS-34256")
+    @Test public void pauseThenQuietDownThenUnpauseThenCancelQuietDown() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            ((CpsFlowExecution) b.getExecution()).pause(true);
+            r.waitForMessage("Pausing", b);
+            SemaphoreStep.success("wait/1", null);
+            Thread.sleep(1000);
+            r.jenkins.doQuietDown(true, 0);
+            Thread.sleep(1000);
+            r.assertLogNotContains("Pausing (Preparing for shutdown)", b);
+            ((CpsFlowExecution) b.getExecution()).pause(false);
+            r.waitForMessage("Resuming", b);
+            r.waitForMessage("Pausing (Preparing for shutdown)", b);
+            r.jenkins.doCancelQuietDown();
+            r.waitForMessage("Resuming (Shutdown was canceled)", b);
+            r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
+        });
+    }
+
+    @Issue("JENKINS-34256")
+    @Test public void pauseThenQuietDownThenCancelQuietDownThenUnpause() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            ((CpsFlowExecution) b.getExecution()).pause(true);
+            r.waitForMessage("Pausing", b);
+            SemaphoreStep.success("wait/1", null);
+            Thread.sleep(1000);
+            r.jenkins.doQuietDown(true, 0);
+            Thread.sleep(1000);
+            r.assertLogNotContains("Pausing (Preparing for shutdown)", b);
+            r.jenkins.doCancelQuietDown();
+            Thread.sleep(1000);
+            r.assertLogNotContains("Resuming (Shutdown was canceled)", b);
+            ((CpsFlowExecution) b.getExecution()).pause(false);
+            r.waitForMessage("Resuming", b);
+            r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
+        });
+    }
+
+    @Issue("JENKINS-34256")
+    @Test public void quietDownThenPauseThenCancelQuietDownThenUnpause() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            r.jenkins.doQuietDown(true, 0);
+            SemaphoreStep.success("wait/1", null);
+            r.waitForMessage("Pausing (Preparing for shutdown)", b);
+            ((CpsFlowExecution) b.getExecution()).pause(true);
+            r.waitForMessage("Pausing", b);
+            r.jenkins.doCancelQuietDown();
+            r.waitForMessage("Resuming (Shutdown was canceled)", b);
+            r.assertLogNotContains("I am done", b);
+            ((CpsFlowExecution) b.getExecution()).pause(false);
+            r.waitForMessage("Resuming", b);
+            r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
+        });
+    }
+
+    @Issue("JENKINS-34256")
+    @Test public void quietDownThenPauseThenUnpauseThenCancelQuietDown() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            r.jenkins.doQuietDown(true, 0);
+            SemaphoreStep.success("wait/1", null);
+            r.waitForMessage("Pausing (Preparing for shutdown)", b);
+            ((CpsFlowExecution) b.getExecution()).pause(true);
+            r.waitForMessage("Pausing", b);
+            ((CpsFlowExecution) b.getExecution()).pause(false);
+            r.waitForMessage("Resuming", b);
+            r.assertLogNotContains("I am done", b);
+            r.jenkins.doCancelQuietDown();
+            r.waitForMessage("Resuming (Shutdown was canceled)", b);
+            r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
+        });
+    }
+
+    @Test public void timing() throws Throwable {
+        sessions.then(r -> {
                 logger.record(CpsFlowExecution.TIMING_LOGGER, Level.FINE).capture(100);
-                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+                WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("semaphore 'wait'", true));
                 WorkflowRun b = p.scheduleBuild2(0).waitForStart();
                 SemaphoreStep.waitForStart("wait/1", b);
-            }
         });
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+        sessions.then(r -> {
+                WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
                 WorkflowRun b = p.getLastBuild();
                 SemaphoreStep.success("wait/1", null);
-                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
+                r.assertBuildStatusSuccess(r.waitForCompletion(b));
                 while (logger.getRecords().isEmpty()) {
                     Thread.sleep(100); // apparently a race condition between CpsVmExecutorService.tearDown and WorkflowRun.finish
                 }
                 assertThat(logger.getRecords(), Matchers.hasSize(Matchers.equalTo(1)));
                 assertEquals(CpsFlowExecution.TimingKind.values().length, ((CpsFlowExecution) b.getExecution()).timings.keySet().size());
-            }
         });
     }
 
     @Issue("JENKINS-26130")
-    @Test public void interruptProgramLoad() {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+    @Test public void interruptProgramLoad() throws Throwable {
+        sessions.then(r -> {
+                WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("def x = new " + BadThing.class.getCanonicalName() + "(); semaphore 'wait'", true));
                 WorkflowRun b = p.scheduleBuild2(0).waitForStart();
                 SemaphoreStep.waitForStart("wait/1", b);
-            }
         });
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+        sessions.then(r -> {
                 Logger LOGGER = Logger.getLogger("org.jenkinsci.plugins.workflow");
                 LOGGER.setLevel(Level.FINE);
                 Handler handler = new ConsoleHandler();
                 handler.setLevel(Level.ALL);
                 LOGGER.addHandler(handler);
-                WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
+                WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
                 WorkflowRun b = p.getLastBuild();
                 assertTrue(b.isBuilding());
-                story.j.waitForMessage("Cannot restore BadThing", b);
+                r.waitForMessage("Cannot restore BadThing", b);
                 b.getExecutor().interrupt();
-                story.j.assertBuildStatus(Result.ABORTED, story.j.waitForCompletion(b));
-            }
+                r.assertBuildStatus(Result.ABORTED, r.waitForCompletion(b));
         });
     }
     public static class BadThing {
@@ -316,11 +403,11 @@ public class CpsFlowExecutionTest {
         }
     }
 
-    @Test public void trustedShell() {
+    @Test public void trustedShell() throws Throwable {
         trustedShell(true);
     }
 
-    @Test public void trustedShell_control() {
+    @Test public void trustedShell_control() throws Throwable {
         trustedShell(false);
     }
 
@@ -348,25 +435,23 @@ public class CpsFlowExecutionTest {
         }
     }
 
-    private void trustedShell(final boolean pos) {
+    private void trustedShell(final boolean pos) throws Throwable {
         SECRET = false;
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+        sessions.then(r -> {
+                WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("new foo().attempt()", true));
                 WorkflowRun b = p.scheduleBuild2(0).get();
                 if (pos) {
-                    story.j.assertBuildStatusSuccess(b);
+                    r.assertBuildStatusSuccess(b);
                     assertTrue(SECRET);
                 } else {
                     // should have failed with RejectedAccessException trying to touch 'SECRET'
-                    story.j.assertBuildStatus(Result.FAILURE, b);
-                    story.j.assertLogContains(
+                    r.assertBuildStatus(Result.FAILURE, b);
+                    r.assertLogContains(
                             new RejectedAccessException("staticField",CpsFlowExecutionTest.class.getName()+" SECRET").getMessage(),
                             b);
                     assertFalse(SECRET);
                 }
-            }
         });
     }
 
