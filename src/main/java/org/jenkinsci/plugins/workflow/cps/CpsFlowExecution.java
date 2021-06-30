@@ -400,6 +400,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this.user = auth.equals(ACL.SYSTEM) ? null : auth.getName();
         this.storage = createStorage();
         this.storage.setAvoidAtomicWrite(!this.getDurabilityHint().isAtomicWrite());
+        this.storage.setAvoidForce(!this.getDurabilityHint().isForce());
     }
 
     public CpsFlowExecution(String script, boolean sandbox, FlowExecutionOwner owner) throws IOException {
@@ -504,9 +505,17 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         FlowNodeStorage wrappedStorage;
 
         FlowDurabilityHint hint = getDurabilityHint();
-        wrappedStorage = (hint.isPersistWithEveryStep())
-                ? new SimpleXStreamFlowNodeStorage(this, getStorageDir())
-                : new BulkFlowNodeStorage(this, getStorageDir());
+        if (hint.isPersistWithEveryStep()) {
+            wrappedStorage = new SimpleXStreamFlowNodeStorage(this, getStorageDir());
+            wrappedStorage.setAvoidAtomicWrite(!hint.isAtomicWrite());
+            wrappedStorage.setAvoidForce(!hint.isForce());
+        } else {
+            wrappedStorage = new BulkFlowNodeStorage(this, getStorageDir());
+            /*
+             * avoidAtomicWrite and avoidForce are always true for BulkFlowNodeStorage; see its
+             * constructor for details.
+             */
+        }
         return new TimingFlowNodeStorage(wrappedStorage);
     }
 
