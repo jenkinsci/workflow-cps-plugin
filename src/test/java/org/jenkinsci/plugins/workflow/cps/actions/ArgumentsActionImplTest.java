@@ -396,6 +396,7 @@ public class ArgumentsActionImplTest {
         String username = "bob";
         String password = "s3cr3t";
         UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, "test", "sample", username, password);
+        c.setUsernameSecret(true);
         CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
 
         WorkflowJob job = r.createProject(WorkflowJob.class);
