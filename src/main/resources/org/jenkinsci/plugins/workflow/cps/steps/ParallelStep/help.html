@@ -1,14 +1,69 @@
 <div>
     <p>
-        Takes a map from branch names to closures and an optional argument <code>failFast</code>
-        which will terminate all branches upon a failure in any other branch:
+      Takes a map from branch names to closures and runs the closures in
+      parallel. The <code>failFast</code> option terminates
+      all branches as soon as any branch fails.
     </p>
-    <pre>
-    parallel firstBranch: {
-        // do something
-    }, secondBranch: {
-        // do something else
-    },
-    failFast: true|false
-    </pre>
+    <p>
+      Synopsis:
+      <pre>
+        parallel firstBranch: {
+            // do something
+          }, secondBranch: {
+            // do something else
+          },
+          failFast: true
+      </pre>
+    </p>
+    <p>
+      A branch succeeds if it returns normally. The actual value
+      returned does not matter. A branch is considered to have failed if its
+      closure exits by throwing an exception.
+    </p>
+    <p>
+      If any branch fails, the <code>parallel</code> step will throw that
+      exception once all branches have finished executing or been terminated,
+      depending on <code>failFast</code> mode. Any non-identical exceptions
+      thrown by other branches are added to the first exception as having been
+      “suppressed by” the first exception; see
+      <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Throwable.html#addSuppressed(java.lang.Throwable)" target="_blank"><code>Throwable.addSuppressed(...)</code></a>.
+    </p>
+    <p>
+      Note that a <code>hudson.AbortException</code>, as thrown by failing
+      steps (for example <code>sh</code> with a nonzero exit status),
+      will stop and fail the branch but not produce a stack trace.
+      This produces a:
+      <pre>
+      [branchname] Failed in branch branchname
+      </pre>
+      message without any details.
+    </p>
+    <p>
+      To report results from branches to the outer script, use the closure’s
+      access to the outer scope’s variables. For example, to run a shell script
+      in parallel on each of a list of arguments and produce a map of argument
+      to script stdout:
+      <pre>
+        def args = ['foo', 'bar', 'baz']
+        def results = [:]
+        // Produce a map of args to closures that use each arg
+        branches = args.collectEntries { arg -&gt; [arg: {
+            def out = sh script: "./my-script.sh '${arg}'", returnStdout: true
+            results[arg] = out
+          } ] }
+        branches.failFast = true
+        parallel branches
+      </pre>
+      If all of the branches succeeded, the 'results' array contains a map of arg
+      to shell stdout string. Otherwise <code>parallel</code> terminates the
+      other branches and re-throws the <code>Exception</code> from
+      the first failed script.
+    </p>
+    <p>
+      Note: Branch closures may return <code>null</code> or just nothing specific. The return
+      value of the <code>parallel</code> step should be ignored.
+      <code>parallel</code> does capture the return values of closures and
+      return a map of branch name to return value. But relying on this is not
+      recommended and the behaviour is subject to change (JENKINS-26033).
+    </p>
 </div>
