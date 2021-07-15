@@ -441,7 +441,7 @@ public class DSLTest {
 
     @Issue("JENKINS-63254")
     @Test public void sensitiveVariableInterpolation() throws Exception {
-        final String credentialsId = "creds";
+        final String credentialsId = "creds-sensitiveVariableInterpolation";
         final String username = "bob";
         final String password = "secr3t";
         UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
@@ -449,7 +449,7 @@ public class DSLTest {
         String shellStep = Functions.isWindows()? "bat" : "sh";
         p.setDefinition(new CpsFlowDefinition(""
                 + "node {\n"
-                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
+                + "withCredentials([usernamePassword(credentialsId: '" + credentialsId + "', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
                 + shellStep + " \"echo $PASSWORD\"\n"
                 + "}\n"
                 + "}", true));
@@ -472,14 +472,14 @@ public class DSLTest {
 
     @Issue("JENKINS-63254")
     @Test public void sensitiveVariableInterpolationWithMetaStep() throws Exception {
-        final String credentialsId = "creds";
+        final String credentialsId = "creds-sensitiveVariableInterpolationWithMetaStep";
         final String username = "bob";
         final String password = "secr3t";
         UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
         CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
         p.setDefinition(new CpsFlowDefinition(""
                 + "node {\n"
-                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
+                + "withCredentials([usernamePassword(credentialsId: '" + credentialsId + "', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
                 + "archiveArtifacts(\"${PASSWORD}\")"
                 + "}\n"
                 + "}", true));
@@ -496,15 +496,16 @@ public class DSLTest {
     }
 
     @Test public void multipleSensitiveVariables() throws Exception {
-        final String credentialsId = "creds";
+        final String credentialsId = "creds-multipleSensitiveVariables";
         final String username = "bob";
         final String password = "secr3t";
         UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
+        c.setUsernameSecret(true);
         CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
         String shellStep = Functions.isWindows()? "bat" : "sh";
         p.setDefinition(new CpsFlowDefinition(""
                 + "node {\n"
-                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
+                + "withCredentials([usernamePassword(credentialsId: '" + credentialsId + "', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
                 + shellStep + " \"echo $PASSWORD $USERNAME $PASSWORD\"\n"
                 + "}\n"
                 + "}", true));
@@ -527,14 +528,14 @@ public class DSLTest {
 
     @Issue("JENKINS-63254")
     @Test public void sensitiveVariableInterpolationWithNestedDescribable() throws Exception {
-        final String credentialsId = "creds";
+        final String credentialsId = "creds-sensitiveVariableInterpolationWithNestedDescribable";
         final String username = "bob";
         final String password = "secr3t";
         UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
         CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
         p.setDefinition(new CpsFlowDefinition(""
                 + "node {\n"
-                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
+                + "withCredentials([usernamePassword(credentialsId: '" + credentialsId + "', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
                 + "monomorphWithSymbolStep(monomorphSymbol([firstArg:\"${PASSWORD}\", secondArg:'two']))"
                 + "}\n"
                 + "}", true));
@@ -560,14 +561,15 @@ public class DSLTest {
 
     @Issue("JENKINS-63254")
     @Test public void complexSensitiveVariableInterpolationWithNestedDescribable() throws Exception {
-        final String credentialsId = "creds";
+        final String credentialsId = "creds-complexSensitiveVariableInterpolationWithNestedDescribable";
         final String username = "bob";
         final String password = "secr3t";
         UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, credentialsId, "sample", username, password);
+        c.setUsernameSecret(true);
         CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
         p.setDefinition(new CpsFlowDefinition(""
                 + "node {\n"
-                + "withCredentials([usernamePassword(credentialsId: 'creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
+                + "withCredentials([usernamePassword(credentialsId: '" + credentialsId + "', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {\n"
                 + "monomorphListSymbolStep([monomorphSymbol(firstArg: monomorphWithSymbolStep(monomorphSymbol([firstArg: \"innerFirstArgIs${PASSWORD}\", secondArg: \"innerSecondArgIs${USERNAME}\"])), secondArg: \"hereismy${PASSWORD}\"), monomorphSymbol(firstArg: \"${PASSWORD}\", secondArg: \"${USERNAME}\")])"
                 + "}\n"
                 + "}", true));

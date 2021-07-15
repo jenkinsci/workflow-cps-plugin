@@ -393,10 +393,6 @@ import org.kohsuke.stapler.StaplerRequest;
         return null;
     }
 
-    @Override public Descriptor getDescriptorByName(String id) {
-        return Jenkins.get().getDescriptorByName(id);
-    }
-
     @Restricted(NoExternalUse.class)
     public Collection<QuasiDescriptor> getQuasiDescriptors(boolean advanced) {
         TreeSet<QuasiDescriptor> t = new TreeSet<>();
