@@ -49,7 +49,7 @@ import org.jenkinsci.plugins.workflow.flow.GlobalDefaultFlowDurabilityLevel;
 /**
  * Attached to a run that is a replay of an earlier one.
  */
-class ReplayFlowFactoryAction extends InvisibleAction implements CpsFlowFactoryAction2, Queue.QueueAction {
+public class ReplayFlowFactoryAction extends InvisibleAction implements CpsFlowFactoryAction2, Queue.QueueAction {
 
     private String replacementMainScript;
     private final Map<String,String> replacementLoadedScripts;
@@ -87,6 +87,18 @@ class ReplayFlowFactoryAction extends InvisibleAction implements CpsFlowFactoryA
             return execution.getLoadedScripts();
         }
 
+    }
+
+    public String getReplacementMainScript() {
+        return replacementMainScript;
+    }
+
+    public Map<String, String> getReplacementLoadedScripts() {
+        return replacementLoadedScripts;
+    }
+
+    public boolean isSandbox() {
+        return sandbox;
     }
 
 }
