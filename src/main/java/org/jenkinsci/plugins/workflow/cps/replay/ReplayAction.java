@@ -69,6 +69,7 @@ import net.sf.json.JSONObject;
 import org.acegisecurity.AccessDeniedException;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
+import org.jenkinsci.plugins.workflow.cps.WorkflowConfig;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.kohsuke.accmod.Restricted;
@@ -140,6 +141,10 @@ public class ReplayAction implements Action {
             return false;
         }
 
+        if (WorkflowConfig.getInstance().getReplayDisabled() == true) {
+            return false;
+        }
+
         return true;
     }
 
@@ -149,6 +154,10 @@ public class ReplayAction implements Action {
         }
 
         if (!run.getParent().isBuildable()) {
+            return false;
+        }
+
+        if (WorkflowConfig.getInstance().getReplayDisabled() == true) {
             return false;
         }
 
