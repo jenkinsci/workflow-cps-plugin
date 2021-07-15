@@ -44,8 +44,10 @@ import hudson.slaves.WorkspaceList;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+
 import jenkins.model.Jenkins;
 import jenkins.scm.api.SCMFileSystem;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
@@ -207,7 +209,14 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         public Collection<? extends SCMDescriptor<?>> getApplicableDescriptors() {
             StaplerRequest req = Stapler.getCurrentRequest();
             Job<?,?> job = req != null ? req.findAncestorObject(Job.class) : null;
-            return SCM._for(job);
+            List<SCMDescriptor<?>> scms = new ArrayList<>();
+            for(SCMDescriptor<?> scm : SCM._for(job)) {
+                if(!"org.jenkinsci.plugins.multiplescms.MultiSCM".equals(scm.getId())) {
+                    scms.add(scm);
+                }
+            }
+            return scms;
+
         }
 
         // TODO doCheckLightweight impossible to write even though we have SCMFileSystem.supports(SCM), because form validation cannot pass the SCM object
