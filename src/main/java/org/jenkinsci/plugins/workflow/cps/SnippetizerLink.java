@@ -28,6 +28,7 @@ import hudson.Extension;
 import hudson.ExtensionPoint;
 import hudson.model.Item;
 import hudson.model.Job;
+import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
 
@@ -75,32 +76,12 @@ public abstract class SnippetizerLink implements ExtensionPoint {
 
         StaplerRequest req = Stapler.getCurrentRequest();
         if (req == null) {
-            return u;
+            throw new IllegalStateException("Can't get display URL without Stapler context.");
         }
 
         Item i = req.findAncestorObject(Item.class);
 
-        StringBuilder toAppend = new StringBuilder();
-
-        toAppend.append(req.getContextPath());
-
-        if (!req.getContextPath().endsWith("/")) {
-            toAppend.append("/");
-        }
-
-        if (i == null) {
-            toAppend.append(u);
-        } else {
-            toAppend.append(i.getUrl());
-
-            if (!i.getUrl().endsWith("/")) {
-                toAppend.append("/");
-            }
-
-            toAppend.append(u);
-        }
-
-        return toAppend.toString();
+        return req.getContextPath() + "/" + (i == null ? "" : StringUtils.stripEnd(i.getUrl(), "/")) + "/" + u;
     }
 
     /**
