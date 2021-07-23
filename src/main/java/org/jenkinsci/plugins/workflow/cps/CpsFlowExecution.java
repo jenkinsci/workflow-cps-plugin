@@ -145,7 +145,7 @@ import javax.annotation.concurrent.GuardedBy;
 
 import org.acegisecurity.Authentication;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
-import org.apache.commons.io.Charsets;
+import java.nio.charset.StandardCharsets;
 import org.codehaus.groovy.GroovyBugError;
 import org.jboss.marshalling.reflect.SerializableClassRegistry;
 
@@ -1913,7 +1913,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         @Override public void addContents(Container container) {
             container.add(new Content("nodes/master/pipeline-timings.txt") {
                 @Override public void writeTo(OutputStream outputStream) throws IOException {
-                    PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, Charsets.UTF_8));
+                    PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
                     for (Job<?, ?> job : Jenkins.get().getAllItems(Job.class)) {
                         // TODO no clear way to tell if this might have Run instanceof FlowExecutionOwner.Executable, so for now just check for FlyweightTask which should exclude AbstractProject
                         if (job instanceof Queue.FlyweightTask) {
