@@ -4,7 +4,5 @@ updates:
   # not trust the plugin's tests to catch issues caused by updates.
   - package-ecosystem: "maven"
     directory: "/"
-    reviewers:
-      - "dwnusbaum"
     schedule:
       interval: "daily"
