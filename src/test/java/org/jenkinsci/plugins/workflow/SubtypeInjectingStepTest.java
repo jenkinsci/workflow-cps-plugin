@@ -39,7 +39,7 @@ public class SubtypeInjectingStepTest {
     public void contextInjectionOfSubParameters() throws Exception {
         // see SubtypeInjectingStep
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("node('master') { injectSubtypesAsContext() }", false));
+        p.setDefinition(new CpsFlowDefinition("node('" + r.jenkins.getSelfLabel().getName() + "') { injectSubtypesAsContext() }", false));
         r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
 

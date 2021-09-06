@@ -199,14 +199,14 @@ public class RestartingLoadStepTest {
                 p.setDefinition(new CpsFlowDefinition("def util\n" +
                         "def config\n" +
                         "def util2\n" +
-                        "node('master') {\n" +
+                        " node('" + story.j.jenkins.getSelfLabel().getName() + "') { \n" +
                         "    config = load 'src/org/foo/devops/JenkinsEnvironment.groovy'\n" +
                         "    util = load 'src/org/foo/devops/Utility.groovy'\n" +
                         "    config.loadProdConfiguration()\n" +
                         "}\n" +
                         "util.isValueExist(\"\")\n" +
                         "semaphore 'wait'\n" +
-                        "node('master') {\n" +
+                        " node('" + story.j.jenkins.getSelfLabel().getName() + "') { \n" +
                         "    util2 = load 'src/org/foo/devops/Utility.groovy'\n" +
                         "    util = load 'src/org/foo/devops/Utility.groovy'\n" +
                         "    assert util.isValueExist('foo') == true\n" +

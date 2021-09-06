@@ -503,7 +503,7 @@ public class ArgumentsActionImplTest {
         WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
                 "echo 'test' \n " +
-                " node('master') { \n" +
+                " node('" + r.jenkins.getSelfLabel().getName() + "') { \n" +
                 "   retry(3) {\n"+
                 "     if (isUnix()) { \n" +
                 "       sh 'whoami' \n" +
@@ -535,8 +535,8 @@ public class ArgumentsActionImplTest {
 
         FlowNode nodeNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0),
                 Predicates.and(Predicates.instanceOf(StepStartNode.class), new NodeStepTypePredicate("node"), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class)));
-        Assert.assertEquals("master", nodeNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
-        Assert.assertEquals("master", ArgumentsAction.getStepArgumentsAsString(nodeNode));
+        Assert.assertEquals(r.jenkins.getSelfLabel().getName(), nodeNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
+        Assert.assertEquals(r.jenkins.getSelfLabel().getName(), ArgumentsAction.getStepArgumentsAsString(nodeNode));
 
         testDeserialize(run.getExecution());
     }
@@ -545,7 +545,7 @@ public class ArgumentsActionImplTest {
     public void testUnusualStepInstantiations() throws Exception {
         WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
-                " node('master') { \n" +
+                " node('" + r.jenkins.getSelfLabel().getName() + "') { \n" +
                 "   writeFile text: 'hello world', file: 'msg.out'\n" +
                 "   step([$class: 'ArtifactArchiver', artifacts: 'msg.out', fingerprint: false])\n "+
                 "   withEnv(['CUSTOM=val']) {\n"+  //Symbol-based, because withEnv is a metastep; TODO huh? no it is not
