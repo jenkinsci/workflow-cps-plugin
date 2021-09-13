@@ -501,9 +501,10 @@ public class ArgumentsActionImplTest {
     @Test
     public void testArgumentDescriptions() throws Exception {
         WorkflowJob job = r.createProject(WorkflowJob.class);
+        String builtInNodeLabel = r.jenkins.getSelfLabel().getName(); // compatibility with 2.307+
         job.setDefinition(new CpsFlowDefinition(
                 "echo 'test' \n " +
-                " node('master') { \n" +
+                " node('" + builtInNodeLabel + "') { \n" +
                 "   retry(3) {\n"+
                 "     if (isUnix()) { \n" +
                 "       sh 'whoami' \n" +
@@ -535,8 +536,8 @@ public class ArgumentsActionImplTest {
 
         FlowNode nodeNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0),
                 Predicates.and(Predicates.instanceOf(StepStartNode.class), new NodeStepTypePredicate("node"), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class)));
-        Assert.assertEquals("master", nodeNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
-        Assert.assertEquals("master", ArgumentsAction.getStepArgumentsAsString(nodeNode));
+        Assert.assertEquals(builtInNodeLabel, nodeNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
+        Assert.assertEquals(builtInNodeLabel, ArgumentsAction.getStepArgumentsAsString(nodeNode));
 
         testDeserialize(run.getExecution());
     }
