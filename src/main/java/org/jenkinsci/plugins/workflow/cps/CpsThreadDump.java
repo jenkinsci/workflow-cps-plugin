@@ -30,6 +30,8 @@ public final class CpsThreadDump {
         private final String headline;
         private final List<StackTraceElement> stack = new ArrayList<>();
 
+        private static final int MAX_STATUS_LENGTH = 1000;
+
         /**
          * Given a list of {@link CpsThread}s that share the same {@link FlowHead}, in the order
          * from outer to inner, reconstruct the thread stack.
@@ -48,6 +50,11 @@ public final class CpsThreadDump {
                     if (d != null) {
                         String status = s.getStatusBounded(3, TimeUnit.SECONDS);
                         if (status != null) {
+                            int len = status.length();
+                            if (len > MAX_STATUS_LENGTH) {
+                                int half = MAX_STATUS_LENGTH / 2;
+                                status = status.subSequence(0, half) + "…[truncated " + (len - MAX_STATUS_LENGTH) + " chars]…" + status.subSequence(len - half, len);
+                            }
                             stack.add(new StackTraceElement("DSL", d.getFunctionName(), status, -1));
                         } else {
                             stack.add(new StackTraceElement("DSL", d.getFunctionName(), null, -2));
