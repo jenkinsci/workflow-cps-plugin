@@ -29,7 +29,7 @@ import hudson.ExtensionList;
 import hudson.ExtensionPoint;
 import hudson.model.RootAction;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -77,7 +77,7 @@ public interface GroovySample extends ExtensionPoint {
         
         @Override public String script() {
             try {
-                return IOUtils.toString(GroovySample.class.getResource("samples/" + name() + ".groovy"), Charset.defaultCharset());
+                return IOUtils.toString(GroovySample.class.getResource("samples/" + name() + ".groovy"), StandardCharsets.UTF_8);
             } catch (IOException x) {
                 throw new AssertionError(x);
             }

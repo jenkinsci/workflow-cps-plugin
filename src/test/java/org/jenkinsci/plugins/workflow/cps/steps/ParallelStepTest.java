@@ -8,7 +8,7 @@ import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Result;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -341,7 +341,7 @@ public class ParallelStepTest extends SingleJobTestBase {
             @Override public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(
-                        IOUtils.toString(getClass().getResource("localMethodCallWithinLotsOfBranches.groovy"), Charset.defaultCharset()), false));
+                        IOUtils.toString(getClass().getResource("localMethodCallWithinLotsOfBranches.groovy"), StandardCharsets.UTF_8), false));
 
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();

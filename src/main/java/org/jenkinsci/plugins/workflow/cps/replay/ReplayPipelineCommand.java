@@ -31,7 +31,7 @@ import hudson.cli.handlers.GenericItemOptionHandler;
 import hudson.model.Job;
 import hudson.model.Run;
 
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.io.IOUtils;
@@ -72,7 +72,7 @@ import org.kohsuke.args4j.spi.Setter;
         if (!action.isEnabled() || !action.isReplayableSandboxTest()) {
             throw new AbortException("Not authorized to replay builds of this job");
         }
-        String text = IOUtils.toString(stdin, Charset.defaultCharset());
+        String text = IOUtils.toString(stdin, StandardCharsets.UTF_8);
         if (script != null) {
             Map<String,String> replacementLoadedScripts = new HashMap<>(action.getOriginalLoadedScripts());
             if (!replacementLoadedScripts.containsKey(script)) {

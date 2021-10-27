@@ -45,7 +45,7 @@ import hudson.security.ACL;
 import hudson.security.ACLContext;
 import hudson.security.Permission;
 import java.io.File;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import jenkins.model.Jenkins;
@@ -318,13 +318,13 @@ public class ReplayActionTest {
                 WorkflowRun b1 = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
                 story.j.assertLogContains("got original text", b1);
                 // s/got/received/ on main script
-                assertEquals(0, new CLICommandInvoker(story.j, "replay-pipeline").withStdin(IOUtils.toInputStream("node {def t = load 'f.groovy'; echo \"received ${t}\"}", Charset.defaultCharset())).invokeWithArgs("p").returnCode());
+                assertEquals(0, new CLICommandInvoker(story.j, "replay-pipeline").withStdin(IOUtils.toInputStream("node {def t = load 'f.groovy'; echo \"received ${t}\"}", StandardCharsets.UTF_8)).invokeWithArgs("p").returnCode());
                 story.j.waitUntilNoActivity();
                 WorkflowRun b2 = p.getLastBuild();
                 assertEquals(2, b2.getNumber());
                 story.j.assertLogContains("received original text", b2);
                 // s/original/new/ on auxiliary script, and explicitly asking to replay #1 rather than the latest
-                assertEquals(0, new CLICommandInvoker(story.j, "replay-pipeline").withStdin(IOUtils.toInputStream("'new text'", Charset.defaultCharset())).invokeWithArgs("p", "-n", "1", "-s", "Script1").returnCode());
+                assertEquals(0, new CLICommandInvoker(story.j, "replay-pipeline").withStdin(IOUtils.toInputStream("'new text'", StandardCharsets.UTF_8)).invokeWithArgs("p", "-n", "1", "-s", "Script1").returnCode());
                 story.j.waitUntilNoActivity();
                 WorkflowRun b3 = p.getLastBuild();
                 assertEquals(3, b3.getNumber());
