@@ -41,10 +41,12 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static java.util.logging.Level.*;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+
+import static java.util.logging.Level.WARNING;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
+
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.LinearBlockHoppingScanner;
 

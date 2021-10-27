@@ -27,7 +27,6 @@ package org.jenkinsci.plugins.workflow.cps;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
-import hudson.model.InvisibleAction;
 import hudson.model.RootAction;
 import java.io.IOException;
 import net.sf.json.JSONArray;

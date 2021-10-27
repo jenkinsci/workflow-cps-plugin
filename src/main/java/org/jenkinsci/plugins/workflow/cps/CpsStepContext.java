@@ -70,7 +70,7 @@ import jenkins.util.ContextResettingExecutorService;
 import org.codehaus.groovy.runtime.InvokerInvocationException;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepNode;
 
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.ANYWHERE;
 
 /**
  * {@link StepContext} implementation for CPS.

@@ -13,7 +13,9 @@ import org.jenkinsci.plugins.workflow.cps.GroovyShellDecorator;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
-import static org.junit.Assert.*;
+
+import static org.junit.Assert.assertTrue;
+
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;

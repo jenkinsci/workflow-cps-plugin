@@ -38,7 +38,8 @@ import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nonnull;
 
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.NONE;
+
 import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
 

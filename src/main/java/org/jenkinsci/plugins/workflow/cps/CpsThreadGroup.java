@@ -74,10 +74,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static java.util.logging.Level.*;
 import javax.annotation.CheckForNull;
-import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+
+import static java.util.logging.Level.FINE;
+import static java.util.logging.Level.WARNING;
+import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.PROGRAM_STATE_SERIALIZATION;
+import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.TimingKind;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
+
 import org.jenkinsci.plugins.workflow.pickles.Pickle;
 import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
 import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;

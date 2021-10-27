@@ -42,7 +42,9 @@ import org.codehaus.groovy.runtime.InvokerHelper;
 import org.codehaus.groovy.runtime.InvokerInvocationException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
+
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 
 /**

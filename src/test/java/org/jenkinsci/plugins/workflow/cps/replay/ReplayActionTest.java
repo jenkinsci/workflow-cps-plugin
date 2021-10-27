@@ -50,12 +50,10 @@ import java.util.List;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
-import static org.hamcrest.Matchers.*;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
-import static org.junit.Assert.*;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -66,6 +64,14 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class ReplayActionTest {
 
@@ -157,20 +163,20 @@ public class ReplayActionTest {
 
             JenkinsRule.WebClient wc = r.createWebClient();
             Assert.assertNull(run.asFlowExecutionOwner().getOrNull());
-            Assert.assertTrue(canReplay(run, "admin"));
-            Assert.assertTrue(canReplay(run, "normal"));
-            Assert.assertTrue(canRebuild(run, "admin"));
+            assertTrue(canReplay(run, "admin"));
+            assertTrue(canReplay(run, "normal"));
+            assertTrue(canRebuild(run, "admin"));
             Assert.assertNull(run.asFlowExecutionOwner().getOrNull());
 
             // After lazy-load we can do deeper checks easily, and the deep test triggers a full load of the execution
-            Assert.assertTrue(canReplayDeepTest(run, "admin"));
-            Assert.assertTrue(canReplayDeepTest(run2, "normal"));
+            assertTrue(canReplayDeepTest(run, "admin"));
+            assertTrue(canReplayDeepTest(run2, "normal"));
 
-            Assert.assertNotNull(run.asFlowExecutionOwner().getOrNull());
-            Assert.assertTrue(canReplay(run, "admin"));
-            Assert.assertFalse(canReplay(run, "normal")); // Now we know to check if the user can run outside sandbox, and they can't
-            Assert.assertTrue(canReplay(run2, "normal")); // We can still run stuff inside sandbox
-            Assert.assertTrue(canRebuild(run, "admin"));
+            assertNotNull(run.asFlowExecutionOwner().getOrNull());
+            assertTrue(canReplay(run, "admin"));
+            assertFalse(canReplay(run, "normal")); // Now we know to check if the user can run outside sandbox, and they can't
+            assertTrue(canReplay(run2, "normal")); // We can still run stuff inside sandbox
+            assertTrue(canRebuild(run, "admin"));
         });
     }
 

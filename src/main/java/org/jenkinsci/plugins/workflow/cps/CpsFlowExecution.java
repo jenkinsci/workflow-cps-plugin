@@ -103,7 +103,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static com.thoughtworks.xstream.io.ExtendedHierarchicalStreamWriterHelper.*;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyCodeSource;
@@ -149,7 +148,9 @@ import java.nio.charset.StandardCharsets;
 import org.codehaus.groovy.GroovyBugError;
 import org.jboss.marshalling.reflect.SerializableClassRegistry;
 
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import static com.thoughtworks.xstream.io.ExtendedHierarchicalStreamWriterHelper.startNode;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.RUN;
+
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.kohsuke.accmod.restrictions.DoNotUse;

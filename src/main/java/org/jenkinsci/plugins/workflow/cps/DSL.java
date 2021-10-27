@@ -68,14 +68,17 @@ import org.jenkinsci.plugins.structs.SymbolLookup;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
-import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.*;
 
 import org.jenkinsci.plugins.workflow.cps.actions.ArgumentsActionImpl;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+
+import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.resumeWith;
+import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.suspendWith;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
+
 import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
 import org.jenkinsci.plugins.workflow.cps.view.InterpolatedSecretsAction;

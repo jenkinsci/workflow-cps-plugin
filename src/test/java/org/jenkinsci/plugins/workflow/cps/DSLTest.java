@@ -42,11 +42,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
-import org.hamcrest.MatcherAssert;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.cps.view.InterpolatedSecretsAction;
@@ -68,7 +69,6 @@ import org.jenkinsci.plugins.workflow.testMetaStep.AmbiguousEchoUpperStep;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.*;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -459,15 +459,15 @@ public class DSLTest {
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
         List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
-        MatcherAssert.assertThat(warnings.size(), is(1));
+        assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
-        MatcherAssert.assertThat(stepWarning.getStepName(), is(shellStep));
-        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+        assertThat(stepWarning.getStepName(), is(shellStep));
+        assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
         Assert.assertFalse(argAction.isUnmodifiedArguments());
-        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), is("echo ${PASSWORD}"));
+        assertThat(argAction.getArguments().values().iterator().next(), is("echo ${PASSWORD}"));
     }
 
     @Issue("JENKINS-63254")
@@ -489,10 +489,10 @@ public class DSLTest {
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
         List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
-        MatcherAssert.assertThat(warnings.size(), is(1));
+        assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
-        MatcherAssert.assertThat(stepWarning.getStepName(), is("archiveArtifacts"));
-        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+        assertThat(stepWarning.getStepName(), is("archiveArtifacts"));
+        assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
     }
 
     @Test public void multipleSensitiveVariables() throws Exception {
@@ -515,15 +515,15 @@ public class DSLTest {
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
         List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
-        MatcherAssert.assertThat(warnings.size(), is(1));
+        assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
-        MatcherAssert.assertThat(stepWarning.getStepName(), is(shellStep));
-        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD", "USERNAME")));
+        assertThat(stepWarning.getStepName(), is(shellStep));
+        assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD", "USERNAME")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
         Assert.assertFalse(argAction.isUnmodifiedArguments());
-        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), is("echo ${PASSWORD} ${USERNAME} ${PASSWORD}"));
+        assertThat(argAction.getArguments().values().iterator().next(), is("echo ${PASSWORD} ${USERNAME} ${PASSWORD}"));
     }
 
     @Issue("JENKINS-63254")
@@ -546,17 +546,17 @@ public class DSLTest {
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
         List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
-        MatcherAssert.assertThat(warnings.size(), is(1));
+        assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
-        MatcherAssert.assertThat(stepWarning.getStepName(), is("monomorphWithSymbolStep"));
-        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+        assertThat(stepWarning.getStepName(), is("monomorphWithSymbolStep"));
+        assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("monomorphWithSymbolStep"));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
         Assert.assertFalse(argAction.isUnmodifiedArguments());
         Object var = argAction.getArguments().values().iterator().next();
-        MatcherAssert.assertThat(var, instanceOf(UninstantiatedDescribable.class));
-        MatcherAssert.assertThat(((UninstantiatedDescribable)var).getArguments().toString(), is("{firstArg=${PASSWORD}, secondArg=two}"));
+        assertThat(var, instanceOf(UninstantiatedDescribable.class));
+        assertThat(((UninstantiatedDescribable)var).getArguments().toString(), is("{firstArg=${PASSWORD}, secondArg=two}"));
     }
 
     @Issue("JENKINS-63254")
@@ -581,13 +581,13 @@ public class DSLTest {
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
         List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
-        MatcherAssert.assertThat(warnings.size(), is(2));
+        assertThat(warnings.size(), is(2));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
-        MatcherAssert.assertThat(stepWarning.getStepName(), is("monomorphWithSymbolStep"));
-        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), equalTo(Arrays.asList("PASSWORD", "USERNAME")));
+        assertThat(stepWarning.getStepName(), is("monomorphWithSymbolStep"));
+        assertThat(stepWarning.getInterpolatedVariables(), equalTo(Arrays.asList("PASSWORD", "USERNAME")));
         InterpolatedSecretsAction.InterpolatedWarnings listStepWarning = warnings.get(1);
-        MatcherAssert.assertThat(listStepWarning.getStepName(), is("monomorphListSymbolStep"));
-        MatcherAssert.assertThat(listStepWarning.getInterpolatedVariables(), equalTo(Arrays.asList("PASSWORD", "USERNAME")));
+        assertThat(listStepWarning.getStepName(), is("monomorphListSymbolStep"));
+        assertThat(listStepWarning.getInterpolatedVariables(), equalTo(Arrays.asList("PASSWORD", "USERNAME")));
     }
 
     @Test public void noBodyError() throws Exception {
@@ -629,15 +629,15 @@ public class DSLTest {
         InterpolatedSecretsAction reportAction = run.getAction(InterpolatedSecretsAction.class);
         Assert.assertNotNull(reportAction);
         List<InterpolatedSecretsAction.InterpolatedWarnings> warnings = reportAction.getWarnings();
-        MatcherAssert.assertThat(warnings.size(), is(1));
+        assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
-        MatcherAssert.assertThat(stepWarning.getStepName(), is(shellStep));
-        MatcherAssert.assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+        assertThat(stepWarning.getStepName(), is(shellStep));
+        assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
         Assert.assertFalse(argAction.isUnmodifiedArguments());
-        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), is("echo hello ${PASSWORD}"));
+        assertThat(argAction.getArguments().values().iterator().next(), is("echo hello ${PASSWORD}"));
     }
 
     @Issue("JENKINS-64282")
@@ -659,7 +659,7 @@ public class DSLTest {
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
         Assert.assertTrue(argAction.isUnmodifiedArguments());
-        MatcherAssert.assertThat(argAction.getArguments().values().iterator().next(), is("echo hello "));
+        assertThat(argAction.getArguments().values().iterator().next(), is("echo hello "));
     }
 
     public static class CLStep extends Step {

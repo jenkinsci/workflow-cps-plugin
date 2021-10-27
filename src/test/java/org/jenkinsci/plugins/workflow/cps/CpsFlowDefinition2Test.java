@@ -46,8 +46,6 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.steps.StepExecutions;
 
-import static org.junit.Assert.*;
-
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.ClassRule;
@@ -61,7 +59,10 @@ import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 
 public class CpsFlowDefinition2Test {
 
