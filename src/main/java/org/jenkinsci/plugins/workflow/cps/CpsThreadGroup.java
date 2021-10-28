@@ -259,6 +259,8 @@ public final class CpsThreadGroup implements Serializable {
         if (ref==null)      return;
         if (closures.remove(ref.id) != null) {
             LOGGER.log(FINE, "unexporting {0}", ref.id);
+        } else if (closures.isEmpty()) {
+            LOGGER.log(FINE, "cannot unexport {0} but there are no closures at all so perhaps we are still trying to load the program", ref.id);
         } else {
             LOGGER.log(WARNING, "double unexport of {0}", ref.id);
         }
