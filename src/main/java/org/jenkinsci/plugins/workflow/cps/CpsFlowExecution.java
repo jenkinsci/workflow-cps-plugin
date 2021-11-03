@@ -864,7 +864,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             @Override public void onSuccess(CpsThreadGroup g) {
                 CpsThread t = g.addThread(
                         new Continuable(new ThrowBlock(new ConstantBlock(
-                            problem instanceof AbortException ? problem : new IOException("Failed to load build state", problem)))),
+                            problem instanceof AbortException || problem instanceof FlowInterruptedException ? problem : new IOException("Failed to load build state", problem)))),
                         head_, null
                 );
                 t.resume(new Outcome(null,null));
