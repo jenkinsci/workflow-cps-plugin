@@ -319,6 +319,7 @@ public class PersistenceProblemsTest {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
             assertCompletedCleanly(run);
+            j.assertLogContains("FileNotFoundException", run);
         });
     }
 
