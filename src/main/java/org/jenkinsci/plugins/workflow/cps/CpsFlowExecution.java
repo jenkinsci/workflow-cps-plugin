@@ -36,7 +36,6 @@ import com.cloudbees.jenkins.support.api.Component;
 import com.cloudbees.jenkins.support.api.Container;
 import com.cloudbees.jenkins.support.api.Content;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -485,7 +484,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     public Map<String,String> getLoadedScripts() {
-        return ImmutableMap.copyOf(loadedScripts);
+        return Collections.unmodifiableMap(loadedScripts);
     }
 
     /**
