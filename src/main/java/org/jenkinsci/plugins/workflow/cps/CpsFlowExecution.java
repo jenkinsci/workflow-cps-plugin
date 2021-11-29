@@ -484,7 +484,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     public Map<String,String> getLoadedScripts() {
-        return Collections.unmodifiableMap(loadedScripts);
+        return Collections.unmodifiableMap(new HashMap<>(loadedScripts));
     }
 
     /**
