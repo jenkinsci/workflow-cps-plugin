@@ -10,7 +10,6 @@ import com.cloudbees.groovy.cps.impl.TryBlockEnv;
 import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.SettableFuture;
 import hudson.model.Action;
 import hudson.model.Result;
 import hudson.util.Iterators;
@@ -35,6 +34,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -201,7 +201,7 @@ class CpsBodyExecution extends BodyExecution {
                 return Collections.emptySet();
             }
         }
-        final SettableFuture<Collection<StepExecution>> result = SettableFuture.create();
+        final CompletableFuture<Collection<StepExecution>> result = new CompletableFuture<>();
         t.getExecution().runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
             @Override public void onSuccess(CpsThreadGroup g) {
                 try {
@@ -226,13 +226,13 @@ class CpsBodyExecution extends BodyExecution {
                             }
                         }
                     }
-                    result.set(executions);
+                    result.complete(executions);
                 } catch (Exception x) {
-                    result.setException(x);
+                    result.completeExceptionally(x);
                 }
             }
             @Override public void onFailure(Throwable t) {
-                result.setException(t);
+                result.completeExceptionally(t);
             }
         });
         try {
