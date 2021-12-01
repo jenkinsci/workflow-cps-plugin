@@ -327,29 +327,20 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
             whenOutcomeDelivered = new Throwable();
         } else {
             Throwable failure = newOutcome.getAbnormal();
-            if (failure instanceof FlowInterruptedException) {
-                for (CauseOfInterruption cause : ((FlowInterruptedException) failure).getCauses()) {
-                    if (cause instanceof BodyFailed) {
-                        LOGGER.log(Level.FINE, "already completed " + this + " and now received body failure", failure);
-                        // Predictable that the error would be thrown up here; quietly ignore it.
-                        return;
-                    }
-                }
-            }
-            LOGGER.log(Level.WARNING, "already completed " + this, new IllegalStateException("delivered here"));
+            LOGGER.log(Level.FINE, "already completed " + this, new IllegalStateException("delivered here"));
             if (failure != null) {
-                LOGGER.log(Level.INFO, "new failure", failure);
+                LOGGER.log(Level.FINE, "new failure", failure);
             } else {
-                LOGGER.log(Level.INFO, "new success: {0}", outcome.getNormal());
+                LOGGER.log(Level.FINE, "new success: {0}", outcome.getNormal());
             }
             if (whenOutcomeDelivered != null) {
-                LOGGER.log(Level.INFO, "previously delivered here", whenOutcomeDelivered);
+                LOGGER.log(Level.FINE, "previously delivered here", whenOutcomeDelivered);
             }
             failure = outcome.getAbnormal();
             if (failure != null) {
-                LOGGER.log(Level.INFO, "earlier failure", failure);
+                LOGGER.log(Level.FINE, "earlier failure", failure);
             } else {
-                LOGGER.log(Level.INFO, "earlier success: {0}", outcome.getNormal());
+                LOGGER.log(Level.FINE, "earlier success: {0}", outcome.getNormal());
             }
         }
     }
@@ -398,7 +389,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                                 if (s != null) {
                                     // TODO: ideally this needs to work like interrupt, in that
                                     // if s==null the next StepExecution gets interrupted when it happen
-                                    FlowInterruptedException cause = new FlowInterruptedException(Result.FAILURE, new BodyFailed());
+                                    FlowInterruptedException cause = new FlowInterruptedException(Result.FAILURE);
                                     cause.initCause(getOutcome().getAbnormal());
                                     try {
                                         // TODO JENKINS-26148/JENKINS-34637 this is probably wrong: should interrupt the innermost execution
@@ -456,6 +447,10 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         }
     }
 
+    /**
+     * @deprecated No longer used, but retained for settings compatibility.
+     */
+    @Deprecated
     private static class BodyFailed extends CauseOfInterruption {
         @Override public String getShortDescription() {
             return "Body of block-scoped step failed";
