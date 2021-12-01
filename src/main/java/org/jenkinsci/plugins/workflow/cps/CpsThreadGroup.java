@@ -27,7 +27,6 @@ package org.jenkinsci.plugins.workflow.cps;
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.SettableFuture;
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.MarshallingContext;
@@ -65,6 +64,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -273,7 +273,7 @@ public final class CpsThreadGroup implements Serializable {
      *      {@link Future} object that represents when the CPS VM is executed.
      */
     public Future<?> scheduleRun() {
-        final SettableFuture<Void> f = SettableFuture.create();
+        final CompletableFuture<Void> f = new CompletableFuture<>();
         try {
             runner.submit(new Callable<Void>() {
                 @SuppressFBWarnings(value="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE", justification="runner.submit() result")
@@ -307,7 +307,7 @@ public final class CpsThreadGroup implements Serializable {
                         // by doing the pause check inside, we make sure that scheduleRun() returns a
                         // future that waits for any previously scheduled tasks to be completed.
                         saveProgramIfPossible(true);
-                        f.set(null);
+                        f.complete(null);
                         return null;
                     }
 
@@ -327,13 +327,13 @@ public final class CpsThreadGroup implements Serializable {
                                         runner.shutdown();
                                     }
                                     // the original promise of scheduleRun() is now complete
-                                    f.set(null);
+                                    f.complete(null);
                                 }
                             });
                         }
                     } catch (RejectedExecutionException x) {
                         // Was shut down by a prior task?
-                        f.setException(x);
+                        f.completeExceptionally(x);
                     }
                     return null;
                 }

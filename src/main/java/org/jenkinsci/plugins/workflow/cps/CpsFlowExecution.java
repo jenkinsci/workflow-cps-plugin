@@ -134,6 +134,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -2005,7 +2006,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
             // Try to ensure we've saved the appropriate things -- the program is the last stumbling block.
             try {
-                final SettableFuture<Void> myOutcome = SettableFuture.create();
+                final CompletableFuture<Void> myOutcome = new CompletableFuture<>();
                 LOGGER.log(Level.FINE, "About to try to checkpoint the program for: {0}", this);
                 if (programPromise != null && programPromise.isDone()) {
                     runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
@@ -2015,17 +2016,17 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                 LOGGER.log(Level.FINE, "Trying to save program for: {0}", CpsFlowExecution.this);
                                 result.saveProgramIfPossible(true);
                                 LOGGER.log(Level.FINE, "Finished saving program for: {0}", CpsFlowExecution.this);
-                                myOutcome.set(null);
+                                myOutcome.complete(null);
                             } catch (Exception ex) {
                                 // Logged at Level.WARNING when we call `myOutcome.get` and it throws an exception.
-                                myOutcome.setException(ex);
+                                myOutcome.completeExceptionally(ex);
                             }
                         }
 
                         @Override
                         public void onFailure(Throwable t) {
                             // Logged at Level.WARNING when we call `myOutcome.get` and it throws an exception.
-                            myOutcome.setException(t);
+                            myOutcome.completeExceptionally(t);
                         }
                     });
                     myOutcome.get(30, TimeUnit.SECONDS);
