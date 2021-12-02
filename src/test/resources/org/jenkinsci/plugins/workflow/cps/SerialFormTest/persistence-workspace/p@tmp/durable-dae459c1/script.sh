@@ -1,0 +1,1 @@
+touch running; while [ -f running ]; do sleep 1; done
