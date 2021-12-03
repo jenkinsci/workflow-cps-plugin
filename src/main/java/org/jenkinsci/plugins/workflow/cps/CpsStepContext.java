@@ -30,6 +30,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
+import hudson.Main;
 import hudson.model.Descriptor;
 import hudson.model.Result;
 import hudson.util.DaemonThreadFactory;
@@ -327,20 +328,35 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
             whenOutcomeDelivered = new Throwable();
         } else {
             Throwable failure = newOutcome.getAbnormal();
-            LOGGER.log(Level.FINE, "already completed " + this, new IllegalStateException("delivered here"));
-            if (failure != null) {
-                LOGGER.log(Level.FINE, "new failure", failure);
+            Level level;
+            if (Main.isUnitTest) {
+                if (failure instanceof FlowInterruptedException && ((FlowInterruptedException) failure).getCauses().stream().anyMatch(BodyFailed.class::isInstance)) {
+                    // Very common and generally uninteresting.
+                    level = Level.FINE;
+                } else {
+                    // Possibly a minor bug.
+                    level = Level.INFO;
+                }
             } else {
-                LOGGER.log(Level.FINE, "new success: {0}", outcome.getNormal());
+                // Typically harmless; do not alarm users.
+                level = Level.FINE;
             }
-            if (whenOutcomeDelivered != null) {
-                LOGGER.log(Level.FINE, "previously delivered here", whenOutcomeDelivered);
-            }
-            failure = outcome.getAbnormal();
-            if (failure != null) {
-                LOGGER.log(Level.FINE, "earlier failure", failure);
-            } else {
-                LOGGER.log(Level.FINE, "earlier success: {0}", outcome.getNormal());
+            if (LOGGER.isLoggable(level)) {
+                LOGGER.log(level, "already completed " + this, new IllegalStateException("delivered here"));
+                if (failure != null) {
+                    LOGGER.log(level, "new failure", failure);
+                } else {
+                    LOGGER.log(level, "new success: {0}", outcome.getNormal());
+                }
+                if (whenOutcomeDelivered != null) {
+                    LOGGER.log(level, "previously delivered here", whenOutcomeDelivered);
+                }
+                Throwable earlierFailure = outcome.getAbnormal();
+                if (earlierFailure != null) {
+                    LOGGER.log(level, "earlier failure", earlierFailure);
+                } else {
+                    LOGGER.log(level, "earlier success: {0}", outcome.getNormal());
+                }
             }
         }
     }
@@ -389,7 +405,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                                 if (s != null) {
                                     // TODO: ideally this needs to work like interrupt, in that
                                     // if s==null the next StepExecution gets interrupted when it happen
-                                    FlowInterruptedException cause = new FlowInterruptedException(Result.FAILURE);
+                                    FlowInterruptedException cause = new FlowInterruptedException(Result.FAILURE, new BodyFailed());
                                     cause.initCause(getOutcome().getAbnormal());
                                     try {
                                         // TODO JENKINS-26148/JENKINS-34637 this is probably wrong: should interrupt the innermost execution
@@ -447,10 +463,6 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         }
     }
 
-    /**
-     * @deprecated No longer used, but retained for settings compatibility.
-     */
-    @Deprecated
     private static class BodyFailed extends CauseOfInterruption {
         @Override public String getShortDescription() {
             return "Body of block-scoped step failed";
