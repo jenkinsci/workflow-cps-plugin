@@ -30,6 +30,7 @@ import org.codehaus.groovy.classgen.GeneratorContext;
 import org.codehaus.groovy.classgen.Verifier;
 import org.codehaus.groovy.control.CompilePhase;
 import org.codehaus.groovy.control.Janitor;
+import org.codehaus.groovy.control.LabelVerifier;
 import org.codehaus.groovy.control.SourceUnit;
 import org.codehaus.groovy.control.customizers.CompilationCustomizer;
 import org.codehaus.groovy.runtime.powerassert.SourceText;
@@ -123,6 +124,9 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         }
         this.sourceUnit = source;
         this.classNode = classNode;
+
+        // Makes sure that break and continue statements are used correctly.
+        new LabelVerifier(source).visitClass(classNode);
 
         // Removes all initial expressions for methods and constructors and generates overloads for all variants.
         new InitialExpressionExpander().expandInitialExpressions(classNode);

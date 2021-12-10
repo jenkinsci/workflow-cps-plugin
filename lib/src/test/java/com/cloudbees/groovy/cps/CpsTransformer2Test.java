@@ -18,7 +18,9 @@ package com.cloudbees.groovy.cps;
 
 import java.util.Arrays;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 
 public class CpsTransformer2Test extends AbstractGroovyCpsTest {
@@ -73,5 +75,17 @@ public class CpsTransformer2Test extends AbstractGroovyCpsTest {
                 "m2('x', 'b')\n" +
                 "m2('x', 'b', 'y')\n" +
                 "r"));
+    }
+
+    @Issue("JENKINS-57253")
+    @Test public void illegalBreakStatement() {
+        getBinding().setProperty("sentinel", 1);
+        try {
+            evalCPSonly("sentinel = 2; break;");
+            fail("Execution should fail");
+        } catch (Exception e) {
+            assertThat(e.toString(), containsString("the break statement is only allowed inside loops or switches"));
+        }
+        assertEquals("Script should fail during compilation", 1, getBinding().getProperty("sentinel"));
     }
 }

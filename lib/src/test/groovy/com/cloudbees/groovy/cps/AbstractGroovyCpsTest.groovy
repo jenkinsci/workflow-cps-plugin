@@ -23,7 +23,7 @@ abstract class AbstractGroovyCpsTest extends Assert {
      */
     GroovyShell sh;
 
-    def binding = new Binding()
+    Binding binding = new Binding()
 
     @Before
     void setUp() {
