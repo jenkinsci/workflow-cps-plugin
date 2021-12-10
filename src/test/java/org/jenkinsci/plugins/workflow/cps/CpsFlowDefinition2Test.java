@@ -45,12 +45,14 @@ import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.steps.StepExecutions;
+import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 
 import static org.junit.Assert.*;
 
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
@@ -527,6 +529,24 @@ public class CpsFlowDefinition2Test {
                 "assert output == 'ybase'\n", true));
         WorkflowRun r = jenkins.buildAndAssertSuccess(job);
         jenkins.assertLogContains("OUTPUT: ybase", r);
+    }
+
+    @Ignore("Currently fails due to leaked executor")
+    @Issue("JENKINS-57253")
+    @Test
+    public void unexpectedBreakStatement() throws Exception {
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
+        job.setDefinition(new CpsFlowDefinition("node {\n" +
+                "  semaphore 'wait'\n" +
+                "  break\n" +
+                "}\n", true));
+        assertEquals(0, jenkins.jenkins.toComputer().countBusy());
+        WorkflowRun b = job.scheduleBuild2(0).waitForStart();
+        SemaphoreStep.waitForStart("wait/1", b);
+        assertEquals(1, jenkins.jenkins.toComputer().countBusy());
+        SemaphoreStep.success("wait/1", null);
+        jenkins.assertBuildStatus(Result.FAILURE, jenkins.waitForCompletion(b));
+        assertEquals(0, jenkins.jenkins.toComputer().countBusy());
     }
 
     @Issue("SECURITY-1186")
