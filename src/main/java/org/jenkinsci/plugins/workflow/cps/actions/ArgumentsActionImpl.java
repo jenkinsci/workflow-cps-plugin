@@ -313,6 +313,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         for (Map.Entry<String,?> param : mapContents.entrySet()) {
             Object modded = sanitizeObjectAndRecordMutation(param.getValue(), variables);
             if (!root) {
+                size += param.getKey().length();
                 size += shallowSize(modded);
                 if (size > MAX_RETAINED_LENGTH) {
                     this.isUnmodifiedBySanitization = false;
