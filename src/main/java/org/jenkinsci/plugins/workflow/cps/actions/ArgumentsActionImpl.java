@@ -74,10 +74,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
     public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars env, @Nonnull Set<String> sensitiveVariables) {
         this.sensitiveVariables = new HashSet<>(sensitiveVariables);
-        Object o = sanitizeMapAndRecordMutation(stepArguments, env, true);
-        if (o instanceof Map) {
-            arguments = serializationCheck((Map<String, Object>) o);
-        }
+        this.arguments = serializationCheck(sanitizeStepArguments(stepArguments, env));
     }
 
     /** Create a step, sanitizing strings for secured content */
@@ -305,22 +302,27 @@ public class ArgumentsActionImpl extends ArgumentsAction {
      */
     @Nonnull
     Object sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables) {
+        // Package scoped so we can test it directly
         return sanitizeMapAndRecordMutation(mapContents, variables, false);
+    }
+
+    private Map<String, Object> sanitizeStepArguments(Map<String, Object> stepArguments, EnvVars env) {
+        // Guaranteed to be a map, the block returning something else is guarded by topLevel == false
+        return (Map<String, Object>) sanitizeMapAndRecordMutation(stepArguments, env, true);
     }
 
     /**
      * Goes through {@link #sanitizeObjectAndRecordMutation(Object, EnvVars)} for each value in a map input.
      */
     @Nonnull
-    private Object sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables, boolean root) {
-        // Package scoped so we can test it directly
+    private Object sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables, boolean topLevel) {
         LinkedHashMap<String, Object> output = new LinkedHashMap<>(mapContents.size());
         long size = mapContents.size();
 
         boolean isMutated = false;
         for (Map.Entry<String,?> param : mapContents.entrySet()) {
             Object modded = sanitizeObjectAndRecordMutation(param.getValue(), variables);
-            if (!root) {
+            if (!topLevel) {
                 size += param.getKey().length();
                 size += shallowSize(modded);
                 if (size > MAX_RETAINED_LENGTH) {
