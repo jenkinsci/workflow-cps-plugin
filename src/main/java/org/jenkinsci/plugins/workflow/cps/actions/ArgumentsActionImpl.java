@@ -304,7 +304,15 @@ public class ArgumentsActionImpl extends ArgumentsAction {
      * Goes through {@link #sanitizeObjectAndRecordMutation(Object, EnvVars)} for each value in a map input.
      */
     @Nonnull
-    Object sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables, boolean root) {
+    Object sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables) {
+        return sanitizeMapAndRecordMutation(mapContents, variables, false);
+    }
+
+    /**
+     * Goes through {@link #sanitizeObjectAndRecordMutation(Object, EnvVars)} for each value in a map input.
+     */
+    @Nonnull
+    private Object sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables, boolean root) {
         // Package scoped so we can test it directly
         LinkedHashMap<String, Object> output = new LinkedHashMap<>(mapContents.size());
         long size = mapContents.size();

@@ -204,7 +204,7 @@ public class ArgumentsActionImplTest {
         // Maps
         HashMap<String, Object> dangerous = new HashMap<>();
         dangerous.put("name", secretUsername);
-        Object sanitized = impl.sanitizeMapAndRecordMutation(dangerous, env, false);
+        Object sanitized = impl.sanitizeMapAndRecordMutation(dangerous, env);
         Assert.assertNotEquals(sanitized, dangerous);
         assertThat(sanitized, instanceOf(Map.class));
         Map<String, Object> sanitizedMap = (Map<String, Object>) sanitized;
@@ -212,7 +212,7 @@ public class ArgumentsActionImplTest {
         Assert.assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
 
-        Object identical = impl.sanitizeMapAndRecordMutation(dangerous, new EnvVars(), false);  // String is no longer dangerous
+        Object identical = impl.sanitizeMapAndRecordMutation(dangerous, new EnvVars());  // String is no longer dangerous
         Assert.assertEquals(identical, dangerous);
         Assert.assertTrue(impl.isUnmodifiedArguments());
 
@@ -233,36 +233,39 @@ public class ArgumentsActionImplTest {
     @Test
     @Issue("JENKINS-67380")
     public void oversizedMap() {
-        // a map with reasonable size should not be truncated
-        ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.emptySet());
-        Map<String, Object> smallMap = new HashMap<>();
-        smallMap.put("key1", generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength() / 10));
-        Object sanitizedSmallMap = impl.sanitizeMapAndRecordMutation(smallMap, null, false);
-        Assert.assertEquals(sanitizedSmallMap, smallMap);
-        Assert.assertTrue(impl.isUnmodifiedArguments());
-        impl.isUnmodifiedBySanitization = true;
+        {
+            // a map with reasonable size should not be truncated
+            ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.emptySet());
+            Map<String, Object> smallMap = new HashMap<>();
+            smallMap.put("key1", generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength() / 10));
+            Object sanitizedSmallMap = impl.sanitizeMapAndRecordMutation(smallMap, null);
+            Assert.assertEquals(sanitizedSmallMap, smallMap);
+            Assert.assertTrue(impl.isUnmodifiedArguments());
+            impl.isUnmodifiedBySanitization = true;
+        }
 
-        // arguments map keys should be kept, but values should be truncated if too large
-        Map<String, Object> bigMap = new HashMap<>();
-        String bigString = generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength() + 10);
-        bigMap.put("key1", bigString);
-        Object sanitized = impl.sanitizeMapAndRecordMutation(bigMap, null, true);
-        Assert.assertNotEquals(sanitized, bigMap);
-        assertThat(sanitized, instanceOf(Map.class));
-        Map<String, Object> sanitizedMap = (Map<String, Object>) sanitized;
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, sanitizedMap.get("key1"));
-        Assert.assertFalse(impl.isUnmodifiedArguments());
-        impl.isUnmodifiedBySanitization = true;
+        {
+            // arguments map keys should be kept, but values should be truncated if too large
+            Map<String, Object> bigMap = new HashMap<>();
+            String bigString = generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength() + 10);
+            bigMap.put("key1", bigString);
+            ArgumentsActionImpl impl = new ArgumentsActionImpl(bigMap, null, Collections.emptySet());
+            Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, impl.getArgumentValueOrReason("key1"));
+            Assert.assertFalse(impl.isUnmodifiedArguments());
+        }
 
-        // an arbitrary map should be truncated if it is too large overall
-        Map<String, Object> bigMap2 = new HashMap<>();
-        String bigString2 = generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength());
-        bigMap2.put("key1", bigString2);
-        Object sanitizedBigMap2 = impl.sanitizeMapAndRecordMutation(bigMap2, null, false);
-        Assert.assertNotEquals(sanitizedBigMap2, bigMap2);
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, sanitizedBigMap2);
-        Assert.assertFalse(impl.isUnmodifiedArguments());
-        impl.isUnmodifiedBySanitization = true;
+        {
+            // an arbitrary map should be truncated if it is too large overall
+            Map<String, Object> bigMap2 = new HashMap<>();
+            String bigString2 = generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength());
+            bigMap2.put("key1", bigString2);
+            ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.emptySet());
+            Object sanitizedBigMap2 = impl.sanitizeMapAndRecordMutation(bigMap2, null);
+            Assert.assertNotEquals(sanitizedBigMap2, bigMap2);
+            Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, sanitizedBigMap2);
+            Assert.assertFalse(impl.isUnmodifiedArguments());
+            impl.isUnmodifiedBySanitization = true;
+        }
     }
 
     @Test
