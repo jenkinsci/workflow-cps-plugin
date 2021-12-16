@@ -74,7 +74,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
     public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars env, @Nonnull Set<String> sensitiveVariables) {
         this.sensitiveVariables = new HashSet<>(sensitiveVariables);
-        Object o = sanitizeMapAndRecordMutation(stepArguments, env);
+        Object o = sanitizeMapAndRecordMutation(stepArguments, env, true);
         if (o instanceof Map) {
             arguments = serializationCheck((Map<String, Object>) o);
         }
@@ -232,7 +232,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         Object modded = tempVal;
         if (modded instanceof Map) {
             // Recursive sanitization, oh my!
-            modded = sanitizeMapAndRecordMutation((Map)modded, vars);
+            modded = sanitizeMapAndRecordMutation((Map)modded, vars, false);
         } else if (modded instanceof List) {
             modded = sanitizeListAndRecordMutation((List) modded, vars);
         } else if (modded != null && modded.getClass().isArray()) {
@@ -304,7 +304,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
      * Goes through {@link #sanitizeObjectAndRecordMutation(Object, EnvVars)} for each value in a map input.
      */
     @Nonnull
-    Object sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables) {
+    Object sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables, boolean root) {
         // Package scoped so we can test it directly
         LinkedHashMap<String, Object> output = new LinkedHashMap<>(mapContents.size());
         long size = mapContents.size();
@@ -312,10 +312,12 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         boolean isMutated = false;
         for (Map.Entry<String,?> param : mapContents.entrySet()) {
             Object modded = sanitizeObjectAndRecordMutation(param.getValue(), variables);
-            size += shallowSize(modded);
-            if (size > MAX_RETAINED_LENGTH) {
-                this.isUnmodifiedBySanitization = false;
-                return NotStoredReason.OVERSIZE_VALUE;
+            if (!root) {
+                size += shallowSize(modded);
+                if (size > MAX_RETAINED_LENGTH) {
+                    this.isUnmodifiedBySanitization = false;
+                    return NotStoredReason.OVERSIZE_VALUE;
+                }
             }
             if (modded != param.getValue()) {
                 // Sanitization stripped out some values, so we need to store the mutated object
