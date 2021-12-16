@@ -191,6 +191,12 @@
         <dependency>
             <groupId>org.jenkins-ci.ui</groupId>
             <artifactId>ace-editor</artifactId>
+            <exclusions>
+                <exclusion> <!-- TODO remove when ace-editor is refreshed -->
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>servlet-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.cloudbees</groupId>
