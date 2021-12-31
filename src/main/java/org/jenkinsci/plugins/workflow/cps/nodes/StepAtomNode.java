@@ -36,8 +36,8 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import java.io.ObjectStreamException;
 import java.util.Collections;
 import java.util.Set;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.structs.SymbolLookup;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
@@ -82,7 +82,7 @@ public class StepAtomNode extends AtomNode implements StepNode {
         return super.readResolve();
     }
 
-    static @CheckForNull String effectiveDisplayName(@Nonnull org.jenkinsci.plugins.workflow.graph.StepNode node) {
+    static @CheckForNull String effectiveDisplayName(@NonNull org.jenkinsci.plugins.workflow.graph.StepNode node) {
         StepDescriptor d = node.getDescriptor();
         if (d == null) {
             return null;
@@ -103,7 +103,7 @@ public class StepAtomNode extends AtomNode implements StepNode {
         return n != null ? n : descriptorId;
     }
 
-    static @CheckForNull String effectiveFunctionName(@Nonnull org.jenkinsci.plugins.workflow.graph.StepNode node) {
+    static @CheckForNull String effectiveFunctionName(@NonNull org.jenkinsci.plugins.workflow.graph.StepNode node) {
         StepDescriptor d = node.getDescriptor();
         if (d == null) {
             return null;
@@ -127,7 +127,7 @@ public class StepAtomNode extends AtomNode implements StepNode {
     /**
      * @return for example {@code JUnitResultArchiver} given {@code junit '…'}
      */
-    private static @CheckForNull Class<?> getDelegateType(@Nonnull FlowNode node, @Nonnull StepDescriptor d) {
+    private static @CheckForNull Class<?> getDelegateType(@NonNull FlowNode node, @NonNull StepDescriptor d) {
         if (d.isMetaStep()) {
             DescribableParameter p = DescribableModel.of(d.clazz).getFirstRequiredParameter();
             if (p != null) {

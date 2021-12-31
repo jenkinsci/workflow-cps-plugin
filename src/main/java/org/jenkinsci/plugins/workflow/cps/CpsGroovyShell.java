@@ -12,8 +12,8 @@ import java.net.URL;
 import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import org.codehaus.groovy.control.CompilationFailedException;
 import org.codehaus.groovy.control.CompilationUnit;
 import org.codehaus.groovy.control.CompilerConfiguration;
@@ -160,8 +160,8 @@ class CpsGroovyShell extends GroovyShell {
     }
 
     static class TimingLoader extends ClassLoader {
-        private final @Nonnull CpsFlowExecution execution;
-        TimingLoader(ClassLoader parent, @Nonnull CpsFlowExecution execution) {
+        private final @NonNull CpsFlowExecution execution;
+        TimingLoader(ClassLoader parent, @NonNull CpsFlowExecution execution) {
             super(parent);
             this.execution = execution;
         }

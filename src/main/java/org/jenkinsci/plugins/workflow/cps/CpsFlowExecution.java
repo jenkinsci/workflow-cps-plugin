@@ -139,9 +139,9 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.GuardedBy;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import net.jcip.annotations.GuardedBy;
 
 import org.acegisecurity.Authentication;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
@@ -391,7 +391,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this(script, false, owner);
     }
 
-    public CpsFlowExecution(@Nonnull String script, boolean sandbox, @Nonnull  FlowExecutionOwner owner, @CheckForNull FlowDurabilityHint durabilityHint) throws IOException {
+    public CpsFlowExecution(@NonNull String script, boolean sandbox, @NonNull  FlowExecutionOwner owner, @CheckForNull FlowDurabilityHint durabilityHint) throws IOException {
         this.owner = owner;
         this.script = script;
         this.sandbox = sandbox;
@@ -1208,7 +1208,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     /** Stores FlowNode with write deferred */
-    void cacheNode(@Nonnull FlowNode node) {
+    void cacheNode(@NonNull FlowNode node) {
         try {
             getStorage().storeNode(node, true);
         } catch (IOException ioe) {
@@ -1218,7 +1218,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     /** Invoke me to toggle autopersist back on for steps that delay it. */
-    public static void maybeAutoPersistNode(@Nonnull FlowNode node) {
+    public static void maybeAutoPersistNode(@NonNull FlowNode node) {
         try {
             FlowExecution exec = node.getExecution();
             if (exec instanceof CpsFlowExecution) {
@@ -1325,7 +1325,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         gcl.clearCache();
     }
 
-    private static void cleanUpGlobalClassValue(@Nonnull ClassLoader loader) throws Exception {
+    private static void cleanUpGlobalClassValue(@NonNull ClassLoader loader) throws Exception {
         Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
         // TODO switch to MethodHandle for speed
         Field globalClassValueF = classInfoC.getDeclaredField("globalClassValue");
@@ -1376,7 +1376,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    private static void cleanUpGlobalClassSet(@Nonnull Class<?> clazz) throws Exception {
+    private static void cleanUpGlobalClassSet(@NonNull Class<?> clazz) throws Exception {
         Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo"); // or just ClassInfo.class, but unclear whether this will always be there
         Field globalClassSetF = classInfoC.getDeclaredField("globalClassSet");
         globalClassSetF.setAccessible(true);
@@ -1408,7 +1408,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    private static void cleanUpClassHelperCache(@Nonnull Class<?> clazz) throws Exception {
+    private static void cleanUpClassHelperCache(@NonNull Class<?> clazz) throws Exception {
         Field classCacheF = Class.forName("org.codehaus.groovy.ast.ClassHelper$ClassHelperCache").getDeclaredField("classCache");
         classCacheF.setAccessible(true);
         Object classCache = classCacheF.get(null);
@@ -1418,7 +1418,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         classCache.getClass().getMethod("remove", Object.class).invoke(classCache, clazz);
     }
 
-    private static void cleanUpObjectStreamClassCaches(@Nonnull Class<?> clazz) throws Exception {
+    private static void cleanUpObjectStreamClassCaches(@NonNull Class<?> clazz) throws Exception {
         Class<?> cachesC = Class.forName("java.io.ObjectStreamClass$Caches");
         for (String cacheFName : new String[] {"localDescs", "reflectors"}) {
             Field cacheF = cachesC.getDeclaredField(cacheFName);
@@ -1682,7 +1682,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
         }
 
-        private <T> void writeChild(HierarchicalStreamWriter w, MarshallingContext context, String name, @Nonnull T v, Class<T> staticType) {
+        private <T> void writeChild(HierarchicalStreamWriter w, MarshallingContext context, String name, @NonNull T v, Class<T> staticType) {
             if (!mapper.shouldSerializeMember(CpsFlowExecution.class,name))
                 return;
             startNode(w, name, staticType);
@@ -1818,7 +1818,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override
-        public void storeNode(@Nonnull FlowNode n) throws IOException {
+        public void storeNode(@NonNull FlowNode n) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
                 readWriteLock.writeLock().lock();
                 try {
@@ -1830,7 +1830,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override
-        public void storeNode(@Nonnull FlowNode n, boolean delayWritingActions) throws IOException {
+        public void storeNode(@NonNull FlowNode n, boolean delayWritingActions) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
                 readWriteLock.writeLock().lock();
                 try {
@@ -1866,7 +1866,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override
-        public void autopersist(@Nonnull FlowNode n) throws IOException {
+        public void autopersist(@NonNull FlowNode n) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
                 readWriteLock.writeLock().lock();
                 try {

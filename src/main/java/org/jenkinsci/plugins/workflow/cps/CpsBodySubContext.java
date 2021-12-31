@@ -7,7 +7,7 @@ import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.support.DefaultStepContext;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
 
 /**
@@ -33,7 +33,7 @@ final class CpsBodySubContext extends DefaultStepContext {
         this.node = node;
     }
 
-    @Nonnull
+    @NonNull
     @Override
     protected FlowNode getNode() throws IOException {
         return node;
@@ -93,7 +93,7 @@ final class CpsBodySubContext extends DefaultStepContext {
         return base.saveState();
     }
 
-    @Nonnull
+    @NonNull
     @Override
     public CpsFlowExecution getExecution() throws IOException {
         return base.getExecution();

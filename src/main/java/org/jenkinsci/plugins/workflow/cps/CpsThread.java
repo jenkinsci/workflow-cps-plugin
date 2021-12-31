@@ -32,9 +32,9 @@ import java.io.IOException;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -62,7 +62,7 @@ public final class CpsThread implements Serializable {
     /**
      * Owner object. A thread always belong to a {@link CpsThreadGroup}
      */
-    @Nonnull
+    @NonNull
     final CpsThreadGroup group;
 
     /**
@@ -114,7 +114,7 @@ public final class CpsThread implements Serializable {
      */
     private final List<FutureCallback<Object>> completionHandlers = new ArrayList<>();
 
-    CpsThread(CpsThreadGroup group, int id, @Nonnull Continuable program, FlowHead head, ContextVariableSet contextVariables) {
+    CpsThread(CpsThreadGroup group, int id, @NonNull Continuable program, FlowHead head, ContextVariableSet contextVariables) {
         this.group = group;
         this.id = id;
         this.program = group.getExecution().isSandbox() ? new SandboxContinuable(program,this) : program;
@@ -170,7 +170,7 @@ public final class CpsThread implements Serializable {
      * the point the workflow needs to be dehydrated.
      */
     @SuppressWarnings("rawtypes")
-    @Nonnull Outcome runNextChunk() {
+    @NonNull Outcome runNextChunk() {
         assert program!=null;
 
         Outcome outcome;

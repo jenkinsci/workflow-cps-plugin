@@ -47,7 +47,7 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.lang.annotation.ElementType;
@@ -790,7 +790,7 @@ public class FlowDurabilityTest {
         });
     }
 
-    private static void assertBuildNotHung(@Nonnull RestartableJenkinsRule story, @Nonnull  WorkflowRun run, int timeOutMillis) throws Exception {
+    private static void assertBuildNotHung(@NonNull RestartableJenkinsRule story, @NonNull  WorkflowRun run, int timeOutMillis) throws Exception {
         if (run.isBuilding()) {
             story.j.waitUntilNoActivityUpTo(timeOutMillis);
         }

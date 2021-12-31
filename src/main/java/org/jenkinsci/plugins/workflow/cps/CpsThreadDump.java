@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
 /**
@@ -152,7 +152,7 @@ public final class CpsThreadDump {
      * @param text possibly multiline string
      */
     @SuppressWarnings("serial")
-    public static @Nonnull CpsThreadDump fromText(@Nonnull final String text) {
+    public static @NonNull CpsThreadDump fromText(@NonNull final String text) {
         return CpsThreadDump.from(new Throwable() {
             @Override public String toString() {
                 return text;
