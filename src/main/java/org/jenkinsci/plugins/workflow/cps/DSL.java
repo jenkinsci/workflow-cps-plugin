@@ -97,9 +97,9 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.ClassDescriptor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Calls {@link Step}s and other DSL objects.
@@ -363,7 +363,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    private void logInterpolationWarnings(String stepName, @CheckForNull ArgumentsActionImpl argumentsAction, Set<String> interpolatedStrings, @CheckForNull EnvVars envVars, @Nonnull Set<String> sensitiveVariables, TaskListener listener) throws IOException {
+    private void logInterpolationWarnings(String stepName, @CheckForNull ArgumentsActionImpl argumentsAction, Set<String> interpolatedStrings, @CheckForNull EnvVars envVars, @NonNull Set<String> sensitiveVariables, TaskListener listener) throws IOException {
         if (UNSAFE_GROOVY_INTERPOLATION.equals("ignore")) {
             return;
         }
@@ -544,7 +544,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         final List<String> msgs;
         final Set<String> interpolatedStrings;
 
-        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @Nonnull Set<String> foundInterpolatedStrings) {
+        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @NonNull Set<String> foundInterpolatedStrings) {
             this.namedArgs = new LinkedHashMap<>(preallocatedHashmapCapacity(namedArgs.size()));
             this.body = body;
             this.msgs = new ArrayList<>();
@@ -596,7 +596,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * Record all instances of interpolated Groovy strings. We can check this collection later to see if sensitive variables were used.
      * @return {@code v} or an equivalent with all {@link GString}s flattened, including in nested {@link List}s or {@link Map}s
      */
-    private static Object flattenGString(Object v, @Nonnull Set<String> interpolatedStrings) {
+    private static Object flattenGString(Object v, @NonNull Set<String> interpolatedStrings) {
         if (v instanceof GString) {
             String flattened = v.toString();
             interpolatedStrings.add(flattened);
@@ -668,7 +668,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * @param interpolatedStrings
      *      The collection of interpolated Groovy strings.
      */
-    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, @Nonnull Set<String> interpolatedStrings) {
+    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, @NonNull Set<String> interpolatedStrings) {
         if (arg instanceof NamedArgsAndClosure) {
             return (NamedArgsAndClosure) arg;
         }

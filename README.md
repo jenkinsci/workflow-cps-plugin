@@ -1,9 +1,5 @@
 # Pipeline: Groovy Plugin
 
-[![Jenkins Plugin](https://img.shields.io/jenkins/plugin/v/workflow-cps)](https://plugins.jenkins.io/workflow-cps)
-[![Changelog](https://img.shields.io/github/v/tag/jenkinsci/workflow-cps-plugin?label=changelog)](https://github.com/jenkinsci/workflow-cps-plugin/blob/master/CHANGELOG.md)
-[![Jenkins Plugin Installs](https://img.shields.io/jenkins/plugin/i/workflow-cps?color=blue)](https://plugins.jenkins.io/workflow-cps)
-
 ## Introduction
 
 A key component of the Pipeline plugin suite, this provides the standard execution engine for Pipeline steps, based on a custom [Groovy](http://www.groovy-lang.org/) interpreter that runs inside the Jenkins controller process.

@@ -36,7 +36,6 @@ import com.cloudbees.jenkins.support.api.Component;
 import com.cloudbees.jenkins.support.api.Container;
 import com.cloudbees.jenkins.support.api.Content;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -134,13 +133,14 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.GuardedBy;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import net.jcip.annotations.GuardedBy;
 
 import org.acegisecurity.Authentication;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
@@ -392,7 +392,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this(script, false, owner);
     }
 
-    public CpsFlowExecution(@Nonnull String script, boolean sandbox, @Nonnull  FlowExecutionOwner owner, @CheckForNull FlowDurabilityHint durabilityHint) throws IOException {
+    public CpsFlowExecution(@NonNull String script, boolean sandbox, @NonNull  FlowExecutionOwner owner, @CheckForNull FlowDurabilityHint durabilityHint) throws IOException {
         this.owner = owner;
         this.script = script;
         this.sandbox = sandbox;
@@ -486,7 +486,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     public Map<String,String> getLoadedScripts() {
-        return ImmutableMap.copyOf(loadedScripts);
+        return Collections.unmodifiableMap(new HashMap<>(loadedScripts));
     }
 
     /**
@@ -865,7 +865,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             @Override public void onSuccess(CpsThreadGroup g) {
                 CpsThread t = g.addThread(
                         new Continuable(new ThrowBlock(new ConstantBlock(
-                            problem instanceof AbortException ? problem : new IOException("Failed to load build state", problem)))),
+                            problem instanceof AbortException || problem instanceof FlowInterruptedException ? problem : new IOException("Failed to load build state", problem)))),
                         head_, null
                 );
                 t.resume(new Outcome(null,null));
@@ -1209,7 +1209,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     /** Stores FlowNode with write deferred */
-    void cacheNode(@Nonnull FlowNode node) {
+    void cacheNode(@NonNull FlowNode node) {
         try {
             getStorage().storeNode(node, true);
         } catch (IOException ioe) {
@@ -1219,7 +1219,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     /** Invoke me to toggle autopersist back on for steps that delay it. */
-    public static void maybeAutoPersistNode(@Nonnull FlowNode node) {
+    public static void maybeAutoPersistNode(@NonNull FlowNode node) {
         try {
             FlowExecution exec = node.getExecution();
             if (exec instanceof CpsFlowExecution) {
@@ -1326,7 +1326,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         gcl.clearCache();
     }
 
-    private static void cleanUpGlobalClassValue(@Nonnull ClassLoader loader) throws Exception {
+    private static void cleanUpGlobalClassValue(@NonNull ClassLoader loader) throws Exception {
         Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
         // TODO switch to MethodHandle for speed
         Field globalClassValueF = classInfoC.getDeclaredField("globalClassValue");
@@ -1377,7 +1377,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    private static void cleanUpGlobalClassSet(@Nonnull Class<?> clazz) throws Exception {
+    private static void cleanUpGlobalClassSet(@NonNull Class<?> clazz) throws Exception {
         Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo"); // or just ClassInfo.class, but unclear whether this will always be there
         Field globalClassSetF = classInfoC.getDeclaredField("globalClassSet");
         globalClassSetF.setAccessible(true);
@@ -1409,7 +1409,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    private static void cleanUpClassHelperCache(@Nonnull Class<?> clazz) throws Exception {
+    private static void cleanUpClassHelperCache(@NonNull Class<?> clazz) throws Exception {
         Field classCacheF = Class.forName("org.codehaus.groovy.ast.ClassHelper$ClassHelperCache").getDeclaredField("classCache");
         classCacheF.setAccessible(true);
         Object classCache = classCacheF.get(null);
@@ -1419,7 +1419,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         classCache.getClass().getMethod("remove", Object.class).invoke(classCache, clazz);
     }
 
-    private static void cleanUpObjectStreamClassCaches(@Nonnull Class<?> clazz) throws Exception {
+    private static void cleanUpObjectStreamClassCaches(@NonNull Class<?> clazz) throws Exception {
         Class<?> cachesC = Class.forName("java.io.ObjectStreamClass$Caches");
         for (String cacheFName : new String[] {"localDescs", "reflectors"}) {
             Field cacheF = cachesC.getDeclaredField(cacheFName);
@@ -1683,7 +1683,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
         }
 
-        private <T> void writeChild(HierarchicalStreamWriter w, MarshallingContext context, String name, @Nonnull T v, Class<T> staticType) {
+        private <T> void writeChild(HierarchicalStreamWriter w, MarshallingContext context, String name, @NonNull T v, Class<T> staticType) {
             if (!mapper.shouldSerializeMember(CpsFlowExecution.class,name))
                 return;
             startNode(w, name, staticType);
@@ -1819,7 +1819,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override
-        public void storeNode(@Nonnull FlowNode n) throws IOException {
+        public void storeNode(@NonNull FlowNode n) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
                 readWriteLock.writeLock().lock();
                 try {
@@ -1831,7 +1831,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override
-        public void storeNode(@Nonnull FlowNode n, boolean delayWritingActions) throws IOException {
+        public void storeNode(@NonNull FlowNode n, boolean delayWritingActions) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
                 readWriteLock.writeLock().lock();
                 try {
@@ -1867,7 +1867,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override
-        public void autopersist(@Nonnull FlowNode n) throws IOException {
+        public void autopersist(@NonNull FlowNode n) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
                 readWriteLock.writeLock().lock();
                 try {
@@ -2007,7 +2007,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
             // Try to ensure we've saved the appropriate things -- the program is the last stumbling block.
             try {
-                final SettableFuture<Void> myOutcome = SettableFuture.create();
+                final CompletableFuture<Void> myOutcome = new CompletableFuture<>();
                 LOGGER.log(Level.FINE, "About to try to checkpoint the program for: {0}", this);
                 if (programPromise != null && programPromise.isDone()) {
                     runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
@@ -2017,17 +2017,17 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                 LOGGER.log(Level.FINE, "Trying to save program for: {0}", CpsFlowExecution.this);
                                 result.saveProgramIfPossible(true);
                                 LOGGER.log(Level.FINE, "Finished saving program for: {0}", CpsFlowExecution.this);
-                                myOutcome.set(null);
+                                myOutcome.complete(null);
                             } catch (Exception ex) {
                                 // Logged at Level.WARNING when we call `myOutcome.get` and it throws an exception.
-                                myOutcome.setException(ex);
+                                myOutcome.completeExceptionally(ex);
                             }
                         }
 
                         @Override
                         public void onFailure(Throwable t) {
                             // Logged at Level.WARNING when we call `myOutcome.get` and it throws an exception.
-                            myOutcome.setException(t);
+                            myOutcome.completeExceptionally(t);
                         }
                     });
                     myOutcome.get(30, TimeUnit.SECONDS);

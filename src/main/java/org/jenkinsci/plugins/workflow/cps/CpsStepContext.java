@@ -30,6 +30,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
+import hudson.Main;
 import hudson.model.Descriptor;
 import hudson.model.Result;
 import hudson.util.DaemonThreadFactory;
@@ -51,9 +52,9 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.DefaultStepContext;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.GuardedBy;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import net.jcip.annotations.GuardedBy;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -236,7 +237,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         return getThread(getThreadGroupSynchronously());
     }
 
-    private @Nonnull CpsThreadGroup getThreadGroupSynchronously() throws InterruptedException, IOException {
+    private @NonNull CpsThreadGroup getThreadGroupSynchronously() throws InterruptedException, IOException {
         if (threadGroup == null) {
             ListenableFuture<CpsThreadGroup> pp;
             CpsFlowExecution flowExecution = getExecution();
@@ -284,7 +285,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         return newBodyInvoker(body, false);
     }
 
-    public @Nonnull CpsBodyInvoker newBodyInvoker(@Nonnull BodyReference body, boolean unexport) {
+    public @NonNull CpsBodyInvoker newBodyInvoker(@NonNull BodyReference body, boolean unexport) {
         return new CpsBodyInvoker(this, body, unexport);
     }
 
@@ -319,7 +320,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     }
 
-    private void completed(@Nonnull Outcome newOutcome) {
+    private void completed(@NonNull Outcome newOutcome) {
         if (outcome == null) {
             LOGGER.finer(() -> this + " completed with " + newOutcome);
             outcome = newOutcome;
@@ -327,29 +328,35 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
             whenOutcomeDelivered = new Throwable();
         } else {
             Throwable failure = newOutcome.getAbnormal();
-            if (failure instanceof FlowInterruptedException) {
-                for (CauseOfInterruption cause : ((FlowInterruptedException) failure).getCauses()) {
-                    if (cause instanceof BodyFailed) {
-                        LOGGER.log(Level.FINE, "already completed " + this + " and now received body failure", failure);
-                        // Predictable that the error would be thrown up here; quietly ignore it.
-                        return;
-                    }
+            Level level;
+            if (Main.isUnitTest) {
+                if (failure instanceof FlowInterruptedException && ((FlowInterruptedException) failure).getCauses().stream().anyMatch(BodyFailed.class::isInstance)) {
+                    // Very common and generally uninteresting.
+                    level = Level.FINE;
+                } else {
+                    // Possibly a minor bug.
+                    level = Level.INFO;
                 }
-            }
-            LOGGER.log(Level.WARNING, "already completed " + this, new IllegalStateException("delivered here"));
-            if (failure != null) {
-                LOGGER.log(Level.INFO, "new failure", failure);
             } else {
-                LOGGER.log(Level.INFO, "new success: {0}", outcome.getNormal());
+                // Typically harmless; do not alarm users.
+                level = Level.FINE;
             }
-            if (whenOutcomeDelivered != null) {
-                LOGGER.log(Level.INFO, "previously delivered here", whenOutcomeDelivered);
-            }
-            failure = outcome.getAbnormal();
-            if (failure != null) {
-                LOGGER.log(Level.INFO, "earlier failure", failure);
-            } else {
-                LOGGER.log(Level.INFO, "earlier success: {0}", outcome.getNormal());
+            if (LOGGER.isLoggable(level)) {
+                LOGGER.log(level, "already completed " + this, new IllegalStateException("delivered here"));
+                if (failure != null) {
+                    LOGGER.log(level, "new failure", failure);
+                } else {
+                    LOGGER.log(level, "new success: {0}", outcome.getNormal());
+                }
+                if (whenOutcomeDelivered != null) {
+                    LOGGER.log(level, "previously delivered here", whenOutcomeDelivered);
+                }
+                Throwable earlierFailure = outcome.getAbnormal();
+                if (earlierFailure != null) {
+                    LOGGER.log(level, "earlier failure", earlierFailure);
+                } else {
+                    LOGGER.log(level, "earlier success: {0}", outcome.getNormal());
+                }
             }
         }
     }

@@ -28,7 +28,6 @@ import com.gargoylesoftware.htmlunit.WebAssert;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlTextArea;
-import com.google.common.collect.ImmutableMap;
 import hudson.FilePath;
 import hudson.XmlFile;
 import hudson.cli.CLICommandInvoker;
@@ -47,7 +46,10 @@ import hudson.security.Permission;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
@@ -286,9 +288,12 @@ public class ReplayActionTest {
                 assertThat(diff, not(containsString("first part")));
                 System.out.println(diff);
                 // Now replay #2, editing all scripts, and restarting in the middle.
+                Map<String,String> replayMap = new HashMap<>();
+                replayMap.put("Script1", "echo 'new first part'");
+                replayMap.put("Script2", "echo 'newer second part'");
                 WorkflowRun b3 = (WorkflowRun) b2.getAction(ReplayAction.class).run(
                     "node {load 'f1.groovy'}; semaphore 'wait'; node {load 'f2.groovy'}",
-                    ImmutableMap.of("Script1", "echo 'new first part'", "Script2", "echo 'newer second part'")).waitForStart();
+                    Collections.unmodifiableMap(replayMap)).waitForStart();
                 SemaphoreStep.waitForStart("wait/3", b3);
             }
         });

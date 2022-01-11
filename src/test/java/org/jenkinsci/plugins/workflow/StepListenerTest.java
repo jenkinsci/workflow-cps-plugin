@@ -38,7 +38,7 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class StepListenerTest {
     @ClassRule
@@ -62,7 +62,7 @@ public class StepListenerTest {
     @TestExtension
     public static class TestStepListener implements StepListener {
         @Override
-        public void notifyOfNewStep(@Nonnull Step s, @Nonnull StepContext context) {
+        public void notifyOfNewStep(@NonNull Step s, @NonNull StepContext context) {
             try {
                 TaskListener listener = context.get(TaskListener.class);
                 if (listener == null) {

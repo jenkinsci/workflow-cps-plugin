@@ -34,8 +34,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import hudson.model.Run;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
@@ -55,7 +55,7 @@ class ReplayFlowFactoryAction extends InvisibleAction implements CpsFlowFactoryA
     private final Map<String,String> replacementLoadedScripts;
     private transient final boolean sandbox;
     
-    ReplayFlowFactoryAction(@Nonnull String replacementMainScript, @Nonnull Map<String,String> replacementLoadedScripts, boolean sandbox) {
+    ReplayFlowFactoryAction(@NonNull String replacementMainScript, @NonNull Map<String,String> replacementLoadedScripts, boolean sandbox) {
         this.replacementMainScript = replacementMainScript;
         this.replacementLoadedScripts = new HashMap<>(replacementLoadedScripts);
         this.sandbox = sandbox;

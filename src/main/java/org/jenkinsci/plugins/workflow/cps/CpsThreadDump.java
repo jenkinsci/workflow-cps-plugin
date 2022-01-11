@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
 /**
@@ -29,6 +29,8 @@ public final class CpsThreadDump {
     public static final class ThreadInfo {
         private final String headline;
         private final List<StackTraceElement> stack = new ArrayList<>();
+
+        private static final int MAX_STATUS_LENGTH = 1000;
 
         /**
          * Given a list of {@link CpsThread}s that share the same {@link FlowHead}, in the order
@@ -48,6 +50,11 @@ public final class CpsThreadDump {
                     if (d != null) {
                         String status = s.getStatusBounded(3, TimeUnit.SECONDS);
                         if (status != null) {
+                            int len = status.length();
+                            if (len > MAX_STATUS_LENGTH) {
+                                int half = MAX_STATUS_LENGTH / 2;
+                                status = status.subSequence(0, half) + "…[truncated " + (len - MAX_STATUS_LENGTH) + " chars]…" + status.subSequence(len - half, len);
+                            }
                             stack.add(new StackTraceElement("DSL", d.getFunctionName(), status, -1));
                         } else {
                             stack.add(new StackTraceElement("DSL", d.getFunctionName(), null, -2));
@@ -145,7 +152,7 @@ public final class CpsThreadDump {
      * @param text possibly multiline string
      */
     @SuppressWarnings("serial")
-    public static @Nonnull CpsThreadDump fromText(@Nonnull final String text) {
+    public static @NonNull CpsThreadDump fromText(@NonNull final String text) {
         return CpsThreadDump.from(new Throwable() {
             @Override public String toString() {
                 return text;

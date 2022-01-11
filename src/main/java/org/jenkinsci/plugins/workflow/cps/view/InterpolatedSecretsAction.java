@@ -30,7 +30,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,7 +56,7 @@ public class InterpolatedSecretsAction implements RunAction2 {
         return null;
     }
 
-    public void record(@Nonnull String stepName, @Nonnull List<String> interpolatedVariables) {
+    public void record(@NonNull String stepName, @NonNull List<String> interpolatedVariables) {
         interpolatedWarnings.add(new InterpolatedWarnings(stepName, interpolatedVariables));
     }
 
@@ -92,7 +92,7 @@ public class InterpolatedSecretsAction implements RunAction2 {
         final String stepName;
         final List<String> interpolatedVariables;
 
-        InterpolatedWarnings(@Nonnull String stepName, @Nonnull List<String> interpolatedVariables) {
+        InterpolatedWarnings(@NonNull String stepName, @NonNull List<String> interpolatedVariables) {
             this.stepName = stepName;
             this.interpolatedVariables = interpolatedVariables;
         }

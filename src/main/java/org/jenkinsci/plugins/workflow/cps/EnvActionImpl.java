@@ -39,7 +39,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import jenkins.model.RunAction2;
 import org.jenkinsci.plugins.workflow.flow.FlowCopier;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
@@ -154,7 +154,7 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
     /**
      * Gets the singleton instance for a given build, creating it on demand.
      */
-    public static @Nonnull EnvActionImpl forRun(@Nonnull Run<?,?> run) throws IOException {
+    public static @NonNull EnvActionImpl forRun(@NonNull Run<?,?> run) throws IOException {
         synchronized (run) {
             EnvActionImpl action = run.getAction(EnvActionImpl.class);
             if (action == null) {

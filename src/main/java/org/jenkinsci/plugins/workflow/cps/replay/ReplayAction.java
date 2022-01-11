@@ -55,8 +55,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import javax.servlet.ServletException;
 
 import hudson.util.HttpResponses;
@@ -242,7 +242,7 @@ public class ReplayAction implements Action {
      * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
      * @return a way to wait for the replayed build to complete
      */
-    public @CheckForNull QueueTaskFuture/*<Run>*/ run(@Nonnull String replacementMainScript, @Nonnull Map<String,String> replacementLoadedScripts) {
+    public @CheckForNull QueueTaskFuture/*<Run>*/ run(@NonNull String replacementMainScript, @NonNull Map<String,String> replacementLoadedScripts) {
         Queue.Item item = run2(replacementMainScript, replacementLoadedScripts);
         return item == null ? null : item.getFuture();
     }
@@ -254,7 +254,7 @@ public class ReplayAction implements Action {
      * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
      * @return build queue item
      */
-    public @CheckForNull Queue.Item run2(@Nonnull String replacementMainScript, @Nonnull Map<String,String> replacementLoadedScripts) {
+    public @CheckForNull Queue.Item run2(@NonNull String replacementMainScript, @NonNull Map<String,String> replacementLoadedScripts) {
         List<Action> actions = new ArrayList<>();
         CpsFlowExecution execution = getExecutionBlocking();
         if (execution == null) {
@@ -273,7 +273,7 @@ public class ReplayAction implements Action {
      * @param execution the associated execution
      * @return Groovy class names expected to be produced, like {@code Script1}
      */
-    public static @Nonnull Set<String> replacementsIn(@Nonnull CpsFlowExecution execution) throws IOException {
+    public static @NonNull Set<String> replacementsIn(@NonNull CpsFlowExecution execution) throws IOException {
         Queue.Executable executable = execution.getOwner().getExecutable();
         if (executable instanceof Run) {
             ReplayFlowFactoryAction action = ((Run) executable).getAction(ReplayFlowFactoryAction.class);
@@ -295,7 +295,7 @@ public class ReplayAction implements Action {
      * @param clazz an entry possibly in {@link #replacementsIn}
      * @return the replacement text, or null if no replacement was available for some reason
      */
-    public static @CheckForNull String replace(@Nonnull CpsFlowExecution execution, @Nonnull String clazz) throws IOException {
+    public static @CheckForNull String replace(@NonNull CpsFlowExecution execution, @NonNull String clazz) throws IOException {
         Queue.Executable executable = execution.getOwner().getExecutable();
         if (executable instanceof Run) {
             ReplayFlowFactoryAction action = ((Run) executable).getAction(ReplayFlowFactoryAction.class);

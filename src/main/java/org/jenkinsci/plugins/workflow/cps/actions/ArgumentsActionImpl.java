@@ -29,6 +29,7 @@ import groovy.lang.GroovyClassLoader;
 import hudson.EnvVars;
 import hudson.model.Describable;
 import hudson.model.Result;
+import java.util.Collection;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.output.NullOutputStream;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
@@ -38,8 +39,8 @@ import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.lang.reflect.Type;
 import java.net.URL;
 import java.util.ArrayList;
@@ -71,25 +72,25 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
     private static final Logger LOGGER = Logger.getLogger(ArgumentsActionImpl.class.getName());
 
-    public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments, @CheckForNull EnvVars env, @Nonnull Set<String> sensitiveVariables) {
+    public ArgumentsActionImpl(@NonNull Map<String, Object> stepArguments, @CheckForNull EnvVars env, @NonNull Set<String> sensitiveVariables) {
         this.sensitiveVariables = new HashSet<>(sensitiveVariables);
-        arguments = serializationCheck(sanitizeMapAndRecordMutation(stepArguments, env));
+        this.arguments = serializationCheck(sanitizeStepArguments(stepArguments, env));
     }
 
     /** Create a step, sanitizing strings for secured content */
-    public ArgumentsActionImpl(@Nonnull Map<String, Object> stepArguments) {
+    public ArgumentsActionImpl(@NonNull Map<String, Object> stepArguments) {
         this(stepArguments, new EnvVars(), Collections.emptySet());
     }
 
     /** For testing use only */
-    ArgumentsActionImpl(@Nonnull Set<String> sensitiveVariables){
-        this.isUnmodifiedBySanitization = false;
+    ArgumentsActionImpl(@NonNull Set<String> sensitiveVariables){
+        this.isUnmodifiedBySanitization = true;
         this.arguments = Collections.emptyMap();
         this.sensitiveVariables = sensitiveVariables;
     }
 
     /** See if sensitive environment variable content is in a string and replace the content with its associated variable name, otherwise return string unmodified*/
-    public static String replaceSensitiveVariables(@Nonnull String input, @CheckForNull EnvVars variables, @Nonnull Set<String> sensitiveVariables) {
+    public static String replaceSensitiveVariables(@NonNull String input, @CheckForNull EnvVars variables, @NonNull Set<String> sensitiveVariables) {
         if (variables == null || variables.size() == 0 || sensitiveVariables.size() ==0) {
             return input;
         }
@@ -137,7 +138,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
      * Sanitize a list recursively
      */
     @CheckForNull
-    Object sanitizeListAndRecordMutation(@Nonnull List objects, @CheckForNull EnvVars variables) {
+    Object sanitizeListAndRecordMutation(@NonNull List objects, @CheckForNull EnvVars variables) {
         // Package scoped so we can test it directly
 
         if (isOversized(objects)) {
@@ -147,9 +148,14 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
         boolean isMutated = false;
         List output = new ArrayList(objects.size());
+        long size = objects.size();
         for (Object o : objects) {
             Object modded = sanitizeObjectAndRecordMutation(o, variables);
-
+            size += shallowSize(modded);
+            if (size > MAX_RETAINED_LENGTH) {
+                this.isUnmodifiedBySanitization = false;
+                return NotStoredReason.OVERSIZE_VALUE;
+            }
             if (modded != o) {
                 // Sanitization stripped out some values, so we need to store the mutated object
                 output.add(modded);
@@ -164,7 +170,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
     /** For object arrays, we sanitize recursively, as with Lists */
     @CheckForNull
-    Object sanitizeArrayAndRecordMutation(@Nonnull Object[] objects, @CheckForNull EnvVars variables) {
+    Object sanitizeArrayAndRecordMutation(@NonNull Object[] objects, @CheckForNull EnvVars variables) {
         if (isOversized(objects)) {
             this.isUnmodifiedBySanitization = false;
             return NotStoredReason.OVERSIZE_VALUE;
@@ -223,7 +229,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         Object modded = tempVal;
         if (modded instanceof Map) {
             // Recursive sanitization, oh my!
-            modded = sanitizeMapAndRecordMutation((Map)modded, vars);
+            modded = sanitizeMapAndRecordMutation((Map)modded, vars, false);
         } else if (modded instanceof List) {
             modded = sanitizeListAndRecordMutation((List) modded, vars);
         } else if (modded != null && modded.getClass().isArray()) {
@@ -268,7 +274,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
      *  See JENKINS-50752 for details, but the gist is we need to avoid problems before physical persistence to prevent data loss.
      *  @return Arguments
      */
-    Map<String, Object> serializationCheck(@Nonnull Map<String, Object> arguments) {
+    Map<String, Object> serializationCheck(@NonNull Map<String, Object> arguments) {
         boolean isMutated = false;
         HashMap<String, Object> out = Maps.newHashMapWithExpectedSize(arguments.size());
         for (Map.Entry<String, Object> entry : arguments.entrySet()) {
@@ -294,14 +300,36 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     /**
      * Goes through {@link #sanitizeObjectAndRecordMutation(Object, EnvVars)} for each value in a map input.
      */
-    @Nonnull
-    Map<String,Object> sanitizeMapAndRecordMutation(@Nonnull Map<String, Object> mapContents, @CheckForNull EnvVars variables) {
+    @NonNull
+    Object sanitizeMapAndRecordMutation(@NonNull Map<String, Object> mapContents, @CheckForNull EnvVars variables) {
         // Package scoped so we can test it directly
+        return sanitizeMapAndRecordMutation(mapContents, variables, false);
+    }
+
+    private Map<String, Object> sanitizeStepArguments(Map<String, Object> stepArguments, EnvVars env) {
+        // Guaranteed to be a map, the block returning something else is guarded by topLevel == false
+        return (Map<String, Object>) sanitizeMapAndRecordMutation(stepArguments, env, true);
+    }
+
+    /**
+     * Goes through {@link #sanitizeObjectAndRecordMutation(Object, EnvVars)} for each value in a map input.
+     */
+    @NonNull
+    private Object sanitizeMapAndRecordMutation(@NonNull Map<String, Object> mapContents, @CheckForNull EnvVars variables, boolean topLevel) {
         LinkedHashMap<String, Object> output = new LinkedHashMap<>(mapContents.size());
+        long size = mapContents.size();
 
         boolean isMutated = false;
         for (Map.Entry<String,?> param : mapContents.entrySet()) {
             Object modded = sanitizeObjectAndRecordMutation(param.getValue(), variables);
+            if (!topLevel) {
+                size += param.getKey().length();
+                size += shallowSize(modded);
+                if (size > MAX_RETAINED_LENGTH) {
+                    this.isUnmodifiedBySanitization = false;
+                    return NotStoredReason.OVERSIZE_VALUE;
+                }
+            }
             if (modded != param.getValue()) {
                 // Sanitization stripped out some values, so we need to store the mutated object
                 output.put(param.getKey(), modded);
@@ -311,7 +339,29 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             }
         }
 
-        return (isMutated) ? output : mapContents;
+        return isMutated ? output : mapContents;
+    }
+
+    static long shallowSize(Object o) {
+        if (o == null) {
+            return 0;
+        }
+        if (o instanceof CharSequence) {
+            return ((CharSequence) o).length();
+        }
+        if (o instanceof Collection) {
+            Collection<?> collection = (Collection<?>) o;
+            return collection.size();
+        }
+        if (o.getClass().isArray()) {
+            Object[] array = (Object[]) o;
+            return array.length;
+        }
+        if (o instanceof Map) {
+            Map<?, ?> map = (Map<?, ?>) o;
+            return map.size();
+        }
+        return 1;
     }
 
     /** Accessor for testing use */
@@ -319,7 +369,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         return MAX_RETAINED_LENGTH;
     }
 
-    @Nonnull
+    @NonNull
     @Override
     protected Map<String, Object> getArgumentsInternal() {
         return arguments == null ? Collections.EMPTY_MAP : arguments;

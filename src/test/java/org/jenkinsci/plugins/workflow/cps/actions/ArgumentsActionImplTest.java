@@ -188,9 +188,7 @@ public class ArgumentsActionImplTest {
         int maxLen = ArgumentsActionImpl.getMaxRetainedLength();
         ArgumentsActionImpl impl = new ArgumentsActionImpl(sensitiveVariables);
 
-        char[] oversized = new char[maxLen+10];
-        Arrays.fill(oversized, 'a');
-        String oversizedString = new String (oversized);
+        String oversizedString = generateStringOfSize(maxLen + 10);
 
         // Simplest masking of secret and oversized value
         assertEquals("${USERVARIABLE}", impl.sanitizeObjectAndRecordMutation(secretUsername, env));
@@ -217,26 +215,90 @@ public class ArgumentsActionImplTest {
         // Maps
         HashMap<String, Object> dangerous = new HashMap<>();
         dangerous.put("name", secretUsername);
-        Map<String, Object> sanitizedMap = impl.sanitizeMapAndRecordMutation(dangerous, env);
-        Assert.assertNotEquals(sanitizedMap, dangerous);
+        Object sanitized = impl.sanitizeMapAndRecordMutation(dangerous, env);
+        Assert.assertNotEquals(sanitized, dangerous);
+        assertThat(sanitized, instanceOf(Map.class));
+        Map<String, Object> sanitizedMap = (Map<String, Object>) sanitized;
         assertEquals("${USERVARIABLE}", sanitizedMap.get("name"));
         assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
 
-        Map<String, Object> identicalMap = impl.sanitizeMapAndRecordMutation(dangerous, new EnvVars());  // String is no longer dangerous
-        assertEquals(identicalMap, dangerous);
+        Object identical = impl.sanitizeMapAndRecordMutation(dangerous, new EnvVars());  // String is no longer dangerous
+        assertEquals(identical, dangerous);
         assertTrue(impl.isUnmodifiedArguments());
 
         // Lists
         List unsanitizedList = Arrays.asList("cheese", null, secretUsername);
-        List sanitized = (List)impl.sanitizeListAndRecordMutation(unsanitizedList, env);
-        assertEquals(3, sanitized.size());
+        Object sanitized2 = impl.sanitizeListAndRecordMutation(unsanitizedList, env);
+        assertThat(sanitized2, instanceOf(List.class));
+        List sanitizedList = (List) sanitized2;
+        assertEquals(3, sanitizedList.size());
         assertFalse(impl.isUnmodifiedArguments());
-        assertEquals("${USERVARIABLE}", sanitized.get(2));
+        assertEquals("${USERVARIABLE}", sanitizedList.get(2));
         impl.isUnmodifiedBySanitization = true;
 
         assertEquals(unsanitizedList, impl.sanitizeObjectAndRecordMutation(unsanitizedList, new EnvVars()));
         assertEquals(unsanitizedList, impl.sanitizeListAndRecordMutation(unsanitizedList, new EnvVars()));
+    }
+
+    @Test
+    @Issue("JENKINS-67380")
+    public void oversizedMap() {
+        {
+            // a map with reasonable size should not be truncated
+            ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.emptySet());
+            Map<String, Object> smallMap = new HashMap<>();
+            smallMap.put("key1", generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength() / 10));
+            Object sanitizedSmallMap = impl.sanitizeMapAndRecordMutation(smallMap, null);
+            Assert.assertEquals(sanitizedSmallMap, smallMap);
+            Assert.assertTrue(impl.isUnmodifiedArguments());
+            impl.isUnmodifiedBySanitization = true;
+        }
+
+        {
+            // arguments map keys should be kept, but values should be truncated if too large
+            Map<String, Object> bigMap = new HashMap<>();
+            String bigString = generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength() + 10);
+            bigMap.put("key1", bigString);
+            ArgumentsActionImpl impl = new ArgumentsActionImpl(bigMap, null, Collections.emptySet());
+            Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, impl.getArgumentValueOrReason("key1"));
+            Assert.assertFalse(impl.isUnmodifiedArguments());
+        }
+
+        {
+            // an arbitrary map should be truncated if it is too large overall
+            Map<String, Object> bigMap2 = new HashMap<>();
+            String bigString2 = generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength());
+            bigMap2.put("key1", bigString2);
+            ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.emptySet());
+            Object sanitizedBigMap2 = impl.sanitizeMapAndRecordMutation(bigMap2, null);
+            Assert.assertNotEquals(sanitizedBigMap2, bigMap2);
+            Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, sanitizedBigMap2);
+            Assert.assertFalse(impl.isUnmodifiedArguments());
+            impl.isUnmodifiedBySanitization = true;
+        }
+    }
+
+    @Test
+    public void oversizedList() {
+        ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.emptySet());
+        List unsanitized = Arrays.asList(generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength()));
+        Object sanitized = impl.sanitizeListAndRecordMutation(unsanitized, null);
+        Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, sanitized);
+    }
+
+    @Test
+    public void oversizedArray() {
+        ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.emptySet());
+        String[] unsanitized = new String[] {generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength())};
+        Object sanitized = impl.sanitizeArrayAndRecordMutation(unsanitized, null);
+        Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, sanitized);
+    }
+
+    private static String generateStringOfSize(int size) {
+        char[] bigChars = new char[size];
+        Arrays.fill(bigChars, 'a');
+        return String.valueOf(bigChars);
     }
 
     @Test

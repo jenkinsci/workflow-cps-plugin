@@ -45,7 +45,7 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.CheckForNull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import jenkins.model.Jenkins;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;

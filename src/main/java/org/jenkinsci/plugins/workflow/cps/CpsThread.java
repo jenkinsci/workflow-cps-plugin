@@ -28,17 +28,17 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.SettableFuture;
 import java.io.IOException;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -64,7 +64,7 @@ public final class CpsThread implements Serializable {
     /**
      * Owner object. A thread always belong to a {@link CpsThreadGroup}
      */
-    @Nonnull
+    @NonNull
     final CpsThreadGroup group;
 
     /**
@@ -91,7 +91,7 @@ public final class CpsThread implements Serializable {
     /**
      * Promise that {@link Continuable#run0(Outcome)} gets eventually invoked with {@link #resumeValue}.
      */
-    private transient SettableFuture<Object> promise;
+    private transient CompletableFuture<Object> promise;
 
     /**
      * The head of the flow node graph that this thread is growing.
@@ -116,7 +116,7 @@ public final class CpsThread implements Serializable {
      */
     private final List<FutureCallback<Object>> completionHandlers = new ArrayList<>();
 
-    CpsThread(CpsThreadGroup group, int id, @Nonnull Continuable program, FlowHead head, ContextVariableSet contextVariables) {
+    CpsThread(CpsThreadGroup group, int id, @NonNull Continuable program, FlowHead head, ContextVariableSet contextVariables) {
         this.group = group;
         this.id = id;
         this.program = group.getExecution().isSandbox() ? new SandboxContinuable(program,this) : program;
@@ -172,7 +172,7 @@ public final class CpsThread implements Serializable {
      * the point the workflow needs to be dehydrated.
      */
     @SuppressWarnings("rawtypes")
-    @Nonnull Outcome runNextChunk() {
+    @NonNull Outcome runNextChunk() {
         assert program!=null;
 
         Outcome outcome;
@@ -208,10 +208,10 @@ public final class CpsThread implements Serializable {
         }
 
         if (promise!=null) {
-            if (outcome.isSuccess())        promise.set(outcome.getNormal());
+            if (outcome.isSuccess())        promise.complete(outcome.getNormal());
             else {
                 try {
-                    promise.setException(outcome.getAbnormal());
+                    promise.completeExceptionally(outcome.getAbnormal());
                 } catch (Error e) {
                     if (e==outcome.getAbnormal()) {
                         // SettableFuture tries to rethrow an Error, which we don't want.
@@ -288,7 +288,7 @@ public final class CpsThread implements Serializable {
             return Futures.immediateFailedFuture(new IllegalStateException("Already resumed with " + resumeValue));
         }
         resumeValue = v;
-        promise = SettableFuture.create();
+        promise = new CompletableFuture<>();
         group.scheduleRun();
         return promise;
     }

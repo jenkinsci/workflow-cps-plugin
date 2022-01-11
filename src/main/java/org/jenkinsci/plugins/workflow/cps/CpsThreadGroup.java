@@ -27,7 +27,6 @@ package org.jenkinsci.plugins.workflow.cps;
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.SettableFuture;
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.MarshallingContext;
@@ -51,7 +50,7 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverWriter;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -65,6 +64,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -74,14 +74,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.annotation.CheckForNull;
-
-import static java.util.logging.Level.FINE;
-import static java.util.logging.Level.WARNING;
-import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.PROGRAM_STATE_SERIALIZATION;
-import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.TimingKind;
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
-
+import static java.util.logging.Level.*;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.pickles.Pickle;
 import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
 import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
@@ -198,7 +194,7 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     @CpsVmThreadOnly
-    public CpsThread addThread(@Nonnull Continuable program, FlowHead head, ContextVariableSet contextVariables) {
+    public CpsThread addThread(@NonNull Continuable program, FlowHead head, ContextVariableSet contextVariables) {
         assertVmThread();
         CpsThread t = new CpsThread(this, iota++, program, head, contextVariables);
         threads.put(t.id, t);
@@ -238,7 +234,7 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     @CpsVmThreadOnly("root")
-    public @Nonnull BodyReference export(@Nonnull Closure body) {
+    public @NonNull BodyReference export(@NonNull Closure body) {
         assertVmThread();
         int id = iota++;
         closures.put(id, body);
@@ -247,7 +243,7 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     @CpsVmThreadOnly("root")
-    public @Nonnull BodyReference export(@Nonnull final Script body) {
+    public @NonNull BodyReference export(@NonNull final Script body) {
         register(body);
         return export(new Closure(null) {
             @Override
@@ -263,6 +259,8 @@ public final class CpsThreadGroup implements Serializable {
         if (ref==null)      return;
         if (closures.remove(ref.id) != null) {
             LOGGER.log(FINE, "unexporting {0}", ref.id);
+        } else if (closures.isEmpty()) {
+            LOGGER.log(FINE, "cannot unexport {0} but there are no closures at all so perhaps we are still trying to load the program", ref.id);
         } else {
             LOGGER.log(WARNING, "double unexport of {0}", ref.id);
         }
@@ -275,7 +273,7 @@ public final class CpsThreadGroup implements Serializable {
      *      {@link Future} object that represents when the CPS VM is executed.
      */
     public Future<?> scheduleRun() {
-        final SettableFuture<Void> f = SettableFuture.create();
+        final CompletableFuture<Void> f = new CompletableFuture<>();
         try {
             runner.submit(new Callable<Void>() {
                 @SuppressFBWarnings(value="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE", justification="runner.submit() result")
@@ -309,7 +307,7 @@ public final class CpsThreadGroup implements Serializable {
                         // by doing the pause check inside, we make sure that scheduleRun() returns a
                         // future that waits for any previously scheduled tasks to be completed.
                         saveProgramIfPossible(true);
-                        f.set(null);
+                        f.complete(null);
                         return null;
                     }
 
@@ -329,13 +327,13 @@ public final class CpsThreadGroup implements Serializable {
                                         runner.shutdown();
                                     }
                                     // the original promise of scheduleRun() is now complete
-                                    f.set(null);
+                                    f.complete(null);
                                 }
                             });
                         }
                     } catch (RejectedExecutionException x) {
                         // Was shut down by a prior task?
-                        f.setException(x);
+                        f.completeExceptionally(x);
                     }
                     return null;
                 }
