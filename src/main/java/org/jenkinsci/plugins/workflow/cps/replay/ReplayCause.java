@@ -28,8 +28,8 @@ import hudson.console.ModelHyperlinkNote;
 import hudson.model.Cause;
 import hudson.model.Run;
 import hudson.model.TaskListener;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Marker that a run is a replay of an earlier one.
@@ -39,7 +39,7 @@ public class ReplayCause extends Cause {
     private final int originalNumber;
     private transient Run<?,?> run;
 
-    ReplayCause(@Nonnull Run<?,?> original) {
+    ReplayCause(@NonNull Run<?,?> original) {
         this.originalNumber = original.getNumber();
     }
 

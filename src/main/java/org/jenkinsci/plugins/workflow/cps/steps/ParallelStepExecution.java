@@ -13,7 +13,7 @@ import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -91,7 +91,7 @@ class ParallelStepExecution extends StepExecution {
             return "Branch: " + branchName;
         }
 
-        @Nonnull
+        @NonNull
         @Override
         public String getThreadName() {
             return branchName;

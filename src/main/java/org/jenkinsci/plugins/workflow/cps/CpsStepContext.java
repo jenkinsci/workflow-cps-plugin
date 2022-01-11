@@ -52,9 +52,9 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.DefaultStepContext;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.GuardedBy;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import net.jcip.annotations.GuardedBy;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -237,7 +237,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         return getThread(getThreadGroupSynchronously());
     }
 
-    private @Nonnull CpsThreadGroup getThreadGroupSynchronously() throws InterruptedException, IOException {
+    private @NonNull CpsThreadGroup getThreadGroupSynchronously() throws InterruptedException, IOException {
         if (threadGroup == null) {
             ListenableFuture<CpsThreadGroup> pp;
             CpsFlowExecution flowExecution = getExecution();
@@ -285,7 +285,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         return newBodyInvoker(body, false);
     }
 
-    public @Nonnull CpsBodyInvoker newBodyInvoker(@Nonnull BodyReference body, boolean unexport) {
+    public @NonNull CpsBodyInvoker newBodyInvoker(@NonNull BodyReference body, boolean unexport) {
         return new CpsBodyInvoker(this, body, unexport);
     }
 
@@ -320,7 +320,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     }
 
-    private void completed(@Nonnull Outcome newOutcome) {
+    private void completed(@NonNull Outcome newOutcome) {
         if (outcome == null) {
             LOGGER.finer(() -> this + " completed with " + newOutcome);
             outcome = newOutcome;

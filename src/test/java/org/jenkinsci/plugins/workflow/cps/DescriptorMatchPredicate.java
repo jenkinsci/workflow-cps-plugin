@@ -29,8 +29,8 @@ import org.jenkinsci.plugins.workflow.cps.nodes.StepNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Search predicate for {@link FlowNode}s that have a given descriptor type
@@ -38,7 +38,7 @@ import javax.annotation.Nullable;
 public class DescriptorMatchPredicate implements Predicate<FlowNode> {
     final Class<? extends StepDescriptor> myDescriptor;
 
-    public DescriptorMatchPredicate(@Nonnull Class<? extends StepDescriptor> descriptorClass) {
+    public DescriptorMatchPredicate(@NonNull Class<? extends StepDescriptor> descriptorClass) {
         this.myDescriptor = descriptorClass;
     }
 

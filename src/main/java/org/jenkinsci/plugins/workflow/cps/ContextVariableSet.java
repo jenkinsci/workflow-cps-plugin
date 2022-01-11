@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import javax.annotation.concurrent.Immutable;
+import net.jcip.annotations.Immutable;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;

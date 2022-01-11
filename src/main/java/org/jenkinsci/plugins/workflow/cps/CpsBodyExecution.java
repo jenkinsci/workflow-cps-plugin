@@ -25,7 +25,7 @@ import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
-import javax.annotation.concurrent.GuardedBy;
+import net.jcip.annotations.GuardedBy;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,8 +42,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.LinearBlockHoppingScanner;
@@ -387,7 +387,7 @@ class CpsBodyExecution extends BodyExecution {
      *
      * @see #addBodyEndFlowNode()
      */
-    private @Nonnull StepStartNode addBodyStartFlowNode(FlowHead head) {
+    private @NonNull StepStartNode addBodyStartFlowNode(FlowHead head) {
         CpsFlowExecution.maybeAutoPersistNode(head.get());
         StepStartNode start = new StepStartNode(head.getExecution(),
                 context.getStepDescriptor(), head.get());
@@ -402,7 +402,7 @@ class CpsBodyExecution extends BodyExecution {
      *
      * @see #addBodyStartFlowNode(FlowHead)
      */
-    private @Nonnull StepEndNode addBodyEndFlowNode() {
+    private @NonNull StepEndNode addBodyEndFlowNode() {
         try {
             FlowHead head = CpsThread.current().head;
 

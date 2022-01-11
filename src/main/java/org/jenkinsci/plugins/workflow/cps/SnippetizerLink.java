@@ -31,7 +31,7 @@ import hudson.model.Job;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -53,14 +53,14 @@ public abstract class SnippetizerLink implements ExtensionPoint {
      * Get the URL this link should point to, which will be used by {@link #getDisplayUrl()}. If this is not absolute,
      * {@link #getDisplayUrl()} will link to this within the current context.
      */
-    @Nonnull
+    @NonNull
     public abstract String getUrl();
 
     /**
      * Get the actual URL to use in sidepanel.jelly. If {@link #getUrl()} is not absolute, this will try to get the
      * current Job context and return a url starting with that job's {@link Job#getUrl()} appended with {@link #getUrl()}.
      */
-    @Nonnull
+    @NonNull
     public final String getDisplayUrl() {
         String u = getUrl();
 
@@ -106,7 +106,7 @@ public abstract class SnippetizerLink implements ExtensionPoint {
     /**
      * Get the icon information for the link.
      */
-    @Nonnull
+    @NonNull
     public String getIcon() {
         return "icon-help icon-md";
     }
@@ -114,7 +114,7 @@ public abstract class SnippetizerLink implements ExtensionPoint {
     /**
      * Get the display name for the link.
      */
-    @Nonnull
+    @NonNull
     public abstract String getDisplayName();
 
     /**
@@ -127,19 +127,19 @@ public abstract class SnippetizerLink implements ExtensionPoint {
     @Extension(ordinal = 1000L)
     public static class GeneratorLink extends SnippetizerLink {
         @Override
-        @Nonnull
+        @NonNull
         public String getUrl() {
             return ACTION_URL;
         }
 
         @Override
-        @Nonnull
+        @NonNull
         public String getIcon() {
             return "icon-gear2 icon-md";
         }
 
         @Override
-        @Nonnull
+        @NonNull
         public String getDisplayName() {
             return Messages.SnippetizerLink_GeneratorLink_displayName();
         }
@@ -148,13 +148,13 @@ public abstract class SnippetizerLink implements ExtensionPoint {
     @Extension(ordinal = 900L)
     public static class StepReferenceLink extends SnippetizerLink {
         @Override
-        @Nonnull
+        @NonNull
         public String getUrl() {
             return ACTION_URL + "/html";
         }
 
         @Override
-        @Nonnull
+        @NonNull
         public String getDisplayName() {
             return Messages.SnippetizerLink_StepReferenceLink_displayName();
         }
@@ -163,13 +163,13 @@ public abstract class SnippetizerLink implements ExtensionPoint {
     @Extension(ordinal = 800L)
     public static class GlobalsReferenceLink extends SnippetizerLink {
         @Override
-        @Nonnull
+        @NonNull
         public String getUrl() {
             return ACTION_URL + "/globals";
         }
 
         @Override
-        @Nonnull
+        @NonNull
         public String getDisplayName() {
             return Messages.SnippetizerLink_GlobalsReferenceLink_displayName();
         }
@@ -178,13 +178,13 @@ public abstract class SnippetizerLink implements ExtensionPoint {
     @Extension(ordinal = 700L)
     public static class OnlineDocsLink extends SnippetizerLink {
         @Override
-        @Nonnull
+        @NonNull
         public String getUrl() {
             return "https://jenkins.io/doc/pipeline/";
         }
 
         @Override
-        @Nonnull
+        @NonNull
         public String getDisplayName() {
             return Messages.SnippetizerLink_OnlineDocsLink_displayName();
         }
@@ -198,13 +198,13 @@ public abstract class SnippetizerLink implements ExtensionPoint {
     @Extension(ordinal = 600L)
     public static class ExamplesLink extends SnippetizerLink {
 
-        @Nonnull
+        @NonNull
         @Override
         public String getUrl() {
             return "https://jenkins.io/doc/pipeline/examples/";
         }
 
-        @Nonnull
+        @NonNull
         @Override
         public String getDisplayName() {
             return Messages.SnippetizerLink_ExamplesLink_displayName();
@@ -214,13 +214,13 @@ public abstract class SnippetizerLink implements ExtensionPoint {
     @Extension(ordinal = 500L)
     public static class GDSLLink extends SnippetizerLink {
         @Override
-        @Nonnull
+        @NonNull
         public String getUrl() {
             return ACTION_URL + "/gdsl";
         }
 
         @Override
-        @Nonnull
+        @NonNull
         public String getDisplayName() {
             return Messages.SnippetizerLink_GDSLLink_displayName();
         }

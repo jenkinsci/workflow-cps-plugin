@@ -45,8 +45,8 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import javax.lang.model.SourceVersion;
 import jenkins.model.Jenkins;
 import jenkins.model.TransientActionFactory;
@@ -539,7 +539,7 @@ import org.kohsuke.stapler.StaplerRequest;
     /**
      * Used to generate the list of links on the sidepanel.
      */
-    @Nonnull
+    @NonNull
     public List<SnippetizerLink> getSnippetizerLinks() {
         return ExtensionList.lookup(SnippetizerLink.class);
     }

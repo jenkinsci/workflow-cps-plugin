@@ -50,7 +50,7 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverWriter;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -75,7 +75,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
-import javax.annotation.CheckForNull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.pickles.Pickle;
@@ -194,7 +194,7 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     @CpsVmThreadOnly
-    public CpsThread addThread(@Nonnull Continuable program, FlowHead head, ContextVariableSet contextVariables) {
+    public CpsThread addThread(@NonNull Continuable program, FlowHead head, ContextVariableSet contextVariables) {
         assertVmThread();
         CpsThread t = new CpsThread(this, iota++, program, head, contextVariables);
         threads.put(t.id, t);
@@ -234,7 +234,7 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     @CpsVmThreadOnly("root")
-    public @Nonnull BodyReference export(@Nonnull Closure body) {
+    public @NonNull BodyReference export(@NonNull Closure body) {
         assertVmThread();
         int id = iota++;
         closures.put(id, body);
@@ -243,7 +243,7 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     @CpsVmThreadOnly("root")
-    public @Nonnull BodyReference export(@Nonnull final Script body) {
+    public @NonNull BodyReference export(@NonNull final Script body) {
         register(body);
         return export(new Closure(null) {
             @Override

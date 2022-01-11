@@ -22,8 +22,8 @@ import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jvnet.hudson.test.JenkinsRule;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -59,7 +59,7 @@ public class SnippetizerTester {
      * @param referer
      *      needed because of {@link StaplerReferer}
      */
-    public void assertGenerateSnippet(@Nonnull String json, @Nonnull String responseText, @CheckForNull String referer) throws Exception {
+    public void assertGenerateSnippet(@NonNull String json, @NonNull String responseText, @CheckForNull String referer) throws Exception {
         assertGenerateSnippet(Snippetizer.GENERATE_URL, json, responseText, referer);
     }
 
@@ -75,7 +75,7 @@ public class SnippetizerTester {
      * @param referer
      *      needed because of {@link StaplerReferer}
      */
-    protected void assertGenerateSnippet(@Nonnull String url, @Nonnull String json, @Nonnull String responseText, @CheckForNull String referer) throws Exception {
+    protected void assertGenerateSnippet(@NonNull String url, @NonNull String json, @NonNull String responseText, @CheckForNull String referer) throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
         WebRequest wrs = new WebRequest(new URL(r.getURL(), url), HttpMethod.POST);
         if (referer != null) {

@@ -44,8 +44,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import jenkins.model.Jenkins;
 import jenkins.security.QueueItemAuthenticatorConfiguration;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
@@ -366,7 +366,7 @@ public class WorkflowTest extends SingleJobTestBase {
     }
     private static class SpecialEnvSlave extends Slave {
         private final Map<String,String> env;
-        SpecialEnvSlave(File remoteFS, ComputerLauncher launcher, String nodeName, @Nonnull String labels, Map<String,String> env) throws Descriptor.FormException, IOException {
+        SpecialEnvSlave(File remoteFS, ComputerLauncher launcher, String nodeName, @NonNull String labels, Map<String,String> env) throws Descriptor.FormException, IOException {
             super(nodeName, remoteFS.getAbsolutePath(), launcher);
             setNumExecutors(1);
             setLabelString(labels);

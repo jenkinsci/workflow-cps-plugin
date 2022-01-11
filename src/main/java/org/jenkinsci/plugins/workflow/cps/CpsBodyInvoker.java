@@ -36,7 +36,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
@@ -111,7 +111,7 @@ public final class CpsBodyInvoker extends BodyInvoker {
     }
 
     @Override
-    public CpsBodyInvoker withDisplayName(@Nonnull String name) {
+    public CpsBodyInvoker withDisplayName(@NonNull String name) {
         this.displayName = name;
         return this;
     }

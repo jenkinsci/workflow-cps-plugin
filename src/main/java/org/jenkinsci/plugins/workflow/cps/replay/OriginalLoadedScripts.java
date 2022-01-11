@@ -27,7 +27,7 @@ package org.jenkinsci.plugins.workflow.cps.replay;
 import hudson.ExtensionPoint;
 import java.util.Collections;
 import java.util.Map;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 
 /**
@@ -40,7 +40,7 @@ public abstract class OriginalLoadedScripts implements ExtensionPoint {
      * @param execution a build
      * @return a map from Groovy class names to their original texts, as in {@link ReplayAction#replace}
      */
-    public @Nonnull Map<String,String> loadScripts(@Nonnull CpsFlowExecution execution) {
+    public @NonNull Map<String,String> loadScripts(@NonNull CpsFlowExecution execution) {
         return Collections.emptyMap();
     }
 
