@@ -256,16 +256,37 @@ public class ReplayAction implements Action {
      */
     public @CheckForNull Queue.Item run2(@NonNull String replacementMainScript, @NonNull Map<String,String> replacementLoadedScripts) {
         List<Action> actions = new ArrayList<>();
+        List<Cause> causes = new ArrayList<>();
+
         CpsFlowExecution execution = getExecutionBlocking();
         if (execution == null) {
             return null;
         }
+
+        causes.add(new Cause.UserIdCause());
+        causes.add(new ReplayCause(run));
+        causes.addAll(extractCauses(run));
+
         actions.add(new ReplayFlowFactoryAction(replacementMainScript, replacementLoadedScripts, execution.isSandbox()));
-        actions.add(new CauseAction(new Cause.UserIdCause(), new ReplayCause(run)));
+        actions.add(new CauseAction(causes));
         for (Class<? extends Action> c : COPIED_ACTIONS) {
             actions.addAll(run.getActions(c));
         }
+
         return ParameterizedJobMixIn.scheduleBuild2(run.getParent(), 0, actions.toArray(new Action[actions.size()]));
+    }
+
+    private List<Cause> extractCauses(Run<?,?> original) {
+        List<Cause> originalBuildCauses = new ArrayList<Cause>(original.getCauses());
+
+        List<Cause> newBuildCauses = new ArrayList<Cause>();
+        for (Cause buildCause : originalBuildCauses) {
+            if (!(buildCause instanceof Cause.UserIdCause)) {
+                newBuildCauses.add(buildCause);
+            }
+        }
+
+        return newBuildCauses;
     }
 
     /**
