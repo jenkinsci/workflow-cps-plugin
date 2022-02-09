@@ -257,6 +257,25 @@
             <artifactId>pipeline-stage-step</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>subversion</artifactId>
+            <version>2.14.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>subversion</artifactId>
+            <version>2.14.4</version>
+            <classifier>tests</classifier>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.tmatesoft.svnkit</groupId>
+            <artifactId>svnkit-cli</artifactId>
+            <version>1.10.1</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <build>
         <resources>
