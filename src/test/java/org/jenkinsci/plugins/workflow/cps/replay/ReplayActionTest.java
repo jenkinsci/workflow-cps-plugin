@@ -33,9 +33,12 @@ import hudson.XmlFile;
 import hudson.cli.CLICommandInvoker;
 import hudson.init.InitMilestone;
 import hudson.init.Initializer;
+import hudson.model.Failure;
 import hudson.model.Item;
 import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
+import hudson.model.PasswordParameterDefinition;
+import hudson.model.PasswordParameterValue;
 import hudson.model.Run;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
@@ -132,6 +135,21 @@ public class ReplayActionTest {
                 WorkflowRun b2 = (WorkflowRun) b1.getAction(ReplayAction.class).run("echo \"run again with ${param}\"", Collections.<String,String>emptyMap()).get();
                 story.j.assertLogContains("run again with some value", story.j.assertBuildStatusSuccess(b2));
             }
+        });
+    }
+
+    @Issue("SECURITY-2443")
+    @Test public void withPasswordParameter() {
+        story.then(r -> {
+            WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+            p.addProperty(new ParametersDefinitionProperty(new PasswordParameterDefinition("passwordParam", "top secret", "")));
+            p.setDefinition(new CpsFlowDefinition("echo(/passwordParam: ${passwordParam}/)", true));
+            WorkflowRun run1 = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0,
+                    new ParametersAction(new PasswordParameterValue("passwordParam", "confidential"))));
+
+            // When we replay a build with password parameter it should fail with access denied exception.
+            assertThrows(Failure.class,
+                    () -> run1.getAction(ReplayAction.class).run("echo(/Replaying passwordParam: ${passwordParam}/)", Collections.emptyMap()).get());
         });
     }
 
