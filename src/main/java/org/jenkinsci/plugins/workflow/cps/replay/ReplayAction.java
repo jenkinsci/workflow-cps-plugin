@@ -35,8 +35,10 @@ import hudson.init.Initializer;
 import hudson.model.Action;
 import hudson.model.Cause;
 import hudson.model.CauseAction;
+import hudson.model.Failure;
 import hudson.model.Item;
 import hudson.model.ParametersAction;
+import hudson.model.PasswordParameterValue;
 import hudson.model.Queue;
 import hudson.model.Run;
 import hudson.model.queue.QueueTaskFuture;
@@ -262,10 +264,20 @@ public class ReplayAction implements Action {
         }
         actions.add(new ReplayFlowFactoryAction(replacementMainScript, replacementLoadedScripts, execution.isSandbox()));
         actions.add(new CauseAction(new Cause.UserIdCause(), new ReplayCause(run)));
+
+        if (hasPasswordParameter(this.run)) {
+            throw new Failure("Replay is not allowed when password parameters are used.");
+        }
+
         for (Class<? extends Action> c : COPIED_ACTIONS) {
             actions.addAll(run.getActions(c));
         }
         return ParameterizedJobMixIn.scheduleBuild2(run.getParent(), 0, actions.toArray(new Action[actions.size()]));
+    }
+
+    private boolean hasPasswordParameter(Run run) {
+        ParametersAction pa = run.getAction(ParametersAction.class);
+        return pa != null && pa.getParameters().stream().anyMatch(PasswordParameterValue.class::isInstance);
     }
 
     /**
