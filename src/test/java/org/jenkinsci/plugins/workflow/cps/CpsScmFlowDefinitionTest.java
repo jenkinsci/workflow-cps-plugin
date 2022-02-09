@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import hudson.Functions;
 import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Result;
@@ -35,13 +36,21 @@ import hudson.plugins.git.SubmoduleConfig;
 import hudson.plugins.git.UserRemoteConfig;
 import hudson.plugins.git.extensions.GitSCMExtension;
 import hudson.scm.ChangeLogSet;
+import hudson.scm.SubversionSCM;
 import hudson.triggers.SCMTrigger;
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import jenkins.model.Jenkins;
 import jenkins.plugins.git.GitSampleRepoRule;
 import jenkins.plugins.git.GitStep;
+import jenkins.scm.impl.subversion.SubversionSampleRepoRule;
+import org.apache.commons.io.FileUtils;
 import org.jenkinsci.plugins.workflow.TestDurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.actions.WorkspaceAction;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
@@ -59,11 +68,18 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.SingleFileSCM;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.io.FileMatchers.anExistingFile;
+import static org.junit.Assume.assumeFalse;
+
 public class CpsScmFlowDefinitionTest {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public JenkinsRule r = new JenkinsRule();
     @Rule public GitSampleRepoRule sampleRepo = new GitSampleRepoRule();
+    @Rule public SubversionSampleRepoRule sampleRepoSvn = new SubversionSampleRepoRule();
     @Rule public GitSampleRepoRule invalidRepo = new GitSampleRepoRule();
 
     @Test public void configRoundtrip() throws Exception {
@@ -240,5 +256,51 @@ public class CpsScmFlowDefinitionTest {
         p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("SCRIPT_PATH", "flow.groovy")));
         r.assertLogContains("version one", r.assertBuildStatusSuccess(p.scheduleBuild2(0)));
         r.assertLogContains("version two", r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("SCRIPT_PATH", "otherFlow.groovy")))));
+    }
+
+    @Issue("SECURITY-2463")
+    @Test public void checkoutDirectoriesAreNotReusedByDifferentScms() throws Exception {
+        assumeFalse(Functions.isWindows()); // Checkout hook is not cross-platform.
+        sampleRepo.init();
+        sampleRepo.write("Jenkinsfile", "echo('git library')");
+        sampleRepo.git("add", "Jenkinsfile");
+        sampleRepo.git("commit", "--message=init");
+        sampleRepoSvn.init();
+        sampleRepoSvn.write("Jenkinsfile", "echo('subversion library')");
+        // Copy .git folder from the Git repo into the SVN repo as data.
+        File gitDirInSvnRepo = new File(sampleRepoSvn.wc(), ".git");
+        FileUtils.copyDirectory(new File(sampleRepo.getRoot(), ".git"), gitDirInSvnRepo);
+        String jenkinsRootDir = r.jenkins.getRootDir().toString();
+        // Add a Git post-checkout hook to the .git folder in the SVN repo.
+        Files.write(gitDirInSvnRepo.toPath().resolve("hooks/post-checkout"), ("#!/bin/sh\ntouch '" + jenkinsRootDir + "/hook-executed'\n").getBytes(StandardCharsets.UTF_8));
+        sampleRepoSvn.svnkit("add", sampleRepoSvn.wc() + "/Jenkinsfile");
+        sampleRepoSvn.svnkit("add", sampleRepoSvn.wc() + "/.git");
+        sampleRepoSvn.svnkit("propset", "svn:executable", "ON", sampleRepoSvn.wc() + "/.git/hooks/post-checkout");
+        sampleRepoSvn.svnkit("commit", "--message=init", sampleRepoSvn.wc());
+        // Run a build using the SVN repo.
+        WorkflowJob p = r.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsScmFlowDefinition(new SubversionSCM(sampleRepoSvn.trunkUrl()), "Jenkinsfile"));
+        r.buildAndAssertSuccess(p);
+        // Run a build using the Git repo. It should be checked out to a different directory than the SVN repo.
+        p.setDefinition(new CpsScmFlowDefinition(new GitStep(sampleRepo.toString()).createSCM(), "Jenkinsfile"));
+        WorkflowRun b2 = r.buildAndAssertSuccess(p);
+        assertThat(new File(r.jenkins.getRootDir(), "hook-executed"), not(anExistingFile()));
+    }
+
+    @Issue("SECURITY-2595")
+    @Test
+    public void scriptPathSymlinksCannotEscapeCheckoutDirectory() throws Exception {
+        sampleRepo.init();
+        Path secrets = Paths.get(sampleRepo.getRoot().getPath(), "Jenkinsfile");
+        Files.createSymbolicLink(secrets, Paths.get(r.jenkins.getRootDir() + "/secrets/master.key"));
+        sampleRepo.git("add", ".");
+        sampleRepo.git("commit", "-m", "init");
+
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        GitStep step = new GitStep(sampleRepo.toString());
+        p.setDefinition(new CpsScmFlowDefinition(step.createSCM(), "Jenkinsfile"));
+        WorkflowRun b = r.buildAndAssertStatus(Result.FAILURE, p);
+        assertThat(b.getExecution(), nullValue());
+        r.assertLogContains("Jenkinsfile references a file that is not inside " + r.jenkins.getWorkspaceFor(p), b);
     }
 }
