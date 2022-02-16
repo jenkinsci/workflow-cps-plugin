@@ -272,7 +272,10 @@ public class CpsScmFlowDefinitionTest {
         FileUtils.copyDirectory(new File(sampleRepo.getRoot(), ".git"), gitDirInSvnRepo);
         String jenkinsRootDir = r.jenkins.getRootDir().toString();
         // Add a Git post-checkout hook to the .git folder in the SVN repo.
-        Files.write(gitDirInSvnRepo.toPath().resolve("hooks/post-checkout"), ("#!/bin/sh\ntouch '" + jenkinsRootDir + "/hook-executed'\n").getBytes(StandardCharsets.UTF_8));
+        Path postCheckoutHook = gitDirInSvnRepo.toPath().resolve("hooks/post-checkout");
+        // Always create hooks directory for compatibility with https://github.com/jenkinsci/git-plugin/pull/1207.
+        Files.createDirectories(postCheckoutHook.getParent());
+        Files.write(postCheckoutHook, ("#!/bin/sh\ntouch '" + jenkinsRootDir + "/hook-executed'\n").getBytes(StandardCharsets.UTF_8));
         sampleRepoSvn.svnkit("add", sampleRepoSvn.wc() + "/Jenkinsfile");
         sampleRepoSvn.svnkit("add", sampleRepoSvn.wc() + "/.git");
         sampleRepoSvn.svnkit("propset", "svn:executable", "ON", sampleRepoSvn.wc() + "/.git/hooks/post-checkout");
@@ -290,6 +293,7 @@ public class CpsScmFlowDefinitionTest {
     @Issue("SECURITY-2595")
     @Test
     public void scriptPathSymlinksCannotEscapeCheckoutDirectory() throws Exception {
+        assumeFalse(Functions.isWindows()); // On Windows, the symlink is treated as a regular file, so there is no vulnerability, but the error message is different.
         sampleRepo.init();
         Path secrets = Paths.get(sampleRepo.getRoot().getPath(), "Jenkinsfile");
         Files.createSymbolicLink(secrets, Paths.get(r.jenkins.getRootDir() + "/secrets/master.key"));
