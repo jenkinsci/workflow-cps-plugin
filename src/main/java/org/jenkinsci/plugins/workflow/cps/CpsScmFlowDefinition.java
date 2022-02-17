@@ -179,7 +179,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             }
 
             FilePath scriptFile = dir.child(expandedScriptPath);
-            if (!new File(scriptFile.getRemote()).getCanonicalFile().toPath().startsWith(dir.absolutize().getRemote())) { // TODO JENKINS-26838
+            if (!new File(scriptFile.getRemote()).getCanonicalFile().toPath().startsWith(new File(dir.getRemote()).getCanonicalPath())) { // TODO JENKINS-26838
                 throw new IOException(scriptFile + " references a file that is not inside " + dir);
             }
             if (!scriptFile.exists()) {
