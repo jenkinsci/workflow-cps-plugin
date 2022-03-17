@@ -1,7 +1,10 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.junit.Assume.assumeFalse;
+
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Item;
@@ -702,6 +705,7 @@ public class FlowDurabilityTest {
      */
     @Test
     public void testFullyDurableSurvivesDirtyRestart() throws Exception {
+        assumeFalse("TODO file locking issues on Windows", Functions.isWindows());
         final String jobName = "survivesEverything";
         final String[] logStart = new String[1];
 
@@ -763,6 +767,7 @@ public class FlowDurabilityTest {
     @Test
     @Issue("JENKINS-49961")
     public void testResumeBlockedAddedAfterRunStart() throws Exception {
+        assumeFalse("TODO file locking issues on Windows", Functions.isWindows());
         final String jobName = "survivesEverything";
         final List<FlowNode> nodesOut = new ArrayList<>();
 
