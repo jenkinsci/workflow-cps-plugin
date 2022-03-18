@@ -145,7 +145,12 @@ public final class CpsThreadGroup implements Serializable {
      * on hold (for example while inspecting a suspicious state or to perform a maintenance
      * when a failure is predictable.)
      */
-    private /*almost final*/ AtomicBoolean paused = new AtomicBoolean();
+    private /*almost final*/ transient AtomicBoolean paused = new AtomicBoolean();
+
+    /**
+     * Persistent version of {@link #paused}.
+     */
+    private boolean executionPaused;
 
     /**
      * "Exported" closures that are referenced by live {@link CpsStepContext}s.
@@ -183,15 +188,15 @@ public final class CpsThreadGroup implements Serializable {
                 script.setBinding(shell.getContext());
             }
         }
+        if (paused == null) { // introduced and later removed from serial form
+            paused = new AtomicBoolean(executionPaused);
+        }
         return this;
     }
 
     private void setupTransients() {
         runner = new CpsVmExecutorService(this);
         pausedByQuietMode = new AtomicBoolean();
-        if (paused == null) { // earlier versions did not have this field.
-            paused = new AtomicBoolean();
-        }
     }
 
     @CpsVmThreadOnly
@@ -355,6 +360,7 @@ public final class CpsThreadGroup implements Serializable {
      */
     public Future<?> pause() {
         paused.set(true);
+        executionPaused = true;
         // CPS VM might have a long queue in its task list, so to properly ensure
         // that the execution has actually suspended, call scheduleRun() excessively
         return scheduleRun();
@@ -365,6 +371,7 @@ public final class CpsThreadGroup implements Serializable {
      */
     public void unpause() {
         if (paused.getAndSet(false)) {
+            executionPaused = false;
             // some threads might have became executable while we were pausing.
             scheduleRun();
         } else {
