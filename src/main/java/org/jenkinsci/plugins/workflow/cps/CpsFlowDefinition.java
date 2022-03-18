@@ -56,7 +56,6 @@ import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 
-import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;

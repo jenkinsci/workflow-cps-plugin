@@ -1,22 +1,35 @@
 package org.jenkinsci.plugins.workflow.cps.steps;
 
 import hudson.AbortException;
+import hudson.Launcher;
+import hudson.model.AbstractBuild;
+import hudson.model.BuildListener;
+import hudson.model.FreeStyleBuild;
+import hudson.model.FreeStyleProject;
 import hudson.model.Result;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import static java.util.Arrays.*;
+import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
+import jenkins.model.CauseOfInterruption;
 
 import org.apache.commons.io.IOUtils;
 import org.jenkinsci.plugins.workflow.SingleJobTestBase;
+import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.actions.ThreadNameAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsThreadGroup;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.durable_task.BatchScriptStep;
 import org.jenkinsci.plugins.workflow.steps.durable_task.ShellStep;
@@ -29,6 +42,8 @@ import org.junit.Test;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.TestBuilder;
+import org.jvnet.hudson.test.WithoutJenkins;
 
 /**
  * Tests for {@link ParallelStep}.
@@ -134,7 +149,14 @@ public class ParallelStepTest extends SingleJobTestBase {
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();
                 Assert.assertFalse("a should have aborted", jenkins().getWorkspaceFor(p).child("a.done").exists());
-
+                for (FlowNode n : new DepthFirstScanner().allNodes(e)) {
+                    ErrorAction err = n.getPersistentAction(ErrorAction.class);
+                    if (err != null) {
+                        if (err.getError() instanceof FlowInterruptedException) {
+                            assertEquals("Failed in branch b", ((FlowInterruptedException) err.getError()).getCauses().stream().map(CauseOfInterruption::getShortDescription).collect(Collectors.joining("; ")));
+                        }
+                    }
+                }
             }
         });
     }
@@ -428,7 +450,7 @@ public class ParallelStepTest extends SingleJobTestBase {
         return t;
     }
     private void shouldHaveParallelStepsInTheOrder(String... expected) {
-        List<String> actual = new ArrayList<String>();
+        List<String> actual = new ArrayList<>();
 
         for (Row row : t.getRows()) {
             ThreadNameAction a = row.getNode().getAction(ThreadNameAction.class);
@@ -516,5 +538,184 @@ public class ParallelStepTest extends SingleJobTestBase {
                 story.j.buildAndAssertSuccess(p);
             }
         });
+    }
+
+    @WithoutJenkins
+    @Test
+    public void throwableComparator() throws Exception {
+        Comparator<Throwable> comparator = new ParallelStep.ResultHandler.ThrowableComparator();
+        assertEquals(
+                -1,
+                comparator.compare(
+                        new AbortException(), new FlowInterruptedException(Result.FAILURE)));
+        assertEquals(
+                0,
+                comparator.compare(
+                        new FlowInterruptedException(Result.FAILURE),
+                        new FlowInterruptedException(Result.FAILURE)));
+        assertEquals(
+                1,
+                comparator.compare(
+                        new FlowInterruptedException(Result.FAILURE), new AbortException()));
+        assertEquals(
+                -1,
+                comparator.compare(
+                        new IllegalStateException(), new FlowInterruptedException(Result.FAILURE)));
+        assertEquals(
+                1,
+                comparator.compare(
+                        new FlowInterruptedException(Result.FAILURE), new IllegalStateException()));
+        assertEquals(-1, comparator.compare(new IllegalStateException(), new AbortException()));
+        assertEquals(0, comparator.compare(new AbortException(), new AbortException()));
+        assertEquals(1, comparator.compare(new AbortException(), new IllegalStateException()));
+        assertEquals(
+                1,
+                comparator.compare(
+                        new FlowInterruptedException(Result.SUCCESS),
+                        new FlowInterruptedException(Result.FAILURE)));
+        assertEquals(
+                -1,
+                comparator.compare(
+                        new FlowInterruptedException(Result.FAILURE),
+                        new FlowInterruptedException(Result.SUCCESS)));
+        assertEquals(
+                1,
+                comparator.compare(
+                        new FlowInterruptedException(Result.SUCCESS),
+                        new FlowInterruptedException(Result.UNSTABLE)));
+        assertEquals(
+                -1,
+                comparator.compare(
+                        new FlowInterruptedException(Result.UNSTABLE),
+                        new FlowInterruptedException(Result.SUCCESS)));
+        assertEquals(
+                1,
+                comparator.compare(
+                        new FlowInterruptedException(Result.UNSTABLE),
+                        new FlowInterruptedException(Result.FAILURE)));
+        assertEquals(
+                -1,
+                comparator.compare(
+                        new FlowInterruptedException(Result.FAILURE),
+                        new FlowInterruptedException(Result.UNSTABLE)));
+    }
+
+    @Issue("JENKINS-49073")
+    @Test
+    public void parallelPropagatesStatus() throws Exception {
+        story.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                parallelPropagatesStatusImpl(
+                        Result.SUCCESS, Result.SUCCESS, Result.SUCCESS, Result.SUCCESS);
+                parallelPropagatesStatusImpl(
+                        Result.UNSTABLE, Result.SUCCESS, Result.SUCCESS, Result.UNSTABLE);
+                parallelPropagatesStatusImpl(
+                        Result.FAILURE, Result.SUCCESS, Result.SUCCESS, Result.FAILURE);
+                parallelPropagatesStatusImpl(
+                        Result.FAILURE, Result.SUCCESS, Result.UNSTABLE, Result.FAILURE);
+                parallelPropagatesStatusImpl(
+                        Result.FAILURE, Result.SUCCESS, Result.FAILURE, Result.UNSTABLE);
+                parallelPropagatesStatusImpl(
+                        Result.NOT_BUILT, Result.SUCCESS, Result.NOT_BUILT);
+                parallelPropagatesStatusImpl(
+                        Result.NOT_BUILT, Result.SUCCESS, Result.UNSTABLE, Result.NOT_BUILT);
+                parallelPropagatesStatusImpl(
+                        Result.NOT_BUILT, Result.SUCCESS, Result.UNSTABLE, Result.FAILURE, Result.NOT_BUILT);
+                parallelPropagatesStatusImpl(
+                        Result.NOT_BUILT, Result.NOT_BUILT, Result.NOT_BUILT);
+                parallelPropagatesStatusImpl(
+                        Result.ABORTED, Result.SUCCESS, Result.ABORTED);
+                parallelPropagatesStatusImpl(
+                        Result.ABORTED, Result.SUCCESS, Result.UNSTABLE, Result.ABORTED);
+                parallelPropagatesStatusImpl(
+                        Result.ABORTED, Result.SUCCESS, Result.UNSTABLE, Result.FAILURE, Result.ABORTED);
+                parallelPropagatesStatusImpl(
+                        Result.ABORTED, Result.SUCCESS, Result.UNSTABLE, Result.FAILURE, Result.NOT_BUILT, Result.ABORTED);
+                parallelPropagatesStatusImpl(
+                        Result.ABORTED, Result.ABORTED, Result.ABORTED);
+            }
+        });
+    }
+
+    private void parallelPropagatesStatusImpl(Result upstreamResult, Result... downstreamResults)
+            throws Exception {
+        List<FreeStyleProject> downstreamJobs = new ArrayList<>();
+        for (Result downstreamResult : downstreamResults) {
+            FreeStyleProject downstreamJob = getDownstreamJob(downstreamResult);
+            downstreamJobs.add(downstreamJob);
+        }
+
+        WorkflowJob upstreamJob = story.j.createProject(WorkflowJob.class);
+        StringBuilder upstreamJobDefinition = new StringBuilder();
+        upstreamJobDefinition.append("node {\n");
+        upstreamJobDefinition.append("  parallel(\n");
+        for (FreeStyleProject downstreamJob : downstreamJobs) {
+            upstreamJobDefinition.append(
+                    String.format("    'branch-%s': {\n", downstreamJob.getName()));
+            upstreamJobDefinition.append(
+                    String.format("      semaphore 'sem-%s'\n", downstreamJob.getName()));
+            upstreamJobDefinition.append(
+                    String.format("      build '%s'\n", downstreamJob.getName()));
+            upstreamJobDefinition.append("    },\n");
+        }
+        upstreamJobDefinition.append("  )\n");
+        upstreamJobDefinition.append("}\n");
+        upstreamJob.setDefinition(new CpsFlowDefinition(upstreamJobDefinition.toString(), true));
+
+        WorkflowRun run = upstreamJob.scheduleBuild2(0).waitForStart();
+        for (int i = 0; i < downstreamJobs.size(); i++) {
+            FreeStyleProject downstreamJob = downstreamJobs.get(i);
+            Result downstreamResult = downstreamResults[i];
+
+            SemaphoreStep.success(String.format("sem-%s/1", downstreamJob.getName()), null);
+            story.j.waitForMessage(
+                    String.format("Scheduling project: %s", downstreamJob.getName()), run);
+            story.j.waitForMessage(
+                    String.format("Starting building: %s", downstreamJob.getName()), run);
+            List<FreeStyleBuild> downstreamBuilds = new ArrayList<>();
+            for (FreeStyleBuild downstreamBuild : downstreamJob.getBuilds()) {
+                downstreamBuilds.add(downstreamBuild);
+            }
+            assertEquals(1, downstreamBuilds.size());
+            story.j.waitForCompletion(downstreamBuilds.get(0));
+            if (!downstreamResult.equals(Result.SUCCESS)) {
+                story.j.waitForMessage(
+                        String.format("Failed in branch branch-%s", downstreamJob.getName()), run);
+            }
+        }
+
+        story.j.waitForCompletion(run);
+        story.j.assertBuildStatus(upstreamResult, run);
+
+        for (int i = 0; i < downstreamJobs.size(); i++) {
+            FreeStyleProject downstreamJob = downstreamJobs.get(i);
+            Result downstreamResult = downstreamResults[i];
+
+            if (!downstreamResult.equals(Result.SUCCESS)) {
+                story.j.waitForMessage(
+                        String.format(
+                                "%s #1 completed with status %s",
+                                downstreamJob.getName(), downstreamResult.toString()),
+                        run);
+            }
+        }
+    }
+
+    private FreeStyleProject getDownstreamJob(Result result) throws IOException {
+        FreeStyleProject ds = story.j.createFreeStyleProject();
+        ds.getBuildersList().add(new TestBuilder() {
+            @Override
+            public boolean perform(
+                    AbstractBuild<?, ?> build,
+                    Launcher launcher,
+                    BuildListener listener)
+                    throws InterruptedException, IOException {
+                build.setResult(result);
+                return true;
+            }
+        });
+        ds.setQuietPeriod(0);
+        return ds;
     }
 }

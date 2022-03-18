@@ -34,7 +34,7 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
-import javax.annotation.CheckForNull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -59,7 +59,7 @@ public class StepDescriptorCache implements ExtensionPoint {
         store.clear();
     }
 
-    private final ConcurrentHashMap<String, StepDescriptor> store = new ConcurrentHashMap<String, StepDescriptor>();
+    private final ConcurrentHashMap<String, StepDescriptor> store = new ConcurrentHashMap<>();
 
     @CheckForNull
     public StepDescriptor getDescriptor(String descriptorId) {

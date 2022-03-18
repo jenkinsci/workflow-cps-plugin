@@ -3,7 +3,7 @@ package org.jenkinsci.plugins.workflow.cps;
 import groovy.lang.GroovyShell;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
-import javax.annotation.CheckForNull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.customizers.ImportCustomizer;
 

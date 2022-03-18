@@ -5,8 +5,8 @@ import hudson.model.Item;
 import org.jenkinsci.plugins.workflow.flow.DurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -15,36 +15,36 @@ import java.util.Map;
  */
 @Extension
 public class TestDurabilityHintProvider implements DurabilityHintProvider {
-    private HashMap<String, FlowDurabilityHint> hintMapping = new HashMap<String, FlowDurabilityHint>();
+    private HashMap<String, FlowDurabilityHint> hintMapping = new HashMap<>();
 
     @Override
     public int ordinal() {
         return -1;
     }
 
-    public void registerHint(@Nonnull Item x, @Nonnull FlowDurabilityHint myHint) {
+    public void registerHint(@NonNull Item x, @NonNull FlowDurabilityHint myHint) {
         registerHint(x.getFullName(), myHint);
     }
 
-    public void registerHint(@Nonnull String itemfullName, @Nonnull FlowDurabilityHint myHint) {
+    public void registerHint(@NonNull String itemfullName, @NonNull FlowDurabilityHint myHint) {
         hintMapping.put(itemfullName, myHint);
     }
 
-    public boolean removeHint(@Nonnull Item x) {
+    public boolean removeHint(@NonNull Item x) {
         return removeHint(x.getFullName());
     }
 
-    public boolean removeHint(@Nonnull String itemFullName) {
+    public boolean removeHint(@NonNull String itemFullName) {
         return hintMapping.remove(itemFullName) != null;
     }
 
     public Map<String, FlowDurabilityHint> getMappings() {
-        return new HashMap<String, FlowDurabilityHint>(this.hintMapping);
+        return new HashMap<>(this.hintMapping);
     }
 
     @CheckForNull
     @Override
-    public FlowDurabilityHint suggestFor(@Nonnull Item x) {
+    public FlowDurabilityHint suggestFor(@NonNull Item x) {
         return hintMapping.get(x.getFullName());
     }
 }

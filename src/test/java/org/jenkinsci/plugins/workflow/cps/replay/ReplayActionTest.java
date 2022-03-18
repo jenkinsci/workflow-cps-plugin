@@ -28,15 +28,17 @@ import com.gargoylesoftware.htmlunit.WebAssert;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlTextArea;
-import com.google.common.collect.ImmutableMap;
 import hudson.FilePath;
 import hudson.XmlFile;
 import hudson.cli.CLICommandInvoker;
 import hudson.init.InitMilestone;
 import hudson.init.Initializer;
+import hudson.model.Failure;
 import hudson.model.Item;
 import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
+import hudson.model.PasswordParameterDefinition;
+import hudson.model.PasswordParameterValue;
 import hudson.model.Run;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
@@ -46,7 +48,10 @@ import hudson.security.ACLContext;
 import hudson.security.Permission;
 import java.io.File;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
@@ -130,6 +135,21 @@ public class ReplayActionTest {
                 WorkflowRun b2 = (WorkflowRun) b1.getAction(ReplayAction.class).run("echo \"run again with ${param}\"", Collections.<String,String>emptyMap()).get();
                 story.j.assertLogContains("run again with some value", story.j.assertBuildStatusSuccess(b2));
             }
+        });
+    }
+
+    @Issue("SECURITY-2443")
+    @Test public void withPasswordParameter() {
+        story.then(r -> {
+            WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
+            p.addProperty(new ParametersDefinitionProperty(new PasswordParameterDefinition("passwordParam", "top secret", "")));
+            p.setDefinition(new CpsFlowDefinition("echo(/passwordParam: ${passwordParam}/)", true));
+            WorkflowRun run1 = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0,
+                    new ParametersAction(new PasswordParameterValue("passwordParam", "confidential"))));
+
+            // When we replay a build with password parameter it should fail with access denied exception.
+            assertThrows(Failure.class,
+                    () -> run1.getAction(ReplayAction.class).run("echo(/Replaying passwordParam: ${passwordParam}/)", Collections.emptyMap()).get());
         });
     }
 
@@ -279,9 +299,12 @@ public class ReplayActionTest {
                 assertThat(diff, not(containsString("first part")));
                 System.out.println(diff);
                 // Now replay #2, editing all scripts, and restarting in the middle.
+                Map<String,String> replayMap = new HashMap<>();
+                replayMap.put("Script1", "echo 'new first part'");
+                replayMap.put("Script2", "echo 'newer second part'");
                 WorkflowRun b3 = (WorkflowRun) b2.getAction(ReplayAction.class).run(
                     "node {load 'f1.groovy'}; semaphore 'wait'; node {load 'f2.groovy'}",
-                    ImmutableMap.of("Script1", "echo 'new first part'", "Script2", "echo 'newer second part'")).waitForStart();
+                    Collections.unmodifiableMap(replayMap)).waitForStart();
                 SemaphoreStep.waitForStart("wait/3", b3);
             }
         });

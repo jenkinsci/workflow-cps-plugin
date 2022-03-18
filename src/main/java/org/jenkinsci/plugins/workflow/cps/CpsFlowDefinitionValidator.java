@@ -32,7 +32,6 @@ import org.codehaus.groovy.control.MultipleCompilationErrorsException;
 import org.codehaus.groovy.control.messages.SyntaxErrorMessage;
 import org.codehaus.groovy.syntax.SyntaxException;
 
-import groovy.json.JsonOutput;
 import net.sf.json.JSONObject;
 
 public final class CpsFlowDefinitionValidator {
@@ -43,7 +42,7 @@ public final class CpsFlowDefinitionValidator {
     private CpsFlowDefinitionValidator() {}
 
     public static List<CheckStatus> toCheckStatus(CompilationFailedException x) {
-        List<CheckStatus> errors = new ArrayList<CheckStatus>();
+        List<CheckStatus> errors = new ArrayList<>();
         if (x instanceof MultipleCompilationErrorsException) {
             for (Object o : ((MultipleCompilationErrorsException) x).getErrorCollector().getErrors()) {
                 if (o instanceof SyntaxErrorMessage) {

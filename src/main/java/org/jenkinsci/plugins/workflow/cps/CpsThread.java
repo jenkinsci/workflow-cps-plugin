@@ -26,17 +26,19 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.SettableFuture;
+import java.io.IOException;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -44,6 +46,8 @@ import java.util.logging.Logger;
 import static java.util.logging.Level.*;
 import org.jenkinsci.plugins.workflow.cps.persistence.IteratorHack;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
 import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
 
@@ -58,7 +62,7 @@ public final class CpsThread implements Serializable {
     /**
      * Owner object. A thread always belong to a {@link CpsThreadGroup}
      */
-    @Nonnull
+    @NonNull
     final CpsThreadGroup group;
 
     /**
@@ -85,7 +89,7 @@ public final class CpsThread implements Serializable {
     /**
      * Promise that {@link Continuable#run0(Outcome)} gets eventually invoked with {@link #resumeValue}.
      */
-    private transient SettableFuture<Object> promise;
+    private transient CompletableFuture<Object> promise;
 
     /**
      * The head of the flow node graph that this thread is growing.
@@ -97,7 +101,7 @@ public final class CpsThread implements Serializable {
     final FlowHead head;
 
     @Nullable
-    private final ContextVariableSet contextVariables;
+    private ContextVariableSet contextVariables;
 
     /**
      * If this thread is waiting for a {@link StepExecution} to complete (by invoking our callback),
@@ -108,9 +112,9 @@ public final class CpsThread implements Serializable {
     /**
      * Gets called when the thread is done.
      */
-    private final List<FutureCallback<Object>> completionHandlers = new ArrayList<FutureCallback<Object>>();
+    private final List<FutureCallback<Object>> completionHandlers = new ArrayList<>();
 
-    CpsThread(CpsThreadGroup group, int id, Continuable program, FlowHead head, ContextVariableSet contextVariables) {
+    CpsThread(CpsThreadGroup group, int id, @NonNull Continuable program, FlowHead head, ContextVariableSet contextVariables) {
         this.group = group;
         this.id = id;
         this.program = group.getExecution().isSandbox() ? new SandboxContinuable(program,this) : program;
@@ -126,9 +130,18 @@ public final class CpsThread implements Serializable {
         return group.getExecution();
     }
 
-    <T> T getContextVariable(Class<T> type) {
-        if (contextVariables==null)     return null;
-        return contextVariables.get(type);
+    <T> T getContextVariable(Class<T> key, ContextVariableSet.ThrowingSupplier<FlowExecution> execution, ContextVariableSet.ThrowingSupplier<FlowNode> node) throws IOException, InterruptedException {
+        LOGGER.fine(() -> "looking up " + key.getName() + " from " + contextVariables);
+        T v = contextVariables != null ? contextVariables.get(key, execution, node) : null;
+        if (v != null) {
+            return v;
+        } else if (key == CpsThread.class) {
+            return key.cast(this);
+        } else if (key == CpsThreadGroup.class) {
+            return key.cast(group);
+        } else {
+            return null;
+        }
     }
 
     public ContextVariableSet getContextVariables() {
@@ -147,19 +160,17 @@ public final class CpsThread implements Serializable {
         this.step = step;
     }
 
-    private static final List<Class> categories;
-    static {
-        categories = new ArrayList<>();
-        categories.addAll(Continuable.categories);
-        categories.add(IteratorHack.class);
-    }
+    private static final List<Class> CATEGORIES = ImmutableList.<Class>builder()
+            .addAll(Continuable.categories)
+            .add(IteratorHack.class)
+            .build();
 
     /**
      * Executes CPS code synchronously a little bit more, until it hits
      * the point the workflow needs to be dehydrated.
      */
     @SuppressWarnings("rawtypes")
-    @Nonnull Outcome runNextChunk() {
+    @NonNull Outcome runNextChunk() {
         assert program!=null;
 
         Outcome outcome;
@@ -171,7 +182,7 @@ public final class CpsThread implements Serializable {
             LOGGER.log(FINE, "runNextChunk on {0}", resumeValue);
             final Outcome o = resumeValue;
             resumeValue = null;
-            outcome = program.run0(o, categories);
+            outcome = program.run0(o, CATEGORIES);
             if (outcome.getAbnormal() != null) {
                 LOGGER.log(FINE, "ran and produced error", outcome.getAbnormal());
             } else {
@@ -195,16 +206,15 @@ public final class CpsThread implements Serializable {
         }
 
         if (promise!=null) {
-            if (outcome.isSuccess())        promise.set(outcome.getNormal());
+            if (outcome.isSuccess())        promise.complete(outcome.getNormal());
             else {
                 try {
-                    promise.setException(outcome.getAbnormal());
+                    promise.completeExceptionally(outcome.getAbnormal());
                 } catch (Error e) {
                     if (e==outcome.getAbnormal()) {
                         // SettableFuture tries to rethrow an Error, which we don't want.
                         // so prevent that from happening. I need to see if this behaviour
                         // affects other places that use SettableFuture
-                        ;
                     } else {
                         throw e;
                     }
@@ -221,7 +231,20 @@ public final class CpsThread implements Serializable {
      * (as opposed to have finished running, either normally or abnormally?)
      */
     boolean isAlive() {
+        assert program != null; // Otherwise this CpsThread is not even part of the CpsThreadGroup, so how is it being accessed?
         return program.isResumable();
+    }
+
+    /**
+     * When this thread is removed from its {@link CpsThreadGroup}, we null out most of its references in case
+     * something is unexpectedly holding a reference directly to it (see JENKINS-63164 for an example scenario).
+     */
+    void cleanUp() {
+        program = null;
+        resumeValue = null;
+        step = null;
+        contextVariables = null;
+        completionHandlers.clear();
     }
 
     @CpsVmThreadOnly
@@ -245,7 +268,7 @@ public final class CpsThread implements Serializable {
      * Cannot be {@code this}.
      */
     @CheckForNull CpsThread getNextInner() {
-        for (CpsThread t : group.threads.values()) {
+        for (CpsThread t : group.getThreads()) {
             if (t.id <= this.id) continue;
             if (t.head==this.head)  return t;
         }
@@ -263,7 +286,7 @@ public final class CpsThread implements Serializable {
             return Futures.immediateFailedFuture(new IllegalStateException("Already resumed with " + resumeValue));
         }
         resumeValue = v;
-        promise = SettableFuture.create();
+        promise = new CompletableFuture<>();
         group.scheduleRun();
         return promise;
     }
@@ -301,6 +324,7 @@ public final class CpsThread implements Serializable {
     }
 
     public List<StackTraceElement> getStackTrace() {
+        assert program != null; // Otherwise this CpsThread is not even part of the CpsThreadGroup, so how is it being accessed?
         return program.getStackTrace();
     }
 
@@ -308,7 +332,7 @@ public final class CpsThread implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private static final ThreadLocal<CpsThread> CURRENT = new ThreadLocal<CpsThread>();
+    private static final ThreadLocal<CpsThread> CURRENT = new ThreadLocal<>();
 
     /**
      * While {@link CpsThreadGroup} executes, this method returns {@link CpsThread}

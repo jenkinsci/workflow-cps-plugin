@@ -53,12 +53,12 @@ import org.jvnet.hudson.test.LoggerRule;
 public class StepNodeTest {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-    @Rule public JenkinsRule r = new JenkinsRule();
+    @ClassRule public static JenkinsRule r = new JenkinsRule();
     @Rule public LoggerRule logging = new LoggerRule().record(StepAtomNode.class, Level.FINE);
     
     @Issue("JENKINS-45109")
     @Test public void metastepConsole() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = r.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(
             "node {\n" +
             "  configFileProvider([]) {\n" +
@@ -85,7 +85,7 @@ public class StepNodeTest {
     }
 
     @Test public void metastepConsoleShellClass() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = r.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(
             "node {\n" +
             "  wrap([$class: 'ConfigFileBuildWrapper', managedFiles: []]) {\n" +
@@ -112,7 +112,7 @@ public class StepNodeTest {
     }
 
     @Test public void metastepConsoleRaw() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = r.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(
             "node {\n" +
             "  wrap(new org.jenkinsci.plugins.configfiles.buildwrapper.ConfigFileBuildWrapper([])) {\n" +
@@ -140,7 +140,7 @@ public class StepNodeTest {
 
     @Ignore("TODO ArgumentsAction.getResolvedArguments does not yet handle NotStoredReason sensibly")
     @Test public void metastepConsoleNotStoredArgument() throws Exception {
-        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob p = r.createProject(WorkflowJob.class);
         String spaces = StringUtils.repeat(" ", 1025); // cf. ArgumentsAction.MAX_RETAINED_LENGTH
         p.setDefinition(new CpsFlowDefinition(
             "node {\n" +

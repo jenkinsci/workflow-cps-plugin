@@ -1,7 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.Continuable;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.model.Run;
 import java.io.IOException;
 import org.codehaus.groovy.runtime.GStringImpl;
@@ -12,14 +11,12 @@ import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.ProxyWhitelist;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
-import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.kohsuke.groovy.sandbox.impl.Checker;
 
 /**
@@ -100,9 +97,7 @@ class CpsWhitelist extends AbstractWhitelist {
             Class<?> type = (Class<?>) args[1];
             try {
                 Checker.preCheckedCast(type, object, true, true, false);
-            } catch (RuntimeException x) {
-                throw x;
-            } catch (Error x) {
+            } catch (RuntimeException | Error x) {
                 throw x;
             } catch (Throwable x) {
                 throw new RuntimeException(x);
@@ -145,17 +140,24 @@ class CpsWhitelist extends AbstractWhitelist {
     /**
      * Stuff we whitelist specifically for CPS, with the rest of the installed rules combined.
      */
-    private static final Map<Jenkins,Whitelist> wrappedByJenkins = new WeakHashMap<Jenkins,Whitelist>();
+    private static final Map<Jenkins,Whitelist> wrappedByJenkins = new WeakHashMap<>();
 
-    @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")
     static synchronized Whitelist get() {
         Jenkins j = Jenkins.getInstanceOrNull();
         if (j == null) {
+            LOGGER.warning("Jenkins is not running");
             return new ProxyWhitelist();
         }
         Whitelist wrapped = wrappedByJenkins.get(j);
         if (wrapped == null) {
             wrapped = new ProxyWhitelist(new CpsWhitelist(), Whitelist.all());
+            try {
+                if (!wrapped.permitsStaticMethod(Safepoint.class.getMethod("safepoint"), new Object[0])) {
+                    throw new IllegalStateException("Broken whitelists: " + wrapped);
+                }
+            } catch (NoSuchMethodException x) {
+                assert false : x;
+            }
             wrappedByJenkins.put(j, wrapped);
         }
         return wrapped;

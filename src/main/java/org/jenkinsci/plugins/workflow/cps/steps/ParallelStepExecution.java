@@ -2,6 +2,7 @@ package org.jenkinsci.plugins.workflow.cps.steps;
 
 import groovy.lang.Closure;
 import hudson.model.TaskListener;
+import jenkins.model.CauseOfInterruption;
 import org.jenkinsci.plugins.workflow.actions.LabelAction;
 import org.jenkinsci.plugins.workflow.actions.ThreadNameAction;
 import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
@@ -12,7 +13,7 @@ import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -28,7 +29,7 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 class ParallelStepExecution extends StepExecution {
     private transient ParallelStep parallelStep;
 
-    private final List<BodyExecution> bodies = new ArrayList<BodyExecution>();
+    private final List<BodyExecution> bodies = new ArrayList<>();
 
     public ParallelStepExecution(ParallelStep parallelStep, StepContext context) {
         super(context);
@@ -68,6 +69,12 @@ class ParallelStepExecution extends StepExecution {
         }
     }
 
+    void stop(CauseOfInterruption... causes) {
+        for (BodyExecution body : bodies) {
+            body.cancel(causes);
+        }
+    }
+
     private static final long serialVersionUID = 1L;
 
     @PersistIn(FLOW_NODE)
@@ -84,7 +91,7 @@ class ParallelStepExecution extends StepExecution {
             return "Branch: " + branchName;
         }
 
-        @Nonnull
+        @NonNull
         @Override
         public String getThreadName() {
             return branchName;

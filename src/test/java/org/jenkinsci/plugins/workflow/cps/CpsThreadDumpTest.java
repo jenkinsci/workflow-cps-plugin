@@ -3,6 +3,8 @@ package org.jenkinsci.plugins.workflow.cps;
 import java.util.ArrayList;
 import static java.util.Arrays.asList;
 import java.util.List;
+
+import hudson.model.queue.QueueTaskFuture;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.cps.CpsThreadDump.ThreadInfo;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
@@ -81,7 +83,8 @@ public class CpsThreadDumpTest {
                 "}",
                 "zot()"                 // 10
         ), "\n"), false));
-        WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+        final QueueTaskFuture<WorkflowRun> f = p.scheduleBuild2(0);
+        WorkflowRun b = f.waitForStart();
         SemaphoreStep.waitForStart("x/1", b);
         SemaphoreStep.waitForStart("y/1", b);
 
@@ -101,12 +104,17 @@ public class CpsThreadDumpTest {
             "DSL.semaphore(waiting on y/1)",
             "WorkflowScript.bar(WorkflowScript:3)",
             "WorkflowScript.zot(WorkflowScript:8)");
+
+        SemaphoreStep.success("x/1", null);
+        SemaphoreStep.success("y/1", null);
+        j.assertBuildStatusSuccess(f);
     }
 
     @Test public void load() throws Exception {
         j.jenkins.getWorkspaceFor(p).child("lib.groovy").write("def m() {semaphore 'here'}; this", null);
         p.setDefinition(new CpsFlowDefinition("def lib; node {lib = load 'lib.groovy'}; lib.m()", true));
-        WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+        final QueueTaskFuture<WorkflowRun> f = p.scheduleBuild2(0);
+        WorkflowRun b = f.waitForStart();
         SemaphoreStep.waitForStart("here/1", b);
         CpsThreadDump td = b.getAction(CpsThreadDumpAction.class).threadDumpSynchronous();
         td.print(System.out);
@@ -114,12 +122,14 @@ public class CpsThreadDumpTest {
             "DSL.semaphore(waiting on here/1)",
             "Script1.m(Script1.groovy:1)",
             "WorkflowScript.run(WorkflowScript:1)");
+        SemaphoreStep.success("here/1", null);
+        j.assertBuildStatusSuccess(f);
     }
 
     @Test public void nativeMethods() throws Exception {
         p.setDefinition(new CpsFlowDefinition(
             "@NonCPS def untransformed() {Thread.sleep(Long.MAX_VALUE)}\n" +
-            "def helper() {echo 'sleeping'; /* flush output */ sleep 1; untransformed()}\n" +
+            "def helper() {echo 'sleeping'; untransformed()}\n" +
             "helper()", false));
         WorkflowRun b = p.scheduleBuild2(0).waitForStart();
         CpsFlowExecution e = (CpsFlowExecution) b.getExecutionPromise().get();
@@ -141,7 +151,7 @@ public class CpsThreadDumpTest {
     }
 
     private List<String> toString(List<StackTraceElement> in) {
-        List<String> r = new ArrayList<String>();
+        List<String> r = new ArrayList<>();
         for (StackTraceElement e : in)
             r.add(e.toString());
         return r;

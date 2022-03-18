@@ -9,7 +9,6 @@ import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import com.cloudbees.groovy.cps.impl.TryBlockEnv;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.SettableFuture;
 import hudson.model.Action;
 import hudson.model.Result;
 import hudson.util.Iterators;
@@ -25,7 +24,7 @@ import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
-import javax.annotation.concurrent.GuardedBy;
+import net.jcip.annotations.GuardedBy;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,6 +33,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -41,8 +41,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.LinearBlockHoppingScanner;
@@ -199,14 +199,14 @@ class CpsBodyExecution extends BodyExecution {
                 return Collections.emptySet();
             }
         }
-        final SettableFuture<Collection<StepExecution>> result = SettableFuture.create();
+        final CompletableFuture<Collection<StepExecution>> result = new CompletableFuture<>();
         t.getExecution().runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
             @Override public void onSuccess(CpsThreadGroup g) {
                 try {
                     List<StepExecution> executions = new ArrayList<>();
                     // cf. trick in CpsFlowExecution.getCurrentExecutions(true)
                     Map<FlowHead, CpsThread> m = new LinkedHashMap<>();
-                    for (CpsThread t : g.threads.values()) {
+                    for (CpsThread t : g.getThreads()) {
                         m.put(t.head, t);
                     }
                     for (CpsThread t : m.values()) {
@@ -224,13 +224,13 @@ class CpsBodyExecution extends BodyExecution {
                             }
                         }
                     }
-                    result.set(executions);
+                    result.complete(executions);
                 } catch (Exception x) {
-                    result.setException(x);
+                    result.completeExceptionally(x);
                 }
             }
             @Override public void onFailure(Throwable t) {
-                result.setException(t);
+                result.completeExceptionally(t);
             }
         });
         try {
@@ -258,7 +258,7 @@ class CpsBodyExecution extends BodyExecution {
                 public void onSuccess(CpsThreadGroup g) {
                     // Similar to getCurrentExecutions but we want the raw CpsThread, not a StepExecution; cf. CpsFlowExecution.interrupt
                     Map<FlowHead, CpsThread> m = new LinkedHashMap<>();
-                    for (CpsThread t : thread.group.threads.values()) {
+                    for (CpsThread t : thread.group.getThreads()) {
                         m.put(t.head, t);
                     }
                     for (CpsThread t : Iterators.reverse(ImmutableList.copyOf(m.values()))) {
@@ -385,7 +385,7 @@ class CpsBodyExecution extends BodyExecution {
      *
      * @see #addBodyEndFlowNode()
      */
-    private @Nonnull StepStartNode addBodyStartFlowNode(FlowHead head) {
+    private @NonNull StepStartNode addBodyStartFlowNode(FlowHead head) {
         CpsFlowExecution.maybeAutoPersistNode(head.get());
         StepStartNode start = new StepStartNode(head.getExecution(),
                 context.getStepDescriptor(), head.get());
@@ -400,7 +400,7 @@ class CpsBodyExecution extends BodyExecution {
      *
      * @see #addBodyStartFlowNode(FlowHead)
      */
-    private @Nonnull StepEndNode addBodyEndFlowNode() {
+    private @NonNull StepEndNode addBodyEndFlowNode() {
         try {
             FlowHead head = CpsThread.current().head;
 

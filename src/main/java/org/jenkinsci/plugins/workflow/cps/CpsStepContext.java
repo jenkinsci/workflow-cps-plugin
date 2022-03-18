@@ -30,6 +30,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
+import hudson.Main;
 import hudson.model.Descriptor;
 import hudson.model.Result;
 import hudson.util.DaemonThreadFactory;
@@ -51,18 +52,18 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.DefaultStepContext;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.GuardedBy;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import net.jcip.annotations.GuardedBy;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.CauseOfInterruption;
@@ -138,7 +139,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      * {@link FlowHead#getId()} that should become
      * the parents of the {@link BlockEndNode} when we create one. Only used when this context has the body.
      */
-    final List<Integer> bodyHeads = new ArrayList<Integer>();
+    final List<Integer> bodyHeads = new ArrayList<>();
 
     /**
      * If the invocation of the body is requested, this object remembers how to start it.
@@ -147,11 +148,15 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      * Only used in the synchronous mode while {@link CpsFlowExecution} is in the RUNNABLE state,
      * so this need not be persisted. To preserve the order of invocation in the flow graph,
      * this needs to be a list and not set.
+     *
+     * Must only be accessed via {@link #withBodyInvokers} to avoid race conditions during step startup
+     * before {@link #switchToAsyncMode} is called.
      */
-    transient List<CpsBodyInvoker> bodyInvokers = Collections.synchronizedList(new ArrayList<CpsBodyInvoker>());
+    @GuardedBy("this")
+    private transient List<CpsBodyInvoker> bodyInvokers = new ArrayList<>();
 
     /**
-     * While {@link CpsStepContext} has not received teh response, maintains the body closure.
+     * While {@link CpsStepContext} has not received the response, maintains the body closure.
      *
      * This is the implicit closure block passed to the step invocation.
      */
@@ -215,17 +220,12 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     /**
      * Returns the thread that is executing this step.
-     * Needs to take {@link CpsThreadGroup} as a parameter to prove that the caller is in CpsVmThread.
      *
      * @return
      *      null if the thread has finished executing.
      */
     @CheckForNull CpsThread getThread(CpsThreadGroup g) {
-        CpsThread thread = g.threads.get(threadId);
-        if (thread == null) {
-            LOGGER.log(Level.FINE, "no thread " + threadId + " among " + g.threads.keySet(), new IllegalStateException());
-        }
-        return thread;
+        return g.getThread(threadId);
     }
 
     /**
@@ -237,10 +237,10 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         return getThread(getThreadGroupSynchronously());
     }
 
-    private @Nonnull CpsThreadGroup getThreadGroupSynchronously() throws InterruptedException, IOException {
+    private @NonNull CpsThreadGroup getThreadGroupSynchronously() throws InterruptedException, IOException {
         if (threadGroup == null) {
             ListenableFuture<CpsThreadGroup> pp;
-            CpsFlowExecution flowExecution = getFlowExecution();
+            CpsFlowExecution flowExecution = getExecution();
             while ((pp = flowExecution.programPromise) == null) {
                 Thread.sleep(100); // TODO does JENKINS-33005 remove the need for this?
             }
@@ -285,36 +285,22 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         return newBodyInvoker(body, false);
     }
 
-    public @Nonnull CpsBodyInvoker newBodyInvoker(@Nonnull BodyReference body, boolean unexport) {
+    public @NonNull CpsBodyInvoker newBodyInvoker(@NonNull BodyReference body, boolean unexport) {
         return new CpsBodyInvoker(this, body, unexport);
     }
 
     @Override
     protected <T> T doGet(Class<T> key) throws IOException, InterruptedException {
-        if (FlowNode.class.isAssignableFrom(key)) {
-            return key.cast(getNode());
-        }
-
         CpsThread t = getThreadSynchronously();
         if (t == null) {
             throw new IOException("cannot find current thread");
         }
-
-        T v = t.getContextVariable(key);
-        if (v!=null)        return v;
-
-        if (key == CpsThread.class) {
-            return key.cast(t);
-        }
-        if (key == CpsThreadGroup.class) {
-            return key.cast(t.group);
-        }
-        return null;
+        return t.getContextVariable(key, this::getExecution, this::getNode);
     }
 
     @Override protected FlowNode getNode() throws IOException {
         if (node == null) {
-            node = getFlowExecution().getNode(id);
+            node = getExecution().getNode(id);
             if (node == null) {
                 throw new IOException("no node found for " + id);
             }
@@ -334,36 +320,43 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     }
 
-    private void completed(@Nonnull Outcome newOutcome) {
+    private void completed(@NonNull Outcome newOutcome) {
         if (outcome == null) {
+            LOGGER.finer(() -> this + " completed with " + newOutcome);
             outcome = newOutcome;
             scheduleNextRun();
             whenOutcomeDelivered = new Throwable();
         } else {
             Throwable failure = newOutcome.getAbnormal();
-            if (failure instanceof FlowInterruptedException) {
-                for (CauseOfInterruption cause : ((FlowInterruptedException) failure).getCauses()) {
-                    if (cause instanceof BodyFailed) {
-                        LOGGER.log(Level.FINE, "already completed " + this + " and now received body failure", failure);
-                        // Predictable that the error would be thrown up here; quietly ignore it.
-                        return;
-                    }
+            Level level;
+            if (Main.isUnitTest) {
+                if (failure instanceof FlowInterruptedException && ((FlowInterruptedException) failure).getCauses().stream().anyMatch(BodyFailed.class::isInstance)) {
+                    // Very common and generally uninteresting.
+                    level = Level.FINE;
+                } else {
+                    // Possibly a minor bug.
+                    level = Level.INFO;
                 }
-            }
-            LOGGER.log(Level.WARNING, "already completed " + this, new IllegalStateException("delivered here"));
-            if (failure != null) {
-                LOGGER.log(Level.INFO, "new failure", failure);
             } else {
-                LOGGER.log(Level.INFO, "new success: {0}", outcome.getNormal());
+                // Typically harmless; do not alarm users.
+                level = Level.FINE;
             }
-            if (whenOutcomeDelivered != null) {
-                LOGGER.log(Level.INFO, "previously delivered here", whenOutcomeDelivered);
-            }
-            failure = outcome.getAbnormal();
-            if (failure != null) {
-                LOGGER.log(Level.INFO, "earlier failure", failure);
-            } else {
-                LOGGER.log(Level.INFO, "earlier success: {0}", outcome.getNormal());
+            if (LOGGER.isLoggable(level)) {
+                LOGGER.log(level, "already completed " + this, new IllegalStateException("delivered here"));
+                if (failure != null) {
+                    LOGGER.log(level, "new failure", failure);
+                } else {
+                    LOGGER.log(level, "new success: {0}", outcome.getNormal());
+                }
+                if (whenOutcomeDelivered != null) {
+                    LOGGER.log(level, "previously delivered here", whenOutcomeDelivered);
+                }
+                Throwable earlierFailure = outcome.getAbnormal();
+                if (earlierFailure != null) {
+                    LOGGER.log(level, "earlier failure", earlierFailure);
+                } else {
+                    LOGGER.log(level, "earlier success: {0}", outcome.getNormal());
+                }
             }
         }
     }
@@ -380,9 +373,9 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
         try {
             final FlowNode n = getNode();
-            final CpsFlowExecution flow = getFlowExecution();
+            final CpsFlowExecution flow = getExecution();
 
-            final List<FlowNode> parents = new ArrayList<FlowNode>();
+            final List<FlowNode> parents = new ArrayList<>();
             for (int head : bodyHeads) {
                 FlowHead flowHead = flow.getFlowHead(head);
                 if (flowHead != null) {
@@ -441,6 +434,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                         thread.setStep(null);
                         thread.resume(getOutcome());
                     }
+                    outcome = new Outcome(null, new AlreadyCompleted());
                 }
 
                 /**
@@ -455,6 +449,20 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         }
     }
 
+    /**
+     * Marker for steps which have completed.
+     * We no longer wish to hold on to their live objects as that could be a memory leak.
+     * We could use {@code new Outcome(null, null)}
+     * but that could be confused with a legitimate null return value;
+     * {@link #outcome} must be nonnull for {@link #isCompleted} to work.
+     * If this exception appears in the program, something is wrong.
+     */
+    private static final class AlreadyCompleted extends AssertionError {
+        @Override public synchronized Throwable fillInStackTrace() {
+            return this;
+        }
+    }
+
     private static class BodyFailed extends CauseOfInterruption {
         @Override public String getShortDescription() {
             return "Body of block-scoped step failed";
@@ -464,14 +472,10 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     @Override
     public void setResult(Result r) {
         try {
-            getFlowExecution().setResult(r);
+            getExecution().setResult(r);
         } catch (IOException x) {
             LOGGER.log(Level.FINE, null, x);
         }
-    }
-
-    private @Nonnull CpsFlowExecution getFlowExecution() throws IOException {
-        return (CpsFlowExecution)executionRef.get();
     }
 
     synchronized boolean isCompleted() {
@@ -520,10 +524,30 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         return !isCompleted();
     }
 
+    /**
+     * Perform an action on {@link #bodyInvokers} while synchronizing on this {@link CpsStepContext}
+     * to avoid concurrency issues.
+     * 
+     * In some cases, it may be important for calls to other synchronized methods on {@link CpsStepContext}
+     * to happen inside of this action so that they are atomic with respect to any other modifications. For
+     * example, when an async step starts, {@code DSL$ThreadTaskImpl.invokeBody} attempts to run any
+     * synchronously-added bodies before switching to async mode via {@link #switchToAsyncMode}. This needs
+     * to be done as a single, atomic operation, so that {@link CpsBodyInvoker} does not try to add synchronous
+     * bodies after {@code DSL$ThreadTaskImpl.invokeBody} has invoked the bodies but before it has called
+     * {@link #switchToAsyncMode}.
+     *
+     * @param <R> the return type of the action
+     * @param action the action to perform
+     * @return the result of performing the action
+     */
+    synchronized <R> R withBodyInvokers(Function<List<CpsBodyInvoker>, R> action) {
+        return action.apply(bodyInvokers);
+    }
+
     @Override public ListenableFuture<Void> saveState() {
         try {
             final SettableFuture<Void> f = SettableFuture.create();
-            CpsFlowExecution exec = getFlowExecution();
+            CpsFlowExecution exec = getExecution();
             if (!exec.getDurabilityHint().isPersistWithEveryStep()) {
                 f.set(null);
                 return f;
@@ -584,8 +608,8 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     @SuppressFBWarnings("SE_INNER_CLASS")
     private class ScheduleNextRun implements FutureCallback<Object>, Serializable {
-        public void onSuccess(Object _)    { scheduleNextRun(); }
-        public void onFailure(Throwable _) { scheduleNextRun(); }
+        public void onSuccess(Object e)    { scheduleNextRun(); }
+        public void onFailure(Throwable e) { scheduleNextRun(); }
 
         private static final long serialVersionUID = 1L;
     }

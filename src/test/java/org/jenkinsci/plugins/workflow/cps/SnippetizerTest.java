@@ -25,29 +25,27 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import groovy.lang.GroovyShell;
-import hudson.model.BooleanParameterDefinition;
-import hudson.model.BooleanParameterValue;
-import hudson.model.FreeStyleProject;
-import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Result;
-import hudson.model.StringParameterDefinition;
-import hudson.model.StringParameterValue;
 import hudson.tasks.ArtifactArchiver;
-import hudson.tasks.junit.JUnitResultArchiver;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
-import org.jenkinsci.plugins.workflow.steps.CatchErrorStep;
 import org.jenkinsci.plugins.workflow.steps.CoreStep;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
 import org.jenkinsci.plugins.workflow.steps.PwdStep;
 import org.jenkinsci.plugins.workflow.steps.ReadFileStep;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.steps.TimeoutStep;
 import org.jenkinsci.plugins.workflow.support.steps.ExecutorStep;
 import org.jenkinsci.plugins.workflow.support.steps.WorkspaceStep;
-import org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStep;
+import org.jenkinsci.plugins.workflow.testMetaStep.Circle;
 import org.jenkinsci.plugins.workflow.testMetaStep.Colorado;
+import org.jenkinsci.plugins.workflow.testMetaStep.CurveMetaStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.EchoResultStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.EchoStringAndDoubleStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Hawaii;
@@ -59,6 +57,7 @@ import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicListWithSymbolStep
 import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.MonomorphicWithSymbolStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.Oregon;
+import org.jenkinsci.plugins.workflow.testMetaStep.Polygon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.CarbonMonoxide;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.DetectionMetaStep;
@@ -67,20 +66,20 @@ import org.junit.Test;
 import org.jvnet.hudson.test.Email;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.MockFolder;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 
-import static org.hamcrest.CoreMatchers.*;
-import org.jenkinsci.plugins.workflow.testMetaStep.Circle;
-import org.jenkinsci.plugins.workflow.testMetaStep.CurveMetaStep;
-import org.jenkinsci.plugins.workflow.testMetaStep.Polygon;
-import static org.junit.Assert.*;
 import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.TestExtension;
+import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
+
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 // TODO these tests would better be moved to the respective plugins
 
@@ -162,17 +161,6 @@ public class SnippetizerTest {
         st.assertRoundTrip(new EchoStep("echo hello\necho 1/2 way\necho goodbye"), "echo '''echo hello\necho 1/2 way\necho goodbye'''");
     }
 
-    @Test public void buildTriggerStep() throws Exception {
-        BuildTriggerStep step = new BuildTriggerStep("downstream");
-        st.assertRoundTrip(step, "build 'downstream'");
-        step.setParameters(Arrays.asList(new StringParameterValue("branch", "default"), new BooleanParameterValue("correct", true)));
-        if (StringParameterDefinition.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
-            st.assertRoundTrip(step, "build job: 'downstream', parameters: [string(name: 'branch', value: 'default'), booleanParam(name: 'correct', value: true)]");
-        } else { // TODO 2.x delete
-            st.assertRoundTrip(step, "build job: 'downstream', parameters: [[$class: 'StringParameterValue', name: 'branch', value: 'default'], [$class: 'BooleanParameterValue', name: 'correct', value: true]]");
-        }
-    }
-
     @Issue("JENKINS-25779")
     @Test public void defaultValues() throws Exception {
         st.assertRoundTrip(new InputStep("Ready?"), "input 'Ready?'");
@@ -194,45 +182,28 @@ public class SnippetizerTest {
         st.assertGenerateSnippet("{'stapler-class':'" + CarbonMonoxide.class.getName() + "'}", "detect CO()", null);
     }
 
-    @Issue("JENKINS-26093")
-    @Test public void generateSnippetForBuildTrigger() throws Exception {
-        MockFolder d1 = r.createFolder("d1");
-        FreeStyleProject ds = d1.createProject(FreeStyleProject.class, "ds");
-        MockFolder d2 = r.createFolder("d2");
-        // Really this would be a WorkflowJob, but we cannot depend on that here, and it should not matter since we are just looking for Job:
-        FreeStyleProject us = d2.createProject(FreeStyleProject.class, "us");
-        ds.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("key", ""), new BooleanParameterDefinition("flag", false, "")));
-        String snippet;
-        if (StringParameterDefinition.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
-            snippet = "build job: '../d1/ds', parameters: [string(name: 'key', value: 'stuff'), booleanParam(name: 'flag', value: true)]";
-        } else { // TODO 2.x delete
-            snippet = "build job: '../d1/ds', parameters: [[$class: 'StringParameterValue', name: 'key', value: 'stuff'], [$class: 'BooleanParameterValue', name: 'flag', value: true]]";
-        }
-        st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'../d1/ds', 'parameter': [{'name':'key', 'value':'stuff'}, {'name':'flag', 'value':true}]}", snippet, us.getAbsoluteUrl() + "configure");
-    }
-
-    @Issue("JENKINS-29739")
-    @Test public void generateSnippetForBuildTriggerSingle() throws Exception {
-        FreeStyleProject ds = r.jenkins.createProject(FreeStyleProject.class, "ds1");
-        FreeStyleProject us = r.jenkins.createProject(FreeStyleProject.class, "us1");
-        ds.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("key", "")));
-        String snippet;
-        if (StringParameterDefinition.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
-            snippet = "build job: 'ds1', parameters: [string(name: 'key', value: 'stuff')]";
-        } else { // TODO 2.x delete
-            snippet = "build job: 'ds1', parameters: [[$class: 'StringParameterValue', name: 'key', value: 'stuff']]";
-        }
-        st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'ds1', 'parameter': {'name':'key', 'value':'stuff'}}", snippet, us.getAbsoluteUrl() + "configure");
-    }
-
-    @Test public void generateSnippetForBuildTriggerNone() throws Exception {
-        FreeStyleProject ds = r.jenkins.createProject(FreeStyleProject.class, "ds0");
-        FreeStyleProject us = r.jenkins.createProject(FreeStyleProject.class, "us0");
-        st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'ds0'}", "build 'ds0'", us.getAbsoluteUrl() + "configure");
-    }
-
     @Test public void generateSnippetAdvancedDeprecated() throws Exception {
-        st.assertGenerateSnippet("{'stapler-class':'" + CatchErrorStep.class.getName() + "'}", "// " + Messages.Snippetizer_this_step_should_not_normally_be_used_in() + "\ncatchError {\n    // some block\n}", null);
+        st.assertGenerateSnippet("{'stapler-class':'" + AdvancedStep.class.getName() + "'}", "// " + Messages.Snippetizer_this_step_should_not_normally_be_used_in() + "\nadvancedStuff {\n    // some block\n}", null);
+    }
+    public static final class AdvancedStep extends Step {
+        @DataBoundConstructor public AdvancedStep() {}
+        @Override public StepExecution start(StepContext context) throws Exception {
+            throw new UnsupportedOperationException();
+        }
+        @TestExtension/* cannot specify test name when using ClassRule */ public static final class DescriptorImpl extends StepDescriptor {
+            @Override public String getFunctionName() {
+                return "advancedStuff";
+            }
+            @Override public boolean isAdvanced() {
+                return true;
+            }
+            @Override public boolean takesImplicitBlockArgument() {
+                return true;
+            }
+            @Override public Set<? extends Class<?>> getRequiredContext() {
+                return Collections.emptySet();
+            }
+        }
     }
 
     @Issue({"JENKINS-26126", "JENKINS-37215"})
@@ -260,7 +231,7 @@ public class SnippetizerTest {
     @Test public void doGdsl() throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
         String gdsl = wc.goTo(Snippetizer.ACTION_URL + "/gdsl", "text/plain").getWebResponse().getContentAsString();
-        assertThat("Description is included as doc", gdsl, containsString("Build a job"));
+        assertThat("Description is included as doc", gdsl, containsString("Shell Script"));
         assertThat("Timeout step appears", gdsl, containsString("name: 'timeout'"));
 
         // Verify valid groovy syntax.
@@ -272,7 +243,7 @@ public class SnippetizerTest {
     @Test public void doDsld() throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
         String dsld = wc.goTo(Snippetizer.ACTION_URL + "/dsld", "text/plain").getWebResponse().getContentAsString();
-        assertThat("Description is included as doc", dsld, containsString("Build a job"));
+        assertThat("Description is included as doc", dsld, containsString("Shell Script"));
         assertThat("Timeout step appears", dsld, containsString("name: 'timeout'"));
 
         // Verify valid groovy sntax.
@@ -332,12 +303,7 @@ public class SnippetizerTest {
 
     @Test
     public void oneOrMoreArgsStepDocs() throws Exception {
-        SnippetizerTester.assertDocGeneration(InputStep.class);
-    }
-
-    @Test
-    public void buildStepDocs() throws Exception {
-        SnippetizerTester.assertDocGeneration(BuildTriggerStep.class);
+        SnippetizerTester.assertDocGeneration(TimeoutStep.class);
     }
 
     @Test

@@ -45,8 +45,8 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import javax.lang.model.SourceVersion;
 import jenkins.model.Jenkins;
 import jenkins.model.TransientActionFactory;
@@ -89,7 +89,20 @@ import org.kohsuke.stapler.StaplerRequest;
      * @return A string translation of the object.
      */
     public static String object2Groovy(Object o) throws UnsupportedOperationException {
-        return object2Groovy(new StringBuilder(), o, false).toString();
+        return object2Groovy(o, false);
+    }
+
+    /**
+     * Publicly accessible version of {@link #object2Groovy(StringBuilder, Object, boolean)} that translates an object into
+     * the equivalent Pipeline Groovy string.
+     *
+     * @param o The object to translate.
+     * @param nestedExp
+     *      true if this object is written as a nested expression (in which case we always produce parentheses for readability)
+     * @return A string translation of the object.
+     */
+    public static String object2Groovy(Object o, boolean nestedExp) throws UnsupportedOperationException {
+        return object2Groovy(new StringBuilder(), o, nestedExp).toString();
     }
 
     /**
@@ -151,7 +164,7 @@ import org.kohsuke.stapler.StaplerRequest;
                             boolean failSimplification = false;
 
                             UninstantiatedDescribable nested = (UninstantiatedDescribable) wrapped;
-                            TreeMap<String, Object> copy = new TreeMap<String, Object>(nested.getArguments());
+                            TreeMap<String, Object> copy = new TreeMap<>(nested.getArguments());
                             for (Entry<String, ?> e : uninst.getArguments().entrySet()) {
                                 if (!e.getKey().equals(p.getName())) {
                                     if (copy.put(e.getKey(), e.getValue()) != null) {
@@ -380,10 +393,6 @@ import org.kohsuke.stapler.StaplerRequest;
         return null;
     }
 
-    @Override public Descriptor getDescriptorByName(String id) {
-        return Jenkins.get().getDescriptorByName(id);
-    }
-
     @Restricted(NoExternalUse.class)
     public Collection<QuasiDescriptor> getQuasiDescriptors(boolean advanced) {
         TreeSet<QuasiDescriptor> t = new TreeSet<>();
@@ -530,7 +539,7 @@ import org.kohsuke.stapler.StaplerRequest;
     /**
      * Used to generate the list of links on the sidepanel.
      */
-    @Nonnull
+    @NonNull
     public List<SnippetizerLink> getSnippetizerLinks() {
         return ExtensionList.lookup(SnippetizerLink.class);
     }

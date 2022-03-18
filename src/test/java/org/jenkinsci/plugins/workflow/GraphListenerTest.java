@@ -18,6 +18,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Random;
 import java.util.logging.Level;
+import org.jvnet.hudson.test.Issue;
 
 public class GraphListenerTest
 {
@@ -29,6 +30,7 @@ public class GraphListenerTest
 
     private static final String LOG_MESSAGE = "some problem here";
 
+    @Issue("JENKINS-54890")
     @Test
     public void listener()
         throws Exception

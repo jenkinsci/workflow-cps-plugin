@@ -12,12 +12,13 @@ import java.net.URL;
 import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import org.codehaus.groovy.control.CompilationFailedException;
 import org.codehaus.groovy.control.CompilationUnit;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.SourceUnit;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.Whitelist;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.GroovySandbox;
 
 /**
@@ -127,7 +128,15 @@ class CpsGroovyShell extends GroovyShell {
     }
 
     private Script doParse(GroovyCodeSource codeSource) throws CompilationFailedException {
-        try (GroovySandbox.Scope scope = new GroovySandbox().enter()) {
+        GroovySandbox sandbox = new GroovySandbox();
+        if (execution != null) {
+            sandbox.withWhitelist(new GroovyClassLoaderWhitelist(Whitelist.all(),
+                execution.getTrustedShell().getClassLoader(),
+                execution.getShell().getClassLoader()));
+        } else {
+            sandbox.withWhitelist(new GroovyClassLoaderWhitelist(Whitelist.all(), getClassLoader()));
+        }
+        try (GroovySandbox.Scope scope = sandbox.enter()) {
             if (execution != null) {
                 try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.parse)) {
                     return super.parse(codeSource);
@@ -151,8 +160,8 @@ class CpsGroovyShell extends GroovyShell {
     }
 
     static class TimingLoader extends ClassLoader {
-        private final @Nonnull CpsFlowExecution execution;
-        TimingLoader(ClassLoader parent, @Nonnull CpsFlowExecution execution) {
+        private final @NonNull CpsFlowExecution execution;
+        TimingLoader(ClassLoader parent, @NonNull CpsFlowExecution execution) {
             super(parent);
             this.execution = execution;
         }

@@ -35,8 +35,10 @@ import hudson.init.Initializer;
 import hudson.model.Action;
 import hudson.model.Cause;
 import hudson.model.CauseAction;
+import hudson.model.Failure;
 import hudson.model.Item;
 import hudson.model.ParametersAction;
+import hudson.model.PasswordParameterValue;
 import hudson.model.Queue;
 import hudson.model.Run;
 import hudson.model.queue.QueueTaskFuture;
@@ -55,8 +57,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import javax.servlet.ServletException;
 
 import hudson.util.HttpResponses;
@@ -96,7 +98,7 @@ public class ReplayAction implements Action {
     }
 
     @Override public String getDisplayName() {
-        return Messages.ReplayAction_displayName();
+        return isEnabled() ? Messages.ReplayAction_displayName() : Messages.ReplayAction_rebuild_displayName();
     }
 
     @Override public String getIconFileName() {
@@ -154,7 +156,7 @@ public class ReplayAction implements Action {
 
         CpsFlowExecution exec = getExecutionLazy();
         if (exec != null) {
-            return exec.isSandbox() || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS); // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-master code
+            return exec.isSandbox() || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS); // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-controller code
         } else {
             // If the execution hasn't been lazy-loaded then we will wait to do deeper checks until someone tries to lazy load
             // OR until isReplayableSandboxTest is invoked b/c they actually try to replay the build
@@ -167,7 +169,7 @@ public class ReplayAction implements Action {
         CpsFlowExecution exec = getExecutionBlocking();
         if (exec != null) {
             if (!exec.isSandbox()) {
-                // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-master code
+                // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-controller code
                 return Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS);
             }
             return true;
@@ -206,7 +208,7 @@ public class ReplayAction implements Action {
         }
         JSONObject form = req.getSubmittedForm();
         // Copy originalLoadedScripts, replacing values with those from the form wherever defined.
-        Map<String,String> replacementLoadedScripts = new HashMap<String,String>();
+        Map<String,String> replacementLoadedScripts = new HashMap<>();
         for (Map.Entry<String,String> entry : getOriginalLoadedScripts().entrySet()) {
             // optString since you might be replaying a running build, which might have loaded a script after the page load but before submission.
             replacementLoadedScripts.put(entry.getKey(), form.optString(entry.getKey().replace('.', '_'), entry.getValue()));
@@ -242,7 +244,7 @@ public class ReplayAction implements Action {
      * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
      * @return a way to wait for the replayed build to complete
      */
-    public @CheckForNull QueueTaskFuture/*<Run>*/ run(@Nonnull String replacementMainScript, @Nonnull Map<String,String> replacementLoadedScripts) {
+    public @CheckForNull QueueTaskFuture/*<Run>*/ run(@NonNull String replacementMainScript, @NonNull Map<String,String> replacementLoadedScripts) {
         Queue.Item item = run2(replacementMainScript, replacementLoadedScripts);
         return item == null ? null : item.getFuture();
     }
@@ -254,18 +256,28 @@ public class ReplayAction implements Action {
      * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
      * @return build queue item
      */
-    public @CheckForNull Queue.Item run2(@Nonnull String replacementMainScript, @Nonnull Map<String,String> replacementLoadedScripts) {
-        List<Action> actions = new ArrayList<Action>();
+    public @CheckForNull Queue.Item run2(@NonNull String replacementMainScript, @NonNull Map<String,String> replacementLoadedScripts) {
+        List<Action> actions = new ArrayList<>();
         CpsFlowExecution execution = getExecutionBlocking();
         if (execution == null) {
             return null;
         }
         actions.add(new ReplayFlowFactoryAction(replacementMainScript, replacementLoadedScripts, execution.isSandbox()));
         actions.add(new CauseAction(new Cause.UserIdCause(), new ReplayCause(run)));
+
+        if (hasPasswordParameter(this.run)) {
+            throw new Failure("Replay is not allowed when password parameters are used.");
+        }
+
         for (Class<? extends Action> c : COPIED_ACTIONS) {
             actions.addAll(run.getActions(c));
         }
         return ParameterizedJobMixIn.scheduleBuild2(run.getParent(), 0, actions.toArray(new Action[actions.size()]));
+    }
+
+    private boolean hasPasswordParameter(Run run) {
+        ParametersAction pa = run.getAction(ParametersAction.class);
+        return pa != null && pa.getParameters().stream().anyMatch(PasswordParameterValue.class::isInstance);
     }
 
     /**
@@ -273,7 +285,7 @@ public class ReplayAction implements Action {
      * @param execution the associated execution
      * @return Groovy class names expected to be produced, like {@code Script1}
      */
-    public static @Nonnull Set<String> replacementsIn(@Nonnull CpsFlowExecution execution) throws IOException {
+    public static @NonNull Set<String> replacementsIn(@NonNull CpsFlowExecution execution) throws IOException {
         Queue.Executable executable = execution.getOwner().getExecutable();
         if (executable instanceof Run) {
             ReplayFlowFactoryAction action = ((Run) executable).getAction(ReplayFlowFactoryAction.class);
@@ -295,7 +307,7 @@ public class ReplayAction implements Action {
      * @param clazz an entry possibly in {@link #replacementsIn}
      * @return the replacement text, or null if no replacement was available for some reason
      */
-    public static @CheckForNull String replace(@Nonnull CpsFlowExecution execution, @Nonnull String clazz) throws IOException {
+    public static @CheckForNull String replace(@NonNull CpsFlowExecution execution, @NonNull String clazz) throws IOException {
         Queue.Executable executable = execution.getOwner().getExecutable();
         if (executable instanceof Run) {
             ReplayFlowFactoryAction action = ((Run) executable).getAction(ReplayFlowFactoryAction.class);

@@ -36,7 +36,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
@@ -55,15 +55,15 @@ import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
  */
 @PersistIn(NONE)
 public final class CpsBodyInvoker extends BodyInvoker {
-    /*package*/ final List<Object> contextOverrides = new ArrayList<Object>();
+    /*package*/ final List<Object> contextOverrides = new ArrayList<>();
 
     /*package*/ final BodyReference body;
 
     private final CpsStepContext owner;
 
-    private List<BodyExecutionCallback> callbacks = new ArrayList<BodyExecutionCallback>();
+    private List<BodyExecutionCallback> callbacks = new ArrayList<>();
 
-    /*package*/ final List<Action> startNodeActions = new ArrayList<Action>();
+    /*package*/ final List<Action> startNodeActions = new ArrayList<>();
 
     private String displayName;
 
@@ -111,7 +111,7 @@ public final class CpsBodyInvoker extends BodyInvoker {
     }
 
     @Override
-    public CpsBodyInvoker withDisplayName(@Nonnull String name) {
+    public CpsBodyInvoker withDisplayName(@NonNull String name) {
         this.displayName = name;
         return this;
     }
@@ -136,12 +136,17 @@ public final class CpsBodyInvoker extends BodyInvoker {
             throw new IllegalStateException("The " + owner.getDisplayName() + " step has already completed.");
         }
 
-        if (owner.isSyncMode()) {
-            // we call 'launch' later from DSL.ThreadTaskImpl.
-            // in this mode, the first thread inherits the same thread, but
-            // all the other body executions are run as new threads, for the parallel.
-            owner.bodyInvokers.add(this);
-        } else {
+        boolean addedSynchrously = owner.withBodyInvokers(bodyInvokers -> {
+            if (owner.isSyncMode()) {
+                // we call 'launch' later from DSL.ThreadTaskImpl.
+                // in this mode, the first thread inherits the same thread, but
+                // all the other body executions are run as new threads, for the parallel.
+                bodyInvokers.add(this);
+                return true;
+            }
+            return false;
+        });
+        if (!addedSynchrously) {
             // when this method is called asynchronously, the body is scheduled to run in the same thread
             // that started run.
             try {

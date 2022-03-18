@@ -22,8 +22,8 @@ import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jvnet.hudson.test.JenkinsRule;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -59,13 +59,29 @@ public class SnippetizerTester {
      * @param referer
      *      needed because of {@link StaplerReferer}
      */
-    public void assertGenerateSnippet(@Nonnull String json, @Nonnull String responseText, @CheckForNull String referer) throws Exception {
+    public void assertGenerateSnippet(@NonNull String json, @NonNull String responseText, @CheckForNull String referer) throws Exception {
+        assertGenerateSnippet(Snippetizer.GENERATE_URL, json, responseText, referer);
+    }
+
+    /**
+     * Tests a form submitting part of snippetizer.
+     *
+     * @param url
+     *      Generation URL
+     * @param json
+     *      The form submission value from the configuration page to be tested.
+     * @param responseText
+     *      Expected snippet to be generated
+     * @param referer
+     *      needed because of {@link StaplerReferer}
+     */
+    protected void assertGenerateSnippet(@NonNull String url, @NonNull String json, @NonNull String responseText, @CheckForNull String referer) throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
-        WebRequest wrs = new WebRequest(new URL(r.getURL(), Snippetizer.GENERATE_URL), HttpMethod.POST);
+        WebRequest wrs = new WebRequest(new URL(r.getURL(), url), HttpMethod.POST);
         if (referer != null) {
             wrs.setAdditionalHeader("Referer", referer);
         }
-        List<NameValuePair> params = new ArrayList<NameValuePair>();
+        List<NameValuePair> params = new ArrayList<>();
         params.add(new NameValuePair("json", json));
         // WebClient.addCrumb *replaces* rather than *adds*:
         params.add(new NameValuePair(r.jenkins.getCrumbIssuer().getDescriptor().getCrumbRequestField(), r.jenkins.getCrumbIssuer().getCrumb(null)));
@@ -89,11 +105,24 @@ public class SnippetizerTester {
      */
     public void assertRoundTrip(Step step, String expected) throws Exception {
         assertEquals(expected, Snippetizer.step2Groovy(step));
+        assertParseStep(step, expected);
+    }
+
+    /**
+     * Given a DSL script, make sure it gets parsed as the provided step object.
+     * Useful for testing backwards compatibility when changing symbols or step parameter names. In other cases prefer {@link #assertRoundTrip}.
+     *
+     * @param expectedStep
+     *      A fully configured step object
+     * @param script
+     *      The DSL script to be parsed as step
+     */
+    public void assertParseStep(Step expectedStep, String script) throws Exception {
         CompilerConfiguration cc = new CompilerConfiguration();
         cc.setScriptBaseClass(DelegatingScript.class.getName());
         GroovyShell shell = new GroovyShell(r.jenkins.getPluginManager().uberClassLoader,new Binding(),cc);
 
-        DelegatingScript s = (DelegatingScript) shell.parse(expected);
+        DelegatingScript s = (DelegatingScript) shell.parse(script);
         s.o = new DSL(new DummyOwner()) {
             // for testing, instead of executing the step just return an instantiated Step
             @Override
@@ -107,7 +136,7 @@ public class SnippetizerTester {
         };
 
         Step actual = (Step) s.run();
-        r.assertEqualDataBoundBeans(step, actual);
+        r.assertEqualDataBoundBeans(expectedStep, actual);
     }
 
     /**

@@ -31,7 +31,6 @@ import hudson.model.User;
 import hudson.security.ACL;
 import hudson.security.ACLContext;
 import jenkins.model.Jenkins;
-import org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.SecureGroovyScript;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.junit.Test;
 import static org.junit.Assert.*;

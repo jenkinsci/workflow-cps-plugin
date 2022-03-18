@@ -34,8 +34,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -169,7 +169,7 @@ public class DynamicEnvironmentExpanderTest {
 
         @Override
         public void buildEnvironmentFor(@CheckForNull StepContext stepContext,
-            @Nonnull EnvVars envs,
+            @NonNull EnvVars envs,
             @CheckForNull TaskListener listener) throws IOException, InterruptedException {
 
             FlowNode node = stepContext.get(FlowNode.class);

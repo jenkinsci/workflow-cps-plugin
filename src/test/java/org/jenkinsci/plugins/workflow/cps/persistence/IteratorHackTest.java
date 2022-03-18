@@ -217,4 +217,43 @@ public class IteratorHackTest {
             }
         });
     }
+
+    @Issue("JENKINS-62659")
+    @Test public void linkedListIterator() throws Exception {
+        // Fails intermittently before the fix for JENKINS-62659.
+        rr.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition(
+                    "def col = new LinkedList<>([1])\n" +
+                    "for (Integer i in col) {\n" +
+                    "  semaphore('wait')\n" +
+                    "}\n", false));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+        });
+        rr.then(r -> {
+            WorkflowRun b = r.jenkins.getItemByFullName("p", WorkflowJob.class).getLastBuild();
+            SemaphoreStep.success("wait/1", null);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+        });
+    }
+
+    @Issue("JENKINS-62659")
+    @Test public void dequeIterator() throws Exception {
+        rr.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition(
+                    "def col = new ArrayDeque<>([1])\n" +
+                    "for (Integer i in col) {\n" +
+                    "  semaphore('wait')\n" +
+                    "}\n", false));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+        });
+        rr.then(r -> {
+            WorkflowRun b = r.jenkins.getItemByFullName("p", WorkflowJob.class).getLastBuild();
+            SemaphoreStep.success("wait/1", null);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+        });
+    }
 }

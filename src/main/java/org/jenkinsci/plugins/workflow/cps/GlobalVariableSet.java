@@ -9,8 +9,8 @@ import hudson.model.Job;
 import hudson.model.Run;
 import java.util.Collection;
 import java.util.Iterator;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -27,7 +27,7 @@ public abstract class GlobalVariableSet implements ExtensionPoint, Iterable<Glob
      * @param run a build, which may or may not still be running; or may be left null to look for variables that exist without any context
      * @return a possibly empty set
      */
-    public /* abstract */ @Nonnull Collection<GlobalVariable> forRun(@CheckForNull Run<?,?> run) {
+    public /* abstract */ @NonNull Collection<GlobalVariable> forRun(@CheckForNull Run<?,?> run) {
         return Lists.newArrayList(iterator());
     }
 
@@ -36,7 +36,7 @@ public abstract class GlobalVariableSet implements ExtensionPoint, Iterable<Glob
      * @param job a job; or may be left null to look for variables that exist without any context
      * @return a possibly empty set; by default delegates to {@link #forRun} on {@link Job#getLastSuccessfulBuild}
      */
-    public @Nonnull Collection<GlobalVariable> forJob(@CheckForNull Job<?,?> job) {
+    public @NonNull Collection<GlobalVariable> forJob(@CheckForNull Job<?,?> job) {
         return forRun(job != null ? job.getLastSuccessfulBuild() : null);
     }
 

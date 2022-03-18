@@ -27,7 +27,6 @@ package org.jenkinsci.plugins.workflow;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.junit.Test;
-import static org.junit.Assert.*;
 import org.junit.Rule;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -40,7 +39,7 @@ public class SubtypeInjectingStepTest {
     public void contextInjectionOfSubParameters() throws Exception {
         // see SubtypeInjectingStep
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("node('master') { injectSubtypesAsContext() }", false));
+        p.setDefinition(new CpsFlowDefinition("node('" + r.jenkins.getSelfLabel().getName() + "') { injectSubtypesAsContext() }", false));
         r.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
 

@@ -3,23 +3,30 @@ package org.jenkinsci.plugins.workflow.cps.steps;
 import com.cloudbees.groovy.cps.Outcome;
 
 import groovy.lang.Closure;
+import hudson.AbortException;
 import hudson.Extension;
+import hudson.model.Result;
 import hudson.model.TaskListener;
 import java.io.IOException;
+import jenkins.model.CauseOfInterruption;
 
 import org.jenkinsci.plugins.workflow.cps.CpsVmThreadOnly;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 import java.io.Serializable;
-import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -63,7 +70,6 @@ public class ParallelStep extends Step {
         return failFast;
     }
 
-
     @PersistIn(PROGRAM)
     static class ResultHandler implements Serializable {
         private final StepContext context;
@@ -71,14 +77,19 @@ public class ParallelStep extends Step {
         private final boolean failFast;
         /** Have we called stop on the StepExecution? */
         private boolean stopSent = false;
-        /** if we failFast we need to record the first failure */
-        private SimpleEntry<String,Throwable> originalFailure = null;
+        /**
+         * If we fail fast, we need to record the first failure.
+         *
+         * <p>We use a set because we may be encountering the same abort being delivered across
+         * branches. We use a linked hash set to maintain insertion order.
+         */
+        private final LinkedHashSet<Throwable> failures = new LinkedHashSet<>();
 
         /**
          * Collect the results of sub-workflows as they complete.
          * The key set is fully populated from the beginning.
          */
-        private final Map<String,Outcome> outcomes = new HashMap<String, Outcome>();
+        private final Map<String,Outcome> outcomes = new HashMap<>();
 
         ResultHandler(StepContext context, ParallelStepExecution parallelStepExecution, boolean failFast) {
             this.context = context;
@@ -123,19 +134,12 @@ public class ParallelStep extends Step {
                 } catch (IOException | InterruptedException x) {
                     LOGGER.log(Level.WARNING, null, x);
                 }
-                if (handler.originalFailure == null) {
-                    handler.originalFailure = new SimpleEntry<String, Throwable>(name, t);
-                } else {
-                    Throwable originalT = handler.originalFailure.getValue();
-                    if (t != originalT) { // could be the same abort being delivered across branches
-                        originalT.addSuppressed(t);
-                    }
-                }
+                handler.failures.add(t);
                 checkAllDone(true);
             }
 
             private void checkAllDone(boolean stepFailed) {
-                Map<String,Object> success = new HashMap<String, Object>();
+                Map<String,Object> success = new HashMap<>();
                 for (Entry<String,Outcome> e : handler.outcomes.entrySet()) {
                     Outcome o = e.getValue();
 
@@ -144,7 +148,7 @@ public class ParallelStep extends Step {
                         if (stepFailed && handler.failFast && ! handler.isStopSent()) {
                             handler.stopSent();
                             try {
-                                handler.stepExecution.stop(new FailFastException());
+                                handler.stepExecution.stop(new FailFastCause(name));
                             }
                             catch (Exception ignored) {
                                 // ignored.
@@ -153,9 +157,9 @@ public class ParallelStep extends Step {
                         return;
                     }
                     if (o.isFailure()) {
-                        if (handler.originalFailure == null) {
+                        if (handler.failures.isEmpty()) {
                             // in case the plugin is upgraded whilst a parallel step is running
-                            handler.originalFailure = new SimpleEntry<String, Throwable>(e.getKey(), e.getValue().getAbnormal());
+                            handler.failures.add(e.getValue().getAbnormal());
                         }
                         // recorded in the onFailure
                     } else {
@@ -163,8 +167,16 @@ public class ParallelStep extends Step {
                     }
                 }
                 // all done
-                if (handler.originalFailure!=null) {
-                    handler.context.onFailure(handler.originalFailure.getValue());
+                List<Throwable> toAttach = new ArrayList<>(handler.failures);
+                if (!handler.failFast) {
+                    Collections.sort(toAttach, new ThrowableComparator(new ArrayList<>(handler.failures)));
+                }
+                if (!toAttach.isEmpty()) {
+                    Throwable head = toAttach.get(0);
+                    for (int i = 1; i < toAttach.size(); i++) {
+                        head.addSuppressed(toAttach.get(i));
+                    }
+                    handler.context.onFailure(head);
                 } else {
                     handler.context.onSuccess(success);
                 }
@@ -173,10 +185,90 @@ public class ParallelStep extends Step {
             private static final long serialVersionUID = 1L;
         }
 
+        /**
+         * Sorts {@link Throwable Throwables} in order of most to least severe. General {@link
+         * Throwable Throwables} are most severe, followed by instances of {@link AbortException},
+         * and then instances of {@link FlowInterruptedException}, which are ordered by {@link
+         * FlowInterruptedException#getResult()}.
+         */
+        static final class ThrowableComparator implements Comparator<Throwable>, Serializable {
+
+            private final List<Throwable> insertionOrder;
+
+            ThrowableComparator() {
+                this.insertionOrder = new ArrayList<>();
+            }
+
+            ThrowableComparator(List<Throwable> insertionOrder) {
+                this.insertionOrder = insertionOrder;
+            }
+
+            @Override
+            public int compare(Throwable t1, Throwable t2) {
+                if (!(t1 instanceof FlowInterruptedException)
+                        && t2 instanceof FlowInterruptedException) {
+                    // FlowInterruptedException is always less severe than any other exception.
+                    return -1;
+                } else if (t1 instanceof FlowInterruptedException
+                        && !(t2 instanceof FlowInterruptedException)) {
+                    // FlowInterruptedException is always less severe than any other exception.
+                    return 1;
+                } else if (!(t1 instanceof AbortException) && t2 instanceof AbortException) {
+                    // AbortException is always less severe than any exception other than
+                    // FlowInterruptedException.
+                    return -1;
+                } else if (t1 instanceof AbortException && !(t2 instanceof AbortException)) {
+                    // AbortException is always less severe than any exception other than
+                    // FlowInterruptedException.
+                    return 1;
+                } else if (t1 instanceof FlowInterruptedException
+                        && t2 instanceof FlowInterruptedException) {
+                    // Two FlowInterruptedExceptions are compared by their results.
+                    FlowInterruptedException fie1 = (FlowInterruptedException) t1;
+                    FlowInterruptedException fie2 = (FlowInterruptedException) t2;
+                    Result r1 = fie1.getResult();
+                    Result r2 = fie2.getResult();
+                    if (r1.isWorseThan(r2)) {
+                        return -1;
+                    } else if (r1.isBetterThan(r2)) {
+                        return 1;
+                    }
+                } else if (insertionOrder.contains(t1) && insertionOrder.contains(t2)) {
+                    // Break ties by insertion order. Earlier errors are worse.
+                    int index1 = insertionOrder.indexOf(t1);
+                    int index2 = insertionOrder.indexOf(t2);
+                    if (index1 < index2) {
+                        return -1;
+                    } else if (index1 > index2) {
+                        return 1;
+                    }
+                }
+                return 0;
+            }
+        }
+
         private static final long serialVersionUID = 1L;
     }
 
-    /** Internal exception that is only used internally to abort a parallel body in the case of a failFast body failing. */
+    /** Used to abort a running branch body in the case of {@code failFast} taking effect. */
+    private static final class FailFastCause extends CauseOfInterruption {
+
+        private static final long serialVersionUID = 1L;
+
+        private final String failingBranch;
+
+        FailFastCause(String failingBranch) {
+            this.failingBranch = failingBranch;
+        }
+
+        @Override public String getShortDescription() {
+            return "Failed in branch "+ failingBranch;
+        }
+
+    }
+
+    /** @deprecated no longer used, just here for serial compatibility */
+    @Deprecated
     private static final class FailFastException extends Exception {
         private static final long serialVersionUID = 1L;
     }
@@ -193,7 +285,7 @@ public class ParallelStep extends Step {
         @Override
         public Step newInstance(Map<String,Object> arguments) {
             boolean failFast = false;
-            Map<String,Closure<?>> closures = new LinkedHashMap<String, Closure<?>>();
+            Map<String,Closure<?>> closures = new LinkedHashMap<>();
             for (Entry<String,Object> e : arguments.entrySet()) {
                 if ((e.getValue() instanceof Closure)) {
                     closures.put(e.getKey(), (Closure<?>)e.getValue());
@@ -210,7 +302,7 @@ public class ParallelStep extends Step {
 
         @Override public Map<String,Object> defineArguments(Step step) throws UnsupportedOperationException {
             ParallelStep ps = (ParallelStep) step;
-            Map<String,Object> retVal = new TreeMap<String,Object>(ps.closures);
+            Map<String,Object> retVal = new TreeMap<>(ps.closures);
             if (ps.failFast) {
                 retVal.put(FAIL_FAST_FLAG, Boolean.TRUE);
             }

@@ -41,13 +41,10 @@ import org.jenkinsci.plugins.workflow.actions.TimingAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
 
-import org.jenkinsci.plugins.workflow.graph.AtomNode;
-import org.jenkinsci.plugins.workflow.graph.BlockEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Growing tip of the node graph.
@@ -133,7 +130,7 @@ final class FlowHead implements Serializable {
     }
 
     /** Could be better described as "append to Flow graph" except for parallel cases. */
-    void setNewHead(@Nonnull FlowNode v) {
+    void setNewHead(@NonNull FlowNode v) {
         if (v == null) {
             // Because Findbugs isn't 100% at catching cases where this can happen and we really need to fail hard-and-fast
             throw new IllegalArgumentException("FlowHead.setNewHead called on FlowHead id="+this.id+" with a null FlowNode, execution="+this.execution);
@@ -199,7 +196,7 @@ final class FlowHead implements Serializable {
         // we'll replace this with one of execution.heads()
     }
 
-    @Nonnull
+    @NonNull
     private Object readResolve() {
         execution = CpsFlowExecution.PROGRAM_STATE_SERIALIZATION.get();
         if (execution!=null) {

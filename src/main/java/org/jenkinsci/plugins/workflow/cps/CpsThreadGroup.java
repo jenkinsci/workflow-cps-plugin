@@ -27,7 +27,6 @@ package org.jenkinsci.plugins.workflow.cps;
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.SettableFuture;
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.MarshallingContext;
@@ -40,16 +39,18 @@ import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 import hudson.ExtensionList;
 import hudson.Functions;
+import hudson.Main;
 import hudson.Util;
 import hudson.model.Result;
 import jenkins.model.Jenkins;
+import jenkins.util.Timer;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverWriter;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -62,21 +63,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.TreeMap;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
-import javax.annotation.CheckForNull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.pickles.Pickle;
 import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
+import org.jenkinsci.plugins.workflow.support.concurrent.WithThreadName;
 import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
 import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
 
@@ -100,9 +104,13 @@ public final class CpsThreadGroup implements Serializable {
     private /*almost final*/ transient CpsFlowExecution execution;
 
     /**
-     * All the member threads by their {@link CpsThread#id}
+     * All the member threads by their {@link CpsThread#id}.
+     *
+     * All mutation occurs only on the CPS VM thread. Read access through {@link CpsStepContext#doGet}
+     * and iteration through {@link CpsThreadDump#from(CpsThreadGroup)} may occur on other threads
+     * (e.g. non-blocking steps, thread dumps from the UI).
      */
-    final NavigableMap<Integer,CpsThread> threads = new TreeMap<Integer, CpsThread>();
+    private final NavigableMap<Integer,CpsThread> threads = new ConcurrentSkipListMap<>();
 
     /**
      * Unique thread ID generator.
@@ -117,6 +125,13 @@ public final class CpsThreadGroup implements Serializable {
 
     /** Set while {@link #runner} is doing something. */
     transient boolean busy;
+
+    /**
+     * True if the build was automatically paused because quiet mode is enabled.
+     * Used to avoid printing more than one pause message or scheduling more than one resumption task per build.
+     * Independent of {@link #paused}.
+     */
+    private transient AtomicBoolean pausedByQuietMode;
 
     /**
      * True if the execution suspension is requested.
@@ -135,7 +150,7 @@ public final class CpsThreadGroup implements Serializable {
     /**
      * "Exported" closures that are referenced by live {@link CpsStepContext}s.
      */
-    public final Map<Integer,Closure> closures = new HashMap<Integer,Closure>();
+    public final Map<Integer,Closure> closures = new HashMap<>();
 
     private final @CheckForNull List<Script> scripts = new ArrayList<>();
 
@@ -160,17 +175,12 @@ public final class CpsThreadGroup implements Serializable {
         execution = CpsFlowExecution.PROGRAM_STATE_SERIALIZATION.get();
         setupTransients();
         assert execution!=null;
-        if (scripts != null) { // compatibility: the field will be null in old programs
+        if (/* compatibility: the field will be null in old programs */ scripts != null && !scripts.isEmpty()) {
             GroovyShell shell = execution.getShell();
-            assert shell.getContext().getVariables().isEmpty();
-            if (!scripts.isEmpty()) {
-                // Take the canonical bindings from the main script and relink that object with that of the shell and all other loaded scripts which kept the same bindings.
-                shell.getContext().getVariables().putAll(scripts.get(0).getBinding().getVariables());
-                for (Script script : scripts) {
-                    if (script.getBinding().getVariables().equals(shell.getContext().getVariables())) {
-                        script.setBinding(shell.getContext());
-                    }
-                }
+            // Take the canonical bindings from the main script and relink that object with that of the shell and all other loaded scripts which kept the same bindings.
+            shell.getContext().getVariables().putAll(scripts.get(0).getBinding().getVariables());
+            for (Script script : scripts) {
+                script.setBinding(shell.getContext());
             }
         }
         return this;
@@ -178,13 +188,14 @@ public final class CpsThreadGroup implements Serializable {
 
     private void setupTransients() {
         runner = new CpsVmExecutorService(this);
+        pausedByQuietMode = new AtomicBoolean();
         if (paused == null) { // earlier versions did not have this field.
             paused = new AtomicBoolean();
         }
     }
 
     @CpsVmThreadOnly
-    public CpsThread addThread(Continuable program, FlowHead head, ContextVariableSet contextVariables) {
+    public CpsThread addThread(@NonNull Continuable program, FlowHead head, ContextVariableSet contextVariables) {
         assertVmThread();
         CpsThread t = new CpsThread(this, iota++, program, head, contextVariables);
         threads.put(t.id, t);
@@ -200,12 +211,31 @@ public final class CpsThreadGroup implements Serializable {
         assert current()==this;
     }
 
+    /**
+     * Returns the thread with the specified id.
+     *
+     * Normally called from the CPS VM thread, but may be called from other threads via {@link CpsStepContext#doGet}.
+     *
+     * @return
+     *      null if the thread has finished executing.
+     */
     public CpsThread getThread(int id) {
-        return threads.get(id);
+        CpsThread thread = threads.get(id);
+        if (thread == null && LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.log(Level.FINE, "no thread " + id + " among " + threads.keySet(), new IllegalStateException());
+        }
+        return thread;
+    }
+
+    /**
+     * Returns an unmodifiable snapshot of all threads in the thread group.
+     */
+    public Iterable<CpsThread> getThreads() {
+        return threads.values();
     }
 
     @CpsVmThreadOnly("root")
-    public @Nonnull BodyReference export(@Nonnull Closure body) {
+    public @NonNull BodyReference export(@NonNull Closure body) {
         assertVmThread();
         int id = iota++;
         closures.put(id, body);
@@ -214,7 +244,7 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     @CpsVmThreadOnly("root")
-    public @Nonnull BodyReference export(@Nonnull final Script body) {
+    public @NonNull BodyReference export(@NonNull final Script body) {
         register(body);
         return export(new Closure(null) {
             @Override
@@ -230,6 +260,8 @@ public final class CpsThreadGroup implements Serializable {
         if (ref==null)      return;
         if (closures.remove(ref.id) != null) {
             LOGGER.log(FINE, "unexporting {0}", ref.id);
+        } else if (closures.isEmpty()) {
+            LOGGER.log(FINE, "cannot unexport {0} but there are no closures at all so perhaps we are still trying to load the program", ref.id);
         } else {
             LOGGER.log(WARNING, "double unexport of {0}", ref.id);
         }
@@ -242,17 +274,41 @@ public final class CpsThreadGroup implements Serializable {
      *      {@link Future} object that represents when the CPS VM is executed.
      */
     public Future<?> scheduleRun() {
-        final SettableFuture<Void> f = SettableFuture.create();
+        final CompletableFuture<Void> f = new CompletableFuture<>();
         try {
             runner.submit(new Callable<Void>() {
                 @SuppressFBWarnings(value="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE", justification="runner.submit() result")
                 public Void call() throws Exception {
                     Jenkins j = Jenkins.getInstanceOrNull();
+                    if (j != null && !j.isQuietingDown() && execution != null && pausedByQuietMode.compareAndSet(true, false)) {
+                        try {
+                            execution.getOwner().getListener().getLogger().println("Resuming (Shutdown was canceled)");
+                        } catch (IOException e) {
+                            LOGGER.log(Level.WARNING, null, e);
+                        }
+                    }
                     if (paused.get() || j == null || (execution != null && j.isQuietingDown())) {
+                        if (j != null && j.isQuietingDown() && execution != null && pausedByQuietMode.compareAndSet(false, true)) {
+                            try {
+                                execution.getOwner().getListener().getLogger().println("Pausing (Preparing for shutdown)");
+                            } catch (IOException e) {
+                               LOGGER.log(Level.WARNING, null, e);
+                            }
+                            Timer.get().schedule(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (j.isQuietingDown()) {
+                                        Timer.get().schedule(this, Main.isUnitTest ? 1 : 10, TimeUnit.SECONDS);
+                                    } else {
+                                        scheduleRun();
+                                    }
+                                }
+                            }, Main.isUnitTest ? 1 : 10, TimeUnit.SECONDS);
+                        }
                         // by doing the pause check inside, we make sure that scheduleRun() returns a
                         // future that waits for any previously scheduled tasks to be completed.
                         saveProgramIfPossible(true);
-                        f.set(null);
+                        f.complete(null);
                         return null;
                     }
 
@@ -272,13 +328,13 @@ public final class CpsThreadGroup implements Serializable {
                                         runner.shutdown();
                                     }
                                     // the original promise of scheduleRun() is now complete
-                                    f.set(null);
+                                    f.complete(null);
                                 }
                             });
                         }
                     } catch (RejectedExecutionException x) {
                         // Was shut down by a prior task?
-                        f.setException(x);
+                        f.completeExceptionally(x);
                     }
                     return null;
                 }
@@ -366,6 +422,7 @@ public final class CpsThreadGroup implements Serializable {
                     t.fireCompletionHandlers(o); // do this after ErrorAction is set above
 
                     threads.remove(t.id);
+                    t.cleanUp();
                     if (threads.isEmpty()) {
                         execution.onProgramEnd(o);
                         try {
@@ -418,7 +475,7 @@ public final class CpsThreadGroup implements Serializable {
         execution.notifyListeners(Collections.singletonList(head), true);
         synchronized (nodesToNotifyLock) {
             if (nodesToNotify == null) {
-                nodesToNotify = new ArrayList<FlowNode>();
+                nodesToNotify = new ArrayList<>();
             }
             nodesToNotify.add(head);
         }
@@ -472,6 +529,10 @@ public final class CpsThreadGroup implements Serializable {
      */
     @CpsVmThreadOnly
     void saveProgram() throws IOException {
+        if (execution.isResumeBlocked()) {
+            // In case flag added after start, also consider: Util.deleteFile(execution.getProgramDataFile());
+            return;
+        }
         File f = execution.getProgramDataFile();
         saveProgram(f);
     }
@@ -494,12 +555,10 @@ public final class CpsThreadGroup implements Serializable {
         }
 
         boolean serializedOK = false;
-        try (CpsFlowExecution.Timing t = execution.time(TimingKind.saveProgram)) {
-            RiverWriter w = new RiverWriter(tmpFile, execution.getOwner(), pickleFactories);
-            try {
+        try (CpsFlowExecution.Timing t = execution.time(TimingKind.saveProgram);
+                WithThreadName diag = new WithThreadName("saving " + f)) {
+            try (RiverWriter w = new RiverWriter(tmpFile, execution.getOwner(), pickleFactories)) {
                 w.writeObject(this);
-            } finally {
-                w.close();
             }
             serializedOK = true;
             Files.move(tmpFile.toPath(), f.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);

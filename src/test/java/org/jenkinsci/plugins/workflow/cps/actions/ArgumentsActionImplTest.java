@@ -15,10 +15,12 @@ import hudson.XmlFile;
 import hudson.model.Action;
 import hudson.tasks.ArtifactArchiver;
 import org.apache.commons.lang.RandomStringUtils;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsMapContaining;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
+import org.jenkinsci.plugins.workflow.actions.ArgumentsAction.NotStoredReason;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.CpsThread;
@@ -35,6 +37,9 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.EchoStep;
 import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
@@ -43,15 +48,20 @@ import org.junit.Assume;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.TestExtension;
+
+import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -59,7 +69,14 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
+import org.jenkinsci.plugins.workflow.steps.StepExecutions;
+import org.jenkinsci.plugins.workflow.testMetaStep.Curve;
+import org.jvnet.hudson.test.LoggerRule;
 
 /**
  * Tests the input sanitization and step persistence here
@@ -69,8 +86,10 @@ public class ArgumentsActionImplTest {
     @ClassRule
     public static BuildWatcher buildWatcher = new BuildWatcher();
 
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
+    @ClassRule
+    public static JenkinsRule r = new JenkinsRule();
+
+    @Rule public LoggerRule logging = new LoggerRule();
 
     /** Helper function to test direct file deserialization for an execution */
     private void testDeserialize(FlowExecution execution) throws Exception {
@@ -137,37 +156,31 @@ public class ArgumentsActionImplTest {
     @Test
     public void testStringSafetyTest() throws Exception {
         String input = "I have a secret p4ssw0rd";
-        HashMap<String,String> passwordBinding = new HashMap<String,String>();
+        HashMap<String,String> passwordBinding = new HashMap<>();
         passwordBinding.put("mypass", "p4ssw0rd");
-        Assert.assertTrue("Input with no variables is safe", ArgumentsActionImpl.isStringSafe(input, new EnvVars(), Collections.EMPTY_SET));
-        Assert.assertFalse("Input containing bound value is unsafe", ArgumentsActionImpl.isStringSafe(input, new EnvVars(passwordBinding), Collections.EMPTY_SET));
-
-        Assert.assertTrue("EnvVars that do not occur are safe", ArgumentsActionImpl.isStringSafe("I have no passwords", new EnvVars(passwordBinding), Collections.EMPTY_SET));
-
-        HashMap<String, String> safeBinding = new HashMap<String,String>();
-        safeBinding.put("harmless", "secret");
-        HashSet<String> safeVars = new HashSet<String>();
-        safeVars.add("harmless");
-        passwordBinding.put("harmless", "secret");
-        Assert.assertTrue("Input containing whitelisted bound value is safe", ArgumentsActionImpl.isStringSafe(input, new EnvVars(safeBinding), safeVars));
-        Assert.assertFalse("Input containing one safe and one unsafe bound value is unsafe", ArgumentsActionImpl.isStringSafe(input, new EnvVars(passwordBinding), safeVars));
+        Set<String> sensitiveVariables = new HashSet<>();
+        sensitiveVariables.add("mypass");
+        MatcherAssert.assertThat("Input with no variables is safe", ArgumentsActionImpl.replaceSensitiveVariables(input, new EnvVars(), sensitiveVariables), is(input));
+        MatcherAssert.assertThat("Input containing bound value is unsafe", ArgumentsActionImpl.replaceSensitiveVariables(input, new EnvVars(passwordBinding), sensitiveVariables), is("I have a secret ${mypass}"));
+        MatcherAssert.assertThat("EnvVars that do not occur are safe", ArgumentsActionImpl.replaceSensitiveVariables("I have no passwords", new EnvVars(passwordBinding), sensitiveVariables), is("I have no passwords"));
     }
 
     @Test
     public void testRecursiveSanitizationOfContent() {
-        int maxLen = ArgumentsActionImpl.getMaxRetainedLength();
-        ArgumentsActionImpl impl = new ArgumentsActionImpl();
-
         EnvVars env = new EnvVars();
         String secretUsername = "secretuser";
         env.put("USERVARIABLE", secretUsername); // assume secretuser is a bound credential
 
-        char[] oversized = new char[maxLen+10];
-        Arrays.fill(oversized, 'a');
-        String oversizedString = new String (oversized);
+        Set<String> sensitiveVariables = new HashSet<>();
+        sensitiveVariables.add("USERVARIABLE");
+
+        int maxLen = ArgumentsActionImpl.getMaxRetainedLength();
+        ArgumentsActionImpl impl = new ArgumentsActionImpl(sensitiveVariables);
+
+        String oversizedString = generateStringOfSize(maxLen + 10);
 
         // Simplest masking of secret and oversized value
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, impl.sanitizeObjectAndRecordMutation(secretUsername, env));
+        Assert.assertEquals("${USERVARIABLE}", impl.sanitizeObjectAndRecordMutation(secretUsername, env));
         Assert.assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
 
@@ -179,34 +192,38 @@ public class ArgumentsActionImplTest {
         Step mystep = new EchoStep("I have a "+secretUsername);
         Map<String, ?> singleSanitization = (Map<String,Object>)(impl.sanitizeObjectAndRecordMutation(mystep, env));
         Assert.assertEquals(1, singleSanitization.size());
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, singleSanitization.get("message"));
+        Assert.assertEquals("I have a ${USERVARIABLE}", singleSanitization.get("message"));
         Assert.assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
         singleSanitization = ((UninstantiatedDescribable) (impl.sanitizeObjectAndRecordMutation(mystep.getDescriptor().uninstantiate(mystep), env))).getArguments();
         Assert.assertEquals(1, singleSanitization.size());
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, singleSanitization.get("message"));
+        Assert.assertEquals("I have a ${USERVARIABLE}", singleSanitization.get("message"));
         Assert.assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
 
         // Maps
         HashMap<String, Object> dangerous = new HashMap<>();
         dangerous.put("name", secretUsername);
-        Map<String, Object> sanitizedMap = impl.sanitizeMapAndRecordMutation(dangerous, env);
-        Assert.assertNotEquals(sanitizedMap, dangerous);
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, sanitizedMap.get("name"));
+        Object sanitized = impl.sanitizeMapAndRecordMutation(dangerous, env);
+        Assert.assertNotEquals(sanitized, dangerous);
+        assertThat(sanitized, instanceOf(Map.class));
+        Map<String, Object> sanitizedMap = (Map<String, Object>) sanitized;
+        Assert.assertEquals("${USERVARIABLE}", sanitizedMap.get("name"));
         Assert.assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
 
-        Map<String, Object> identicalMap = impl.sanitizeMapAndRecordMutation(dangerous, new EnvVars());  // String is no longer dangerous
-        Assert.assertEquals(identicalMap, dangerous);
+        Object identical = impl.sanitizeMapAndRecordMutation(dangerous, new EnvVars());  // String is no longer dangerous
+        Assert.assertEquals(identical, dangerous);
         Assert.assertTrue(impl.isUnmodifiedArguments());
 
         // Lists
         List unsanitizedList = Arrays.asList("cheese", null, secretUsername);
-        List sanitized = (List)impl.sanitizeListAndRecordMutation(unsanitizedList, env);
-        Assert.assertEquals(3, sanitized.size());
+        Object sanitized2 = impl.sanitizeListAndRecordMutation(unsanitizedList, env);
+        assertThat(sanitized2, instanceOf(List.class));
+        List sanitizedList = (List) sanitized2;
+        Assert.assertEquals(3, sanitizedList.size());
         Assert.assertFalse(impl.isUnmodifiedArguments());
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, sanitized.get(2));
+        Assert.assertEquals("${USERVARIABLE}", sanitizedList.get(2));
         impl.isUnmodifiedBySanitization = true;
 
         Assert.assertEquals(unsanitizedList, impl.sanitizeObjectAndRecordMutation(unsanitizedList, new EnvVars()));
@@ -214,29 +231,91 @@ public class ArgumentsActionImplTest {
     }
 
     @Test
+    @Issue("JENKINS-67380")
+    public void oversizedMap() {
+        {
+            // a map with reasonable size should not be truncated
+            ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.emptySet());
+            Map<String, Object> smallMap = new HashMap<>();
+            smallMap.put("key1", generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength() / 10));
+            Object sanitizedSmallMap = impl.sanitizeMapAndRecordMutation(smallMap, null);
+            Assert.assertEquals(sanitizedSmallMap, smallMap);
+            Assert.assertTrue(impl.isUnmodifiedArguments());
+            impl.isUnmodifiedBySanitization = true;
+        }
+
+        {
+            // arguments map keys should be kept, but values should be truncated if too large
+            Map<String, Object> bigMap = new HashMap<>();
+            String bigString = generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength() + 10);
+            bigMap.put("key1", bigString);
+            ArgumentsActionImpl impl = new ArgumentsActionImpl(bigMap, null, Collections.emptySet());
+            Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, impl.getArgumentValueOrReason("key1"));
+            Assert.assertFalse(impl.isUnmodifiedArguments());
+        }
+
+        {
+            // an arbitrary map should be truncated if it is too large overall
+            Map<String, Object> bigMap2 = new HashMap<>();
+            String bigString2 = generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength());
+            bigMap2.put("key1", bigString2);
+            ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.emptySet());
+            Object sanitizedBigMap2 = impl.sanitizeMapAndRecordMutation(bigMap2, null);
+            Assert.assertNotEquals(sanitizedBigMap2, bigMap2);
+            Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, sanitizedBigMap2);
+            Assert.assertFalse(impl.isUnmodifiedArguments());
+            impl.isUnmodifiedBySanitization = true;
+        }
+    }
+
+    @Test
+    public void oversizedList() {
+        ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.emptySet());
+        List unsanitized = Arrays.asList(generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength()));
+        Object sanitized = impl.sanitizeListAndRecordMutation(unsanitized, null);
+        Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, sanitized);
+    }
+
+    @Test
+    public void oversizedArray() {
+        ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.emptySet());
+        String[] unsanitized = new String[] {generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength())};
+        Object sanitized = impl.sanitizeArrayAndRecordMutation(unsanitized, null);
+        Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, sanitized);
+    }
+
+    private static String generateStringOfSize(int size) {
+        char[] bigChars = new char[size];
+        Arrays.fill(bigChars, 'a');
+        return String.valueOf(bigChars);
+    }
+
+    @Test
     public void testArraySanitization() {
         EnvVars env = new EnvVars();
         String secretUsername = "IAmA";
         env.put("USERVARIABLE", secretUsername); // assume secretuser is a bound credential
+        Set<String> sensitiveVariables = new HashSet<>();
+        sensitiveVariables.add("USERVARIABLE");
 
         HashMap<String, Object> args = new HashMap<>();
         args.put("ints", new int[]{1,2,3});
         args.put("strings", new String[]{"heh",secretUsername,"lumberjack"});
-        ArgumentsActionImpl filtered = new ArgumentsActionImpl(args, env);
+        ArgumentsActionImpl filtered = new ArgumentsActionImpl(args, env, sensitiveVariables);
 
         Map<String, Object> filteredArgs = filtered.getArguments();
         Assert.assertEquals(2, filteredArgs.size());
         Assert.assertThat(filteredArgs, IsMapContaining.hasEntry("ints", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
         Assert.assertThat(filteredArgs, IsMapContaining.hasKey("strings"));
         Object[] contents = (Object[])(filteredArgs.get("strings"));
-        Assert.assertArrayEquals(new Object[]{"heh", ArgumentsAction.NotStoredReason.MASKED_VALUE, "lumberjack"}, (Object[])(filteredArgs.get("strings")));
+        Assert.assertArrayEquals(new Object[]{"heh", "${USERVARIABLE}", "lumberjack"}, (Object[])(filteredArgs.get("strings")));
     }
 
     @Test
     @Issue("JENKINS-48644")
     public void testMissingDescriptionInsideStage() throws Exception {
         Assume.assumeTrue(r.jenkins.getComputer("").isUnix()); // No need for windows-specific testing
-        WorkflowJob j = r.jenkins.createProject(WorkflowJob.class, "HiddenStep");
+        WorkflowJob j = r.createProject(WorkflowJob.class);
         j.setDefinition(new CpsFlowDefinition("node{\n" +
                 "   stage ('Build') {\n" +
                 "       sh \"echo 'Building'\"\n" +
@@ -259,28 +338,30 @@ public class ArgumentsActionImplTest {
 
     @Test
     public void testBasicCreateAndMask() throws Exception {
-        HashMap<String,String> passwordBinding = new HashMap<String,String>();
+        HashMap<String,String> passwordBinding = new HashMap<>();
         passwordBinding.put("mypass", "p4ssw0rd");
-        Map<String, Object> arguments = new HashMap<String,Object>();
+        Map<String, Object> arguments = new HashMap<>();
         arguments.put("message", "I have a secret p4ssw0rd");
+        Set<String> sensitiveVariables = new HashSet<>();
+        sensitiveVariables.add("mypass");
 
         Field maxSizeF = ArgumentsAction.class.getDeclaredField("MAX_RETAINED_LENGTH");
         maxSizeF.setAccessible(true);
         int maxSize = maxSizeF.getInt(null);
 
         // Same string, unsanitized
-        ArgumentsActionImpl argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars());
-        Assert.assertEquals(true, argumentsActionImpl.isUnmodifiedArguments());
+        ArgumentsActionImpl argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars(), sensitiveVariables);
+        Assert.assertTrue(argumentsActionImpl.isUnmodifiedArguments());
         Assert.assertEquals(arguments.get("message"), argumentsActionImpl.getArgumentValueOrReason("message"));
         Assert.assertEquals(1, argumentsActionImpl.getArguments().size());
         Assert.assertEquals("I have a secret p4ssw0rd", argumentsActionImpl.getArguments().get("message"));
 
         // Test sanitizing arguments now
-        argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars(passwordBinding));
-        Assert.assertEquals(false, argumentsActionImpl.isUnmodifiedArguments());
-        Assert.assertEquals(ArgumentsActionImpl.NotStoredReason.MASKED_VALUE, argumentsActionImpl.getArgumentValueOrReason("message"));
+        argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars(passwordBinding), sensitiveVariables);
+        Assert.assertFalse(argumentsActionImpl.isUnmodifiedArguments());
+        Assert.assertEquals("I have a secret ${mypass}", argumentsActionImpl.getArgumentValueOrReason("message"));
         Assert.assertEquals(1, argumentsActionImpl.getArguments().size());
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, argumentsActionImpl.getArguments().get("message"));
+        Assert.assertEquals("I have a secret ${mypass}", argumentsActionImpl.getArguments().get("message"));
 
         // Mask oversized values
         arguments.clear();
@@ -292,7 +373,7 @@ public class ArgumentsActionImplTest {
     @Test
     @Issue("JENKINS-50752")
     public void testHandleUnserializableArguments() throws Exception {
-        HashMap<String, Object> unserializable = new HashMap<String, Object>(3);
+        HashMap<String, Object> unserializable = new HashMap<>(3);
         Object me = new Object() {
             Object writeReplace() {
                 throw new RuntimeException("Can't serialize me nyah nyah!");
@@ -328,11 +409,23 @@ public class ArgumentsActionImplTest {
         }
     }
 
+    @Issue("JENKINS-54186")
+    @Test public void fauxDescribable() throws Exception {
+        logging.record(ArgumentsActionImpl.class, Level.FINE);
+        ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.singletonMap("curve", new Fractal()));
+        Map<String, Object> args = impl.getArguments();
+        Assert.assertThat(args, IsMapContaining.hasEntry("curve", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
+    }
+    public static final class Fractal extends Curve {
+        @Override public String getDescription() {
+            return "shape way too complex to describe";
+        }
+    }
 
     @Test
     @Issue("JENKINS-54032")
     public void testAvoidStoringSpecialTypes() throws Exception {
-        HashMap<String, Object> testMap = new HashMap<String, Object>();
+        HashMap<String, Object> testMap = new HashMap<>();
         testMap.put("safe", 5);
         testMap.put("maskme", new SuperSpecialThing());
         testMap.put("maskMyMapValue", Collections.singletonMap("bob", new SuperSpecialThing(-5, "testing")));
@@ -361,9 +454,10 @@ public class ArgumentsActionImplTest {
         String username = "bob";
         String password = "s3cr3t";
         UsernamePasswordCredentialsImpl c = new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL, "test", "sample", username, password);
+        c.setUsernameSecret(true);
         CredentialsProvider.lookupStores(r.jenkins).iterator().next().addCredentials(Domain.global(), c);
 
-        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "credentialed");
+        WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
                 "node{ withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'test',\n" +
                 "                usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {\n" +
@@ -395,8 +489,7 @@ public class ArgumentsActionImplTest {
         filtered = scanner.filteredNodes(exec, new DescriptorMatchPredicate(EchoStep.DescriptorImpl.class));
         for (FlowNode f : filtered) {
             act = f.getPersistentAction(ArgumentsActionImpl.class);
-            Assert.assertEquals(ArgumentsAction.NotStoredReason.MASKED_VALUE, act.getArguments().get("message"));
-            Assert.assertNull(ArgumentsAction.getStepArgumentsAsString(f));
+            MatcherAssert.assertThat((String) act.getArguments().get("message"), allOf(not(containsString("bob")), not(containsString("s3cr3t"))));
         }
 
         List<FlowNode> allStepped = scanner.filteredNodes(run.getExecution().getCurrentHeads(), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class));
@@ -411,7 +504,7 @@ public class ArgumentsActionImplTest {
     @Test
     public void testSpecialMetastepCases() throws Exception {
         // First we test a metastep with a state argument
-        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "meta");
+        WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
                 // Need to do some customization to load me
                 "state(moderate: true, state:[$class: 'Oregon']) \n",
@@ -426,10 +519,10 @@ public class ArgumentsActionImplTest {
         Assert.assertEquals(true, args.get("moderate"));
         Map<String, Object> stateArgs = (Map<String,Object>)args.get("state");
         Assert.assertTrue("Nested state Describable should only include a class argument or none at all",
-                stateArgs.size() <= 1 && Sets.difference(stateArgs.keySet(), new HashSet<String>(Arrays.asList("$class"))).size() == 0);
+                stateArgs.size() <= 1 && Sets.difference(stateArgs.keySet(), new HashSet<>(Arrays.asList("$class"))).size() == 0);
 
         // Same metastep but only one arg supplied, shouldn't auto-unwrap the internal step because can take 2 args
-        job = r.jenkins.createProject(WorkflowJob.class, "meta2");
+        job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
                 // Need to do some customization to load me
                 "state(state:[$class: 'Oregon']) \n"+
@@ -452,7 +545,7 @@ public class ArgumentsActionImplTest {
 
     @Test
     public void simpleSemaphoreStep() throws Exception {
-        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "p");
+        WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition("semaphore 'wait'", false));
         WorkflowRun run  = job.scheduleBuild2(0).getStartCondition().get();
         SemaphoreStep.waitForStart("wait/1", run);
@@ -465,10 +558,10 @@ public class ArgumentsActionImplTest {
 
     @Test
     public void testArgumentDescriptions() throws Exception {
-        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "argumentDescription");
+        WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
                 "echo 'test' \n " +
-                " node('master') { \n" +
+                " node('" + r.jenkins.getSelfLabel().getName() + "') { \n" +
                 "   retry(3) {\n"+
                 "     if (isUnix()) { \n" +
                 "       sh 'whoami' \n" +
@@ -500,17 +593,17 @@ public class ArgumentsActionImplTest {
 
         FlowNode nodeNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0),
                 Predicates.and(Predicates.instanceOf(StepStartNode.class), new NodeStepTypePredicate("node"), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class)));
-        Assert.assertEquals("master", nodeNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
-        Assert.assertEquals("master", ArgumentsAction.getStepArgumentsAsString(nodeNode));
+        Assert.assertEquals(r.jenkins.getSelfLabel().getName(), nodeNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
+        Assert.assertEquals(r.jenkins.getSelfLabel().getName(), ArgumentsAction.getStepArgumentsAsString(nodeNode));
 
         testDeserialize(run.getExecution());
     }
 
     @Test
     public void testUnusualStepInstantiations() throws Exception {
-        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "unusualInstantiation");
+        WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
-                " node('master') { \n" +
+                " node('" + r.jenkins.getSelfLabel().getName() + "') { \n" +
                 "   writeFile text: 'hello world', file: 'msg.out'\n" +
                 "   step([$class: 'ArtifactArchiver', artifacts: 'msg.out', fingerprint: false])\n "+
                 "   withEnv(['CUSTOM=val']) {\n"+  //Symbol-based, because withEnv is a metastep; TODO huh? no it is not
@@ -546,7 +639,7 @@ public class ArgumentsActionImplTest {
 
     @Test
     public void testReallyUnusualStepInstantiations() throws Exception {
-        WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "unusualInstantiation");
+        WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
                 " node() {\n" +
                 "   writeFile text: 'hello world', file: 'msg.out'\n" +
@@ -566,5 +659,49 @@ public class ArgumentsActionImplTest {
         Map<String, ?> args = (Map<String,?>)(((UninstantiatedDescribable)delegate).getArguments());
         Assert.assertThat(args, IsMapContaining.hasEntry("artifacts", "msg.out"));
         Assert.assertEquals(ArtifactArchiver.class.getName(), ud.getModel().getType().getName());
+    }
+
+    @Test public void enumArguments() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(
+                "import java.util.concurrent.TimeUnit\n" +
+                "import java.time.temporal.ChronoUnit\n" +
+                "enum UserDefinedEnum {\n" +
+                "    VALUE;\n" +
+                "    UserDefinedEnum() { /* JENKINS-33023 */ }\n" +
+                "}\n" +
+                "nop(UserDefinedEnum.VALUE)\n" +
+                "nop(TimeUnit.MINUTES)\n" +
+                "nop(ChronoUnit.MINUTES)\n",
+                true));
+        ScriptApproval.get().approveSignature("staticField java.time.temporal.ChronoUnit MINUTES"); // TODO add to generic-whitelist
+        WorkflowRun run = r.buildAndAssertSuccess(p);
+        List<FlowNode> nodes = new DepthFirstScanner().filteredNodes(run.getExecution(), new NodeStepTypePredicate("nop"));
+        Assert.assertThat(nodes.get(0).getPersistentAction(ArgumentsAction.class).getArgumentValueOrReason("value"),
+                equalTo(ChronoUnit.MINUTES));
+        Assert.assertThat(nodes.get(1).getPersistentAction(ArgumentsAction.class).getArgumentValueOrReason("value"),
+                equalTo(TimeUnit.MINUTES));
+        Assert.assertThat(nodes.get(2).getPersistentAction(ArgumentsAction.class).getArgumentValueOrReason("value"),
+                equalTo(NotStoredReason.UNSERIALIZABLE));
+    }
+
+    public static class NopStep extends Step {
+        @DataBoundConstructor
+        public NopStep(Object value) {}
+        @Override
+        public StepExecution start(StepContext context) throws Exception {
+            return StepExecutions.synchronous(context, unused -> null);
+        }
+        @TestExtension
+        public static class DescriptorImpl extends StepDescriptor {
+            @Override
+            public String getFunctionName() {
+                return "nop";
+            }
+            @Override
+            public Set<? extends Class<?>> getRequiredContext() {
+                return Collections.emptySet();
+            }
+        }
     }
 }

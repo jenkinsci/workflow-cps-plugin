@@ -44,8 +44,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import jenkins.model.Jenkins;
 import jenkins.security.QueueItemAuthenticatorConfiguration;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
@@ -279,7 +279,7 @@ public class WorkflowTest extends SingleJobTestBase {
 
     @TestExtension("notifyFlowStartNode")
     public static class FlowStartNodeListener implements GraphListener {
-        List<String> execNames = new ArrayList<String>();
+        List<String> execNames = new ArrayList<>();
 
         @Override
         public void onNewHead(FlowNode node) {
@@ -293,12 +293,12 @@ public class WorkflowTest extends SingleJobTestBase {
     @Test public void env() {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
-                Map<String,String> slaveEnv = new HashMap<String,String>();
+                Map<String,String> slaveEnv = new HashMap<>();
                 slaveEnv.put("BUILD_TAG", null);
                 slaveEnv.put("PERMACHINE", "set");
-                createSpecialEnvSlave(story.j, "slave", null, slaveEnv);
+                createSpecialEnvSlave(story.j, "agent", null, slaveEnv);
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition("node('slave') {\n"
+                p.setDefinition(new CpsFlowDefinition("node('agent') {\n"
                         + "  if (isUnix()) {sh 'echo tag=$BUILD_TAG PERMACHINE=$PERMACHINE'} else {bat 'echo tag=%BUILD_TAG% PERMACHINE=%PERMACHINE%'}\n"
                         + "  env.BUILD_TAG='custom'\n"
                         + "  if (isUnix()) {sh 'echo tag2=$BUILD_TAG'} else {bat 'echo tag2=%BUILD_TAG%'}\n"
@@ -366,7 +366,7 @@ public class WorkflowTest extends SingleJobTestBase {
     }
     private static class SpecialEnvSlave extends Slave {
         private final Map<String,String> env;
-        SpecialEnvSlave(File remoteFS, ComputerLauncher launcher, String nodeName, @Nonnull String labels, Map<String,String> env) throws Descriptor.FormException, IOException {
+        SpecialEnvSlave(File remoteFS, ComputerLauncher launcher, String nodeName, @NonNull String labels, Map<String,String> env) throws Descriptor.FormException, IOException {
             super(nodeName, remoteFS.getAbsolutePath(), launcher);
             setNumExecutors(1);
             setLabelString(labels);
