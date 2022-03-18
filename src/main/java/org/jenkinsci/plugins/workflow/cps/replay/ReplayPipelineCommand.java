@@ -30,8 +30,6 @@ import hudson.cli.CLICommand;
 import hudson.cli.handlers.GenericItemOptionHandler;
 import hudson.model.Job;
 import hudson.model.Run;
-
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.io.IOUtils;
