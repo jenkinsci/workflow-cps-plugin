@@ -25,25 +25,14 @@ package org.jenkinsci.plugins.workflow.cps.view;
 
 import hudson.model.Run;
 import jenkins.model.RunAction2;
-import org.jenkinsci.plugins.structs.describable.DescribableModel;
-import org.jenkinsci.plugins.structs.describable.DescribableParameter;
-import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
-import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
-import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
-import org.jenkinsci.plugins.workflow.graph.FlowNode;
-import org.jenkinsci.plugins.workflow.graph.StepNode;
-import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Action to generate the UI report for watched environment variables

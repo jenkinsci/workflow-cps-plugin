@@ -15,7 +15,6 @@ import hudson.XmlFile;
 import hudson.model.Action;
 import hudson.tasks.ArtifactArchiver;
 import org.apache.commons.lang.RandomStringUtils;
-import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsMapContaining;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
@@ -48,8 +47,20 @@ import org.junit.Assume;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
@@ -111,7 +122,7 @@ public class ArgumentsActionImplTest {
         for (FlowNode f : nodes) {
             XmlFile file = (XmlFile)(getFileM.invoke(storage, f.getId()));
             Object tagObj = file.read();
-            Assert.assertNotNull(tagObj);
+            assertNotNull(tagObj);
 
             // Check actions & node in the Tag object, but without getting at the private Tag class
             Field actionField = tagObj.getClass().getDeclaredField("actions");
@@ -124,28 +135,28 @@ public class ArgumentsActionImplTest {
             FlowNode deserializedNode = (FlowNode)(nodeField.get(tagObj));
             nodeExecutionF.set(deserializedNode, f.getExecution());
 
-            Assert.assertNotNull(deserializedNode);
+            assertNotNull(deserializedNode);
             if (f.getActions().size() > 0) {
-                Assert.assertNotNull(deserializedActions);
-                Assert.assertEquals(f.getActions().size(), deserializedActions.length);
+                assertNotNull(deserializedActions);
+                assertEquals(f.getActions().size(), deserializedActions.length);
             }
 
             ArgumentsAction expectedInfoAction = f.getPersistentAction(ArgumentsAction.class);
             if (expectedInfoAction != null) {
                 Action deserializedInfoAction = Iterables.getFirst(Iterables.filter(Lists.newArrayList(deserializedActions), Predicates.instanceOf(ArgumentsAction.class)), null);
-                Assert.assertNotNull(deserializedInfoAction);
+                assertNotNull(deserializedInfoAction);
                 ArgumentsAction ArgumentsAction = (ArgumentsAction)deserializedInfoAction;
 
                 // Compare original and deserialized step arguments to see if they match
-                Assert.assertEquals(ArgumentsAction.getStepArgumentsAsString(f), ArgumentsAction.getStepArgumentsAsString(deserializedNode));
+                assertEquals(ArgumentsAction.getStepArgumentsAsString(f), ArgumentsAction.getStepArgumentsAsString(deserializedNode));
                 Map<String,Object> expectedParams = expectedInfoAction.getArguments();
                 Map<String, Object> deserializedParams = ArgumentsAction.getArguments();
-                Assert.assertEquals(expectedParams.size(), deserializedParams.size());
+                assertEquals(expectedParams.size(), deserializedParams.size());
                 for (String s : expectedParams.keySet()) {
                     Object expectedVal = expectedParams.get(s);
                     Object actualVal = deserializedParams.get(s);
                     if (expectedVal instanceof  Comparable) {
-                        Assert.assertEquals(actualVal, expectedVal);
+                        assertEquals(actualVal, expectedVal);
                     }
                 }
 
@@ -160,9 +171,9 @@ public class ArgumentsActionImplTest {
         passwordBinding.put("mypass", "p4ssw0rd");
         Set<String> sensitiveVariables = new HashSet<>();
         sensitiveVariables.add("mypass");
-        MatcherAssert.assertThat("Input with no variables is safe", ArgumentsActionImpl.replaceSensitiveVariables(input, new EnvVars(), sensitiveVariables), is(input));
-        MatcherAssert.assertThat("Input containing bound value is unsafe", ArgumentsActionImpl.replaceSensitiveVariables(input, new EnvVars(passwordBinding), sensitiveVariables), is("I have a secret ${mypass}"));
-        MatcherAssert.assertThat("EnvVars that do not occur are safe", ArgumentsActionImpl.replaceSensitiveVariables("I have no passwords", new EnvVars(passwordBinding), sensitiveVariables), is("I have no passwords"));
+        assertThat("Input with no variables is safe", ArgumentsActionImpl.replaceSensitiveVariables(input, new EnvVars(), sensitiveVariables), is(input));
+        assertThat("Input containing bound value is unsafe", ArgumentsActionImpl.replaceSensitiveVariables(input, new EnvVars(passwordBinding), sensitiveVariables), is("I have a secret ${mypass}"));
+        assertThat("EnvVars that do not occur are safe", ArgumentsActionImpl.replaceSensitiveVariables("I have no passwords", new EnvVars(passwordBinding), sensitiveVariables), is("I have no passwords"));
     }
 
     @Test
@@ -180,25 +191,25 @@ public class ArgumentsActionImplTest {
         String oversizedString = generateStringOfSize(maxLen + 10);
 
         // Simplest masking of secret and oversized value
-        Assert.assertEquals("${USERVARIABLE}", impl.sanitizeObjectAndRecordMutation(secretUsername, env));
-        Assert.assertFalse(impl.isUnmodifiedArguments());
+        assertEquals("${USERVARIABLE}", impl.sanitizeObjectAndRecordMutation(secretUsername, env));
+        assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
 
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, impl.sanitizeObjectAndRecordMutation(oversizedString, env));
-        Assert.assertFalse(impl.isUnmodifiedArguments());
+        assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, impl.sanitizeObjectAndRecordMutation(oversizedString, env));
+        assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
 
         // Test explosion of Step & UninstantiatedDescribable objects
         Step mystep = new EchoStep("I have a "+secretUsername);
         Map<String, ?> singleSanitization = (Map<String,Object>)(impl.sanitizeObjectAndRecordMutation(mystep, env));
-        Assert.assertEquals(1, singleSanitization.size());
-        Assert.assertEquals("I have a ${USERVARIABLE}", singleSanitization.get("message"));
-        Assert.assertFalse(impl.isUnmodifiedArguments());
+        assertEquals(1, singleSanitization.size());
+        assertEquals("I have a ${USERVARIABLE}", singleSanitization.get("message"));
+        assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
         singleSanitization = ((UninstantiatedDescribable) (impl.sanitizeObjectAndRecordMutation(mystep.getDescriptor().uninstantiate(mystep), env))).getArguments();
-        Assert.assertEquals(1, singleSanitization.size());
-        Assert.assertEquals("I have a ${USERVARIABLE}", singleSanitization.get("message"));
-        Assert.assertFalse(impl.isUnmodifiedArguments());
+        assertEquals(1, singleSanitization.size());
+        assertEquals("I have a ${USERVARIABLE}", singleSanitization.get("message"));
+        assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
 
         // Maps
@@ -208,26 +219,26 @@ public class ArgumentsActionImplTest {
         Assert.assertNotEquals(sanitized, dangerous);
         assertThat(sanitized, instanceOf(Map.class));
         Map<String, Object> sanitizedMap = (Map<String, Object>) sanitized;
-        Assert.assertEquals("${USERVARIABLE}", sanitizedMap.get("name"));
-        Assert.assertFalse(impl.isUnmodifiedArguments());
+        assertEquals("${USERVARIABLE}", sanitizedMap.get("name"));
+        assertFalse(impl.isUnmodifiedArguments());
         impl.isUnmodifiedBySanitization = true;
 
         Object identical = impl.sanitizeMapAndRecordMutation(dangerous, new EnvVars());  // String is no longer dangerous
-        Assert.assertEquals(identical, dangerous);
-        Assert.assertTrue(impl.isUnmodifiedArguments());
+        assertEquals(identical, dangerous);
+        assertTrue(impl.isUnmodifiedArguments());
 
         // Lists
         List unsanitizedList = Arrays.asList("cheese", null, secretUsername);
         Object sanitized2 = impl.sanitizeListAndRecordMutation(unsanitizedList, env);
         assertThat(sanitized2, instanceOf(List.class));
         List sanitizedList = (List) sanitized2;
-        Assert.assertEquals(3, sanitizedList.size());
-        Assert.assertFalse(impl.isUnmodifiedArguments());
-        Assert.assertEquals("${USERVARIABLE}", sanitizedList.get(2));
+        assertEquals(3, sanitizedList.size());
+        assertFalse(impl.isUnmodifiedArguments());
+        assertEquals("${USERVARIABLE}", sanitizedList.get(2));
         impl.isUnmodifiedBySanitization = true;
 
-        Assert.assertEquals(unsanitizedList, impl.sanitizeObjectAndRecordMutation(unsanitizedList, new EnvVars()));
-        Assert.assertEquals(unsanitizedList, impl.sanitizeListAndRecordMutation(unsanitizedList, new EnvVars()));
+        assertEquals(unsanitizedList, impl.sanitizeObjectAndRecordMutation(unsanitizedList, new EnvVars()));
+        assertEquals(unsanitizedList, impl.sanitizeListAndRecordMutation(unsanitizedList, new EnvVars()));
     }
 
     @Test
@@ -304,11 +315,11 @@ public class ArgumentsActionImplTest {
         ArgumentsActionImpl filtered = new ArgumentsActionImpl(args, env, sensitiveVariables);
 
         Map<String, Object> filteredArgs = filtered.getArguments();
-        Assert.assertEquals(2, filteredArgs.size());
-        Assert.assertThat(filteredArgs, IsMapContaining.hasEntry("ints", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
-        Assert.assertThat(filteredArgs, IsMapContaining.hasKey("strings"));
+        assertEquals(2, filteredArgs.size());
+        assertThat(filteredArgs, IsMapContaining.hasEntry("ints", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
+        assertThat(filteredArgs, IsMapContaining.hasKey("strings"));
         Object[] contents = (Object[])(filteredArgs.get("strings"));
-        Assert.assertArrayEquals(new Object[]{"heh", "${USERVARIABLE}", "lumberjack"}, (Object[])(filteredArgs.get("strings")));
+        assertArrayEquals(new Object[]{"heh", "${USERVARIABLE}", "lumberjack"}, (Object[])(filteredArgs.get("strings")));
     }
 
     @Test
@@ -331,7 +342,7 @@ public class ArgumentsActionImplTest {
         List<FlowNode> nodes = new LinearScanner().filteredNodes(run.getExecution(), new NodeStepTypePredicate("sh"));
         for (FlowNode f : nodes) {
             if (ArgumentsAction.getStepArgumentsAsString(f) == null) {
-                Assert.fail("No arguments action for node: "+f.toString());
+                fail("No arguments action for node: "+f.toString());
             }
         }
     }
@@ -351,23 +362,23 @@ public class ArgumentsActionImplTest {
 
         // Same string, unsanitized
         ArgumentsActionImpl argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars(), sensitiveVariables);
-        Assert.assertTrue(argumentsActionImpl.isUnmodifiedArguments());
-        Assert.assertEquals(arguments.get("message"), argumentsActionImpl.getArgumentValueOrReason("message"));
-        Assert.assertEquals(1, argumentsActionImpl.getArguments().size());
-        Assert.assertEquals("I have a secret p4ssw0rd", argumentsActionImpl.getArguments().get("message"));
+        assertTrue(argumentsActionImpl.isUnmodifiedArguments());
+        assertEquals(arguments.get("message"), argumentsActionImpl.getArgumentValueOrReason("message"));
+        assertEquals(1, argumentsActionImpl.getArguments().size());
+        assertEquals("I have a secret p4ssw0rd", argumentsActionImpl.getArguments().get("message"));
 
         // Test sanitizing arguments now
         argumentsActionImpl = new ArgumentsActionImpl(arguments, new EnvVars(passwordBinding), sensitiveVariables);
-        Assert.assertFalse(argumentsActionImpl.isUnmodifiedArguments());
-        Assert.assertEquals("I have a secret ${mypass}", argumentsActionImpl.getArgumentValueOrReason("message"));
-        Assert.assertEquals(1, argumentsActionImpl.getArguments().size());
-        Assert.assertEquals("I have a secret ${mypass}", argumentsActionImpl.getArguments().get("message"));
+        assertFalse(argumentsActionImpl.isUnmodifiedArguments());
+        assertEquals("I have a secret ${mypass}", argumentsActionImpl.getArgumentValueOrReason("message"));
+        assertEquals(1, argumentsActionImpl.getArguments().size());
+        assertEquals("I have a secret ${mypass}", argumentsActionImpl.getArguments().get("message"));
 
         // Mask oversized values
         arguments.clear();
         arguments.put("text", RandomStringUtils.random(maxSize+1));
         argumentsActionImpl = new ArgumentsActionImpl(arguments);
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, argumentsActionImpl.getArgumentValueOrReason("text"));
+        assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, argumentsActionImpl.getArgumentValueOrReason("text"));
     }
 
     @Test
@@ -382,8 +393,8 @@ public class ArgumentsActionImplTest {
         unserializable.put("ex", me);
 
         ArgumentsActionImpl impl = new ArgumentsActionImpl(unserializable);
-        Assert.assertEquals(ArgumentsAction.NotStoredReason.UNSERIALIZABLE, impl.getArgumentValueOrReason("ex"));
-        Assert.assertFalse("Should show argument removed by sanitization", impl.isUnmodifiedArguments());
+        assertEquals(ArgumentsAction.NotStoredReason.UNSERIALIZABLE, impl.getArgumentValueOrReason("ex"));
+        assertFalse("Should show argument removed by sanitization", impl.isUnmodifiedArguments());
     }
 
     static class SuperSpecialThing implements Serializable {
@@ -414,7 +425,7 @@ public class ArgumentsActionImplTest {
         logging.record(ArgumentsActionImpl.class, Level.FINE);
         ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.singletonMap("curve", new Fractal()));
         Map<String, Object> args = impl.getArguments();
-        Assert.assertThat(args, IsMapContaining.hasEntry("curve", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
+        assertThat(args, IsMapContaining.hasEntry("curve", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
     }
     public static final class Fractal extends Curve {
         @Override public String getDescription() {
@@ -434,19 +445,19 @@ public class ArgumentsActionImplTest {
 
         ArgumentsActionImpl argsAction = new ArgumentsActionImpl(testMap);
         Map<String, Object> maskedArgs = argsAction.getArguments();
-        Assert.assertThat(maskedArgs, IsMapContaining.hasEntry("maskme", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
-        Assert.assertThat(maskedArgs, IsMapContaining.hasEntry("safe", 5));
+        assertThat(maskedArgs, IsMapContaining.hasEntry("maskme", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
+        assertThat(maskedArgs, IsMapContaining.hasEntry("safe", 5));
 
         // Sub-map sanitization
         Map<String, Object> subMap = (Map<String,Object>)(maskedArgs.get("maskMyMapValue"));
-        Assert.assertThat(subMap, IsMapContaining.hasEntry("bob", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
+        assertThat(subMap, IsMapContaining.hasEntry("bob", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
 
         // Nested list masking too!
         List<Serializable> sublist = (List<Serializable>)(maskedArgs.get("maskAnElement"));
-        Assert.assertThat(sublist, Matchers.hasItem("cheese"));
-        Assert.assertThat(sublist, Matchers.hasItems("cheese", ArgumentsAction.NotStoredReason.UNSERIALIZABLE, -8));
+        assertThat(sublist, Matchers.hasItem("cheese"));
+        assertThat(sublist, Matchers.hasItems("cheese", ArgumentsAction.NotStoredReason.UNSERIALIZABLE, -8));
         List<Serializable> subSubList = (List<Serializable>)(sublist.get(3));
-        Assert.assertThat(subSubList, Matchers.contains("nested", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
+        assertThat(subSubList, Matchers.contains("nested", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
     }
 
     @Test
@@ -479,21 +490,21 @@ public class ArgumentsActionImplTest {
         List<FlowNode> filtered = scanner.filteredNodes(exec, new DescriptorMatchPredicate(BindingStep.DescriptorImpl.class));
 
         // Check the binding step is OK
-        Assert.assertEquals(8, filtered.size());
+        assertEquals(8, filtered.size());
         FlowNode node = Collections2.filter(filtered, FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class)).iterator().next();
         ArgumentsActionImpl act = node.getPersistentAction(ArgumentsActionImpl.class);
-        Assert.assertNotNull(act.getArgumentValue("bindings"));
-        Assert.assertNotNull(act.getArguments().get("bindings"));
+        assertNotNull(act.getArgumentValue("bindings"));
+        assertNotNull(act.getArguments().get("bindings"));
 
         // Test that masking really does mask bound credentials appropriately
         filtered = scanner.filteredNodes(exec, new DescriptorMatchPredicate(EchoStep.DescriptorImpl.class));
         for (FlowNode f : filtered) {
             act = f.getPersistentAction(ArgumentsActionImpl.class);
-            MatcherAssert.assertThat((String) act.getArguments().get("message"), allOf(not(containsString("bob")), not(containsString("s3cr3t"))));
+            assertThat((String) act.getArguments().get("message"), allOf(not(containsString("bob")), not(containsString("s3cr3t"))));
         }
 
         List<FlowNode> allStepped = scanner.filteredNodes(run.getExecution().getCurrentHeads(), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class));
-        Assert.assertEquals(6, allStepped.size());  // One ArgumentsActionImpl per block or atomic step
+        assertEquals(6, allStepped.size());  // One ArgumentsActionImpl per block or atomic step
 
         testDeserialize(exec);
     }
@@ -513,12 +524,12 @@ public class ArgumentsActionImplTest {
         WorkflowRun run  = r.buildAndAssertSuccess(job);
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution(), new DescriptorMatchPredicate(StateMetaStep.DescriptorImpl.class));
-        Assert.assertNotNull(node);
+        assertNotNull(node);
         Map<String,Object> args = ArgumentsAction.getArguments(node);
-        Assert.assertEquals(2, args.size());
-        Assert.assertEquals(true, args.get("moderate"));
+        assertEquals(2, args.size());
+        assertEquals(true, args.get("moderate"));
         Map<String, Object> stateArgs = (Map<String,Object>)args.get("state");
-        Assert.assertTrue("Nested state Describable should only include a class argument or none at all",
+        assertTrue("Nested state Describable should only include a class argument or none at all",
                 stateArgs.size() <= 1 && Sets.difference(stateArgs.keySet(), new HashSet<>(Arrays.asList("$class"))).size() == 0);
 
         // Same metastep but only one arg supplied, shouldn't auto-unwrap the internal step because can take 2 args
@@ -532,13 +543,13 @@ public class ArgumentsActionImplTest {
         run  = r.buildAndAssertSuccess(job);
         List<FlowNode> nodes = scan.filteredNodes(run.getExecution(), new DescriptorMatchPredicate(StateMetaStep.DescriptorImpl.class));
         for (FlowNode n : nodes) {
-            Assert.assertNotNull(n);
+            assertNotNull(n);
             args = ArgumentsAction.getArguments(n);
-            Assert.assertEquals(1, args.size());
+            assertEquals(1, args.size());
             Map<String, Object> argsMap = (Map)args;
             Object stateValue = argsMap.get("state");
             if (stateValue instanceof Map) {
-                Assert.assertEquals("Oregon", ((Map<String,Object>)stateValue).get("$class"));
+                assertEquals("Oregon", ((Map<String,Object>)stateValue).get("$class"));
             }
         }
     }
@@ -578,23 +589,23 @@ public class ArgumentsActionImplTest {
 
         // Argument test
         FlowNode echoNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("echo"));
-        Assert.assertEquals("test", echoNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
-        Assert.assertEquals("test", ArgumentsAction.getStepArgumentsAsString(echoNode));
+        assertEquals("test", echoNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
+        assertEquals("test", ArgumentsAction.getStepArgumentsAsString(echoNode));
 
         if (Functions.isWindows()) {
             FlowNode batchNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("bat"));
-            Assert.assertEquals("echo %USERNAME%", batchNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
-            Assert.assertEquals("echo %USERNAME%", ArgumentsAction.getStepArgumentsAsString(batchNode));
+            assertEquals("echo %USERNAME%", batchNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
+            assertEquals("echo %USERNAME%", ArgumentsAction.getStepArgumentsAsString(batchNode));
         } else { // Unix
             FlowNode shellNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("sh"));
-            Assert.assertEquals("whoami", shellNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
-            Assert.assertEquals("whoami", ArgumentsAction.getStepArgumentsAsString(shellNode));
+            assertEquals("whoami", shellNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
+            assertEquals("whoami", ArgumentsAction.getStepArgumentsAsString(shellNode));
         }
 
         FlowNode nodeNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0),
                 Predicates.and(Predicates.instanceOf(StepStartNode.class), new NodeStepTypePredicate("node"), FlowScanningUtils.hasActionPredicate(ArgumentsActionImpl.class)));
-        Assert.assertEquals(r.jenkins.getSelfLabel().getName(), nodeNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
-        Assert.assertEquals(r.jenkins.getSelfLabel().getName(), ArgumentsAction.getStepArgumentsAsString(nodeNode));
+        assertEquals(r.jenkins.getSelfLabel().getName(), nodeNode.getPersistentAction(ArgumentsAction.class).getArguments().values().iterator().next());
+        assertEquals(r.jenkins.getSelfLabel().getName(), ArgumentsAction.getStepArgumentsAsString(nodeNode));
 
         testDeserialize(run.getExecution());
     }
@@ -617,23 +628,23 @@ public class ArgumentsActionImplTest {
 
         FlowNode testNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("writeFile"));
         ArgumentsAction act = testNode.getPersistentAction(ArgumentsAction.class);
-        Assert.assertNotNull(act);
-        Assert.assertEquals("hello world", act.getArgumentValue("text"));
-        Assert.assertEquals("msg.out", act.getArgumentValue("file"));
+        assertNotNull(act);
+        assertEquals("hello world", act.getArgumentValue("text"));
+        assertEquals("msg.out", act.getArgumentValue("file"));
 
         testNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("step"));
         act = testNode.getPersistentAction(ArgumentsAction.class);
-        Assert.assertNotNull(act);
+        assertNotNull(act);
         Map<String, Object> delegateMap = ((Map<String,Object>)act.getArgumentValue("delegate"));
-        Assert.assertEquals("msg.out", delegateMap.get("artifacts"));
-        Assert.assertEquals(Boolean.FALSE, delegateMap.get("fingerprint"));
+        assertEquals("msg.out", delegateMap.get("artifacts"));
+        assertEquals(Boolean.FALSE, delegateMap.get("fingerprint"));
 
         testNode = run.getExecution().getNode("7"); // Start node for EnvAction
         act = testNode.getPersistentAction(ArgumentsAction.class);
-        Assert.assertNotNull(act);
-        Assert.assertEquals(1, act.getArguments().size());
+        assertNotNull(act);
+        assertEquals(1, act.getArguments().size());
         Object ob = act.getArguments().get("overrides");
-        Assert.assertEquals("CUSTOM=val", (String)((ArrayList) ob).get(0));
+        assertEquals("CUSTOM=val", (String)((ArrayList) ob).get(0));
         testDeserialize(run.getExecution());
     }
 
@@ -650,15 +661,15 @@ public class ArgumentsActionImplTest {
 
         FlowNode testNode = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("step"));
         ArgumentsAction act = testNode.getPersistentAction(ArgumentsAction.class);
-        Assert.assertNotNull(act);
+        assertNotNull(act);
         Object delegate = act.getArgumentValue("delegate");
 
         // Test that for a raw Describable we explode it into its arguments Map
-        Assert.assertThat(delegate, instanceOf(UninstantiatedDescribable.class));
+        assertThat(delegate, instanceOf(UninstantiatedDescribable.class));
         UninstantiatedDescribable ud = (UninstantiatedDescribable)delegate;
         Map<String, ?> args = (Map<String,?>)(((UninstantiatedDescribable)delegate).getArguments());
-        Assert.assertThat(args, IsMapContaining.hasEntry("artifacts", "msg.out"));
-        Assert.assertEquals(ArtifactArchiver.class.getName(), ud.getModel().getType().getName());
+        assertThat(args, IsMapContaining.hasEntry("artifacts", "msg.out"));
+        assertEquals(ArtifactArchiver.class.getName(), ud.getModel().getType().getName());
     }
 
     @Test public void enumArguments() throws Exception {
@@ -677,11 +688,11 @@ public class ArgumentsActionImplTest {
         ScriptApproval.get().approveSignature("staticField java.time.temporal.ChronoUnit MINUTES"); // TODO add to generic-whitelist
         WorkflowRun run = r.buildAndAssertSuccess(p);
         List<FlowNode> nodes = new DepthFirstScanner().filteredNodes(run.getExecution(), new NodeStepTypePredicate("nop"));
-        Assert.assertThat(nodes.get(0).getPersistentAction(ArgumentsAction.class).getArgumentValueOrReason("value"),
+        assertThat(nodes.get(0).getPersistentAction(ArgumentsAction.class).getArgumentValueOrReason("value"),
                 equalTo(ChronoUnit.MINUTES));
-        Assert.assertThat(nodes.get(1).getPersistentAction(ArgumentsAction.class).getArgumentValueOrReason("value"),
+        assertThat(nodes.get(1).getPersistentAction(ArgumentsAction.class).getArgumentValueOrReason("value"),
                 equalTo(TimeUnit.MINUTES));
-        Assert.assertThat(nodes.get(2).getPersistentAction(ArgumentsAction.class).getArgumentValueOrReason("value"),
+        assertThat(nodes.get(2).getPersistentAction(ArgumentsAction.class).getArgumentValueOrReason("value"),
                 equalTo(NotStoredReason.UNSERIALIZABLE));
     }
 

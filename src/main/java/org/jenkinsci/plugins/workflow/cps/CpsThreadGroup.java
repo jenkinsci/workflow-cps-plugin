@@ -46,6 +46,7 @@ import jenkins.model.Jenkins;
 import jenkins.util.Timer;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverWriter;
@@ -74,10 +75,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static java.util.logging.Level.*;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
-import static org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.*;
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.pickles.Pickle;
 import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
 import org.jenkinsci.plugins.workflow.support.concurrent.WithThreadName;
@@ -92,7 +90,7 @@ import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
  *
  * @author Kohsuke Kawaguchi
  */
-@PersistIn(PROGRAM)
+@PersistIn(PersistenceContext.PROGRAM)
 @SuppressFBWarnings("SE_BAD_FIELD") // bogus warning about closures
 public final class CpsThreadGroup implements Serializable {
     /**
@@ -239,7 +237,7 @@ public final class CpsThreadGroup implements Serializable {
         assertVmThread();
         int id = iota++;
         closures.put(id, body);
-        LOGGER.log(FINE, "exporting {0}", id);
+        LOGGER.log(Level.FINE, "exporting {0}", id);
         return new StaticBodyReference(id,body);
     }
 
@@ -259,11 +257,11 @@ public final class CpsThreadGroup implements Serializable {
         assertVmThread();
         if (ref==null)      return;
         if (closures.remove(ref.id) != null) {
-            LOGGER.log(FINE, "unexporting {0}", ref.id);
+            LOGGER.log(Level.FINE, "unexporting {0}", ref.id);
         } else if (closures.isEmpty()) {
-            LOGGER.log(FINE, "cannot unexport {0} but there are no closures at all so perhaps we are still trying to load the program", ref.id);
+            LOGGER.log(Level.FINE, "cannot unexport {0} but there are no closures at all so perhaps we are still trying to load the program", ref.id);
         } else {
-            LOGGER.log(WARNING, "double unexport of {0}", ref.id);
+            LOGGER.log(Level.WARNING, "double unexport of {0}", ref.id);
         }
     }
 
@@ -449,7 +447,7 @@ public final class CpsThreadGroup implements Serializable {
                 scripts.clear();
             }
             if (!closures.isEmpty()) {
-                LOGGER.log(WARNING, "Stale closures in {0}: {1}", new Object[] {execution, closures.keySet()});
+                LOGGER.log(Level.WARNING, "Stale closures in {0}: {1}", new Object[] {execution, closures.keySet()});
                 closures.clear();
             }
             try {
@@ -519,7 +517,7 @@ public final class CpsThreadGroup implements Serializable {
             try {
                 saveProgram();
             } catch (IOException x) {
-                LOGGER.log(WARNING, "program state save failed", x);
+                LOGGER.log(Level.WARNING, "program state save failed", x);
             }
         }
     }
@@ -545,24 +543,24 @@ public final class CpsThreadGroup implements Serializable {
 
         assertVmThread();
 
-        CpsFlowExecution old = PROGRAM_STATE_SERIALIZATION.get();
-        PROGRAM_STATE_SERIALIZATION.set(execution);
+        CpsFlowExecution old = CpsFlowExecution.PROGRAM_STATE_SERIALIZATION.get();
+        CpsFlowExecution.PROGRAM_STATE_SERIALIZATION.set(execution);
 
         Collection<? extends PickleFactory> pickleFactories = PickleFactory.all();
         if (pickleFactories.isEmpty()) {
-            LOGGER.log(WARNING, "Skipping save to {0} since Jenkins seems to be either starting up or shutting down", f);
+            LOGGER.log(Level.WARNING, "Skipping save to {0} since Jenkins seems to be either starting up or shutting down", f);
             return;
         }
 
         boolean serializedOK = false;
-        try (CpsFlowExecution.Timing t = execution.time(TimingKind.saveProgram);
+        try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.saveProgram);
                 WithThreadName diag = new WithThreadName("saving " + f)) {
             try (RiverWriter w = new RiverWriter(tmpFile, execution.getOwner(), pickleFactories)) {
                 w.writeObject(this);
             }
             serializedOK = true;
             Files.move(tmpFile.toPath(), f.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            LOGGER.log(FINE, "program state saved");
+            LOGGER.log(Level.FINE, "program state saved");
         } catch (RuntimeException e) {
             propagateErrorToWorkflow(e);
             throw new IOException("Failed to persist "+f,e);
@@ -572,7 +570,7 @@ public final class CpsThreadGroup implements Serializable {
             } // JENKINS-29656: otherwise just send the I/O error to caller and move on
             throw new IOException("Failed to persist "+f,e);
         } finally {
-            PROGRAM_STATE_SERIALIZATION.set(old);
+            CpsFlowExecution.PROGRAM_STATE_SERIALIZATION.set(old);
             Util.deleteFile(tmpFile);
         }
     }

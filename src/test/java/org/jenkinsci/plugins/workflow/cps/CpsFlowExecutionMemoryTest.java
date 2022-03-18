@@ -38,7 +38,9 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Test;
-import static org.junit.Assert.*;
+
+import static org.junit.Assert.assertFalse;
+
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.jvnet.hudson.test.BuildWatcher;

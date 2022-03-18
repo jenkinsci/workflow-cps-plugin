@@ -24,7 +24,9 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.assertNull;
 
 import hudson.model.Item;
 import hudson.model.User;
@@ -33,7 +35,6 @@ import hudson.security.ACLContext;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.junit.Test;
-import static org.junit.Assert.*;
 import org.junit.Rule;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;

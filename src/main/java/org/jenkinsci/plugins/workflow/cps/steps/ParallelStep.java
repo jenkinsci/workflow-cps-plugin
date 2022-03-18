@@ -34,7 +34,7 @@ import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
 
 /**
  * CPS-specific {@link Step} implementation that executes multiple closures in parallel.

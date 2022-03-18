@@ -36,13 +36,14 @@ import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import static org.junit.Assert.*;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 
 import org.junit.ClassRule;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Test of {@link WorkflowJob} that doesn't involve Jenkins restarts.

@@ -54,7 +54,7 @@ import org.jenkinsci.plugins.scriptsecurity.scripts.ApprovalContext;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
 
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.JOB;
 
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
