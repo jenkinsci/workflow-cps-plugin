@@ -73,6 +73,10 @@ final class LoggingInvoker implements Invoker {
         // (simply checking whether the class loader can “see”, say, jenkins/model/Jenkins.class
         // would falsely mark third-party libs bundled in Jenkins plugins)
         String name = clazz.getName();
+        if (name.startsWith("com.cloudbees.groovy.cps.")) {
+            // Likely synthetic call, as to CpsDefaultGroovyMethods.
+            return false;
+        }
         // acc. to `find …/jenkinsci/*/src/main/java -type f -exec egrep -h '^package ' {} \; | sort | uniq` this is decent
         return name.contains("jenkins") || name.contains("hudson") || name.contains("cloudbees");
     }
