@@ -50,7 +50,7 @@ public class LoggingInvokerTest {
     }
 
     @Test public void closures() throws Exception {
-        assertInternalCalls("node {echo 'hello'}", true);
+        assertInternalCalls("node {echo 'hello'}; [1, 2].collect {it + 1}", true);
     }
 
     private void assertInternalCalls(String script, boolean sandbox, String... calls) throws Exception {
