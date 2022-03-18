@@ -72,7 +72,7 @@ import org.kohsuke.args4j.spi.Setter;
         if (!action.isEnabled() || !action.isReplayableSandboxTest()) {
             throw new AbortException("Not authorized to replay builds of this job");
         }
-        String text = IOUtils.toString(stdin, StandardCharsets.UTF_8);
+        String text = IOUtils.toString(stdin, getClientCharset());
         if (script != null) {
             Map<String,String> replacementLoadedScripts = new HashMap<>(action.getOriginalLoadedScripts());
             if (!replacementLoadedScripts.containsKey(script)) {
