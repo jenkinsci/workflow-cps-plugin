@@ -66,7 +66,7 @@
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
         <jenkins.version>2.332.1</jenkins.version>
         <java.level>8</java.level>
-        <subversion-plugin.version>2.15.1</subversion-plugin.version> <!-- TODO 2.15.2 test JAR is apparently empty -->
+        <subversion-plugin.version>2.15.2</subversion-plugin.version> <!-- TODO 2.15.2 test JAR is apparently empty -->
         <no-test-jar>false</no-test-jar>
         <groovy-cps.version>1.32</groovy-cps.version>
         <node.version>12.19.0</node.version>
