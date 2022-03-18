@@ -40,6 +40,7 @@ import hudson.model.TopLevelItem;
 import hudson.scm.SCM;
 import hudson.scm.SCMDescriptor;
 import hudson.slaves.WorkspaceList;
+import java.io.File;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -48,6 +49,7 @@ import java.util.Collection;
 import java.util.List;
 import jenkins.model.Jenkins;
 import jenkins.scm.api.SCMFileSystem;
+import jenkins.security.HMACConfidentialKey;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.JOB;
 
@@ -67,6 +69,8 @@ import org.kohsuke.stapler.StaplerRequest;
 
 @PersistIn(JOB)
 public class CpsScmFlowDefinition extends FlowDefinition {
+
+    private static final HMACConfidentialKey CHECKOUT_DIR_KEY = new HMACConfidentialKey(CpsScmFlowDefinition.class, "filePathWithSuffix", 32);
 
     private final SCM scm;
     private final String scriptPath;
@@ -134,7 +138,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             if (baseWorkspace == null) {
                 throw new IOException(node.getDisplayName() + " may be offline");
             }
-            dir = getFilePathWithSuffix(baseWorkspace);
+            dir = getFilePathWithSuffix(baseWorkspace, scm);
         } else { // should not happen, but just in case:
             dir = new FilePath(owner.getRootDir());
         }
@@ -149,6 +153,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         delegate.setChangelog(true);
         FilePath acquiredDir;
         try (WorkspaceList.Lease lease = computer.getWorkspaceList().acquire(dir)) {
+            dir.withSuffix("-scm-key.txt").write(scm.getKey(), "UTF-8");
             for (int retryCount = Jenkins.get().getScmCheckoutRetryCount(); retryCount >= 0; retryCount--) {
                 try {
                     delegate.checkout(build, dir, listener, node.createLauncher(listener));
@@ -174,8 +179,8 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             }
 
             FilePath scriptFile = dir.child(expandedScriptPath);
-            if (!scriptFile.absolutize().getRemote().replace('\\', '/').startsWith(dir.absolutize().getRemote().replace('\\', '/') + '/')) { // TODO JENKINS-26838
-                throw new IOException(scriptFile + " is not inside " + dir);
+            if (!new File(scriptFile.getRemote()).getCanonicalFile().toPath().startsWith(new File(dir.getRemote()).getCanonicalPath())) { // TODO JENKINS-26838
+                throw new IOException(scriptFile + " references a file that is not inside " + dir);
             }
             if (!scriptFile.exists()) {
                 throw new AbortException(scriptFile + " not found");
@@ -190,8 +195,8 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         return exec;
     }
 
-    private FilePath getFilePathWithSuffix(FilePath baseWorkspace) {
-        return baseWorkspace.withSuffix(getFilePathSuffix() + "script");
+    private FilePath getFilePathWithSuffix(FilePath baseWorkspace, SCM scm) {
+        return baseWorkspace.withSuffix(getFilePathSuffix() + "script").child(CHECKOUT_DIR_KEY.mac(scm.getKey()));
     }
 
     private String getFilePathSuffix() {

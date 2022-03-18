@@ -378,8 +378,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             return;
         }
 
+        final EnvVars nonNullEnvVars = envVars; // Workaround for NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE false positive in lambdas: https://github.com/spotbugs/spotbugs/issues/552.
         List<String> scanResults = sensitiveVariables.stream()
-                .filter(e -> !envVars.get(e, "").isEmpty() && interpolatedStrings.stream().anyMatch(g -> g.contains(envVars.get(e))))
+                .filter(e -> !nonNullEnvVars.get(e, "").isEmpty() && interpolatedStrings.stream().anyMatch(g -> g.contains(nonNullEnvVars.get(e))))
                 .collect(Collectors.toList());
 
         if (scanResults != null && !scanResults.isEmpty()) {

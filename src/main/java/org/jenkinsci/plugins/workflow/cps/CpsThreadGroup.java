@@ -78,6 +78,7 @@ import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import org.jenkinsci.plugins.workflow.pickles.Pickle;
 import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
+import org.jenkinsci.plugins.workflow.support.concurrent.WithThreadName;
 import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
 import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
 
@@ -552,7 +553,8 @@ public final class CpsThreadGroup implements Serializable {
         }
 
         boolean serializedOK = false;
-        try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.saveProgram)) {
+        try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.saveProgram);
+                WithThreadName diag = new WithThreadName("saving " + f)) {
             try (RiverWriter w = new RiverWriter(tmpFile, execution.getOwner(), pickleFactories)) {
                 w.writeObject(this);
             }
