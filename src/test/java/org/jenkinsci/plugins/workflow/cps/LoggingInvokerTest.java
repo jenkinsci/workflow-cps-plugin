@@ -53,6 +53,13 @@ public class LoggingInvokerTest {
         assertInternalCalls("node {echo 'hello'}; [1, 2].collect {it + 1}", true);
     }
 
+    @Test public void specialCalls() throws Exception {
+        assertInternalCalls("new InterruptedBuildAction([])", false,
+            "jenkins.model.InterruptedBuildAction.<init>");
+        // TODO all of the receivers are of X from GroovyClassLoader so not recorded here:
+        assertInternalCalls("class X extends hudson.lifecycle.Lifecycle {void onReady() {super.onReady()}}; new X().getHudsonWar(); new X().onReady()", false);
+    }
+
     private void assertInternalCalls(String script, boolean sandbox, String... calls) throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(script, sandbox));
