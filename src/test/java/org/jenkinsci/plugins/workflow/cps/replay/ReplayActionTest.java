@@ -47,6 +47,7 @@ import hudson.security.ACL;
 import hudson.security.ACLContext;
 import hudson.security.Permission;
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -55,12 +56,10 @@ import java.util.Map;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
-import static org.hamcrest.Matchers.*;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
-import static org.junit.Assert.*;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -71,6 +70,15 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 public class ReplayActionTest {
 
@@ -177,20 +185,20 @@ public class ReplayActionTest {
 
             JenkinsRule.WebClient wc = r.createWebClient();
             Assert.assertNull(run.asFlowExecutionOwner().getOrNull());
-            Assert.assertTrue(canReplay(run, "admin"));
-            Assert.assertTrue(canReplay(run, "normal"));
-            Assert.assertTrue(canRebuild(run, "admin"));
+            assertTrue(canReplay(run, "admin"));
+            assertTrue(canReplay(run, "normal"));
+            assertTrue(canRebuild(run, "admin"));
             Assert.assertNull(run.asFlowExecutionOwner().getOrNull());
 
             // After lazy-load we can do deeper checks easily, and the deep test triggers a full load of the execution
-            Assert.assertTrue(canReplayDeepTest(run, "admin"));
-            Assert.assertTrue(canReplayDeepTest(run2, "normal"));
+            assertTrue(canReplayDeepTest(run, "admin"));
+            assertTrue(canReplayDeepTest(run2, "normal"));
 
-            Assert.assertNotNull(run.asFlowExecutionOwner().getOrNull());
-            Assert.assertTrue(canReplay(run, "admin"));
-            Assert.assertFalse(canReplay(run, "normal")); // Now we know to check if the user can run outside sandbox, and they can't
-            Assert.assertTrue(canReplay(run2, "normal")); // We can still run stuff inside sandbox
-            Assert.assertTrue(canRebuild(run, "admin"));
+            assertNotNull(run.asFlowExecutionOwner().getOrNull());
+            assertTrue(canReplay(run, "admin"));
+            assertFalse(canReplay(run, "normal")); // Now we know to check if the user can run outside sandbox, and they can't
+            assertTrue(canReplay(run2, "normal")); // We can still run stuff inside sandbox
+            assertTrue(canRebuild(run, "admin"));
         });
     }
 
@@ -334,13 +342,13 @@ public class ReplayActionTest {
                 WorkflowRun b1 = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
                 story.j.assertLogContains("got original text", b1);
                 // s/got/received/ on main script
-                assertEquals(0, new CLICommandInvoker(story.j, "replay-pipeline").withStdin(IOUtils.toInputStream("node {def t = load 'f.groovy'; echo \"received ${t}\"}")).invokeWithArgs("p").returnCode());
+                assertEquals(0, new CLICommandInvoker(story.j, "replay-pipeline").withStdin(IOUtils.toInputStream("node {def t = load 'f.groovy'; echo \"received ${t}\"}", StandardCharsets.UTF_8)).invokeWithArgs("p").returnCode());
                 story.j.waitUntilNoActivity();
                 WorkflowRun b2 = p.getLastBuild();
                 assertEquals(2, b2.getNumber());
                 story.j.assertLogContains("received original text", b2);
                 // s/original/new/ on auxiliary script, and explicitly asking to replay #1 rather than the latest
-                assertEquals(0, new CLICommandInvoker(story.j, "replay-pipeline").withStdin(IOUtils.toInputStream("'new text'")).invokeWithArgs("p", "-n", "1", "-s", "Script1").returnCode());
+                assertEquals(0, new CLICommandInvoker(story.j, "replay-pipeline").withStdin(IOUtils.toInputStream("'new text'", StandardCharsets.UTF_8)).invokeWithArgs("p", "-n", "1", "-s", "Script1").returnCode());
                 story.j.waitUntilNoActivity();
                 WorkflowRun b3 = p.getLastBuild();
                 assertEquals(3, b3.getNumber());

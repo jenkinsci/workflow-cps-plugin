@@ -29,7 +29,7 @@ import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 
 import java.io.Serializable;
 
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.ANYWHERE;
 
 /**
  * Holder of {@link Closure} for {@link CpsStepContext}

@@ -18,6 +18,7 @@ import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext;
 import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
@@ -40,10 +41,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static java.util.logging.Level.*;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.LinearBlockHoppingScanner;
 
@@ -60,7 +59,7 @@ import org.jenkinsci.plugins.workflow.graphanalysis.LinearBlockHoppingScanner;
  * @author Kohsuke Kawaguchi
  * @see CpsBodyInvoker#start()
  */
-@PersistIn(PROGRAM)
+@PersistIn(PersistenceContext.PROGRAM)
 class CpsBodyExecution extends BodyExecution {
     /**
      * Thread that's executing the body.
@@ -412,7 +411,7 @@ class CpsBodyExecution extends BodyExecution {
 
             return end;
         } catch (IOException e) {
-            LOGGER.log(WARNING, "Failed to grow the flow graph", e);
+            LOGGER.log(Level.WARNING, "Failed to grow the flow graph", e);
             throw new Error(e);
         }
     }

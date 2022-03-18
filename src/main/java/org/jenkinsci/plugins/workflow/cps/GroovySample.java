@@ -27,9 +27,10 @@ package org.jenkinsci.plugins.workflow.cps;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
-import hudson.model.InvisibleAction;
 import hudson.model.RootAction;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.IOUtils;
@@ -76,7 +77,7 @@ public interface GroovySample extends ExtensionPoint {
         
         @Override public String script() {
             try {
-                return IOUtils.toString(GroovySample.class.getResource("samples/" + name() + ".groovy"));
+                return IOUtils.toString(GroovySample.class.getResource("samples/" + name() + ".groovy"), StandardCharsets.UTF_8);
             } catch (IOException x) {
                 throw new AssertionError(x);
             }

@@ -33,7 +33,8 @@ import java.util.Map;
 
 import org.jenkinsci.plugins.workflow.util.StaplerReferer;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /**
  * Test harness to test {@link Snippetizer}.

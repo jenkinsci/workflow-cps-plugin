@@ -43,9 +43,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-import static java.util.logging.Level.*;
 import org.jenkinsci.plugins.workflow.cps.persistence.IteratorHack;
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.*;
+
+import static java.util.logging.Level.FINE;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
+
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
