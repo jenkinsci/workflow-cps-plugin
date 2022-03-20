@@ -28,7 +28,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.37</version>
+        <version>4.38</version>
         <relativePath />
     </parent>
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -66,7 +66,6 @@
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
         <jenkins.version>2.332.1</jenkins.version>
         <java.level>8</java.level>
-        <subversion-plugin.version>2.15.1</subversion-plugin.version> <!-- TODO 2.15.2 test JAR is apparently empty -->
         <no-test-jar>false</no-test-jar>
         <groovy-cps.version>1.32</groovy-cps.version>
         <node.version>12.19.0</node.version>
@@ -77,7 +76,7 @@
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-2.332.x</artifactId>
-                <version>1198.v387c834fca_1a_</version>
+                <version>1210.vcd41f6657f03</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -263,13 +262,11 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>subversion</artifactId>
-            <version>${subversion-plugin.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>subversion</artifactId>
-            <version>${subversion-plugin.version}</version>
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
