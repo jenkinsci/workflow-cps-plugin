@@ -102,9 +102,8 @@ public final class CpsThreadGroup implements Serializable {
     private /*almost final*/ transient CpsFlowExecution execution;
 
     /**
-     * @deprecated use {@link #runtimeThreads}
+     * Persistent version of {@link #runtimeThreads}.
      */
-    @Deprecated
     private Map<Integer, CpsThread> threads;
 
     /**
@@ -115,11 +114,6 @@ public final class CpsThreadGroup implements Serializable {
      * (e.g. non-blocking steps, thread dumps from the UI).
      */
     private transient NavigableMap<Integer, CpsThread> runtimeThreads;
-
-    /**
-     * Persistent version of {@link #runtimeThreads}.
-     */
-    private Map<Integer, CpsThread> persistentThreads;
 
     /**
      * Unique thread ID generator.
@@ -190,13 +184,7 @@ public final class CpsThreadGroup implements Serializable {
         setupTransients();
         assert execution!=null;
         if (threads != null) {
-            // Deserializing persisted state from before upgrade
-            assert persistentThreads == null;
             runtimeThreads.putAll(threads);
-            threads = null;
-        } else if (persistentThreads != null) {
-            // Deserializing persisted state from after upgrade
-            runtimeThreads.putAll(persistentThreads);
         }
         if (/* compatibility: the field will be null in old programs */ scripts != null && !scripts.isEmpty()) {
             GroovyShell shell = execution.getShell();
@@ -219,7 +207,7 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     private synchronized Object writeReplace() {
-        persistentThreads = new HashMap<>(runtimeThreads);
+        threads = new HashMap<>(runtimeThreads);
         return this;
     }
 
