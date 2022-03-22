@@ -105,7 +105,7 @@ public final class CpsThreadGroup implements Serializable {
      * @deprecated use {@link #runtimeThreads}
      */
     @Deprecated
-    private final Map<Integer, CpsThread> threads;
+    private Map<Integer, CpsThread> threads;
 
     /**
      * All the member threads by their {@link CpsThread#id}.
