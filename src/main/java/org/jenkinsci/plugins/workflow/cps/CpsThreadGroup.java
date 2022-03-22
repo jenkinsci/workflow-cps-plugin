@@ -104,7 +104,7 @@ public final class CpsThreadGroup implements Serializable {
     /**
      * Persistent version of {@link #runtimeThreads}.
      */
-    private Map<Integer, CpsThread> threads;
+    private volatile Map<Integer, CpsThread> threads;
 
     /**
      * All the member threads by their {@link CpsThread#id}.
@@ -206,7 +206,7 @@ public final class CpsThreadGroup implements Serializable {
         pausedByQuietMode = new AtomicBoolean();
     }
 
-    private synchronized Object writeReplace() {
+    private Object writeReplace() {
         threads = new HashMap<>(runtimeThreads);
         return this;
     }
