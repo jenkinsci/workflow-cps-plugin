@@ -64,9 +64,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
@@ -108,7 +108,7 @@ public final class CpsThreadGroup implements Serializable {
      * and iteration through {@link CpsThreadDump#from(CpsThreadGroup)} may occur on other threads
      * (e.g. non-blocking steps, thread dumps from the UI).
      */
-    private final NavigableMap<Integer,CpsThread> threads = new ConcurrentSkipListMap<>();
+    private final NavigableMap<Integer,CpsThread> threads = Collections.synchronizedNavigableMap(new TreeMap<>());
 
     /**
      * Unique thread ID generator.
