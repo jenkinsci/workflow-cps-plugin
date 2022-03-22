@@ -105,7 +105,7 @@ public final class CpsThreadGroup implements Serializable {
      * @deprecated use {@link #runtimeThreads}
      */
     @Deprecated
-    private final Map<Integer, CpsThread> threads = new HashMap<>();
+    private final Map<Integer, CpsThread> threads;
 
     /**
      * All the member threads by their {@link CpsThread#id}.
@@ -170,7 +170,6 @@ public final class CpsThreadGroup implements Serializable {
 
     CpsThreadGroup(CpsFlowExecution execution) {
         this.execution = execution;
-        this.persistentThreads = new HashMap<>();
         setupTransients();
     }
 
@@ -190,19 +189,14 @@ public final class CpsThreadGroup implements Serializable {
         execution = CpsFlowExecution.PROGRAM_STATE_SERIALIZATION.get();
         setupTransients();
         assert execution!=null;
-        if (persistentThreads == null) {
-            persistentThreads = new HashMap<>();
-        }
-        if (!threads.isEmpty() && !persistentThreads.isEmpty()) {
-            throw new AssertionError("should never happen");
-        } else if (!threads.isEmpty()) {
+        if (threads != null) {
             // Deserializing persisted state from before upgrade
+            assert persistentThreads == null;
             runtimeThreads.putAll(threads);
-            threads.clear();
-        } else if (!persistentThreads.isEmpty()) {
+            threads = null;
+        } else if (persistentThreads != null) {
             // Deserializing persisted state from after upgrade
             runtimeThreads.putAll(persistentThreads);
-            persistentThreads.clear();
         }
         if (/* compatibility: the field will be null in old programs */ scripts != null && !scripts.isEmpty()) {
             GroovyShell shell = execution.getShell();
@@ -225,8 +219,7 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     private synchronized Object writeReplace() {
-        persistentThreads.clear();
-        persistentThreads.putAll(runtimeThreads);
+        persistentThreads = new HashMap<>(runtimeThreads);
         return this;
     }
 
