@@ -102,13 +102,18 @@ public final class CpsThreadGroup implements Serializable {
     private /*almost final*/ transient CpsFlowExecution execution;
 
     /**
+     * Persistent version of {@link #runtimeThreads}.
+     */
+    private volatile Map<Integer, CpsThread> threads;
+
+    /**
      * All the member threads by their {@link CpsThread#id}.
      *
      * All mutation occurs only on the CPS VM thread. Read access through {@link CpsStepContext#doGet}
      * and iteration through {@link CpsThreadDump#from(CpsThreadGroup)} may occur on other threads
      * (e.g. non-blocking steps, thread dumps from the UI).
      */
-    private final NavigableMap<Integer,CpsThread> threads = new ConcurrentSkipListMap<>();
+    private transient NavigableMap<Integer, CpsThread> runtimeThreads;
 
     /**
      * Unique thread ID generator.
@@ -178,6 +183,7 @@ public final class CpsThreadGroup implements Serializable {
         execution = CpsFlowExecution.PROGRAM_STATE_SERIALIZATION.get();
         setupTransients();
         assert execution!=null;
+        runtimeThreads.putAll(threads);
         if (/* compatibility: the field will be null in old programs */ scripts != null && !scripts.isEmpty()) {
             GroovyShell shell = execution.getShell();
             // Take the canonical bindings from the main script and relink that object with that of the shell and all other loaded scripts which kept the same bindings.
@@ -193,15 +199,21 @@ public final class CpsThreadGroup implements Serializable {
     }
 
     private void setupTransients() {
+        runtimeThreads = new ConcurrentSkipListMap<>();
         runner = new CpsVmExecutorService(this);
         pausedByQuietMode = new AtomicBoolean();
+    }
+
+    private Object writeReplace() {
+        threads = new HashMap<>(runtimeThreads);
+        return this;
     }
 
     @CpsVmThreadOnly
     public CpsThread addThread(@NonNull Continuable program, FlowHead head, ContextVariableSet contextVariables) {
         assertVmThread();
         CpsThread t = new CpsThread(this, iota++, program, head, contextVariables);
-        threads.put(t.id, t);
+        runtimeThreads.put(t.id, t);
         return t;
     }
 
@@ -223,9 +235,9 @@ public final class CpsThreadGroup implements Serializable {
      *      null if the thread has finished executing.
      */
     public CpsThread getThread(int id) {
-        CpsThread thread = threads.get(id);
+        CpsThread thread = runtimeThreads.get(id);
         if (thread == null && LOGGER.isLoggable(Level.FINE)) {
-            LOGGER.log(Level.FINE, "no thread " + id + " among " + threads.keySet(), new IllegalStateException());
+            LOGGER.log(Level.FINE, "no thread " + id + " among " + runtimeThreads.keySet(), new IllegalStateException());
         }
         return thread;
     }
@@ -234,7 +246,7 @@ public final class CpsThreadGroup implements Serializable {
      * Returns an unmodifiable snapshot of all threads in the thread group.
      */
     public Iterable<CpsThread> getThreads() {
-        return threads.values();
+        return runtimeThreads.values();
     }
 
     @CpsVmThreadOnly("root")
@@ -327,7 +339,7 @@ public final class CpsThreadGroup implements Serializable {
                             // ensures that everything submitted in front of us has finished.
                             runner.submit(new Runnable() {
                                 public void run() {
-                                    if (threads.isEmpty()) {
+                                    if (runtimeThreads.isEmpty()) {
                                         runner.shutdown();
                                     }
                                     // the original promise of scheduleRun() is now complete
@@ -403,7 +415,7 @@ public final class CpsThreadGroup implements Serializable {
         boolean stillRunnable = false;
 
         // TODO: maybe instead of running all the thread, run just one thread in round robin
-        for (CpsThread t : threads.values().toArray(new CpsThread[threads.size()])) {
+        for (CpsThread t : runtimeThreads.values().toArray(new CpsThread[runtimeThreads.size()])) {
             if (t.isRunnable()) {
                 Outcome o = t.runNextChunk();
                 if (o.isFailure()) {
@@ -426,9 +438,9 @@ public final class CpsThreadGroup implements Serializable {
                     LOGGER.fine("completed " + t);
                     t.fireCompletionHandlers(o); // do this after ErrorAction is set above
 
-                    threads.remove(t.id);
+                    runtimeThreads.remove(t.id);
                     t.cleanUp();
-                    if (threads.isEmpty()) {
+                    if (runtimeThreads.isEmpty()) {
                         execution.onProgramEnd(o);
                         try {
                             this.execution.saveOwner();
@@ -620,7 +632,7 @@ public final class CpsThreadGroup implements Serializable {
         // as that's the ony more likely to have caused the problem.
         // TODO: when we start tracking which thread is just waiting for the body, then
         // that information would help. or maybe we should just remember the thread that has run the last time
-        Map.Entry<Integer,CpsThread> lastEntry = threads.lastEntry();
+        Map.Entry<Integer,CpsThread> lastEntry = runtimeThreads.lastEntry();
         if (lastEntry != null) {
             lastEntry.getValue().resume(new Outcome(null,t));
         } else {
