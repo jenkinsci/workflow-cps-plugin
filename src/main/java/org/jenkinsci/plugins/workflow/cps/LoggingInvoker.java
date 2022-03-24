@@ -109,7 +109,7 @@ final class LoggingInvoker implements Invoker {
     }
 
     @Override public Object superCall(Class senderType, Object receiver, String method, Object[] args) throws Throwable {
-        maybeRecord(senderType, () -> senderType.getName() + method);
+        maybeRecord(senderType, () -> senderType.getName() + "." + method);
         return delegate.superCall(senderType, receiver, method, args);
     }
 
