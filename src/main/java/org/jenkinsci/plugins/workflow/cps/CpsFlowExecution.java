@@ -410,6 +410,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /**
      * Perform post-deserialization state resurrection that handles version evolution
      */
+    @SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification = "Could be null if deserialized from old version")
     private Object readResolve() {
         if (loadedScripts==null)
             loadedScripts = new HashMap<>();   // field added later
