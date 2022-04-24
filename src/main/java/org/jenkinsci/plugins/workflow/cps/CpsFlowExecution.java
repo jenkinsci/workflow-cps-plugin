@@ -428,7 +428,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             this.kind = kind;
             start = System.nanoTime();
         }
+
+        @SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
         @Override public void close() {
+            // it is possible for timings to be null if an old build (< v2686.v7c37e0578401) is being loaded from a saved state
+            if (timings == null) {
+                timings = new ConcurrentHashMap<>();
+            }
             timings.merge(kind.name(), System.nanoTime() - start, Long::sum);
         }
     }
