@@ -407,20 +407,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this(script, sandbox, owner, null);
     }
 
-    /**
-     * Perform post-deserialization state resurrection that handles version evolution
-     */
-    @SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification = "Could be null if deserialized from old version")
-    private Object readResolve() {
-        if (loadedScripts==null)
-            loadedScripts = new HashMap<>();   // field added later
-        // Convert timings to concurrent hash map
-        if (!(timings instanceof ConcurrentHashMap)) {
-            timings = timings == null ? new ConcurrentHashMap<>() : new ConcurrentHashMap<>(timings);
-        }
-        return this;
-    }
-
     class Timing implements AutoCloseable {
         private final TimingKind kind;
         private final long start;
@@ -428,7 +414,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             this.kind = kind;
             start = System.nanoTime();
         }
+
+        @SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
         @Override public void close() {
+            // it is possible for timings to be null if an old build (< v2686.v7c37e0578401) is being loaded from a saved state
+            if (timings == null) {
+                timings = new ConcurrentHashMap<>();
+            }
             timings.merge(kind.name(), System.nanoTime() - start, Long::sum);
         }
     }
@@ -1612,6 +1604,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     // the execution in Groovy CPS should hold that lock (or worse, hold that lock in the runNextChunk method)
     // so that the execution gets suspended while we are getting serialized
 
+    // Note: XStream ignores readResolve and writeReplace methods on types with custom Converter implementations, so use marshal and unmarshal instead.
+
     public static final class ConverterImpl implements Converter {
         private final ReflectionProvider ref;
         private final Mapper mapper;
@@ -1685,7 +1679,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             w.endNode();
         }
 
-        @SuppressFBWarnings(value = "BX_UNBOXING_IMMEDIATELY_REBOXED", justification = "Nastiness with the impl")
+        @SuppressFBWarnings(value = {"BX_UNBOXING_IMMEDIATELY_REBOXED", "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"}, justification = "Nastiness with the impl and timings variable could be null if deserialized from old version")
         public Object unmarshal(HierarchicalStreamReader reader, final UnmarshallingContext context) {
                 CpsFlowExecution result;
 
@@ -1752,6 +1746,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         reader.moveUp();
                     }
 
+                    if (result.loadedScripts == null) {
+                        result.loadedScripts = new HashMap<>();   // field added later
+                    }
+                    // Convert timings to concurrent hash map
+                    if (!(result.timings instanceof ConcurrentHashMap)) {
+                        result.timings = result.timings == null ? new ConcurrentHashMap<>() : new ConcurrentHashMap<>(result.timings);
+                    }
                     return result;
                 } catch (Exception ex) {
                     LOGGER.log(Level.SEVERE, "Failed to even load the FlowExecution", ex);
