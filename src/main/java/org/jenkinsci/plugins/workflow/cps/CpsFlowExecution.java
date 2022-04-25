@@ -1604,6 +1604,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     // the execution in Groovy CPS should hold that lock (or worse, hold that lock in the runNextChunk method)
     // so that the execution gets suspended while we are getting serialized
 
+    // Note: XStream ignores readResolve and writeReplace methods on types with custom Converter implementations, so use marshal and unmarshal instead.
+
     public static final class ConverterImpl implements Converter {
         private final ReflectionProvider ref;
         private final Mapper mapper;
