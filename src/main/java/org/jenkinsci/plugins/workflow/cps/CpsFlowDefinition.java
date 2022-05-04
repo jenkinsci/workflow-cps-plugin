@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.Item;
@@ -33,6 +34,8 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.util.FormValidation;
 import hudson.util.StreamTaskListener;
+import net.sf.json.JSONObject;
+import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.flow.DurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
@@ -80,7 +83,8 @@ public class CpsFlowDefinition extends FlowDefinition {
     @DataBoundConstructor
     public CpsFlowDefinition(String script, boolean sandbox) {
         StaplerRequest req = Stapler.getCurrentRequest();
-        this.script = sandbox ? script : ScriptApproval.get().configuring(script, GroovyLanguage.get(), ApprovalContext.create().withCurrentUser().withItemAsKey(req != null ? req.findAncestorObject(Item.class) : null));
+        this.script = sandbox ? script : ScriptApproval.get().configuring(script, GroovyLanguage.get(),
+                ApprovalContext.create().withCurrentUser().withItemAsKey(req != null ? req.findAncestorObject(Item.class) : null), req == null);
         this.sandbox = sandbox;
     }
 
@@ -123,14 +127,41 @@ public class CpsFlowDefinition extends FlowDefinition {
     @Extension
     public static class DescriptorImpl extends FlowDefinitionDescriptor {
 
+        /* In order to fix SECURITY-2450 without causing significant UX regressions, we decided to continue to
+         * automatically approve scripts on save if the script was modified by an administrator. To make this possible,
+         * we added a new hidden input field to the config.jelly to track the pre-save version of the script. Since
+         * CpsFlowDefinition calls ScriptApproval.configuring in its @DataBoundConstructor, the normal way to handle
+         * things would be to add an oldScript parameter to the constructor and perform the relevant logic there.
+         *
+         * However, that would have compatibility implications for tools like JobDSL, since @DataBoundConstructor
+         * parameters are required. We cannot use a @DataBoundSetter with a corresponding field and getter to trivially
+         * make oldScript optional, because we would need to call ScriptApproval.configuring after all
+         * @DataBoundSetters have been invoked (rather than in the @DataBoundConstructor), which is why we use Descriptor.newInstance.
+         */
+        @Override
+        public FlowDefinition newInstance(@NonNull StaplerRequest req, @NonNull JSONObject formData) throws FormException {
+            CpsFlowDefinition cpsFlowDefinition = (CpsFlowDefinition) super.newInstance(req, formData);
+            if (!cpsFlowDefinition.sandbox && formData.get("oldScript") != null) {
+                String oldScript = formData.getString("oldScript");
+                boolean approveIfAdmin = !StringUtils.equals(oldScript, cpsFlowDefinition.script);
+                if (approveIfAdmin) {
+                    ScriptApproval.get().configuring(cpsFlowDefinition.script, GroovyLanguage.get(),
+                            ApprovalContext.create().withCurrentUser().withItemAsKey(req.findAncestorObject(Item.class)), true);
+                }
+            }
+            return cpsFlowDefinition;
+        }
+
         @Override
         public String getDisplayName() {
             return "Pipeline script";
         }
 
         @RequirePOST
-        public FormValidation doCheckScript(@QueryParameter String value, @QueryParameter boolean sandbox) {
-            return sandbox ? FormValidation.ok() : ScriptApproval.get().checking(value, GroovyLanguage.get());
+        public FormValidation doCheckScript(@QueryParameter String value, @QueryParameter String oldScript,
+                                            @QueryParameter boolean sandbox) {
+            return sandbox ? FormValidation.ok() :
+                    ScriptApproval.get().checking(value, GroovyLanguage.get(), !StringUtils.equals(oldScript, value));
         }
 
         @RequirePOST
