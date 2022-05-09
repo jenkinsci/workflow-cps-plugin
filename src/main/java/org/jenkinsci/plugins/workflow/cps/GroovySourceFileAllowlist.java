@@ -193,7 +193,8 @@ public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
                 ALLOWED_SOURCE_FILES.addAll(Arrays.asList(
                         // pipeline-model-definition
                         "/org/jenkinsci/plugins/pipeline/modeldefinition/agent/impl/LabelAndOtherFieldAgentScript.groovy",
-                        "/org/jenkinsci/plugins/pipeline/modeldefinition/parser/GlobalStageNameTestConditionalScript.groovy"
+                        "/org/jenkinsci/plugins/pipeline/modeldefinition/parser/GlobalStageNameTestConditionalScript.groovy",
+                        "/org/jenkinsci/plugins/pipeline/modeldefinition/parser/GlobalStepCountTestConditionalScript.groovy"
                 ));
             }
         }
