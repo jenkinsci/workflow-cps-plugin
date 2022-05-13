@@ -878,6 +878,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         owner.getListener().getLogger().println("Ready to run at " + new Date());
                         // In case we last paused execution due to Jenkins.isQuietingDown, make sure we do something after we restart.
                         g.unpause();
+                        g.saveProgramIfPossible(false); // ensure pausedWhenLoaded=false is persisted
                     }
                 } catch (IOException x) {
                     LOGGER.log(Level.WARNING, null, x);
