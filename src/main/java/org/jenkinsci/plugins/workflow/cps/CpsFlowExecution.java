@@ -281,7 +281,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * @see #loadProgramAsync
      * @see #afterStepExecutionsResumed
      */
-    private boolean pausedWhenLoaded;
+    private transient boolean pausedWhenLoaded;
 
     /** Subdirectory string where we store {@link FlowNode}s */
     private String storageDir = null;
