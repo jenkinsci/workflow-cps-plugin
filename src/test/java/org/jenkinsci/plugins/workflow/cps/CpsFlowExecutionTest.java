@@ -50,6 +50,7 @@ import jenkins.model.Jenkins;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
+import org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DefaultAllowlist;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -61,6 +62,8 @@ import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
 import org.jenkinsci.plugins.workflow.support.pickles.TryRepeatedly;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -71,6 +74,7 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.FlagRule;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.JenkinsSessionRule;
@@ -83,6 +87,10 @@ public class CpsFlowExecutionTest {
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public JenkinsSessionRule sessions = new JenkinsSessionRule();
     @Rule public LoggerRule logger = new LoggerRule();
+    @Rule public FlagRule<Boolean> secretField = new FlagRule<>(() -> CpsFlowExecutionTest.SECRET, v -> CpsFlowExecutionTest.SECRET = v);
+    // We intentionally avoid using the static fields so that tests can call setProperty before the classes are initialized.
+    @Rule public FlagRule<String> groovySourceFileAllowlistDisabled = FlagRule.systemProperty("org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DISABLED");
+    @Rule public FlagRule<String> groovySourceFileAllowlistFiles = FlagRule.systemProperty("org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DefaultAllowlist.ALLOWED_SOURCE_FILES");
 
     @Test public void getCurrentExecutions() throws Throwable {
         sessions.then(r -> {
@@ -441,7 +449,6 @@ public class CpsFlowExecutionTest {
     }
 
     private void trustedShell(final boolean pos) throws Throwable {
-        SECRET = false;
         sessions.then(r -> {
                 WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("new foo().attempt()", true));
@@ -464,4 +471,60 @@ public class CpsFlowExecutionTest {
      * This field shouldn't be visible to regular script.
      */
     public static boolean SECRET;
+
+    @Issue("SECURITY-359")
+    @Test public void groovySourcesCannotBeUsedByDefault() throws Throwable {
+        logger.record(GroovySourceFileAllowlist.class, Level.INFO).capture(100);
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition(
+                    "new hudson.model.View.main()", true));
+            WorkflowRun b = r.buildAndAssertStatus(Result.FAILURE, p);
+            r.assertLogContains("unable to resolve class hudson.model.View.main", b);
+            assertThat(logger.getMessages(), hasItem(containsString("/hudson/model/View/main.groovy from being loaded without sandbox protection in " + b)));
+        });
+    }
+
+    @Issue("SECURITY-359")
+    @Test public void groovySourcesCanBeUsedIfAllowlistIsDisabled() throws Throwable {
+        System.setProperty("org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DISABLED", "true");
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition(
+                    "new hudson.model.View.main()", true));
+            WorkflowRun b = r.buildAndAssertSuccess(p);
+        });
+    }
+
+    @Issue("SECURITY-359")
+    @Test public void groovySourcesCanBeUsedIfAddedToSystemProperty() throws Throwable {
+        System.setProperty("org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DefaultAllowlist.ALLOWED_SOURCE_FILES", "/just/an/example.groovy,/hudson/model/View/main.groovy");
+        logger.record(DefaultAllowlist.class, Level.INFO).capture(100);
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition(
+                    "new hudson.model.View.main()", true));
+            WorkflowRun b = r.buildAndAssertSuccess(p);
+            assertThat(logger.getMessages(), hasItem(containsString("Allowing Pipelines to access /hudson/model/View/main.groovy")));
+        });
+    }
+
+    @Issue("SECURITY-359")
+    @Test public void groovySourcesCanBeUsedIfAllowed() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition(
+                    "(new trusted.foo()).attempt()", true));
+            WorkflowRun b = r.buildAndAssertSuccess(p);
+            assertTrue(SECRET);
+        });
+    }
+
+    @TestExtension("groovySourcesCanBeUsedIfAllowed")
+    public static class TestAllowlist extends GroovySourceFileAllowlist {
+        @Override
+        public boolean isAllowed(String groovyResourceUrl) {
+            return groovyResourceUrl.endsWith("/trusted/foo.groovy");
+        }
+    }
 }
