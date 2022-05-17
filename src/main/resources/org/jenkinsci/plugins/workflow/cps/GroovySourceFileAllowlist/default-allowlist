@@ -1,0 +1,53 @@
+# This list is ordered from most popular to least popular plugin to minimize performance impact.
+# pipeline-model-definition
+/org/jenkinsci/plugins/pipeline/modeldefinition/ModelInterpreter.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/agent/impl/AnyScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/agent/impl/LabelScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/agent/impl/NoneScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/AbstractChangelogConditionalScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/AllOfConditionalScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/AnyOfConditionalScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/BranchConditionalScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/ChangeLogConditionalScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/ChangeRequestConditionalScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/ChangeSetConditionalScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/EnvironmentConditionalScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/EqualsConditionalScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/ExpressionConditionalScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/IsRestartedRunConditionalScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/NotConditionalScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/TagConditionalScript.groovy
+/org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/TriggeredByConditionalScript.groovy
+# pipeline-model-extensions
+/org/jenkinsci/plugins/pipeline/modeldefinition/agent/CheckoutScript.groovy
+# docker-workflow
+/org/jenkinsci/plugins/docker/workflow/Docker.groovy
+/org/jenkinsci/plugins/docker/workflow/declarative/AbstractDockerPipelineScript.groovy
+/org/jenkinsci/plugins/docker/workflow/declarative/DockerPipelineFromDockerfileScript.groovy
+/org/jenkinsci/plugins/docker/workflow/declarative/DockerPipelineScript.groovy
+# kubernetes
+/org/csanchez/jenkins/plugins/kubernetes/pipeline/KubernetesDeclarativeAgentScript.groovy
+# amazon-ecs
+/com/cloudbees/jenkins/plugins/amazonecs/pipeline/ECSDeclarativeAgentScript.groovy
+# workflow-remote-loader:
+/org/jenkinsci/plugins/workflow/remoteloader/FileLoaderDSL/FileLoaderDSLImpl.groovy
+# confluence-publisher
+/com/myyearbook/hudson/plugins/confluence/publishConfluence.groovy
+# openshift-client
+/com/openshift/jenkins/plugins/OpenShiftDSL.groovy
+# ownership:
+/org/jenkinsci/plugins/ownership/model/workflow/OwnershipGlobalVariable/Impl.groovy
+# templating-engine:
+/org/boozallen/plugins/jte/init/primitives/hooks/AnnotatedMethod.groovy
+/org/boozallen/plugins/jte/init/primitives/hooks/Hooks.groovy
+# datetime-constraint
+/org/jenkinsci/plugins/curfew/Checkpoint.groovy
+/org/jenkinsci/plugins/curfew/Curfew.groovy
+# redis-notifier
+/com/tsoft/jenkins/plugin/RedisClient.groovy
+# alauda-pipeline
+/io/alauda/jenkins/plugins/pipeline/AlaudaDSL.groovy
+# alauda-devops-pipeline
+/com/alauda/jenkins/plugins/AlaudaDevopsDSL.groovy
+/com/alauda/jenkins/plugins/AlaudaPlatformDSL.groovy
+/com/alauda/jenkins/plugins/StorageDSL.groovy
