@@ -328,35 +328,25 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
             whenOutcomeDelivered = new Throwable();
         } else {
             Throwable failure = newOutcome.getAbnormal();
-            Level level;
-            if (Main.isUnitTest) {
-                if (failure instanceof FlowInterruptedException && ((FlowInterruptedException) failure).getCauses().stream().anyMatch(BodyFailed.class::isInstance)) {
-                    // Very common and generally uninteresting.
-                    level = Level.FINE;
-                } else {
-                    // Possibly a minor bug.
-                    level = Level.INFO;
-                }
-            } else {
-                // Typically harmless; do not alarm users.
-                level = Level.FINE;
-            }
-            if (LOGGER.isLoggable(level)) {
-                LOGGER.log(level, "already completed " + this, new IllegalStateException("delivered here"));
+            Throwable earlierFailure = outcome.getAbnormal();
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(Level.FINE, "already completed " + this, new IllegalStateException("delivered here"));
                 if (failure != null) {
-                    LOGGER.log(level, "new failure", failure);
+                    LOGGER.log(Level.FINE, "new failure", failure);
                 } else {
-                    LOGGER.log(level, "new success: {0}", outcome.getNormal());
+                    LOGGER.log(Level.FINE, "new success: {0}", outcome.getNormal());
                 }
                 if (whenOutcomeDelivered != null) {
-                    LOGGER.log(level, "previously delivered here", whenOutcomeDelivered);
+                    LOGGER.log(Level.FINE, "previously delivered here", whenOutcomeDelivered);
                 }
-                Throwable earlierFailure = outcome.getAbnormal();
                 if (earlierFailure != null) {
-                    LOGGER.log(level, "earlier failure", earlierFailure);
+                    LOGGER.log(Level.FINE, "earlier failure", earlierFailure);
                 } else {
-                    LOGGER.log(level, "earlier success: {0}", outcome.getNormal());
+                    LOGGER.log(Level.FINE, "earlier success: {0}", outcome.getNormal());
                 }
+            }
+            if (failure != null && earlierFailure != null) {
+                earlierFailure.addSuppressed(failure);
             }
         }
     }
