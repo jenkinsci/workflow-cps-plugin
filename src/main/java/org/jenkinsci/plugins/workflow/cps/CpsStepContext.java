@@ -30,7 +30,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
-import hudson.Main;
 import hudson.model.Descriptor;
 import hudson.model.Result;
 import hudson.util.DaemonThreadFactory;
@@ -66,6 +65,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 import jenkins.model.CauseOfInterruption;
 import jenkins.util.ContextResettingExecutorService;
 import org.codehaus.groovy.runtime.InvokerInvocationException;
@@ -345,10 +345,14 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                     LOGGER.log(Level.FINE, "earlier success: {0}", outcome.getNormal());
                 }
             }
-            if (failure != null && earlierFailure != null) {
+            if (failure != null && earlierFailure != null && !refersTo(failure, earlierFailure)) {
                 earlierFailure.addSuppressed(failure);
             }
         }
+    }
+
+    private static boolean refersTo(Throwable t1, Throwable t2) {
+        return t1 == t2 || t1.getCause() != null && refersTo(t1.getCause(), t2) || Stream.of(t1.getSuppressed()).anyMatch(t3 -> refersTo(t3, t2));
     }
 
     /**
