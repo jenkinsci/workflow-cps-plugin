@@ -24,6 +24,8 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import groovy.lang.GroovyObjectSupport;
 import hudson.EnvVars;
 import hudson.Extension;
@@ -32,7 +34,6 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.util.LogTaskListener;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -40,20 +41,23 @@ import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.model.Queue;
 import jenkins.model.RunAction2;
 import org.jenkinsci.plugins.workflow.flow.FlowCopier;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.pickles.Pickle;
 import org.jenkinsci.plugins.workflow.steps.EnvironmentExpander;
 import org.jenkinsci.plugins.workflow.support.actions.EnvironmentAction;
+import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
 
 @ExportedBean
-public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAction.IncludingOverrides, Serializable, RunAction2 {
+public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAction.IncludingOverrides, RunAction2 {
 
     private static final Logger LOGGER = Logger.getLogger(EnvActionImpl.class.getName());
     private static final long serialVersionUID = 1;
@@ -199,4 +203,29 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
 
     }
 
+    @Extension public static class EnvActionImplPickleFactory extends SingleTypedPickleFactory<EnvActionImpl> {
+        @Override
+        protected Pickle pickle(EnvActionImpl object) {
+            return new EnvActionImplPickle();
+        }
+    }
+
+    /**
+     * Prevents multiple instances of {@link EnvActionImpl} from existing for a single Pipeline after a Jenkins restart
+     * in case {@code env} is serialized into the program.
+     */
+    private static class EnvActionImplPickle extends Pickle {
+        public ListenableFuture<?> rehydrate(FlowExecutionOwner owner) {
+            IOException cause = null;
+            try {
+                Queue.Executable executable = owner.getExecutable();
+                if (executable instanceof Run) {
+                    return Futures.immediateFuture(EnvActionImpl.forRun((Run)executable));
+                }
+            } catch (IOException e) {
+                cause = e;
+            }
+            return Futures.immediateFailedFuture(new RuntimeException("Unable to find Run for EnvActionImpl: " + owner, cause));
+        }
+    }
 }

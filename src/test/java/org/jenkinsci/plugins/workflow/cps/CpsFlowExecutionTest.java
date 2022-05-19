@@ -527,4 +527,26 @@ public class CpsFlowExecutionTest {
             return groovyResourceUrl.endsWith("/trusted/foo.groovy");
         }
     }
+
+    @Issue("JENKINS-45327")
+    @Test public void envActionImplPickle() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition(
+                    "def e = env\n" +
+                    "semaphore('wait')\n" + // An instance of EnvActionImpl is part of the program's state at this point.
+                    "e.foo = 'bar'\n" + // Without EnvActionImplPickle, this throws an NPE in EnvActionImpl.setProperty because owner is null.
+                    "echo('EnvActionImpl instance: ' + System.identityHashCode(e))\n", false));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+        });
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getLastBuild();
+            SemaphoreStep.success("wait/1", null);
+            r.assertBuildStatus(Result.SUCCESS, r.waitForCompletion(b));
+            // Check that the EnvActionImpl attached to the run is the same object as the one in the program.
+            r.assertLogContains("EnvActionImpl instance: " + System.identityHashCode(EnvActionImpl.forRun(b)), b);
+        });
+    }
 }
