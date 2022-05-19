@@ -215,17 +215,18 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
      * in case {@code env} is serialized into the program.
      */
     private static class EnvActionImplPickle extends Pickle {
+        @Override
         public ListenableFuture<?> rehydrate(FlowExecutionOwner owner) {
-            IOException cause = null;
             try {
                 Queue.Executable executable = owner.getExecutable();
                 if (executable instanceof Run) {
                     return Futures.immediateFuture(EnvActionImpl.forRun((Run)executable));
+                } else {
+                    return Futures.immediateFailedFuture(new IllegalStateException("Invalid executable: " + executable));
                 }
             } catch (IOException e) {
-                cause = e;
+                return Futures.immediateFailedFuture(e);
             }
-            return Futures.immediateFailedFuture(new RuntimeException("Unable to find Run for EnvActionImpl: " + owner, cause));
         }
     }
 }

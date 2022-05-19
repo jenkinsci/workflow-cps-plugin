@@ -63,6 +63,7 @@ import org.jenkinsci.plugins.workflow.support.pickles.TryRepeatedly;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -535,8 +536,7 @@ public class CpsFlowExecutionTest {
             p.setDefinition(new CpsFlowDefinition(
                     "def e = env\n" +
                     "semaphore('wait')\n" + // An instance of EnvActionImpl is part of the program's state at this point.
-                    "e.foo = 'bar'\n" + // Without EnvActionImplPickle, this throws an NPE in EnvActionImpl.setProperty because owner is null.
-                    "echo('EnvActionImpl instance: ' + System.identityHashCode(e))\n", false));
+                    "e.foo = 'bar'\n", true)); // Without EnvActionImplPickle, this throws an NPE in EnvActionImpl.setProperty because owner is null.
             WorkflowRun b = p.scheduleBuild2(0).waitForStart();
             SemaphoreStep.waitForStart("wait/1", b);
         });
@@ -545,8 +545,7 @@ public class CpsFlowExecutionTest {
             WorkflowRun b = p.getLastBuild();
             SemaphoreStep.success("wait/1", null);
             r.assertBuildStatus(Result.SUCCESS, r.waitForCompletion(b));
-            // Check that the EnvActionImpl attached to the run is the same object as the one in the program.
-            r.assertLogContains("EnvActionImpl instance: " + System.identityHashCode(EnvActionImpl.forRun(b)), b);
+            assertThat(EnvActionImpl.forRun(b).getEnvironment().get("foo"), equalTo("bar"));
         });
     }
 }
