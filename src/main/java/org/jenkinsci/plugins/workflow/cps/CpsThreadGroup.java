@@ -640,6 +640,10 @@ public final class CpsThreadGroup implements Serializable {
         }
     }
 
+    void shutdown() {
+        runner.shutdown();
+    }
+
     private static final Logger LOGGER = Logger.getLogger(CpsThreadGroup.class.getName());
 
     private static final long serialVersionUID = 1L;
