@@ -1363,7 +1363,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     private static void cleanUpClassInfoCache(Class<?> clazz) {
         JavaSpecificationVersion current = JavaSpecificationVersion.forCurrentJVM();
         if (current.isNewerThan(new JavaSpecificationVersion("1.8"))
-                && current.isOlderThan(new JavaSpecificationVersion("17"))) {
+                && current.isOlderThan(new JavaSpecificationVersion("16"))) {
             try {
                 // TODO Work around JDK-8231454.
                 Class<?> classInfoC = Class.forName("com.sun.beans.introspect.ClassInfo");
