@@ -52,6 +52,7 @@ import hudson.ExtensionList;
 import hudson.model.Action;
 import hudson.model.Result;
 import hudson.util.Iterators;
+import io.jenkins.lib.versionnumber.JavaSpecificationVersion;
 import jenkins.model.CauseOfInterruption;
 import jenkins.model.Jenkins;
 import org.jboss.marshalling.Unmarshaller;
@@ -1298,6 +1299,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             if (encounteredClasses.add(clazz)) {
                 LOGGER.log(Level.FINER, "found {0}", clazz.getName());
                 Introspector.flushFromCaches(clazz);
+                cleanUpClassInfoCache(clazz);
                 cleanUpGlobalClassSet(clazz);
                 cleanUpClassHelperCache(clazz);
                 cleanUpObjectStreamClassCaches(clazz);
@@ -1355,6 +1357,44 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         LOGGER.log(Level.FINE, "cleaning up {0} associated with {1}", new Object[] {toRemove.toString(), loader.toString()});
         for (Class<?> klazz : toRemove) {
             removeM.invoke(map, klazz);
+        }
+    }
+
+    private static void cleanUpClassInfoCache(Class<?> clazz) {
+        JavaSpecificationVersion current = JavaSpecificationVersion.forCurrentJVM();
+        if (current.isNewerThan(new JavaSpecificationVersion("1.8"))
+                && current.isOlderThan(new JavaSpecificationVersion("17"))) {
+            try {
+                // TODO Work around JDK-8231454.
+                Class<?> classInfoC = Class.forName("com.sun.beans.introspect.ClassInfo");
+                Field cacheF = classInfoC.getDeclaredField("CACHE");
+                try {
+                    cacheF.setAccessible(true);
+                } catch (RuntimeException e) { // TOOD Java 9+ InaccessibleObjectException
+                    /*
+                     * Not running with "--add-opens java.desktop/com.sun.beans.introspect=ALL-UNNAMED".
+                     * Until core adds this to its --add-opens configuration, and until that core
+                     * change is widely adopted, avoid unnecessary log spam and return early.
+                     */
+                    if (LOGGER.isLoggable(Level.FINER)) {
+                        LOGGER.log(Level.FINER, "Failed to clean up " + clazz.getName() + " from ClassInfo#CACHE. A metaspace leak may have occurred.", e);
+                    }
+                    return;
+                }
+                Object cache = cacheF.get(null);
+                Class<?> cacheC = Class.forName("com.sun.beans.util.Cache");
+                if (LOGGER.isLoggable(Level.FINER)) {
+                    LOGGER.log(Level.FINER, "Cleaning up " + clazz.getName() + " from ClassInfo#CACHE.");
+                }
+                Method removeM = cacheC.getMethod("remove", Object.class);
+                removeM.invoke(cache, clazz);
+            } catch (ReflectiveOperationException e) {
+                /*
+                 * Should never happen, but if it does, ensure the failure is isolated to this
+                 * method and does not prevent other cleanup logic from executing.
+                 */
+                LOGGER.log(Level.WARNING, "Failed to clean up " + clazz.getName() + " from ClassInfo#CACHE. A metaspace leak may have occurred.", e);
+            }
         }
     }
 
