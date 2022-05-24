@@ -1445,13 +1445,16 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         for (String cacheFName : new String[] {"localDescs", "reflectors"}) {
             Field cacheF = cachesC.getDeclaredField(cacheFName);
             cacheF.setAccessible(true);
-            ConcurrentMap<Reference<Class<?>>, ?> cache = (ConcurrentMap) cacheF.get(null);
-            Iterator<? extends Entry<Reference<Class<?>>, ?>> iterator = cache.entrySet().iterator();
-            while (iterator.hasNext()) {
-                if (iterator.next().getKey().get() == clazz) {
-                    iterator.remove();
-                    LOGGER.log(Level.FINER, "cleaning up {0} from ObjectStreamClass.Caches.{1}", new Object[] {clazz.getName(), cacheFName});
-                    break;
+            Object cache = cacheF.get(null);
+            if (cache instanceof ConcurrentMap) {
+                // Prior to JDK-8277072
+                Iterator<? extends Entry<Reference<Class<?>>, ?>> iterator = ((ConcurrentMap) cache).entrySet().iterator();
+                while (iterator.hasNext()) {
+                    if (iterator.next().getKey().get() == clazz) {
+                        iterator.remove();
+                        LOGGER.log(Level.FINER, "cleaning up {0} from ObjectStreamClass.Caches.{1}", new Object[]{clazz.getName(), cacheFName});
+                        break;
+                    }
                 }
             }
         }
