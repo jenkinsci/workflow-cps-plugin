@@ -1370,7 +1370,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 Field cacheF = classInfoC.getDeclaredField("CACHE");
                 try {
                     cacheF.setAccessible(true);
-                } catch (RuntimeException e) { // TOOD Java 9+ InaccessibleObjectException
+                } catch (RuntimeException e) { // TODO Java 9+ InaccessibleObjectException
                     /*
                      * Not running with "--add-opens java.desktop/com.sun.beans.introspect=ALL-UNNAMED".
                      * Until core adds this to its --add-opens configuration, and until that core
