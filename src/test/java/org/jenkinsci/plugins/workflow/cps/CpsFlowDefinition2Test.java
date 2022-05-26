@@ -25,15 +25,21 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.CpsTransformer;
+import com.gargoylesoftware.htmlunit.HttpMethod;
+import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.html.HtmlCheckBoxInput;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlInput;
 import com.gargoylesoftware.htmlunit.html.HtmlTextArea;
 import hudson.Functions;
+import hudson.cli.CLICommand;
+import hudson.cli.CLICommandInvoker;
+import hudson.cli.UpdateJobCommand;
 import hudson.model.Computer;
 import hudson.model.Describable;
 import hudson.model.Executor;
 import hudson.model.Item;
+import hudson.model.Job;
 import hudson.model.Result;
 import java.io.Serializable;
 import java.util.Collections;
@@ -42,9 +48,11 @@ import java.util.Set;
 
 import java.util.logging.Level;
 
+import hudson.model.User;
 import hudson.security.Permission;
 import jenkins.model.Jenkins;
 
+import org.apache.tools.ant.filters.StringInputStream;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
@@ -57,7 +65,6 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.steps.StepExecutions;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -897,7 +904,6 @@ public class CpsFlowDefinition2Test {
 
         jenkins.submit(config);
 
-        assertEquals(1, ScriptApproval.get().getPendingScripts().size());
         assertFalse(ScriptApproval.get().isScriptApproved(groovy, GroovyLanguage.get()));
     }
 
@@ -998,6 +1004,85 @@ public class CpsFlowDefinition2Test {
             assertTrue(ScriptApproval.get().isScriptApproved(adminGroovy, GroovyLanguage.get()));
             assertFalse(ScriptApproval.get().isScriptApproved(userGroovy, GroovyLanguage.get()));
         }
+    }
+
+    @Test
+    public void cpsScriptSubmissionViaCli() throws Exception {
+        jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
+
+        MockAuthorizationStrategy mockStrategy = new MockAuthorizationStrategy();
+        mockStrategy.grant(Jenkins.READ, Job.CONFIGURE).everywhere().to("devel");
+        mockStrategy.grant(Jenkins.ADMINISTER).everywhere().to("admin");
+        for (Permission p : Item.PERMISSIONS.getPermissions()) {
+            mockStrategy.grant(p).everywhere().to("devel");
+            mockStrategy.grant(p).everywhere().to("admin");
+        }
+        jenkins.jenkins.setAuthorizationStrategy(mockStrategy);
+
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class, "prj");
+        String preconfiguredScript = "echo preconfigured";
+        ScriptApproval.get().preapprove(preconfiguredScript, GroovyLanguage.get());
+        p.setDefinition(new CpsFlowDefinition(preconfiguredScript, false));
+
+        JenkinsRule.WebClient wc = jenkins.createWebClient();
+        wc.login("admin");
+        String configDotXml = p.getUrl() + "config.xml";
+        String xml = wc.goTo(configDotXml, "application/xml").getWebResponse().getContentAsString();
+
+        CLICommand cmd = new UpdateJobCommand();
+        cmd.setTransportAuth2(User.getById("admin", true).impersonate2());
+        String viaCliScript = "echo configured via CLI";
+        assertThat(new CLICommandInvoker(jenkins, cmd).withStdin(new StringInputStream(xml.replace(preconfiguredScript, viaCliScript))).invokeWithArgs(p.getName()), CLICommandInvoker.Matcher.succeededSilently());
+        assertEquals(viaCliScript, ((CpsFlowDefinition)p.getDefinition()).getScript());
+        assertTrue(ScriptApproval.get().isScriptApproved(viaCliScript, GroovyLanguage.get()));
+
+        // now with non-admin user, script should end up in pending
+        cmd.setTransportAuth2(User.getById("devel", true).impersonate2());
+        String viaCliByDevelScript = "echo configured via CLI by devel";
+        assertThat(new CLICommandInvoker(jenkins, cmd).withStdin(new StringInputStream(xml.replace(preconfiguredScript, viaCliByDevelScript))).invokeWithArgs(p.getName()), CLICommandInvoker.Matcher.succeededSilently());
+        assertEquals(viaCliByDevelScript, ((CpsFlowDefinition)p.getDefinition()).getScript());
+        assertFalse(ScriptApproval.get().isScriptApproved(viaCliByDevelScript, GroovyLanguage.get()));
+        wc.close();
+    }
+
+    @Test
+    public void cpsScriptSubmissionViaRest() throws Exception {
+        jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
+
+        MockAuthorizationStrategy mockStrategy = new MockAuthorizationStrategy();
+        mockStrategy.grant(Jenkins.READ, Job.CONFIGURE).everywhere().to("devel");
+        mockStrategy.grant(Jenkins.ADMINISTER).everywhere().to("admin");
+        for (Permission p : Item.PERMISSIONS.getPermissions()) {
+            mockStrategy.grant(p).everywhere().to("devel");
+            mockStrategy.grant(p).everywhere().to("admin");
+        }
+        jenkins.jenkins.setAuthorizationStrategy(mockStrategy);
+
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        String preconfiguredScript = "echo preconfigured";
+        ScriptApproval.get().preapprove(preconfiguredScript, GroovyLanguage.get());
+        p.setDefinition(new CpsFlowDefinition(preconfiguredScript, false));
+
+        JenkinsRule.WebClient wc = jenkins.createWebClient();
+        wc.login("admin");
+        String configDotXmlUrl = p.getUrl() + "config.xml";
+        String xml = wc.goTo(configDotXmlUrl, "application/xml").getWebResponse().getContentAsString();
+
+        WebRequest req = new WebRequest(wc.createCrumbedUrl(configDotXmlUrl), HttpMethod.POST);
+        req.setEncodingType(null);
+        String configuredViaRestScript = "echo configured via REST";
+        req.setRequestBody(xml.replace(preconfiguredScript, configuredViaRestScript));
+        wc.getPage(req);
+        assertEquals(configuredViaRestScript, ((CpsFlowDefinition)p.getDefinition()).getScript());
+        assertTrue(ScriptApproval.get().isScriptApproved(configuredViaRestScript, GroovyLanguage.get()));
+
+        wc.login("devel");
+        String configuredViaRestByNonAdmin = "echo configured via REST by devel";
+        req.setRequestBody(xml.replace(preconfiguredScript, configuredViaRestByNonAdmin));
+        wc.getPage(req);
+        assertEquals(configuredViaRestByNonAdmin, ((CpsFlowDefinition)p.getDefinition()).getScript());
+        assertFalse(ScriptApproval.get().isScriptApproved(configuredViaRestByNonAdmin, GroovyLanguage.get()));
+        wc.close();
     }
 
     public static class UnsafeParameterStep extends Step implements Serializable {
