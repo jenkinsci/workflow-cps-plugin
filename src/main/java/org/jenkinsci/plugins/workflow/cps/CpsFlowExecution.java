@@ -277,6 +277,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     boolean resumeBlocked = false;
 
+    /**
+     * Whether {@link CpsThreadGroup#isPaused} when loaded from disk.
+     * @see #loadProgramAsync
+     * @see #afterStepExecutionsResumed
+     */
+    private transient boolean pausedWhenLoaded;
+
     /** Subdirectory string where we store {@link FlowNode}s */
     private String storageDir = null;
 
@@ -775,17 +782,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             try {
                                 CpsThreadGroup g = (CpsThreadGroup) u.readObject();
                                 result.set(g);
-                                try {
-                                    if (g.isPaused()) {
-                                        owner.getListener().getLogger().println("Still paused");
-                                    } else {
-                                        owner.getListener().getLogger().println("Ready to run at " + new Date());
-                                        // In case we last paused execution due to Jenkins.isQuietingDown, make sure we do something after we restart.
-                                        g.scheduleRun();
-                                    }
-                                } catch (IOException x) {
-                                    LOGGER.log(Level.WARNING, null, x);
-                                }
+                                pausedWhenLoaded = g.isPaused();
+                                g.pause();
                             } catch (Throwable t) {
                                 onFailure(t);
                             } finally {
@@ -869,6 +867,28 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         } catch (Exception ex) {
             LOGGER.log(Level.WARNING, "Failed to persist WorkflowRun after noting a serious failure for run: " + owner, ex);
         }
+    }
+
+    @Override protected void afterStepExecutionsResumed() {
+        runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+            @Override public void onSuccess(CpsThreadGroup g) {
+                try {
+                    if (pausedWhenLoaded) {
+                        owner.getListener().getLogger().println("Still paused");
+                    } else {
+                        owner.getListener().getLogger().println("Ready to run at " + new Date());
+                        // In case we last paused execution due to Jenkins.isQuietingDown, make sure we do something after we restart.
+                        g.unpause();
+                        g.saveProgramIfPossible(false); // ensure pausedWhenLoaded=false is persisted
+                    }
+                } catch (IOException x) {
+                    LOGGER.log(Level.WARNING, null, x);
+                }
+            }
+            @Override public void onFailure(Throwable t) {
+                LOGGER.log(Level.WARNING, "could not resume " + this, t);
+            }
+        });
     }
 
     /**
