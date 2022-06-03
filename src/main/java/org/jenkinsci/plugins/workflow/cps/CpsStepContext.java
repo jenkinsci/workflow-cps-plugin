@@ -30,7 +30,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
-import hudson.Main;
 import hudson.model.Descriptor;
 import hudson.model.Result;
 import hudson.util.DaemonThreadFactory;
@@ -66,6 +65,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 import jenkins.model.CauseOfInterruption;
 import jenkins.util.ContextResettingExecutorService;
 import org.codehaus.groovy.runtime.InvokerInvocationException;
@@ -328,37 +328,31 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
             whenOutcomeDelivered = new Throwable();
         } else {
             Throwable failure = newOutcome.getAbnormal();
-            Level level;
-            if (Main.isUnitTest) {
-                if (failure instanceof FlowInterruptedException && ((FlowInterruptedException) failure).getCauses().stream().anyMatch(BodyFailed.class::isInstance)) {
-                    // Very common and generally uninteresting.
-                    level = Level.FINE;
-                } else {
-                    // Possibly a minor bug.
-                    level = Level.INFO;
-                }
-            } else {
-                // Typically harmless; do not alarm users.
-                level = Level.FINE;
-            }
-            if (LOGGER.isLoggable(level)) {
-                LOGGER.log(level, "already completed " + this, new IllegalStateException("delivered here"));
+            Throwable earlierFailure = outcome.getAbnormal();
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.log(Level.FINE, "already completed " + this, new IllegalStateException("delivered here"));
                 if (failure != null) {
-                    LOGGER.log(level, "new failure", failure);
+                    LOGGER.log(Level.FINE, "new failure", failure);
                 } else {
-                    LOGGER.log(level, "new success: {0}", outcome.getNormal());
+                    LOGGER.log(Level.FINE, "new success: {0}", outcome.getNormal());
                 }
                 if (whenOutcomeDelivered != null) {
-                    LOGGER.log(level, "previously delivered here", whenOutcomeDelivered);
+                    LOGGER.log(Level.FINE, "previously delivered here", whenOutcomeDelivered);
                 }
-                Throwable earlierFailure = outcome.getAbnormal();
                 if (earlierFailure != null) {
-                    LOGGER.log(level, "earlier failure", earlierFailure);
+                    LOGGER.log(Level.FINE, "earlier failure", earlierFailure);
                 } else {
-                    LOGGER.log(level, "earlier success: {0}", outcome.getNormal());
+                    LOGGER.log(Level.FINE, "earlier success: {0}", outcome.getNormal());
                 }
             }
+            if (failure != null && earlierFailure != null && !refersTo(failure, earlierFailure)) {
+                earlierFailure.addSuppressed(failure);
+            }
         }
+    }
+
+    private static boolean refersTo(Throwable t1, Throwable t2) {
+        return t1 == t2 || t1.getCause() != null && refersTo(t1.getCause(), t2) || Stream.of(t1.getSuppressed()).anyMatch(t3 -> refersTo(t3, t2));
     }
 
     /**
