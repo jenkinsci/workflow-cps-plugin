@@ -45,6 +45,11 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import jenkins.model.Jenkins;
@@ -138,7 +143,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             if (baseWorkspace == null) {
                 throw new IOException(node.getDisplayName() + " may be offline");
             }
-            dir = getFilePathWithSuffix(baseWorkspace, scm);
+            dir = baseWorkspace;
         } else { // should not happen, but just in case:
             dir = new FilePath(owner.getRootDir());
         }
@@ -152,11 +157,11 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         delegate.setPoll(true);
         delegate.setChangelog(true);
         FilePath acquiredDir;
-        try (WorkspaceList.Lease lease = computer.getWorkspaceList().acquire(dir)) {
-            dir.withSuffix("-scm-key.txt").write(scm.getKey(), "UTF-8");
+        try (WorkspaceList.Lease lease = acquireCheckoutDirectory(computer, dir)) {
+            acquiredDir = lease.path;
             for (int retryCount = Jenkins.get().getScmCheckoutRetryCount(); retryCount >= 0; retryCount--) {
                 try {
-                    delegate.checkout(build, dir, listener, node.createLauncher(listener));
+                    delegate.checkout(build, acquiredDir, listener, node.createLauncher(listener));
                     break;
                 } catch (AbortException e) {
                     // abort exception might have a null message.
@@ -178,15 +183,14 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                 Thread.sleep(10000);
             }
 
-            FilePath scriptFile = dir.child(expandedScriptPath);
-            if (!new File(scriptFile.getRemote()).getCanonicalFile().toPath().startsWith(new File(dir.getRemote()).getCanonicalPath())) { // TODO JENKINS-26838
-                throw new IOException(scriptFile + " references a file that is not inside " + dir);
+            FilePath scriptFile = acquiredDir.child(expandedScriptPath);
+            if (!new File(scriptFile.getRemote()).getCanonicalFile().toPath().startsWith(new File(acquiredDir.getRemote()).getCanonicalPath())) { // TODO JENKINS-26838
+                throw new IOException(scriptFile + " references a file that is not inside " + acquiredDir);
             }
             if (!scriptFile.exists()) {
                 throw new AbortException(scriptFile + " not found");
             }
             script = scriptFile.readToString();
-            acquiredDir = lease.path;
         }
         Queue.Executable queueExec = owner.getExecutable();
         FlowDurabilityHint hint = (queueExec instanceof Run) ? DurabilityHintProvider.suggestedFor(((Run)queueExec).getParent()) : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
@@ -195,8 +199,51 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         return exec;
     }
 
-    private FilePath getFilePathWithSuffix(FilePath baseWorkspace, SCM scm) {
-        return baseWorkspace.withSuffix(getFilePathSuffix() + "script").child(CHECKOUT_DIR_KEY.mac(scm.getKey()));
+    /*
+     * To avoid SECURITY-2463 while also preventing JENKINS-67836, we use truncated HMACs of SCM.getKey for checkout
+     * directory names. We start with the name being the first eight digits of the hash, acquire the corresponding
+     * workspace, and check if the contents of the side file for that workspace matches the full hash. If there is no
+     * match, we add one character of the hash to the directory name and try again. Collisions should be rare enough in
+     * practice for this approach to not cause performance issues. If there are collisions, deletion of directories
+     * with shorter names could lead to duplicate directories for the same hash, which is not ideal, but should not be
+     * a big problem.
+     */
+    private WorkspaceList.Lease acquireCheckoutDirectory(Computer computer, FilePath baseWorkspace) throws IOException, InterruptedException {
+        if (baseWorkspace.isRemote()) {
+            throw new IllegalArgumentException("CpsScmFlowDefinition can only check out on the built-in node");
+        }
+        FilePath parent = baseWorkspace.withSuffix(getFilePathSuffix() + "script");
+        String hash = CHECKOUT_DIR_KEY.mac(scm.getKey());
+        boolean returningLease = false;
+        for (int truncatedHashLength = 8; truncatedHashLength < hash.length(); truncatedHashLength++) {
+            FilePath truncatedPath = parent.child(hash.substring(0, truncatedHashLength));
+            Path truncatedSideFilePath = Paths.get(truncatedPath.withSuffix("-data.txt").getRemote());
+            WorkspaceList.Lease lease = computer.getWorkspaceList().acquire(truncatedPath);
+            try {
+                // WorkspaceList.acquire ensures that only one thread checks a given path at a time.
+                if (!Files.exists(truncatedSideFilePath)) {
+                    // We always choose the first available directory, even if there may be other matching directories with longer names.
+                    Files.createDirectories(Paths.get(parent.getRemote()));
+                    Files.write(truncatedSideFilePath, Arrays.asList(hash, scm.getKey()), StandardCharsets.UTF_8);
+                    returningLease = true;
+                    return lease;
+                }
+                List<String> lines = Files.readAllLines(truncatedSideFilePath, StandardCharsets.UTF_8);
+                if (lines.isEmpty()) {
+                    throw new IllegalStateException(truncatedSideFilePath + " is invalid");
+                }
+                String hashOnDisk = lines.get(0);
+                if (hash.equals(hashOnDisk)) {
+                    returningLease = true;
+                    return lease;
+                }
+            } finally {
+                if (!returningLease) {
+                    lease.close();
+                }
+            }
+        }
+        throw new IllegalStateException("Unable to find matching directory for " + hash);
     }
 
     private String getFilePathSuffix() {
