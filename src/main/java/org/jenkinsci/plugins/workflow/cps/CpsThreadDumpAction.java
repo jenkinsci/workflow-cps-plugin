@@ -38,7 +38,7 @@ public final class CpsThreadDumpAction implements Action {
 
     @Override
     public String getIconFileName() {
-        return "symbol-settings";
+        return "symbol-analytics";
     }
 
     @Override
