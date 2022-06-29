@@ -38,7 +38,7 @@ public final class CpsThreadDumpAction implements Action {
 
     @Override
     public String getIconFileName() {
-        return "gear.png";
+        return "symbol-settings";
     }
 
     @Override
@@ -50,7 +50,7 @@ public final class CpsThreadDumpAction implements Action {
     public String getUrlName() {
         return "threadDump";
     }
-    
+
     public String getParentUrl() throws IOException {
         return execution.getOwner().getUrl();
     }
