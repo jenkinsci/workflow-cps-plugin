@@ -1304,20 +1304,20 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             return;
         }
         if (!(loader instanceof GroovyClassLoader)) {
-            LOGGER.log(Level.FINER, "ignoring {0}", loader);
+            LOGGER.finer(() -> "ignoring " + loader);
             return;
         }
         if (!encounteredLoaders.add(loader)) {
             return;
         }
         cleanUpLoader(loader.getParent(), encounteredLoaders, encounteredClasses);
-        LOGGER.log(Level.FINER, "found {0}", String.valueOf(loader));
+        LOGGER.finer(() -> "found " + loader);
         SerializableClassRegistry.getInstance().release(loader);
         cleanUpGlobalClassValue(loader);
         GroovyClassLoader gcl = (GroovyClassLoader) loader;
         for (Class<?> clazz : gcl.getLoadedClasses()) {
             if (encounteredClasses.add(clazz)) {
-                LOGGER.log(Level.FINER, "found {0}", clazz.getName());
+                LOGGER.finer(() -> "found " + clazz.getName());
                 Introspector.flushFromCaches(clazz);
                 cleanUpClassInfoCache(clazz);
                 cleanUpGlobalClassSet(clazz);
@@ -1370,11 +1370,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             if (encounteredLoader != loader) {
                 it.remove();
                 if (LOGGER.isLoggable(Level.FINEST)) {
-                  LOGGER.log(Level.FINEST, "ignoring {0} with loader {1}", new Object[] {klazz, /* do not hold from LogRecord */String.valueOf(encounteredLoader)});
+                  LOGGER.finest(() -> "ignoring " + klazz + " with loader " + encounteredLoader);
                 }
             }
         }
-        LOGGER.log(Level.FINE, "cleaning up {0} associated with {1}", new Object[] {toRemove.toString(), loader.toString()});
+        LOGGER.fine(() -> "cleaning up " + toRemove + " associated with " + loader);
         for (Class<?> klazz : toRemove) {
             removeM.invoke(map, klazz);
         }
