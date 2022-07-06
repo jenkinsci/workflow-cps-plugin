@@ -181,14 +181,15 @@ public final class CpsThread implements Serializable {
         CURRENT.set(this);
 
         try (Timeout timeout = Timeout.limit(5, TimeUnit.MINUTES)) {
-            LOGGER.log(FINE, "runNextChunk on {0}", resumeValue);
+            LOGGER.fine(() -> "runNextChunk on " + resumeValue);
             final Outcome o = resumeValue;
             resumeValue = null;
             outcome = program.run0(o, CATEGORIES);
             if (outcome.getAbnormal() != null) {
                 LOGGER.log(FINE, "ran and produced error", outcome.getAbnormal());
             } else {
-                LOGGER.log(FINE, "ran and produced {0}", outcome);
+                Outcome _outcome = outcome;
+                LOGGER.fine(() -> "ran and produced " + _outcome);
             }
 
             if (outcome.getNormal() instanceof ThreadTask) {
