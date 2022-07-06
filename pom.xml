@@ -64,7 +64,7 @@
     <properties>
         <changelist>999999-SNAPSHOT</changelist>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
-        <jenkins.version>2.332.1</jenkins.version>
+        <jenkins.version>2.346.1</jenkins.version>
         <no-test-jar>false</no-test-jar>
         <groovy-cps.version>1.32</groovy-cps.version>
         <node.version>12.19.0</node.version>
@@ -74,7 +74,7 @@
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.332.x</artifactId>
+                <artifactId>bom-2.346.x</artifactId>
                 <version>1382.v7d694476f340</version>
                 <scope>import</scope>
                 <type>pom</type>
