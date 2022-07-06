@@ -25,29 +25,20 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.CpsTransformer;
-import com.gargoylesoftware.htmlunit.html.HtmlCheckBoxInput;
-import com.gargoylesoftware.htmlunit.html.HtmlForm;
-import com.gargoylesoftware.htmlunit.html.HtmlInput;
-import com.gargoylesoftware.htmlunit.html.HtmlTextArea;
 import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Describable;
 import hudson.model.Executor;
-import hudson.model.Item;
 import hudson.model.Result;
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 
 import java.util.logging.Level;
 
-import hudson.security.Permission;
 import jenkins.model.Jenkins;
 
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
-import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
-import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.Step;
@@ -57,7 +48,6 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.steps.StepExecutions;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -68,14 +58,12 @@ import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
-import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -863,141 +851,6 @@ public class CpsFlowDefinition2Test {
         WorkflowRun b = jenkins.buildAndAssertStatus(Result.FAILURE, p);
         jenkins.assertLogContains("Rejecting unsandboxed static method call: jenkins.model.Jenkins.get()", b);
         assertNull(Jenkins.get().getDescription());
-    }
-
-    @Issue("SECURITY-2450")
-    @Test
-    public void cpsScriptNonAdminConfiguration() throws Exception {
-        jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
-
-        MockAuthorizationStrategy mockStrategy = new MockAuthorizationStrategy();
-        mockStrategy.grant(Jenkins.READ).everywhere().to("devel");
-        for (Permission p : Item.PERMISSIONS.getPermissions()) {
-            mockStrategy.grant(p).everywhere().to("devel");
-        }
-        jenkins.jenkins.setAuthorizationStrategy(mockStrategy);
-
-        JenkinsRule.WebClient wcDevel = jenkins.createWebClient();
-        wcDevel.login("devel");
-
-        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
-
-        HtmlForm config = wcDevel.getPage(p, "configure").getFormByName("config");
-        List<HtmlTextArea> scripts = config.getTextAreasByName("_.script");
-        // Get the last one, because previous ones might be from Lockable Resources during PCT.
-        HtmlTextArea script = scripts.get(scripts.size() - 1);
-        String groovy = "echo 'hi from cpsScriptNonAdminConfiguration'";
-        script.setText(groovy);
-
-        List<HtmlInput> sandboxes = config.getInputsByName("_.sandbox");
-        // Get the last one, because previous ones might be from Lockable Resources during PCT.
-        HtmlCheckBoxInput sandbox = (HtmlCheckBoxInput) sandboxes.get(sandboxes.size() - 1);
-        assertTrue(sandbox.isChecked());
-        sandbox.setChecked(false);
-
-        jenkins.submit(config);
-
-        assertEquals(1, ScriptApproval.get().getPendingScripts().size());
-        assertFalse(ScriptApproval.get().isScriptApproved(groovy, GroovyLanguage.get()));
-    }
-
-    @Issue("SECURITY-2450")
-    @Test
-    public void cpsScriptAdminConfiguration() throws Exception {
-        jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
-
-        MockAuthorizationStrategy mockStrategy = new MockAuthorizationStrategy();
-        mockStrategy.grant(Jenkins.ADMINISTER).everywhere().to("admin");
-        for (Permission p : Item.PERMISSIONS.getPermissions()) {
-            mockStrategy.grant(p).everywhere().to("admin");
-        }
-        jenkins.jenkins.setAuthorizationStrategy(mockStrategy);
-
-        JenkinsRule.WebClient admin = jenkins.createWebClient();
-        admin.login("admin");
-
-        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
-
-        HtmlForm config = admin.getPage(p, "configure").getFormByName("config");
-        List<HtmlTextArea> scripts = config.getTextAreasByName("_.script");
-        // Get the last one, because previous ones might be from Lockable Resources during PCT.
-        HtmlTextArea script = scripts.get(scripts.size() - 1);
-        String groovy = "echo 'hi from cpsScriptAdminConfiguration'";
-        script.setText(groovy);
-
-        List<HtmlInput> sandboxes = config.getInputsByName("_.sandbox");
-        // Get the last one, because previous ones might be from Lockable Resources during PCT.
-        HtmlCheckBoxInput sandbox = (HtmlCheckBoxInput) sandboxes.get(sandboxes.size() - 1);
-        assertTrue(sandbox.isChecked());
-        sandbox.setChecked(false);
-
-        jenkins.submit(config);
-
-        assertTrue(ScriptApproval.get().isScriptApproved(groovy, GroovyLanguage.get()));
-    }
-
-    @Issue("SECURITY-2450")
-    @Test
-    public void cpsScriptAdminModification() throws Exception {
-        jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
-
-        MockAuthorizationStrategy mockStrategy = new MockAuthorizationStrategy();
-        mockStrategy.grant(Jenkins.READ).everywhere().to("devel");
-        mockStrategy.grant(Jenkins.ADMINISTER).everywhere().to("admin");
-        for (Permission p : Item.PERMISSIONS.getPermissions()) {
-            mockStrategy.grant(p).everywhere().to("devel");
-            mockStrategy.grant(p).everywhere().to("admin");
-        }
-        jenkins.jenkins.setAuthorizationStrategy(mockStrategy);
-
-        JenkinsRule.WebClient wc = jenkins.createWebClient();
-        wc.login("devel");
-
-        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
-        String userGroovy = "echo 'hi from devel'";
-        String adminGroovy = "echo 'hi from admin'";
-
-        // initial configuration by user, script ends up in pending
-        {
-            HtmlForm config = wc.getPage(p, "configure").getFormByName("config");
-            List<HtmlTextArea> scripts = config.getTextAreasByName("_.script");
-            // Get the last one, because previous ones might be from Lockable Resources during PCT.
-            HtmlTextArea script = scripts.get(scripts.size() - 1);
-            script.setText(userGroovy);
-
-            List<HtmlInput> sandboxes = config.getInputsByName("_.sandbox");
-            // Get the last one, because previous ones might be from Lockable Resources during PCT.
-            HtmlCheckBoxInput sandbox = (HtmlCheckBoxInput) sandboxes.get(sandboxes.size() - 1);
-            assertTrue(sandbox.isChecked());
-            sandbox.setChecked(false);
-
-            jenkins.submit(config);
-
-            assertFalse(ScriptApproval.get().isScriptApproved(userGroovy, GroovyLanguage.get()));
-        }
-
-        wc.login("admin");
-
-        // modification by admin, script gets approved automatically
-        {
-            HtmlForm config = wc.getPage(p, "configure").getFormByName("config");
-            List<HtmlTextArea> scripts = config.getTextAreasByName("_.script");
-            // Get the last one, because previous ones might be from Lockable Resources during PCT.
-            HtmlTextArea script = scripts.get(scripts.size() - 1);
-            script.setText(adminGroovy);
-
-            List<HtmlInput> sandboxes = config.getInputsByName("_.sandbox");
-            // Get the last one, because previous ones might be from Lockable Resources during PCT.
-            HtmlCheckBoxInput sandbox = (HtmlCheckBoxInput) sandboxes.get(sandboxes.size() - 1);
-            assertFalse(sandbox.isChecked());
-
-            jenkins.submit(config);
-
-            // script content was modified by admin, so it should be approved upon save
-            // the one that had been submitted by the user previously stays in pending
-            assertTrue(ScriptApproval.get().isScriptApproved(adminGroovy, GroovyLanguage.get()));
-            assertFalse(ScriptApproval.get().isScriptApproved(userGroovy, GroovyLanguage.get()));
-        }
     }
 
     public static class UnsafeParameterStep extends Step implements Serializable {

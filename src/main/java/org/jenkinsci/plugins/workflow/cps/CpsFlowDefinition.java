@@ -90,7 +90,7 @@ public class CpsFlowDefinition extends FlowDefinition {
 
     private Object readResolve() {
         if (!sandbox) {
-            ScriptApproval.get().configuring(script, GroovyLanguage.get(), ApprovalContext.create());
+            ScriptApproval.get().configuring(script, GroovyLanguage.get(), ApprovalContext.create(), true);
         }
         return this;
     }
