@@ -25,5 +25,5 @@ THE SOFTWARE.
 
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout">
-    <l:task icon="plugin/workflow-cps/images/pause.svg" title="${%Pause/resume}" href="${h.getActionUrl(it.url, action)}/toggle" post="true" contextMenu="true"/>
+    <l:task icon="symbol-pause plugin-workflow-cps" title="${%Pause/resume}" href="${h.getActionUrl(it.url, action)}/toggle" post="true" contextMenu="true"/>
 </j:jelly>
