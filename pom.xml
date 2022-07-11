@@ -150,7 +150,7 @@
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-job</artifactId>
             <scope>test</scope>
-            <version>1181.va_25d15548158</version> <!-- TODO: Remove once this version is included in BOM. -->
+            <version>1203.v7b_7023424efe</version> <!-- TODO: Remove once this version is included in BOM. -->
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
