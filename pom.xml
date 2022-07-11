@@ -75,7 +75,7 @@
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-2.346.x</artifactId>
-                <version>1382.v7d694476f340</version>
+                <version>1472.vb_65d893c9a_b_6</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -89,7 +89,6 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <version>1162.va_1e49062a_00e</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -102,7 +101,6 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1172.v35f6a_0b_8207e</version> <!-- TODO: Remove once this version is included in BOM. -->
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -150,7 +148,6 @@
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-job</artifactId>
             <scope>test</scope>
-            <version>1181.va_25d15548158</version> <!-- TODO: Remove once this version is included in BOM. -->
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -239,7 +236,6 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>config-file-provider</artifactId>
-            <version>3.9.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
