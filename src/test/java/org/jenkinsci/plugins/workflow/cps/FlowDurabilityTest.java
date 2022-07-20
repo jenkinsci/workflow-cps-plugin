@@ -777,7 +777,8 @@ public class FlowDurabilityTest {
                 WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY, false);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
-                    assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
+                    ((CpsFlowExecution) exec).waitForSuspension(); // till done writing head node ID into build.xml
+                    assert ((CpsFlowExecution) exec).getStorage().isPersistedFully(); // single node xmls written
                 }
                 nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
                 nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
