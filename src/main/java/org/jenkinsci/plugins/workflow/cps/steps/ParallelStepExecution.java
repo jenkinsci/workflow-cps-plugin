@@ -2,7 +2,6 @@ package org.jenkinsci.plugins.workflow.cps.steps;
 
 import groovy.lang.Closure;
 import hudson.model.TaskListener;
-import jenkins.model.CauseOfInterruption;
 import org.jenkinsci.plugins.workflow.actions.LabelAction;
 import org.jenkinsci.plugins.workflow.actions.ThreadNameAction;
 import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
@@ -66,12 +65,6 @@ class ParallelStepExecution extends StepExecution {
         // Despite suggestion in JENKINS-26148, super.stop does not work here, even accounting for the direct call from checkAllDone.
         for (BodyExecution body : bodies) {
             body.cancel(cause);
-        }
-    }
-
-    void stop(CauseOfInterruption... causes) {
-        for (BodyExecution body : bodies) {
-            body.cancel(causes);
         }
     }
 
