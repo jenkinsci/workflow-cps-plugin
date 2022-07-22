@@ -85,7 +85,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
-            <version>999999-SNAPSHOT</version> <!-- TODO https://github.com/jenkinsci/workflow-step-api-plugin/pull/124 -->
+            <version>628.v1c57e2f35a_c7</version> <!-- TODO https://github.com/jenkinsci/workflow-step-api-plugin/pull/124 -->
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
