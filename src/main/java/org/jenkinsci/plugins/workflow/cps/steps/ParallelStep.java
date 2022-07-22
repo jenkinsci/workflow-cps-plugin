@@ -147,13 +147,8 @@ public class ParallelStep extends Step {
                         // some of the results are not yet ready
                         if (stepFailed && handler.failFast && ! handler.isStopSent()) {
                             handler.stopSent();
-                            try {
-                                // TODO consider actualInterruption=false
-                                handler.stepExecution.stop(new FlowInterruptedException(Result.ABORTED, true, new FailFastCause(name)));
-                            }
-                            catch (Exception ignored) {
-                                // ignored.
-                            }
+                            // TODO consider actualInterruption=false
+                            handler.stepExecution.stop(new FlowInterruptedException(Result.ABORTED, true, new FailFastCause(name)));
                         }
                         return;
                     }
