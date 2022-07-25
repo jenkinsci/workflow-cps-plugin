@@ -96,7 +96,6 @@ public class WorkflowTest extends SingleJobTestBase {
             @Override
             public void evaluate() throws Throwable {
                 rebuildContext(story.j);
-                assertThatWorkflowIsSuspended();
                 for (int i = 0; i < 600 && !Queue.getInstance().isEmpty(); i++) {
                     Thread.sleep(100);
                 }
@@ -141,7 +140,6 @@ public class WorkflowTest extends SingleJobTestBase {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 rebuildContext(story.j);
-                assertThatWorkflowIsSuspended();
 
                 // resume execution and cause the retry to invoke the body again
                 SemaphoreStep.success("wait/1", null);
@@ -177,7 +175,6 @@ public class WorkflowTest extends SingleJobTestBase {
             @Override public void evaluate() throws Throwable {
                 assertEquals(JenkinsRule.DummySecurityRealm.class, jenkins().getSecurityRealm().getClass());
                 rebuildContext(story.j);
-                assertThatWorkflowIsSuspended();
                 story.j.waitForMessage("again running as someone", b);
                 CheckAuth.finish(true);
                 story.j.assertLogContains("finally running as someone", story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b)));
@@ -319,7 +316,6 @@ public class WorkflowTest extends SingleJobTestBase {
         story.addStep(new Statement() {
             @Override public void evaluate() throws Throwable {
                 rebuildContext(story.j);
-                assertThatWorkflowIsSuspended();
                 SemaphoreStep.success("env/1", null);
                 story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
                 story.j.assertLogContains("tag=jenkins-demo-1 PERMACHINE=set", b);

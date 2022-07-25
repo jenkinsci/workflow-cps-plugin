@@ -962,7 +962,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     /**
      * Waits for the workflow to move into the SUSPENDED state.
+     * @deprecated Use some other idiom, code {@link SemaphoreStep}.
      */
+    @Deprecated
     public void waitForSuspension() throws InterruptedException, ExecutionException {
         if (programPromise==null)
             return; // the execution has already finished and we are not loading program state anymore
