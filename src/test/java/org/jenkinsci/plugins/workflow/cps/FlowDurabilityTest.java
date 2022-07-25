@@ -716,6 +716,7 @@ public class FlowDurabilityTest {
                 WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY, false);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
+                    ((CpsFlowExecution) exec).waitForSuspension(); // till done writing head node ID into build.xml
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
                 }
                 logStart[0] = JenkinsRule.getLog(run);
@@ -745,6 +746,7 @@ public class FlowDurabilityTest {
                 FlowExecution exec = run.getExecution();
                 Assert.assertTrue(((CpsFlowExecution) exec).isResumeBlocked());
                 if (exec instanceof CpsFlowExecution) {
+                    ((CpsFlowExecution) exec).waitForSuspension(); // till done writing head node ID into build.xml
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
                 }
                 Assert.assertFalse(((CpsFlowExecution) exec).getProgramDataFile().exists());
