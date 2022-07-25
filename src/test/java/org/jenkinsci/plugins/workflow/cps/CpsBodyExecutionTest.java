@@ -39,6 +39,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.not;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -172,7 +173,7 @@ public class CpsBodyExecutionTest {
         assertThat(currentExecutions2, iterableWithSize(1));
         assertEquals(semaphores, Sets.union(Sets.newLinkedHashSet(currentExecutions1), Sets.newLinkedHashSet(currentExecutions2)));
         assertEquals(semaphores, Sets.newLinkedHashSet(execs[0].body.getCurrentExecutions())); // the top-level one
-        execs[0].body.cancel();
+        execs[0].body.cancel(new FlowInterruptedException(Result.ABORTED, true));
         SemaphoreStep.success("c/1", null);
         jenkins.assertBuildStatus(Result.ABORTED, jenkins.waitForCompletion(b));
         });

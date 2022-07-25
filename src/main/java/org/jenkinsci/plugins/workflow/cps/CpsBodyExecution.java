@@ -11,9 +11,7 @@ import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import hudson.model.Action;
-import hudson.model.Result;
 import hudson.util.Iterators;
-import jenkins.model.CauseOfInterruption;
 import org.jenkinsci.plugins.workflow.actions.BodyInvocationAction;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
@@ -22,14 +20,12 @@ import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext;
 import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
-import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 import net.jcip.annotations.GuardedBy;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -72,7 +68,7 @@ class CpsBodyExecution extends BodyExecution {
      * Set to non-null if the body execution is stopped.
      */
     @GuardedBy("this")
-    private FlowInterruptedException stopped;
+    private Throwable stopped;
 
     private final List<BodyExecutionCallback> callbacks;
 
@@ -243,13 +239,12 @@ class CpsBodyExecution extends BodyExecution {
     }
 
     @Override
-    public boolean cancel(final CauseOfInterruption... causes) {
+    public boolean cancel(Throwable error) {
         // 'stopped' and 'thread' are updated atomically
         CpsThread t;
         synchronized (this) {
             if (isDone())  return false;   // already complete
-            // TODO should perhaps rather override cancel(Throwable) and make this overload just delegate to that one
-            stopped = new FlowInterruptedException(Result.ABORTED, causes);
+            stopped = error;
             t = this.thread;
         }
 
@@ -276,7 +271,8 @@ class CpsBodyExecution extends BodyExecution {
 
                 @Override
                 public void onFailure(Throwable t) {
-                    LOGGER.log(Level.WARNING, "could not cancel " + context + " with " + Arrays.toString(causes), t);
+                    t.addSuppressed(error);
+                    LOGGER.log(Level.WARNING, "could not cancel " + context, t);
                 }
             });
         } else {

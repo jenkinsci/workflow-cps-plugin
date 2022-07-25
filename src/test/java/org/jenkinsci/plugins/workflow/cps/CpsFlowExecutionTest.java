@@ -366,7 +366,8 @@ public class CpsFlowExecutionTest {
                 while (logger.getRecords().isEmpty()) {
                     Thread.sleep(100); // apparently a race condition between CpsVmExecutorService.tearDown and WorkflowRun.finish
                 }
-                assertThat(logger.getRecords(), Matchers.hasSize(Matchers.equalTo(1)));
+                // TODO https://github.com/jenkinsci/workflow-cps-plugin/pull/570#issuecomment-1192679404 message can be duplicated
+                assertThat(logger.getRecords(), Matchers.not(Matchers.empty()));
                 assertEquals(CpsFlowExecution.TimingKind.values().length, ((CpsFlowExecution) b.getExecution()).timings.keySet().size());
         });
     }
