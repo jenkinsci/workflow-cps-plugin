@@ -31,6 +31,7 @@ import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -70,18 +71,6 @@ public abstract class SingleJobTestBase extends Assert {
         e = (CpsFlowExecution) b.getExecution();
     }
 
-    /**
-     * Asserts that {@link #e} is in the suspended state and has nothing more to execute.
-     */
-    public void assertThatWorkflowIsSuspended() throws Exception {
-        assertThatWorkflowIsSuspended(b, e);
-    }
-
-    public void assertThatWorkflowIsSuspended(WorkflowRun b, CpsFlowExecution e) throws Exception {
-        e.waitForSuspension();  // it should be in the suspended state
-        assert b.isBuilding();
-    }
-
     /** @deprecated use {@link JenkinsRule#waitForCompletion} instead */
     public void waitForWorkflowToComplete() throws Exception {
         do {
@@ -89,6 +78,7 @@ public abstract class SingleJobTestBase extends Assert {
         } while (!e.isComplete());
     }
 
+    /** @deprecated Use some other idiom, like {@link SemaphoreStep}. */
     public void waitForWorkflowToSuspend() throws Exception {
         waitForWorkflowToSuspend(e);
     }
