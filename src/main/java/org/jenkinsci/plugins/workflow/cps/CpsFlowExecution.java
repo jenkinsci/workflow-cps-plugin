@@ -962,7 +962,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     /**
      * Waits for the workflow to move into the SUSPENDED state.
-     * @deprecated Use some other idiom, code {@link SemaphoreStep}.
+     * @deprecated Use some other idiom, like {@code SemaphoreStep}.
      */
     @Deprecated
     public void waitForSuspension() throws InterruptedException, ExecutionException {
