@@ -10,13 +10,14 @@ Pipeline Groovy script code such as
 
 ```groovy
 retry(3) {
-for (int i = 0; i < 10; i++) {
-  branches["branch${i}"] = {
-    node {
-      retry(3) {
-        checkout scm
+  for (int i = 0; i < 10; i++) {
+    branches["branch${i}"] = {
+      node {
+        retry(3) {
+          checkout scm
+        }
+        sh 'make world'
       }
-      sh 'make world'
     }
   }
 }
