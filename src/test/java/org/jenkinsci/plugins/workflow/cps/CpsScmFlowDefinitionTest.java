@@ -201,7 +201,9 @@ public class CpsScmFlowDefinitionTest {
         r.assertLogContains("version one", b);
     }
 
-    @Test public void lightweight_brach_parametrised() throws Exception {
+    @Issue("JENKINS-42971")
+    @Test
+    public void lightweight_brach_parametrised() throws Exception {
         LoggerRule lr = new LoggerRule();
         lr.record(GitSCMFileSystem.class.getName(), Level.ALL).capture(4024);
 
