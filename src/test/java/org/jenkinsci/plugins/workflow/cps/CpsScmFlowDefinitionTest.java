@@ -46,7 +46,10 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.logging.Level;
+
 import jenkins.model.Jenkins;
+import jenkins.plugins.git.GitSCMFileSystem;
 import jenkins.plugins.git.GitSampleRepoRule;
 import jenkins.plugins.git.GitStep;
 import jenkins.scm.impl.subversion.SubversionSampleRepoRule;
@@ -59,6 +62,8 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -70,6 +75,7 @@ import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.SingleFileSCM;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -193,6 +199,32 @@ public class CpsScmFlowDefinitionTest {
         r.assertLogNotContains("Retrying after 10 seconds", b);
         r.assertLogContains("Obtained flow.groovy from git " + sampleRepo, b);
         r.assertLogContains("version one", b);
+    }
+
+    @Test public void lightweight_brach_parametrised() throws Exception {
+        LoggerRule lr = new LoggerRule();
+        lr.record(GitSCMFileSystem.class.getName(), Level.ALL).capture(4024);
+
+        sampleRepo.init();
+        sampleRepo.git("checkout","-b","master2");
+        sampleRepo.write("flow.groovy", "echo 'version one'");
+        sampleRepo.git("add", "flow.groovy");
+        sampleRepo.git("commit", "--message=init");
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("BRANCH","","")));
+        GitStep step = new GitStep(sampleRepo.toString());
+        step.setBranch("${BRANCH}");
+
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(step.createSCM(), "flow.groovy");
+        def.setLightweight(true);
+        TestDurabilityHintProvider provider = Jenkins.get().getExtensionList(TestDurabilityHintProvider.class).get(0);
+        provider.registerHint("p", FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+        p.setDefinition(def);
+
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("BRANCH","master2"))));
+        Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, b.getExecution().getDurabilityHint());
+
+        assertThat(lr.getMessages(), hasItem(containsString("refs/heads/master2:refs/remotes/origin/master2")));
     }
 
     @Issue("JENKINS-59425")
