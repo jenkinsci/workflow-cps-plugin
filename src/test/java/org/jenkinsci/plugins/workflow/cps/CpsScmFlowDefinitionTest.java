@@ -43,6 +43,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -204,9 +205,6 @@ public class CpsScmFlowDefinitionTest {
     @Issue("JENKINS-42971")
     @Test
     public void lightweight_brach_parametrised() throws Exception {
-        LoggerRule lr = new LoggerRule();
-        lr.record(GitSCMFileSystem.class.getName(), Level.ALL).capture(4024);
-
         sampleRepo.init();
         sampleRepo.git("checkout","-b","master2");
         sampleRepo.write("flow.groovy", "echo 'version one'");
@@ -214,19 +212,16 @@ public class CpsScmFlowDefinitionTest {
         sampleRepo.git("commit", "--message=init");
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("BRANCH","","")));
-        GitStep step = new GitStep(sampleRepo.toString());
-        step.setBranch("${BRANCH}");
+        GitSCM scm = new GitSCM(GitSCM.createRepoList(sampleRepo.toString(), null),
+                new ArrayList<BranchSpec>() {{
+                    add(new BranchSpec("${BRANCH}"));
+                }}, null, null, Collections.emptyList());
 
-        CpsScmFlowDefinition def = new CpsScmFlowDefinition(step.createSCM(), "flow.groovy");
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(scm, "flow.groovy");
         def.setLightweight(true);
-        TestDurabilityHintProvider provider = Jenkins.get().getExtensionList(TestDurabilityHintProvider.class).get(0);
-        provider.registerHint("p", FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
         p.setDefinition(def);
 
-        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("BRANCH","master2"))));
-        Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, b.getExecution().getDurabilityHint());
-
-        assertThat(lr.getMessages(), hasItem(containsString("refs/heads/master2:refs/remotes/origin/master2")));
+        r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("BRANCH","master2"))));
     }
 
     @Issue("JENKINS-59425")
