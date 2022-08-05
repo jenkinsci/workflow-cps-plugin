@@ -115,7 +115,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         Run<?,?> build = (Run<?,?>) _build;
         String expandedScriptPath = build.getEnvironment(listener).expand(scriptPath);
         if (isLightweight()) {
-            try (SCMFileSystem fs = SCMFileSystem.of(build.getParent(), scm,null, build)) {
+            try (SCMFileSystem fs = SCMFileSystem.of(build.getParent(), scm, null, build)) {
                 if (fs != null) {
                     try {
                         String script = fs.child(expandedScriptPath).contentAsString();

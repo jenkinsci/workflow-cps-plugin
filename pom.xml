@@ -228,6 +228,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>git</artifactId>
+            <version>4.11.5-rc4795.d7159dc85662</version>   <!-- TODO: https://github.com/jenkinsci/git-plugin/pull/1305 -->
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
