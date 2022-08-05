@@ -206,16 +206,14 @@ public class CpsScmFlowDefinitionTest {
     @Test
     public void lightweight_brach_parametrised() throws Exception {
         sampleRepo.init();
-        sampleRepo.git("checkout","-b","master2");
+        sampleRepo.git("checkout", "-b", "master2");
         sampleRepo.write("flow.groovy", "echo 'version one'");
         sampleRepo.git("add", "flow.groovy");
         sampleRepo.git("commit", "--message=init");
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("BRANCH","","")));
+        p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("BRANCH", "")));
         GitSCM scm = new GitSCM(GitSCM.createRepoList(sampleRepo.toString(), null),
-                new ArrayList<BranchSpec>() {{
-                    add(new BranchSpec("${BRANCH}"));
-                }}, null, null, Collections.emptyList());
+                Collections.singletonList(new BranchSpec("${BRANCH}")), null, null, Collections.emptyList());
 
         CpsScmFlowDefinition def = new CpsScmFlowDefinition(scm, "flow.groovy");
         def.setLightweight(true);
