@@ -251,9 +251,22 @@ public class FlowDurabilityTest {
         assertHasTimingAction(run.getExecution());
     }
 
+    /** A minimal check of resuming the job with no node checks, in case of a dirty shutdown.
+     * Currently dirty shutdowns have the potential to lose the head node ID if they happen at the moment of writing
+     * it to build.xml
+     */
+    private static void verifyDirtyResumed(JenkinsRule rule, WorkflowRun run, String logStart) throws Exception {
+        assertHasTimingAction(run.getExecution());
+        rule.waitForCompletion(run);
+        Assert.assertEquals(Result.SUCCESS, run.getResult());
+        verifyCompletedCleanly(rule.jenkins, run);
+        //no checking nodes
+        rule.assertLogContains(logStart, run);
+    }
+
     /** If it's a {@link SemaphoreStep} we test less rigorously because that blocks async GraphListeners. */
-    static void verifySafelyResumed(JenkinsRule rule, WorkflowRun run, boolean isSemaphore, String logStart) throws Exception {
-        assert run.isBuilding();
+    private static void verifySafelyResumed(JenkinsRule rule, WorkflowRun run, boolean isSemaphore, String logStart) throws Exception {
+        Assert.assertTrue(run.isBuilding());
         FlowExecution exec = run.getExecution();
 
         // Assert that we have the appropriate flow graph entries
@@ -728,7 +741,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                verifySafelyResumed(story.j, run, false, logStart[0]);
+                verifyDirtyResumed(story.j, run, logStart[0]);
             }
         });
     }
@@ -761,7 +774,6 @@ public class FlowDurabilityTest {
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
                 verifyFailedCleanly(story.j.jenkins, run);
-                assertIncludesNodes(nodesOut, run);
             }
         });
     }
@@ -779,7 +791,7 @@ public class FlowDurabilityTest {
                 WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY, false);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
-                    assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
+                    assert ((CpsFlowExecution) exec).getStorage().isPersistedFully(); // single node xmls written
                 }
                 nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
                 nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
@@ -792,7 +804,6 @@ public class FlowDurabilityTest {
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
                 verifyFailedCleanly(story.j.jenkins, run);
-                assertIncludesNodes(nodesOut, run);
             }
         });
     }
