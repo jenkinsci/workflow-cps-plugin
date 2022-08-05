@@ -219,7 +219,7 @@ public class CpsScmFlowDefinitionTest {
         def.setLightweight(true);
         p.setDefinition(def);
 
-        r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("BRANCH","master2"))));
+        r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("BRANCH", "master2"))));
     }
 
     @Issue("JENKINS-59425")
