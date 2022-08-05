@@ -255,8 +255,7 @@ public class FlowDurabilityTest {
      * Currently dirty shutdowns have the potential to lose the head node ID if they happen at the moment of writing
      * it to build.xml
      */
-    static void verifyDirtyResumed(JenkinsRule rule, WorkflowRun run, String logStart) throws Exception {
-        assert run.isBuilding();
+    private static void verifyDirtyResumed(JenkinsRule rule, WorkflowRun run, String logStart) throws Exception {
         assertHasTimingAction(run.getExecution());
         rule.waitForCompletion(run);
         Assert.assertEquals(Result.SUCCESS, run.getResult());
@@ -266,8 +265,8 @@ public class FlowDurabilityTest {
     }
 
     /** If it's a {@link SemaphoreStep} we test less rigorously because that blocks async GraphListeners. */
-    static void verifySafelyResumed(JenkinsRule rule, WorkflowRun run, boolean isSemaphore, String logStart) throws Exception {
-        assert run.isBuilding();
+    private static void verifySafelyResumed(JenkinsRule rule, WorkflowRun run, boolean isSemaphore, String logStart) throws Exception {
+        Assert.assertTrue(run.isBuilding());
         FlowExecution exec = run.getExecution();
 
         // Assert that we have the appropriate flow graph entries
