@@ -57,7 +57,7 @@
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-2.346.x</artifactId>
-                <version>1478.v81d3dc4f9a_43</version>
+                <version>1556.vfc6a_f216e3c6</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -203,14 +203,14 @@
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
-            <version>4.12.0-rc4821.0fa_d6b_a_a_0928</version>   <!-- TODO: https://github.com/jenkinsci/git-plugin/pull/1305 -->
+            <version>4.12.0-rc4823.c61fb_c41c2e0</version>   <!-- TODO: https://github.com/jenkinsci/git-plugin/pull/1305 -->
             <artifactId>git</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>git</artifactId>
-            <version>4.12.0-rc4821.0fa_d6b_a_a_0928</version>   <!-- TODO: https://github.com/jenkinsci/git-plugin/pull/1305 -->
+            <version>4.12.0-rc4823.c61fb_c41c2e0</version>   <!-- TODO: https://github.com/jenkinsci/git-plugin/pull/1305 -->
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
