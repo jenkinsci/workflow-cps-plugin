@@ -45,14 +45,11 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
-import org.jvnet.hudson.test.BuildWatcher;
-import org.jvnet.hudson.test.Issue;
-import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.RestartableJenkinsRule;
+import org.jvnet.hudson.test.*;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import java.io.File;
-import java.io.FileOutputStream;
+
+import java.io.*;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -65,6 +62,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Tests implementations designed to verify handling of the flow durability levels and persistence of pipeline state.
@@ -87,6 +86,11 @@ public class FlowDurabilityTest {
 
     @Rule
     public TimedRepeatRule repeater = new TimedRepeatRule();
+
+    @Rule
+    public LoggerRule logging = new LoggerRule();
+
+    private Logger log = Logger.getLogger(FlowDurabilityTest.class.getName());
 
     // Used in Race-condition/persistence fuzzing where we need to run repeatedly
     static class TimedRepeatRule implements TestRule {
@@ -556,6 +560,7 @@ public class FlowDurabilityTest {
      */
     @Test
     public void testDurableAgainstCleanRestartFailsWithDirtyShutdown() throws Exception {
+        logging.record( hudson.model.RunMap.class, Level.WARNING).capture(200);
         final String[] logStart = new String[1];
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
@@ -570,7 +575,20 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
-                verifyFailedCleanly(story.j.jenkins, run);
+                try {
+                    verifyFailedCleanly(story.j.jenkins, run);
+                } catch (NullPointerException e) {
+                    File buildXml = new File (story.j.jenkins.getRootDir() + "/jobs/durableAgainstClean/builds/1/build.xml");
+                    BufferedReader in = new BufferedReader(new FileReader(buildXml));
+                    String line = in.readLine();
+                    while(line != null)
+                    {
+                        log.warning(line);
+                        line = in.readLine();
+                    }
+                    in.close();
+                    throw e;
+                }
                 story.j.assertLogContains(logStart[0], run);
             }
         });
