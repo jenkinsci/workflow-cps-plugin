@@ -88,6 +88,11 @@
             <version>639.v6eca_cd8c04a_a_</version> <!-- TODO until in BOM -->
         </dependency>
         <dependency>
+            <groupId>io.jenkins.plugins</groupId>
+            <artifactId>ionicons-api</artifactId>
+            <version>19.v744f3b_2b_b_e4e</version>
+        </dependency>
+        <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
         </dependency>
