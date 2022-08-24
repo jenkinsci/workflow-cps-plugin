@@ -589,10 +589,8 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
-                try {
-                    verifyFailedCleanly(story.j.jenkins, run);
-                } catch (NullPointerException e) {
+                if (logging.getMessages().stream().anyMatch(msg -> msg.contains("could not load") && msg.contains("jobs/durableAgainstClean/builds/1"))){
+                    log.warning("Found a message in LoggerRule - trying to log the build.xml");
                     File buildXml = new File (story.j.jenkins.getRootDir() + "/jobs/durableAgainstClean/builds/1/build.xml");
                     BufferedReader in = new BufferedReader(new FileReader(buildXml));
                     String line = in.readLine();
@@ -602,6 +600,23 @@ public class FlowDurabilityTest {
                         line = in.readLine();
                     }
                     in.close();
+                    log.warning("Done logging the build.xml");
+                }
+                WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
+                try {
+                    verifyFailedCleanly(story.j.jenkins, run);
+                } catch (NullPointerException e) {
+                    log.warning("Caught NPE - trying to log the build.xml");
+                    File buildXml = new File (story.j.jenkins.getRootDir() + "/jobs/durableAgainstClean/builds/1/build.xml");
+                    BufferedReader in = new BufferedReader(new FileReader(buildXml));
+                    String line = in.readLine();
+                    while(line != null)
+                    {
+                        log.warning(line);
+                        line = in.readLine();
+                    }
+                    in.close();
+                    log.warning("Done logging the build.xml");
                     throw e;
                 }
                 story.j.assertLogContains(logStart[0], run);
