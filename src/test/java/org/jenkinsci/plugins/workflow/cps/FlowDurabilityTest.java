@@ -63,8 +63,6 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.junit.Assume;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Tests implementations designed to verify handling of the flow durability levels and persistence of pipeline state.
