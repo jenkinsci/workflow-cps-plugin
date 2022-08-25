@@ -51,7 +51,6 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.lang.annotation.ElementType;
