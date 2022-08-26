@@ -617,6 +617,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
+                if (run == null) { return; } //there is a small chance due to non atomic write that build.xml will be empty and the run won't load at all
                 verifyFailedCleanly(story.j.jenkins, run);
                 story.j.assertLogContains(logStart[0], run);
             }
