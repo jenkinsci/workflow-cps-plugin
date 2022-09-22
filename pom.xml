@@ -28,7 +28,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.45</version>
+        <version>4.47</version>
         <relativePath />
     </parent>
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -67,15 +67,15 @@
         <jenkins.version>2.346.1</jenkins.version>
         <no-test-jar>false</no-test-jar>
         <groovy-cps.version>1.32</groovy-cps.version>
-        <node.version>12.19.0</node.version>
-        <npm.version>6.14.8</npm.version>
+        <node.version>16.17.0</node.version>
+        <npm.version>8.18.0</npm.version>
     </properties>
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-2.346.x</artifactId>
-                <version>1478.v81d3dc4f9a_43</version>
+                <version>1607.va_c1576527071</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -293,7 +293,7 @@
         <dependency>
             <groupId>org.tmatesoft.svnkit</groupId>
             <artifactId>svnkit-cli</artifactId>
-            <version>1.10.7</version>
+            <version>1.10.8</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
