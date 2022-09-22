@@ -155,6 +155,12 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
         owner = r;
     }
 
+    private Object readResolve() {
+        // We need to restore the transient MetaClass field when this class is deserialized by XStream to prevent NPEs in Groovy code that calls methods on this class.
+        setMetaClass(null);
+        return this;
+    }
+
     /**
      * Gets the singleton instance for a given build, creating it on demand.
      */
