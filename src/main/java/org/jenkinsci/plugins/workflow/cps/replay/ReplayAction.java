@@ -102,7 +102,7 @@ public class ReplayAction implements Action {
     }
 
     @Override public String getIconFileName() {
-        return isEnabled() || isRebuildEnabled() ? "symbol-redo plugin-workflow-cps" : null;
+        return isEnabled() || isRebuildEnabled() ? "symbol-arrow-redo-outline plugin-ionicons-api" : null;
     }
 
     @Override public String getUrlName() {
