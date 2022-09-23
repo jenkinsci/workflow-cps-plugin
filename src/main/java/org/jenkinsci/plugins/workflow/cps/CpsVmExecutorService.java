@@ -166,7 +166,7 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         cpsThreadGroup.busy = false;
         context.restore();
         CpsFlowExecution execution = cpsThreadGroup.getExecution();
-        if (isShutdown()) {
+        if (isShutdown() && /* build completed, not just after suspendAll */!cpsThreadGroup.getThreads().iterator().hasNext()) {
             execution.logTimings();
         }
         CpsCallableInvocation.registerMismatchHandler(null);

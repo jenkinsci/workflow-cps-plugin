@@ -430,12 +430,9 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                     }
                     outcome = new Outcome(null, new AlreadyCompleted());
                 }
-
-                /**
-                 * Program state failed to load.
-                 */
                 @Override
                 public void onFailure(Throwable t) {
+                    LOGGER.log(Level.WARNING, "Failed to proceed after " + CpsStepContext.this, t);
                 }
             });
         } catch (IOException x) {

@@ -1649,6 +1649,15 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             }
                         }
                         cpsExec.checkpoint(true);
+                        cpsExec.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+                            @Override public void onSuccess(CpsThreadGroup g) {
+                                LOGGER.fine(() -> "shutting down CPS VM threadin for " + cpsExec);
+                                g.shutdown();
+                            }
+                            @Override public void onFailure(Throwable t) {
+                                LOGGER.log(Level.WARNING, null, t);
+                            }
+                        });
                     }
                 } catch (Exception ex) {
                     LOGGER.log(Level.WARNING, "Error persisting Pipeline execution at shutdown: "+((CpsFlowExecution) execution).owner, ex);
