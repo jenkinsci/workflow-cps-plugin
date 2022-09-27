@@ -676,7 +676,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 h.setForDeserialize(storage.getNode(entry.getValue()));
                 heads.put(h.getId(), h);
             } else {
-                throw new IOException("Tried to load head FlowNodes for execution "+this.owner+" but FlowNode was not found in storage for head id:FlowNodeId "+entry.getKey()+":"+entry.getValue());
+                throw new IOException("Flow node could not be loaded because Jenkins did not shut down cleanly and the Pipeline Durability was not set to MAX_SURVIVABILITY");
             }
         }
         headsSerial = null;
