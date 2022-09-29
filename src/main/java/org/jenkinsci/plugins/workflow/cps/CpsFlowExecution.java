@@ -676,11 +676,14 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 h.setForDeserialize(storage.getNode(entry.getValue()));
                 heads.put(h.getId(), h);
             } else {
-                String suggestDurability  = "";
-                if (getDurabilityHint() != FlowDurabilityHint.MAX_SURVIVABILITY) {
-                    suggestDurability =  "Try setting pipeline durability to MAX_SURVIVABILITY. ";
+                FlowDurabilityHint durabilitySetting = getDurabilityHint();
+                if (durabilitySetting != FlowDurabilityHint.MAX_SURVIVABILITY) {
+                    throw new AbortException("Cannot resume build because FlowNode " + entry.getValue() + " for FlowHead " + entry.getKey() + " could not be loaded. " +
+                            "This is expected to happen when using the " + durabilitySetting + " durability setting and Jenkins is not shut down cleanly. " +
+                            "Consider investigating to understand if Jenkins was not shut down cleanly or switching to the MAX_SURVIVABILITY durability setting which should prevent this issue in most cases.");
+                } else {
+                    throw new AbortException("Cannot resume build because FlowNode " + entry.getValue() + " for FlowHead " + entry.getKey() + " could not be loaded.");
                 }
-                throw new IOException("Cannot resume build because Jenkins did not shut down cleanly. " + suggestDurability + (LOGGER.isLoggable(Level.FINE) ? "(Missing FlowNode " + entry.getValue() + " for FlowHead " + entry.getKey() + ")" : ""));
             }
         }
         headsSerial = null;
