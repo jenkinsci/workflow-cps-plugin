@@ -77,11 +77,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.kohsuke.sorcerer</groupId>
-            <artifactId>sorcerer-javac</artifactId>
-            <version>0.10</version>
-        </dependency>
-        <dependency>
             <groupId>org.kohsuke.codemodel</groupId>
             <artifactId>codemodel</artifactId>
             <version>2.7</version>

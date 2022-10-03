@@ -186,7 +186,7 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
             } catch(StringIndexOutOfBoundsException e) {
               return e.message;
             }
-        """)=="String index out of range: -2"
+        """)=="begin 5, end 3, length 3"
     }
 
     /**

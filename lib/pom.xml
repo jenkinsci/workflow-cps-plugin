@@ -45,6 +45,10 @@
                         <sourceRoot>${project.build.directory}/generated-sources/dgm</sourceRoot>
                         <executable>java</executable>
                         <arguments>
+                            <!-- Translator currently downcasts to non-exported types in a few cases, mainly to check types of identifiers, and there is no obvious alternative. -->
+                            <argument>--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</argument>
+                            <argument>--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</argument>
+                            <argument>--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</argument>
                             <argument>-jar</argument>
                             <argument>${com.cloudbees:groovy-cps-dgm-builder:jar:jar-with-dependencies}</argument>
                             <argument>${project.build.directory}/generated-sources/dgm</argument>

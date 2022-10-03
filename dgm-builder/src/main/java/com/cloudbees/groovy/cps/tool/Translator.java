@@ -95,7 +95,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
-import javax.annotation.Generated;
+import javax.annotation.processing.Generated;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 
@@ -153,12 +153,13 @@ public class Translator {
         $Builder               = codeModel.ref("com.cloudbees.groovy.cps.Builder");
         $CatchExpression       = codeModel.ref("com.cloudbees.groovy.cps.CatchExpression");
 
+        this.parsed = javac.parse();
+
         trees = Trees.instance(javac);
         elements = javac.getElements();
         types = javac.getTypes();
         closureType = types.getDeclaredType(elements.getTypeElement(Closure.class.getName()));
 
-        this.parsed = javac.parse();
         javac.analyze();
     }
 
@@ -182,8 +183,8 @@ public class Translator {
         CompilationUnitTree dgmCut = getDefaultGroovyMethodCompilationUnitTree(parsed, fqcn);
 
         overloadsResolved.clear();
-        ClassSymbol dgm = (ClassSymbol) elements.getTypeElement(fqcn);
-        dgm.accept(new ElementScanner7<Void,Void>() {
+        TypeElement dgm = elements.getTypeElement(fqcn);
+        new ElementScanner7<Void,Void>() {
             @Override
             public Void visitExecutable(ExecutableElement e, Void __) {
                 if (translatable.contains(fqcn + "." + e)) {
@@ -193,7 +194,7 @@ public class Translator {
                 // TODO else if it is public and has a Closure argument, translate to a form that just throws UnsupportedOperationException when called in CPS mode
                 return null;
             }
-        },null);
+        }.visitType(dgm, null);
         // TODO verify that we actually found everything listed in translatables
         overloadsResolved.forEach((overloadResolved, e) -> {
             try {
