@@ -55,14 +55,7 @@ import com.sun.source.tree.WildcardTree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.SimpleTreeVisitor;
 import com.sun.source.util.Trees;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
-import com.sun.tools.javac.code.Symbol.VarSymbol;
-import com.sun.tools.javac.code.Types.DefaultSymbolVisitor;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
-import com.sun.tools.javac.tree.JCTree.JCIdent;
+import com.sun.source.util.TreePath;
 import groovy.lang.Closure;
 
 import javax.lang.model.element.Element;
@@ -341,13 +334,14 @@ public class Translator {
                     // in which case, we need to use that translated method, not the original. So check if the expression
                     // is an identifier, that it's not the class we're in the process of translating, and if it's one
                     // of the other known translated classes.
-                    if (mst.getExpression() instanceof JCIdent &&
-                            !((JCIdent)mst.getExpression()).sym.toString().equals(fqcn) &&
-                            otherTranslated.containsKey(((JCIdent)mst.getExpression()).sym.toString())) {
+                    Element mstExpr = getElement(mst.getExpression());
+                    if (mst.getExpression() instanceof IdentifierTree &&
+                            !mstExpr.toString().equals(fqcn) &&
+                            otherTranslated.containsKey(mstExpr.toString())) {
                         inv = $b.invoke("functionCall")
                                 .arg(loc(mt))
                                 .arg($b.invoke("constant").arg(
-                                        otherTranslated.get(((JCIdent)mst.getExpression()).sym.toString()).dotclass()))
+                                        otherTranslated.get(mstExpr.toString()).dotclass()))
                                 .arg(n(mst.getIdentifier()));
 
                     } else {
@@ -357,26 +351,28 @@ public class Translator {
                                 .arg(n(mst.getIdentifier()));
                     }
                 } else
-                if (ms instanceof JCIdent) {
+                if (ms instanceof IdentifierTree) {
                     // invocation without object selection, like  foo(bar,zot)
-                    JCIdent it = (JCIdent) ms;
-                    if (!it.sym.owner.toString().equals(fqcn)) {
-                        if (otherTranslated.containsKey(it.sym.owner.toString())) {
+                    IdentifierTree it = (IdentifierTree) ms;
+                    Element mse = getElement(ms);
+                    Element owner = mse.getEnclosingElement();
+                    if (!owner.toString().equals(fqcn)) {
+                        if (otherTranslated.containsKey(owner.toString())) {
                             // static import from transformed class
                             inv = $b.invoke("functionCall")
                                     .arg(loc(mt))
-                                    .arg($b.invoke("constant").arg(otherTranslated.get(it.sym.owner.toString()).dotclass()))
+                                    .arg($b.invoke("constant").arg(otherTranslated.get(owner.toString()).dotclass()))
                                     .arg(n(it));
                         } else {
                             // static import from non-transformed class
                             inv = $b.invoke("functionCall")
                                     .arg(loc(mt))
-                                    .arg($b.invoke("constant").arg(t(it.sym.owner.type).dotclass()))
+                                    .arg($b.invoke("constant").arg(t(owner.asType()).dotclass()))
                                     .arg(n(it));
                         }
                     } else {
                         // invocation on this class
-                        String overloadResolved = mangledName((Symbol.MethodSymbol) it.sym);
+                        String overloadResolved = mangledName((ExecutableElement) mse);
                         Optional<? extends Element> callSite = elements.getTypeElement(fqcn).getEnclosedElements().stream().filter(e ->
                             e.getKind() == ElementKind.METHOD && mangledName((ExecutableElement) e).equals(overloadResolved)
                         ).findAny();
@@ -386,7 +382,7 @@ public class Translator {
                                 // Delegate to the standard version.
                                 inv = $b.invoke("staticCall")
                                     .arg(loc(mt))
-                                    .arg(t(it.sym.owner.type).dotclass())
+                                    .arg(t(owner.asType()).dotclass())
                                     .arg(n(e));
                             } else if (overloadsResolved.containsKey(overloadResolved)) {
                                 // Private, so delegate to our mangled version.
@@ -418,30 +414,26 @@ public class Translator {
             public JExpression visitVariable(VariableTree vt, Void __) {
                 return $b.invoke("declareVariable")
                         .arg(loc(vt))
-                        .arg(cpsTypeTranslation(erasure(vt)))
+                        .arg(cpsTypeTranslation(erasure(getPath(vt))))
                         .arg(n(vt))
                         .arg(visit(vt.getInitializer()));
             }
 
             @Override
             public JExpression visitIdentifier(IdentifierTree it, Void __) {
-                JCIdent idt = (JCIdent) it;
-                return idt.sym.accept(new DefaultSymbolVisitor<JExpression, Void>() {
-                    @Override
-                    public JExpression visitClassSymbol(ClassSymbol cs, Void __) {
-                        return $b.invoke("constant").arg(t(cs.asType()).dotclass());
-                    }
+                Element ite = getElement(it);
+                switch (ite.getKind()) {
+                    case CLASS:
+                    case INTERFACE:
+                        return $b.invoke("constant").arg(t(ite.asType()).dotclass());
+                    case EXCEPTION_PARAMETER:
+                    case LOCAL_VARIABLE:
+                    case PARAMETER:
+                        return $b.invoke("localVariable").arg(n(it.getName()));
+                    default:
+                        throw new UnsupportedOperationException(it + " (kind " + ite.getKind() + ")");
 
-                    @Override
-                    public JExpression visitVarSymbol(VarSymbol s, Void __) {
-                        return $b.invoke("localVariable").arg(n(s.name));
-                    }
-
-                    @Override
-                    public JExpression visitSymbol(Symbol s, Void __) {
-                        throw new UnsupportedOperationException(s.toString());
-                    }
-                }, __);
+                }
             }
 
             @Override
@@ -472,7 +464,7 @@ public class Translator {
                 return $b.invoke("cast")
                         .arg(loc(tt))
                         .arg(visit(tt.getExpression()))
-                        .arg(erasure(tt.getType()).dotclass())
+                        .arg(erasure(getPath(tt.getType())).dotclass())
                         .arg(JExpr.lit(false));
             }
 
@@ -495,7 +487,7 @@ public class Translator {
 
                 return $b.invoke("new_").tap(inv -> {
                     inv.arg(loc(nt));
-                    inv.arg(cpsTypeTranslation(t(((JCTree) nt).type)));
+                    inv.arg(cpsTypeTranslation(t(getElement(nt.getIdentifier()).asType())));
                     nt.getArguments().forEach( et -> inv.arg(visit(et)) );
                 });
             }
@@ -589,7 +581,7 @@ public class Translator {
                 } else {
                     return $b.invoke("newArray").tap(inv -> {
                         inv.arg(loc(nt));
-                        inv.arg(t(nt.getType()).dotclass());
+                        inv.arg(t(getPath(nt.getType())).dotclass());
                         nt.getDimensions().forEach(d -> inv.arg(visit(d)));
                     });
                 }
@@ -610,7 +602,7 @@ public class Translator {
                 return $b.invoke("forInLoop")
                         .arg(loc(et))
                         .arg(JExpr._null())
-                        .arg(erasure(et.getVariable()).dotclass())
+                        .arg(erasure(getPath(et.getVariable())).dotclass())
                         .arg(n(et.getVariable()))
                         .arg(visit(et.getExpression()))
                         .arg(visit(et.getStatement()));
@@ -643,7 +635,7 @@ public class Translator {
                 return $b.invoke("instanceOf")
                         .arg(loc(it))
                         .arg(visit(it.getExpression()))
-                        .arg($b.invoke("constant").arg(t(it.getType()).dotclass()));
+                        .arg($b.invoke("constant").arg(t(getPath(it.getType())).dotclass()));
             }
 
             @Override
@@ -677,7 +669,7 @@ public class Translator {
                         .tap(inv ->
                             tt.getCatches().forEach(ct ->
                                 JExpr._new($CatchExpression)
-                                    .arg(t(ct.getParameter()).dotclass())
+                                    .arg(t(trees.getPath(cut, ct.getParameter())).dotclass())
                                     .arg(n(ct.getParameter()))
                                     .arg(visit(ct.getBlock())))
                         );
@@ -686,6 +678,14 @@ public class Translator {
             @Override
             protected JExpression defaultAction(Tree node, Void aVoid) {
                 throw new UnsupportedOperationException(node.toString());
+            }
+
+            private TreePath getPath(Tree node) {
+                return trees.getPath(cut, node);
+            }
+
+            private Element getElement(Tree node) {
+                return trees.getElement(getPath(node));
             }
         }, null));
 
@@ -715,15 +715,15 @@ public class Translator {
     /**
      * Convert a type representation from javac to codemodel.
      */
-    private JType t(Tree t) {
-        return t.accept(new TypeTranslator(), null);
+    private JType t(TreePath t) {
+        return t.getLeaf().accept(new TypeTranslator(t.getCompilationUnit()), null);
     }
 
     /**
      * Converts a type representation to its erasure.
      */
-    private JType erasure(Tree t) {
-        return t.accept(new TypeTranslator() {
+    private JType erasure(TreePath t) {
+        return t.getLeaf().accept(new TypeTranslator(t.getCompilationUnit()) {
             @Override
             public JType visitParameterizedType(ParameterizedTypeTree pt, Void __) {
                 return visit(pt.getType());
@@ -738,19 +738,21 @@ public class Translator {
 
             @Override
             public JType visitIdentifier(IdentifierTree it, Void __) {
-                JCIdent idt = (JCIdent) it;
-                if (idt.sym instanceof ClassSymbol) {
-                    ClassSymbol cs = (ClassSymbol) idt.sym;
-                    return codeModel.ref(cs.className());
-                }
-                if (idt.sym instanceof TypeVariableSymbol) {
-                    TypeVariableSymbol tcs = (TypeVariableSymbol) idt.sym;
-                    if (tcs.getBounds().isEmpty())
+                Element ite = trees.getElement(trees.getPath(t.getCompilationUnit(), it));
+                switch (ite.getKind()) {
+                    case CLASS:
+                    case INTERFACE:
+                        return codeModel.ref(ite.toString());
+                    case TYPE_PARAMETER:
+                        TypeMirror type = ite.asType();
+                        if (type instanceof TypeVariable) {
+                            return t(((TypeVariable)type).getUpperBound());
+                        }
                         return codeModel.ref(Object.class);
-                    else
-                        return t(tcs.getBounds().get(0));
+                    default:
+                        throw new UnsupportedOperationException(it + " (kind " + ite.getKind() + ")");
+
                 }
-                throw new UnsupportedOperationException(idt.sym.toString());
             }
         }, null);
     }
@@ -873,6 +875,12 @@ public class Translator {
     }
 
     private class TypeTranslator extends SimpleTreeVisitor<JType, Void> {
+        private final CompilationUnitTree cut;
+
+        private TypeTranslator(CompilationUnitTree cut) {
+            this.cut = cut;
+        }
+
         protected JType visit(Tree t) {
             return visit(t,null);
         }
@@ -894,8 +902,7 @@ public class Translator {
 
         @Override
         public JType visitIdentifier(IdentifierTree it, Void __) {
-            JCIdent idt = (JCIdent) it;
-            return codeModel.ref(idt.sym.toString());
+            return codeModel.ref(getElement(it).toString());
         }
 
         @Override
@@ -913,7 +920,7 @@ public class Translator {
          */
         @Override
         public JType visitMemberSelect(MemberSelectTree mt, Void __) {
-            return t(((JCFieldAccess)mt).type);
+            return t(getElement(mt).asType());
         }
 
         @Override
@@ -926,6 +933,10 @@ public class Translator {
         @Override
         protected JType defaultAction(Tree node, Void __) {
             throw new UnsupportedOperationException(node.toString());
+        }
+
+        private Element getElement(Tree node) {
+            return trees.getElement(trees.getPath(cut, node));
         }
     }
 }
