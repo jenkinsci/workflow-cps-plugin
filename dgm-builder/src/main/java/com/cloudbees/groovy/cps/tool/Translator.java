@@ -328,14 +328,14 @@ public class Translator {
                 ExpressionTree ms = mt.getMethodSelect();
                 JInvocation inv;
 
-                if (ms instanceof MemberSelectTree) {
+                if (ms.getKind() == Tree.Kind.MEMBER_SELECT) {
                     MemberSelectTree mst = (MemberSelectTree) ms;
                     // If this is a call to a static method on another class, it may be an already-translated method,
                     // in which case, we need to use that translated method, not the original. So check if the expression
                     // is an identifier, that it's not the class we're in the process of translating, and if it's one
                     // of the other known translated classes.
                     Element mstExpr = getElement(mst.getExpression());
-                    if (mst.getExpression() instanceof IdentifierTree &&
+                    if (mst.getExpression().getKind() == Tree.Kind.IDENTIFIER &&
                             !mstExpr.toString().equals(fqcn) &&
                             otherTranslated.containsKey(mstExpr.toString())) {
                         inv = $b.invoke("functionCall")
@@ -351,7 +351,7 @@ public class Translator {
                                 .arg(n(mst.getIdentifier()));
                     }
                 } else
-                if (ms instanceof IdentifierTree) {
+                if (ms.getKind() == Tree.Kind.IDENTIFIER) {
                     // invocation without object selection, like  foo(bar,zot)
                     IdentifierTree it = (IdentifierTree) ms;
                     Element mse = getElement(ms);
@@ -565,7 +565,7 @@ public class Translator {
              */
             @Override
             public JExpression visitArrayType(ArrayTypeTree at, Void __) {
-                if (at.getType() instanceof IdentifierTree) {
+                if (at.getType().getKind() == Tree.Kind.IDENTIFIER) {
                     return visitIdentifier((IdentifierTree) at.getType(), __);
                 } else {
                     return defaultAction(at, __);
@@ -745,7 +745,7 @@ public class Translator {
                         return codeModel.ref(ite.toString());
                     case TYPE_PARAMETER:
                         TypeMirror type = ite.asType();
-                        if (type instanceof TypeVariable) {
+                        if (type.getKind() == TypeKind.TYPEVAR) {
                             return t(((TypeVariable)type).getUpperBound());
                         }
                         return codeModel.ref(Object.class);
