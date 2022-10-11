@@ -151,10 +151,16 @@ new GStringImpl(Object[],String[])
         def untrusted = this;
 
         untrusted.binding.setVariable("trusted",  trusted.csh.parse("def foo(x) { return [new java.awt.Point(1,x),untrusted.bar()] }"));
-        trusted.binding.setVariable("untrusted",untrusted.csh.parse("def bar() { return new File('foo') }"));
+        cr.register() // untrusted.csh.parse instantiates the sandbox-transformed script, so a GroovyInterceptor must be registered when it runs.
+        try {
+          trusted.binding.setVariable("untrusted",untrusted.csh.parse("def bar() { return new File('foo') }"));
+        } finally {
+           cr.unregister();
+        }
 
         assert [new Point(1,4),new File("foo")]==evalCpsSandbox("trusted.foo(4)");
         assertIntercept("""
+Script1.super(Script1).setBinding(Binding)
 Script2.super(Script2).setBinding(Binding)
 Script2.trusted
 Script1.foo(Integer)

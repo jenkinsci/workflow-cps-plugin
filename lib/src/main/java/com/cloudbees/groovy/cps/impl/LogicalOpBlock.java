@@ -38,17 +38,23 @@ public class LogicalOpBlock implements Block {
             boolean v = DefaultTypeTransformation.castToBoolean(lhs);
             if (and) {
                 if (!v)     return k.receive(false);    // false && ...
-                else        return then(rhs,e,k);
+                else        return then(rhs,e,castRhs);
             } else {
                 if (v)      return k.receive(true);    // true || ...
-                else        return then(rhs,e,k);
+                else        return then(rhs,e,castRhs);
             }
+        }
+
+        public Next castRhs(Object rhs) {
+            boolean v = DefaultTypeTransformation.castToBoolean(rhs);
+            return k.receive(v);
         }
 
         private static final long serialVersionUID = 1L;
     }
 
     static final ContinuationPtr decide = new ContinuationPtr(ContinuationImpl.class,"decide");
+    static final ContinuationPtr castRhs = new ContinuationPtr(ContinuationImpl.class,"castRhs");
 
     private static final long serialVersionUID = 1L;
 }

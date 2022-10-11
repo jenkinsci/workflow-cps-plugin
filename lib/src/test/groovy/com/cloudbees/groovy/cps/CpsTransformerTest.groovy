@@ -438,6 +438,8 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
         assert evalCPS("true && (false || false)") == false;
         assert evalCPS("true && (true || false)") == true;
         assert evalCPS("false && (true || false)") == false;
+        assert evalCPS("false || 'rhs of || must be cast to boolean'") == true;
+        assert evalCPS("true && 'rhs of && must be cast to boolean'") == true;
         assert evalCPS('''
             x = [0, 0, 0, 0]
             def set(index) {
