@@ -33,7 +33,6 @@ import hudson.model.Result;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Set;
-
 import java.util.logging.Level;
 
 import jenkins.model.Jenkins;
@@ -257,7 +256,7 @@ public class CpsFlowDefinition2Test {
             WorkflowRun b = job.scheduleBuild2(0).get();
             assertNull(jenkins.jenkins.getSystemMessage());
             jenkins.assertBuildStatus(Result.FAILURE, b);
-            jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
+            jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use method groovy.lang.GroovyObject invokeMethod java.lang.String java.lang.Object (org.jenkinsci.plugins.workflow.cps.CpsClosure2 getInstance)", b);
             return null;
         });
         // Some safe idioms:
@@ -851,6 +850,81 @@ public class CpsFlowDefinition2Test {
         WorkflowRun b = jenkins.buildAndAssertStatus(Result.FAILURE, p);
         jenkins.assertLogContains("Rejecting unsandboxed static method call: jenkins.model.Jenkins.get()", b);
         assertNull(Jenkins.get().getDescription());
+    }
+
+    @Issue("SECURITY-2824")
+    @Test public void blockCastsPropertiesAndAttributes() throws Exception {
+        // Instance property
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(
+                "class Test {\n" +
+                "  File file\n" +
+                "}\n" +
+                "def t = new Test()\n" +
+                "t.file = ['secret.key']\n", true));
+        WorkflowRun b = jenkins.buildAndAssertStatus(Result.FAILURE, p);
+        jenkins.assertLogContains("Scripts not permitted to use new java.io.File java.lang.String", b);
+        // Static property
+        p.setDefinition(new CpsFlowDefinition(
+                "class Test {\n" +
+                "  static File file\n" +
+                "}\n" +
+                "Test.file = ['secret.key']\n", true));
+        b = jenkins.buildAndAssertStatus(Result.FAILURE, p);
+        jenkins.assertLogContains("Scripts not permitted to use new java.io.File java.lang.String", b);
+        // Instance attribute
+        p.setDefinition(new CpsFlowDefinition(
+                "class Test {\n" +
+                "  File file\n" +
+                "}\n" +
+                "def t = new Test()\n" +
+                "t.@file = ['secret.key']\n", true));
+        b = jenkins.buildAndAssertStatus(Result.FAILURE, p);
+        jenkins.assertLogContains("Scripts not permitted to use new java.io.File java.lang.String", b);
+        // Static attribute
+        p.setDefinition(new CpsFlowDefinition(
+                "class Test {\n" +
+                "  static File file\n" +
+                "}\n" +
+                "Test.@file = ['secret.key']\n", true));
+        b = jenkins.buildAndAssertStatus(Result.FAILURE, p);
+        jenkins.assertLogContains("Scripts not permitted to use new java.io.File java.lang.String", b);
+    }
+
+    @Issue("JENKINS-33023")
+    @Test public void groovyEnums() throws Exception {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(
+                "enum Thing {\n" +
+                "  ONE, TWO\n" +
+                "  Thing() { }\n" +
+                "}\n" +
+                "Thing.ONE\n", true));
+        WorkflowRun b = jenkins.buildAndAssertSuccess(p);
+        p.setDefinition(new CpsFlowDefinition(
+                "enum Thing {\n" +
+                "  ONE, TWO\n" +
+                "}\n" +
+                "Thing.ONE\n", true));
+        // Seems undesirable, but this is the current behavior. Requires new java.util.LinkedHashMap and staticMethod ImmutableASTTransformation checkPropNames.
+        b = jenkins.buildAndAssertStatus(Result.FAILURE, p);
+        jenkins.assertLogContains("Scripts not permitted to use new java.util.LinkedHashMap", b);
+    }
+
+    @Test public void blockSyntheticFieldsAndMethods() throws Throwable {
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition("$getStaticMetaClass()", true));
+        WorkflowRun b = jenkins.buildAndAssertStatus(Result.FAILURE, p);
+        jenkins.assertLogContains("Scripts not permitted to use method WorkflowScript $getStaticMetaClass", b);
+        p.setDefinition(new CpsFlowDefinition("getClass().$getCallSiteArray()", true));
+        b = jenkins.buildAndAssertStatus(Result.FAILURE, p);
+        jenkins.assertLogContains("Scripts not permitted to use staticMethod WorkflowScript $getCallSiteArray", b);
+        p.setDefinition(new CpsFlowDefinition("class Test { }; new Test().metaClass", true));
+        b = jenkins.buildAndAssertStatus(Result.FAILURE, p);
+        jenkins.assertLogContains("Scripts not permitted to use method groovy.lang.GroovyObject getMetaClass", b);
+        p.setDefinition(new CpsFlowDefinition("class Test { }; new Test().@metaClass", true));
+        b = jenkins.buildAndAssertStatus(Result.FAILURE, p);
+        jenkins.assertLogContains("Scripts not permitted to use field Test metaClass", b);
     }
 
     public static class UnsafeParameterStep extends Step implements Serializable {
