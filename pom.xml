@@ -66,7 +66,7 @@
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
         <jenkins.version>2.346.1</jenkins.version>
         <no-test-jar>false</no-test-jar>
-        <groovy-cps.version>1.32</groovy-cps.version>
+        <groovy-cps.version>1.34</groovy-cps.version>
         <node.version>12.19.0</node.version>
         <npm.version>6.14.8</npm.version>
     </properties>
@@ -102,6 +102,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
+            <version>1175.1177.vda_175b_77d144</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
