@@ -65,6 +65,14 @@ public class DefaultInvoker implements Invoker {
         return new MethodClosure(lhs, name);
     }
 
+    @Override
+    public Object cast(Object value, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict) throws Throwable {
+        // TODO: What should we do with ignoreAutoboxing and strict?
+        return coerce
+                ? ScriptBytecodeAdapter.asType(value, type)
+                : ScriptBytecodeAdapter.castToType(value, type);
+    }
+
     public Invoker contextualize(CallSiteBlock tags) {
         return this;
     }

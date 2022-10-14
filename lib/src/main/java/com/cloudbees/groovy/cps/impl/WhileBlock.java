@@ -4,7 +4,6 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 
 /**
  * while(...) { ... }
@@ -40,13 +39,15 @@ public class WhileBlock implements Block {
         }
 
         public Next loopCond(Object cond) {
-            if (DefaultTypeTransformation.castToBoolean(cond)) {
-                // loop
-                return then(body,e,loopHead);
-            } else {
-                // exit loop
-                return loopEnd.receive(null);
-            }
+            return castToBoolean(cond, e, b -> {
+                if (b) {
+                    // loop
+                    return then(body,e,loopHead);
+                } else {
+                    // exit loop
+                    return loopEnd.receive(null);
+                }
+            });
         }
 
         private static final long serialVersionUID = 1L;

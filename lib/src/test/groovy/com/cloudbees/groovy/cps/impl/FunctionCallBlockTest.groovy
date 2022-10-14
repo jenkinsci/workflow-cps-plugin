@@ -32,9 +32,8 @@ class FunctionCallBlockTest extends AbstractGroovyCpsTest {
                 }
                 def stuff = getThing();
             """) == "cheese";  // Fails if we don't throw an exception, also fails if we run more than 10k steps.
-        } catch (StackOverflowError soe) {
-            println "PASSED: expected exception thrown for endlessly recursive function, see trace below";
-            soe.printStackTrace();
+        } catch (Throwable t) {
+            assert t.toString() == "java.lang.StackOverflowError: Excessively nested closures/functions at Script1.getThing(Script1.groovy:4) - look for unbounded recursion - call depth: 1025";
         }
     }
 

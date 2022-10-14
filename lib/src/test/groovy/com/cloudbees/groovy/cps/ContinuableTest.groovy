@@ -24,13 +24,40 @@ class ContinuableTest extends AbstractGroovyCpsTest {
         def v = c.run(null);
         assert v==2 : "Continuable.suspend(x+1) returns the control back to us";
 
+        assert c.isResumable() : "Continuable is resumable because it has 'return x+1' to execute."
+        assert c.run(3)==4 : "We resume continuable, then the control comes back from the return statement"
+
+        assert !c.isResumable() : "We've run the program till the end, so it's no longer resumable"
+    }
+
+    @Test
+    void fork() {
+        def s = csh.parse("""\n\
+            def addOne(def x) { x + 1 };
+            int x = 1;
+            x = addOne(Continuable.suspend(x+1))
+            return x+1;
+        """)
+
+        def c = new Continuable(s);
+        assert c.isResumable()
+
+        def v = c.run(null);
+        assert v==2 : "Continuable.suspend(x+1) returns the control back to us";
+
         def c2 = c.fork()
 
-        for (d in [c,c2]) {
-            assert d.isResumable() : "Continuable is resumable because it has 'return x+1' to execute."
-            assert d.run(3)==4 : "We resume continuable, then the control comes back from the return statement"
+        assert c.isResumable() : "Continuable is resumable because it has 'return x+1' to execute."
+        assert c.run(2)==4 : "We resume continuable, then the control comes back from the return statement"
+        assert !c.isResumable() : "We've run the program till the end, so it's no longer resumable"
 
-            assert !d.isResumable() : "We've run the program till the end, so it's no longer resumable"
+        assert c2.isResumable() : "Continuable is resumable because it has 'return x+1' to execute."
+        try {
+            assert c2.run(2)==4 : "We resume continuable, then the control comes back from the return statement"
+            fail("should have thrown exception");
+        } catch (ArrayIndexOutOfBoundsException e) {
+            // Since c2 is a shallow clone, the FunctionCallBlock for addOne(Continuable.suspend(x+1)) has already
+            // evaluated its arguments, so when we try to run it again, we get an error.
         }
     }
 

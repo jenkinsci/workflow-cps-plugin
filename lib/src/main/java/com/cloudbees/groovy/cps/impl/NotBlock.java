@@ -18,14 +18,40 @@ public class NotBlock implements Block {
         this.b = b;
     }
 
-    public Next eval(Env e, final Continuation k) {
-        return b.eval(e,new Continuation() {
+    @Override
+    public Next eval(final Env e, final Continuation k) {
+        // Only exists to maintain compatibility with classes serialized before ContinuationImpl was introduced.
+        Continuation backwardsCompatibility = new Continuation() {
+            private static final long serialVersionUID = -7345620782904277090L;
             public Next receive(Object o) {
-                boolean b = DefaultTypeTransformation.booleanUnbox(o);
+                // "e" is null in deserialized instances of this class, so we cannot use `e.getInvoker().cast(...)`.
+                // That said, there are no known security issues with boolean casts, so this should be fine.
+                boolean b = DefaultTypeTransformation.castToBoolean(o);
                 return k.receive(!b);
             }
-        });
+        };
+        return new ContinuationImpl(e, k).then(b, e, cast);
     }
+
+    class ContinuationImpl extends ContinuationGroup {
+        final Continuation k;
+        final Env e;
+
+        ContinuationImpl(Env e, Continuation k) {
+            this.e = e;
+            this.k = k;
+        }
+
+        public Next cast(Object o) {
+            return castToBoolean(o, e, b -> {
+                return k.receive(!b);
+            });
+        }
+
+        private static final long serialVersionUID = 1L;
+    }
+
+    static final ContinuationPtr cast = new ContinuationPtr(ContinuationImpl.class,"cast");
 
     private static final long serialVersionUID = 1L;
 }

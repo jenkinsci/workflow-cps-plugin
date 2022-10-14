@@ -56,6 +56,8 @@ public interface Invoker extends Serializable {
 
     Object methodPointer(Object lhs, String name);
 
+    Object cast(Object value, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict) throws Throwable;
+
     /**
      * Returns a child {@link Invoker} used to make a call on behalf of the given {@link CallSiteBlock}.
      */

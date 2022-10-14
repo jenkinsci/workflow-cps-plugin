@@ -17,6 +17,8 @@
 package com.cloudbees.groovy.cps;
 
 import java.util.Arrays;
+import java.util.Collections;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 
@@ -87,5 +89,105 @@ public class CpsTransformer2Test extends AbstractGroovyCpsTest {
             assertThat(e.toString(), containsString("the break statement is only allowed inside loops or switches"));
         }
         assertEquals("Script should fail during compilation", 1, getBinding().getProperty("sentinel"));
+    }
+
+    @Ignore("groovy-cps does not cast method return values to the declared type")
+    @Test public void methodReturnValuesShouldBeCastToDeclaredReturnType() throws Throwable {
+        assertEquals(true, evalCPS(
+                "Boolean castToBoolean(def o) { o }\n" +
+                "castToBoolean(123)\n"));
+    }
+
+    @Test public void castToTypeShouldBeUsedForImplicitCasts() throws Throwable {
+        assertEquals(Arrays.asList("toString", "toString", "toString", "asType"), evalCPS(
+                "class Test {\n" +
+                "  def auditLog = []\n" +
+                "  @NonCPS\n" +
+                "  def asType(Class c) {\n" +
+                "    auditLog.add('asType')\n" +
+                "    'Test.asType'\n" +
+                "  }\n" +
+                "  @NonCPS\n" +
+                "  String toString() {\n" +
+                "    auditLog.add('toString')\n" +
+                "    'Test.toString'\n" +
+                "  }\n" +
+                "}\n" +
+                "Test t = new Test()\n" +
+                "String variable = t\n" +
+                "String[] array = [t]\n" +
+                "(String)t\n" +
+                "t as String\n" + // This is the only cast that should call asType.
+                "t.auditLog\n"));
+    }
+
+    @Test public void castRelatedMethodsShouldBeNonCps() throws Throwable {
+        // asType CPS (supported (to the extent possible) for compatibility with existing code)
+        assertEquals(Arrays.asList(false, "asType class java.lang.Boolean"), evalCPS(
+                "class Test {\n" +
+                "  def auditLog = []\n" +
+                "  def asType(Class c) {\n" +
+                "    auditLog.add('asType ' + c)\n" +
+                "    false\n" +
+                "  }\n" +
+                "}\n" +
+                "def t = new Test()\n" +
+                "[t as Boolean, t.auditLog[0]]"));
+        // asType NonCPS (preferred)
+        assertEquals(Collections.singletonList("asType class java.lang.Boolean"), evalCPS(
+                "class Test {\n" +
+                "  def auditLog = []\n" +
+                "  @NonCPS\n" +
+                "  def asType(Class c) {\n" +
+                "    auditLog.add('asType ' + c)\n" +
+                "    null\n" +
+                "  }\n" +
+                "}\n" +
+                "def t = new Test()\n" +
+                "t as Boolean\n" +
+                "t.auditLog"));
+        // asBoolean CPS (has never worked, still does not work)
+        try {
+            evalCPS(
+                "class Test {\n" +
+                "  def auditLog = []\n" +
+                "  def asBoolean() {\n" +
+                "    auditLog.add('asBoolean')\n" +
+                "  }\n" +
+                "}\n" +
+                "def t = new Test()\n" +
+                "(Boolean)t\n" +
+                "t.auditLog");
+            fail("Should have thrown an exception");
+        } catch (Throwable t) {
+            assertEquals("java.lang.IllegalStateException: Test.asBoolean must be @NonCPS; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/", t.toString());
+        }
+        // asBoolean NonCPS (required)
+        assertEquals(Collections.singletonList("asBoolean"), evalCPS(
+                "class Test {\n" +
+                "  def auditLog = []\n" +
+                "  @NonCPS\n" +
+                "  def asBoolean() {\n" +
+                "    auditLog.add('asBoolean')\n" +
+                "  }\n" +
+                "}\n" +
+                "def t = new Test()\n" +
+                "(Boolean)t\n" +
+                "t.auditLog"));
+    }
+
+    @Test
+    public void enums() throws Throwable {
+        assertEquals("FIRST", evalCPS(
+                "enum EnumTest { FIRST, SECOND }; EnumTest.FIRST.toString()"));
+        assertEquals("FIRST", evalCPS(
+                "enum EnumTest { FIRST(), SECOND(); EnumTest() { } }; EnumTest.FIRST.toString()"));
+    }
+
+    @Test
+    public void anonymousClass() throws Throwable {
+        assertEquals(6, evalCPS(
+                "def o = new Object() { def plusOne(x) { x + 1 } }\n" +
+                "o.plusOne(5)"));
     }
 }

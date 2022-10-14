@@ -100,6 +100,21 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
         }
     }
 
+    String getClassAndMethodForDisplay() {
+        String clazz = className(receiver);
+        return (clazz == null ? "" : clazz + ".") + methodName;
+    }
+
+    private static String className(Object receiver) {
+        if (receiver == null) {
+            return null;
+        } else if (receiver instanceof Class) {
+            return ((Class) receiver).getName();
+        } else {
+            return receiver.getClass().getName();
+        }
+    }
+
     /** @see #registerMismatchHandler */
     @FunctionalInterface
     public interface MismatchHandler {

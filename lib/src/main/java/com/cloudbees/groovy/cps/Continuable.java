@@ -121,7 +121,10 @@ public class Continuable implements Serializable {
      * Creates a shallow copy of {@link Continuable}. The copy shares
      * all the local variables of the original {@link Continuable}, and
      * point to the exact same point of the program.
+     *
+     * @deprecated Shallow clones break in various cases, see {@code ContinuableTest.fork}.
      */
+    @Deprecated
     public Continuable fork() {
         return new Continuable(this);
     }

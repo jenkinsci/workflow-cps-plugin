@@ -131,7 +131,6 @@ class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     void constructorList() {
         File f =  ['/parent', 'name'];
-        println(f);
         assert evalCPS('''\
             File f = ['/parent', 'name']
             return f
