@@ -190,7 +190,11 @@ public abstract class CpsScript extends SerializableScript {
 
     @Override
     public void run(File file, String[] arguments) throws CompilationFailedException, IOException {
-        $getShell().run(file,arguments);
+        // GroovyShell.run has a bunch of weird cases related to JUnit and other stuff that we cannot safely support
+        // without a lot of extra work, so we just approximate its behavior. Regardless, I assume that this method is
+        // essentially unused since it takes a File and it is not allowed by CpsWhitelist (unlike evaluate).
+        $getShell().getContext().setProperty("args", arguments);
+        evaluate(file);
     }
 
     /**
