@@ -9,7 +9,7 @@
     </parent>
 
     <artifactId>groovy-cps-parent</artifactId>
-    <version>1.34</version>
+    <version>${revision}${changelist}</version>
     <packaging>pom</packaging>
 
     <name>Groovy CPS Execution Parent</name>
@@ -17,7 +17,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <groovy.version>2.4.21</groovy.version>
-        <revision>1.33</revision>
+        <revision>1.35</revision>
         <changelist>-SNAPSHOT</changelist>
         <!-- TODO: Move these three properties to the parent POM or use org.jenkins-ci:jenkins as the parent POM here -->
         <incrementals-enforce-minimum.version>1.1</incrementals-enforce-minimum.version>
@@ -29,7 +29,7 @@
     <scm>
         <connection>scm:git:git@github.com/cloudbees/groovy-cps.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/cloudbees/groovy-cps.git</developerConnection>
-        <tag>groovy-cps-parent-1.34</tag>
+        <tag>${scmTag}</tag>
     </scm>
 
     <licenses>
