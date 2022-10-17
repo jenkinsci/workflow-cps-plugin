@@ -90,7 +90,7 @@
         <dependency>
             <groupId>io.jenkins.plugins</groupId>
             <artifactId>ionicons-api</artifactId>
-            <version>19.v744f3b_2b_b_e4e</version>
+            <version>31.v4757b_6987003</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
