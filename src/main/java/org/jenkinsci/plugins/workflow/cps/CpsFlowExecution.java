@@ -1200,6 +1200,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     @Override
     public FlowNode getNode(String id) throws IOException {
+        if (storage == null) {
+            throw new IOException("storage not yet loaded");
+        }
         return storage.getNode(id);
     }
 
@@ -1211,11 +1214,19 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         return result;
     }
 
+    @Override
     public List<Action> loadActions(FlowNode node) throws IOException {
+        if (storage == null) {
+            throw new IOException("storage not yet loaded");
+        }
         return storage.loadActions(node);
     }
 
+    @Override
     public void saveActions(FlowNode node, List<Action> actions) throws IOException {
+        if (storage == null) {
+            throw new IOException("storage not yet loaded");
+        }
         storage.saveActions(node, actions);
     }
 
