@@ -205,64 +205,6 @@ public class Continuable implements Serializable {
         return r;
     }
 
-    /**
-     * Ignore whatever that we've been doing, and jumps the execution to the given continuation.
-     *
-     * <p>
-     * Aside from the obvious use case of completely overwriting the state of {@link Continuable},
-     * more interesting case is
-     *
-     * Sets aside the current continuation aside, schedule the evaluation of the given block in the given environment,
-     * then when done pass the result to the given {@link Continuation}.
-     *
-     * A common pattern is for that {@link Continuation} to then resume executing the current execution that was set
-     * aside.
-     *
-     * <pre>
-     * Continuable c = ...;
-     *
-     * final Continuable pausePoint = new Continuable(c); // set aside what we were doing
-     * c.jump(bodyOfNewThread,env,new Continuation() {
-     *      public Next receive(Object o) {
-     *          // o is the result of evaluating bodyOfNewThread (the failure will go to the handler specified by 'env')
-     *          doSomethingWith(c);
-     *
-     *          if (...) {// maybe you want to yield this value, then resume from the pause point?
-     *              return Next.yield0(new Outcome(o,null),pausePoint);
-     *          }
-     *          if (...) {// maybe you want to keep going by immediately resuming from the pause point with 'o'
-     *              return Next.go0(new Outcome(o,null),pausePoint);
-     *          }
-     *
-     *          // maybe you want to halt the execution by returning
-     *          return Next.terminate0(new Outcome(o,null));
-     *      }
-     * });
-     *
-     * c.run(...); // this will start executing from 'bodyOfNewThread'
-     *
-     * </pre>
-     */
-    public void jump(Continuable c) {
-        this.e = c.e;
-        this.k = c.k;
-    }
-
-    /**
-     * Set aside what we are executing, and instead resume the next execution from the point
-     * the given 'Continuable' points to.
-     *
-     * But when that's done, instead of completing the computation, come back to executing what we set aside.
-     */
-    public void prepend(Continuable c, Function<Outcome,Outcome> mapper) {
-        // set aside where we are
-        Continuable here = new Continuable(this);
-
-        // run 'c', then when it's done, come back to 'here'
-        this.e = c.e;
-        this.k = new ConcatenatedContinuation(c.k, mapper, here);
-    }
-
     /*package*/ Env getE() {
         return e;
     }
