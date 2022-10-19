@@ -46,8 +46,6 @@ public class Continuable implements Serializable {
      */
     private Continuation k;
 
-    private volatile Throwable interrupt;
-
     public Continuable(Continuable src) {
         this.e = src.e;
         this.k = src.k;
@@ -157,11 +155,6 @@ public class Continuable implements Serializable {
                 Next n = cn.resumeFrom(e,k);
 
                 while(n.yield==null) {
-                    if (interrupt!=null) {
-                        // TODO: correctly reporting a source location requires every block to have the line number
-                        n = new Next(new ThrowBlock(UNKNOWN, new ConstantBlock(interrupt), true),n.e,n.k);
-                        interrupt = null;
-                    }
                     n = n.step();
                 }
 
@@ -171,26 +164,6 @@ public class Continuable implements Serializable {
                 return n.yield;
             }
         });
-    }
-
-    /**
-     * Sets a super-interrupt.
-     *
-     * <p>
-     * A super interrupt works like {@link Thread#interrupt()} that throws
-     * {@link InterruptedException}. It lets other threads interrupt the execution
-     * of {@link Continuable} by making it throw an exception.
-     *
-     * <p>
-     * Unlike {@link InterruptedException}, which only gets thrown in specific
-     * known locations, such as {@link Object#wait()}, this "super interruption"
-     * gets thrown at any point in the execution, even during {@code while(true) ;} kind of loop.
-     *
-     * <p>
-     * The
-     */
-    public void superInterrupt(Throwable t) {
-        this.interrupt = t;
     }
 
     /**
