@@ -139,10 +139,10 @@ class CpsGroovyShell extends GroovyShell {
         try (GroovySandbox.Scope scope = sandbox.enter()) {
             if (execution != null) {
                 try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.parse)) {
-                    return super.parse(codeSource);
+                    return scope.parse(CpsGroovyShell.this, codeSource);
                 }
             } else {
-                return super.parse(codeSource);
+                return scope.parse(CpsGroovyShell.this, codeSource);
             }
         }
     }
