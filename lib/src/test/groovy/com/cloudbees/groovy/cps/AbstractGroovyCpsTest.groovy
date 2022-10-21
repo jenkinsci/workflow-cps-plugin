@@ -1,6 +1,5 @@
 package com.cloudbees.groovy.cps
 
-import com.cloudbees.groovy.cps.green.GreenThread
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation
 import org.codehaus.groovy.control.CompilerConfiguration
 import org.codehaus.groovy.control.customizers.ImportCustomizer
@@ -28,7 +27,7 @@ abstract class AbstractGroovyCpsTest extends Assert {
     @Before
     void setUp() {
         def imports = new ImportCustomizer()
-            .addStarImports([CpsTransformerTest.class, GreenThread.class, getClass()]*.package*.name as String[])
+            .addStarImports([CpsTransformerTest.class, getClass()]*.package*.name as String[])
 
         def cc = new CompilerConfiguration()
         cc.addCompilationCustomizers(imports)
