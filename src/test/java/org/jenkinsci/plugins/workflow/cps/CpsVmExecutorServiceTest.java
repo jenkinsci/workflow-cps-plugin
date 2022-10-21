@@ -204,4 +204,12 @@ public class CpsVmExecutorServiceTest {
         r.assertLogNotContains(CpsVmExecutorService.mismatchMessage("java.util.LinkedHashMap", "action", "org.jenkinsci.plugins.workflow.cps.CpsClosure2", "call"), b);
     }
 
+    @Test public void wrongCatcherAsBoolean() throws Exception {
+        p.setDefinition(new CpsFlowDefinition("class C { def asBoolean() { 'never used' } }; if (new C()) { println('casted') } else { println('see what') }", true));
+        WorkflowRun b = r.buildAndAssertStatus(Result.FAILURE, p);
+        r.assertLogContains(CpsVmExecutorService.mismatchMessage("org.codehaus.groovy.runtime.ScriptBytecodeAdapter", "castToType", "C", "asBoolean"), b);
+        r.assertLogContains("java.lang.IllegalStateException: C.asBoolean must be @NonCPS; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/", b);
+        r.assertLogNotContains("see what", b);
+    }
+
 }
