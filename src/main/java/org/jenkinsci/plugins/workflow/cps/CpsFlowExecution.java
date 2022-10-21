@@ -1273,8 +1273,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
         // shrink everything into a single new head
         try {
-            if (heads != null) {
-                FlowHead first = getFirstHead();
+            FlowHead first = getFirstHead();
+            if (first != null) {
                 first.setNewHead(head);
                 done = true;  // After setting the final head
                 heads.clear();
@@ -1500,9 +1500,15 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    synchronized FlowHead getFirstHead() {
-        assert !heads.isEmpty();
-        return heads.firstEntry().getValue();
+    synchronized @CheckForNull FlowHead getFirstHead() {
+        if (heads == null) {
+            return null;
+        }
+        Entry<Integer, FlowHead> firstEntry = heads.firstEntry();
+        if (firstEntry == null) {
+            return null;
+        }
+        return firstEntry.getValue();
     }
 
     List<GraphListener> getListenersToRun() {
