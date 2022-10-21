@@ -31,6 +31,7 @@ import org.junit.Test;
 import org.junit.rules.ErrorCollector;
 import org.jvnet.hudson.test.Issue;
 import org.kohsuke.groovy.sandbox.ClassRecorder;
+import org.kohsuke.groovy.sandbox.impl.GroovyCallSiteSelector;
 
 public class SandboxInvoker2Test extends AbstractGroovyCpsTest {
     @Rule
@@ -47,7 +48,7 @@ public class SandboxInvoker2Test extends AbstractGroovyCpsTest {
         CpsTransformer.iota.set(0);
     }
 
-    private Object evalCpsSandbox(String script) throws Throwable {
+    protected Object evalCpsSandbox(String script) throws Throwable {
         FunctionCallEnv e = (FunctionCallEnv)Envs.empty();
         e.setInvoker(new SandboxInvoker());
 
@@ -60,13 +61,16 @@ public class SandboxInvoker2Test extends AbstractGroovyCpsTest {
         }
     }
 
-    public void assertIntercept(String... expected) {
+    private void assertIntercept(String... expected) {
         ec.checkThat(cr.toString().split("\n"), equalTo(expected));
     }
 
-    public void assertIntercept(String script, Object expectedValue, String... expected) throws Throwable {
-        ec.checkThat(evalCpsSandbox(script), equalTo(expectedValue));
-        assertIntercept(expected);
+    public void assertIntercept(String script, Object expectedResult, String... expectedInterceptions) throws Throwable {
+        Object actualResult = evalCpsSandbox(script);
+        String actualCpsType = GroovyCallSiteSelector.getName(actualResult);
+        String expectedType = GroovyCallSiteSelector.getName(expectedResult);
+        ec.checkThat("CPS and sandbox-transformed result (" + actualCpsType + ") does not match expected result (" + expectedType + ")", actualResult, equalTo(expectedResult));
+        assertIntercept(expectedInterceptions);
     }
 
     @Issue("SECURITY-1710")

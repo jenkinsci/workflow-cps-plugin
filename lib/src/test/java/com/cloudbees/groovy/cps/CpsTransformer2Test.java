@@ -80,7 +80,7 @@ public class CpsTransformer2Test extends AbstractGroovyCpsTest {
     }
 
     @Issue("JENKINS-57253")
-    @Test public void illegalBreakStatement() {
+    @Test public void illegalBreakStatement() throws Throwable {
         getBinding().setProperty("sentinel", 1);
         try {
             evalCPSonly("sentinel = 2; break;");
