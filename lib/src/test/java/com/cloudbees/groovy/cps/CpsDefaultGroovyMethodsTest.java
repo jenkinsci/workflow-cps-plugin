@@ -357,10 +357,20 @@ public class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
     }
 
     @Test
-    public void sync() throws Throwable {
+    public void cps() throws Throwable {
         assertEvaluate(testResult, testCode);
     }
-    
+
+    @Test
+    public void nonCps() throws Throwable {
+        assertEvaluate(testResult,
+            "@NonCPS\n" +
+            "def someMethod() {\n" +
+            "  " + testCode + "\n" +
+            "}\n" +
+            "someMethod()");
+    }
+
     private static Map<Object, Object> map(Object... values) {
         return InvokerHelper.createMap(values);
     }
