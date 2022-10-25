@@ -965,14 +965,14 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void initialExpressionsInMethodsAreCpsTransformed() throws Throwable {
-        assertEquals(Boolean.FALSE, evalCPS(
+        assertEvaluate(Boolean.FALSE,
                 "def m1() { true }\n" +
                 "def m2(p = m1()){ false }\n" +
-                "m2()\n"));
+                "m2()\n");
     }
 
     @Test public void methodsWithInitialExpressionsAreExpandedToCorrectOverloads() throws Throwable {
-        assertEquals(Arrays.asList("abc", "xbc", "xyc", "xyz"), evalCPS(
+        assertEvaluate(Arrays.asList("abc", "xbc", "xyc", "xyz"),
                 "def m2(a = 'a', b = 'b', c = 'c') {\n" +
                 "    a + b + c\n" +
                 "}\n" +
@@ -980,15 +980,15 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                 "def r2 = m2('x')\n" +
                 "def r3 = m2('x', 'y')\n" +
                 "def r4 = m2('x', 'y', 'z')\n" +
-                "[r1, r2, r3, r4]"));
-        assertEquals(Arrays.asList("abc", "xbc", "xby"), evalCPS(
+                "[r1, r2, r3, r4]");
+        assertEvaluate(Arrays.asList("abc", "xbc", "xby"),
                 "def m2(a = 'a', b, c = 'c') {\n" +
                 "    a + b + c\n" +
                 "}\n" +
                 "def r1 = m2('b')\n" +
                 "def r2 = m2('x', 'b')\n" +
                 "def r3 = m2('x', 'b', 'y')\n" +
-                "[r1, r2, r3]"));
+                "[r1, r2, r3]");
     }
 
     @Test public void voidMethodsWithInitialExpressionsAreExpandedToCorrectOverloads() throws Throwable {
@@ -1029,13 +1029,13 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Ignore("groovy-cps does not cast method return values to the declared type")
     @Test public void methodReturnValuesShouldBeCastToDeclaredReturnType() throws Throwable {
-        assertEquals(true, evalCPS(
+        assertEvaluate(true,
                 "Boolean castToBoolean(def o) { o }\n" +
-                "castToBoolean(123)\n"));
+                "castToBoolean(123)\n");
     }
 
     @Test public void castToTypeShouldBeUsedForImplicitCasts() throws Throwable {
-        assertEquals(Arrays.asList("toString", "toString", "toString", "asType"), evalCPS(
+        assertEvaluate(Arrays.asList("toString", "toString", "toString", "asType"),
                 "class Test {\n" +
                 "  def auditLog = []\n" +
                 "  @NonCPS\n" +
@@ -1054,12 +1054,12 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                 "String[] array = [t]\n" +
                 "(String)t\n" +
                 "t as String\n" + // This is the only cast that should call asType.
-                "t.auditLog\n"));
+                "t.auditLog\n");
     }
 
     @Test public void castRelatedMethodsShouldBeNonCps() throws Throwable {
         // asType CPS (supported (to the extent possible) for compatibility with existing code)
-        assertEquals(Arrays.asList(false, "asType class java.lang.Boolean"), evalCPS(
+        assertEvaluate(Arrays.asList(false, "asType class java.lang.Boolean"),
                 "class Test {\n" +
                 "  def auditLog = []\n" +
                 "  def asType(Class c) {\n" +
@@ -1068,9 +1068,9 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                 "  }\n" +
                 "}\n" +
                 "def t = new Test()\n" +
-                "[t as Boolean, t.auditLog[0]]"));
+                "[t as Boolean, t.auditLog[0]]");
         // asType NonCPS (preferred)
-        assertEquals(Collections.singletonList("asType class java.lang.Boolean"), evalCPS(
+        assertEvaluate(Collections.singletonList("asType class java.lang.Boolean"),
                 "class Test {\n" +
                 "  def auditLog = []\n" +
                 "  @NonCPS\n" +
@@ -1081,7 +1081,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                 "}\n" +
                 "def t = new Test()\n" +
                 "t as Boolean\n" +
-                "t.auditLog"));
+                "t.auditLog");
         // asBoolean CPS (has never worked, still does not work)
         try {
             evalCPS(
@@ -1099,7 +1099,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
             assertEquals("java.lang.IllegalStateException: Test.asBoolean must be @NonCPS; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/", t.toString());
         }
         // asBoolean NonCPS (required)
-        assertEquals(Collections.singletonList("asBoolean"), evalCPS(
+        assertEvaluate(Collections.singletonList("asBoolean"),
                 "class Test {\n" +
                 "  def auditLog = []\n" +
                 "  @NonCPS\n" +
@@ -1109,32 +1109,32 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                 "}\n" +
                 "def t = new Test()\n" +
                 "(Boolean)t\n" +
-                "t.auditLog"));
+                "t.auditLog");
     }
 
     @Test
     public void enums() throws Throwable {
-        assertEquals("FIRST", evalCPS(
-                "enum EnumTest { FIRST, SECOND }; EnumTest.FIRST.toString()"));
-        assertEquals("FIRST", evalCPS(
-                "enum EnumTest { FIRST(), SECOND(); EnumTest() { } }; EnumTest.FIRST.toString()"));
+        assertEvaluate("FIRST",
+                "enum EnumTest { FIRST, SECOND }; EnumTest.FIRST.toString()");
+        assertEvaluate("FIRST",
+                "enum EnumTest { FIRST(), SECOND(); EnumTest() { } }; EnumTest.FIRST.toString()");
     }
 
     @Test
     public void anonymousClass() throws Throwable {
-        assertEquals(6, evalCPS(
+        assertEvaluate(6,
                 "def o = new Object() { def plusOne(x) { x + 1 } }\n" +
-                "o.plusOne(5)"));
+                "o.plusOne(5)");
     }
 
     @Issue("JENKINS-62064")
     @Test public void assignmentExprsEvalToRHS() throws Throwable {
-        assertEquals(Arrays.asList(1, 1, 1), evalCPS(
+        assertEvaluate(Arrays.asList(1, 1, 1),
                 "def a = b = c = 1\n" +
-                "[a, b, c]\n"));
-        assertEquals(Arrays.asList(2, 3, 4), evalCPS(
+                "[a, b, c]\n");
+        assertEvaluate(Arrays.asList(2, 3, 4),
                 "def a = b = c = 1\n" +
                 "c += b += a += 1\n" +
-                "[a, b, c]\n"));
+                "[a, b, c]\n");
     }
 }
