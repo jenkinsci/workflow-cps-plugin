@@ -30,12 +30,15 @@ import org.codehaus.groovy.classgen.GeneratorContext;
 import org.codehaus.groovy.classgen.Verifier;
 import org.codehaus.groovy.control.CompilePhase;
 import org.codehaus.groovy.control.Janitor;
+import org.codehaus.groovy.control.LabelVerifier;
 import org.codehaus.groovy.control.SourceUnit;
 import org.codehaus.groovy.control.customizers.CompilationCustomizer;
 import org.codehaus.groovy.runtime.powerassert.SourceText;
 import org.codehaus.groovy.syntax.SyntaxException;
 import org.codehaus.groovy.syntax.Token;
 import static org.codehaus.groovy.syntax.Types.*;
+import org.kohsuke.groovy.sandbox.SandboxTransformer;
+import org.kohsuke.groovy.sandbox.SandboxTransformer.InitialExpressionExpander;
 
 /**
  * Performs CPS transformation of Groovy methods.
@@ -124,8 +127,11 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         this.sourceUnit = source;
         this.classNode = classNode;
 
+        // Makes sure that break and continue statements are used correctly.
+        new LabelVerifier(source).visitClass(classNode);
+
         // Removes all initial expressions for methods and constructors and generates overloads for all variants.
-        new InitialExpressionExpander().expandInitialExpressions(classNode);
+        new InitialExpressionExpander().expandInitialExpressions(source, classNode);
 
         try {
 
@@ -815,12 +821,21 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
     }
 
     protected void getMultipleAssignmentValueOrCast(final VariableExpression varExp, final Expression rhs, final Expression index) {
-        makeNode("array", new Runnable() {
+        makeNode("cast", new Runnable() {
             @Override
             public void run() {
-                loc(rhs);
-                visit(rhs);
-                makeNode("constant", index);
+                loc(varExp);
+                makeNode("array", new Runnable() {
+                    @Override
+                    public void run() {
+                        loc(rhs);
+                        visit(rhs);
+                        makeNode("constant", index);
+                    }
+                });
+                literal(varExp.getType());
+                literal(false);
+                // TODO what about ignoreAutoboxing & strict?
             }
         });
     }
@@ -833,21 +848,35 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
     public void visitBinaryExpression(final BinaryExpression exp) {
         String name = BINARY_OP_TO_BUILDER_METHOD.get(exp.getOperation().getType());
         if (name != null) {
-            if (name.equals("assign") &&
-                    exp.getLeftExpression() instanceof TupleExpression) {
-                multipleAssignment(exp,
+            if (name.equals("assign")) {
+                if (exp.getLeftExpression() instanceof TupleExpression) {
+                    multipleAssignment(exp,
                         (TupleExpression)exp.getLeftExpression(),
                         exp.getRightExpression());
-            } else {
-                makeNode(name, new Runnable() {
-                    @Override
-                    public void run() {
-                        loc(exp);
-                        visit(exp.getLeftExpression());
-                        visit(exp.getRightExpression());
-                    }
-                });
+                    return;
+                } else if (exp.getLeftExpression() instanceof VariableExpression || exp.getLeftExpression() instanceof FieldExpression) {
+                    final Expression lhs = exp.getLeftExpression();
+                    makeNode(name, new Runnable() {
+                        @Override
+                        public void run() {
+                            loc(exp);
+                            visit(lhs);
+                            visitAssignmentOrCast(lhs.getType(), exp.getRightExpression());
+                        }
+                    });
+                    return;
+                }
+                // LHS here can be PropertyExpression or AttributeExpression, and their casts
+                // are handled dynamically at runtime in SandboxInterceptor.
             }
+            makeNode(name, new Runnable() {
+                @Override
+                public void run() {
+                    loc(exp);
+                    visit(exp.getLeftExpression());
+                    visit(exp.getRightExpression());
+                }
+            });
             return;
         }
 
@@ -1035,6 +1064,10 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void visitFieldExpression(final FieldExpression exp) {
+        // Seems to only be used for compiler-generated constructs inside of synthetic constructors, such as
+        // assignments to enum constant fields in enum classes and assignment to the this$0 field used to store an
+        // instance of the outer class in inner classes. Since CpsTransformer ignores constructors, I think that this
+        // method is unused.
         final FieldNode f = exp.getField();
         if (f.isStatic()) {
             makeNode("staticField", new Runnable() {
@@ -1115,6 +1148,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                 });
             }
         } else if ("this".equals(exp.getName())) {
+            // DN: Groovy allows you to use `this` in static methods and blocks to refer to the current class.
             /* Kohsuke: TODO: I don't really understand the 'true' block of the code, so I'm missing something
                 if (controller.isStaticMethod() || (!controller.getCompileStack().isImplicitThis() && controller.isStaticContext())) {
                     if (controller.isInClosure()) classNode = controller.getOutermostClass();
@@ -1159,6 +1193,16 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
                 }
             });
+        } else if (exp.getRightExpression() instanceof EmptyExpression) {
+            // def x;
+            makeNode("declareVariable", new Runnable() {
+                @Override
+                public void run() {
+                    VariableExpression v = exp.getVariableExpression();
+                    literal(v.getType());
+                    literal(v.getName());
+                }
+            });
         } else {
             // def x=v;
             makeNode("declareVariable", new Runnable() {
@@ -1168,14 +1212,27 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                     loc(exp);
                     literal(v.getType());
                     literal(v.getName());
-                    visitAssignmentOrCast(v, exp.getRightExpression());
+                    visitAssignmentOrCast(v.getType(), exp.getRightExpression());
                 }
             });
         }
     }
 
-    protected void visitAssignmentOrCast(final VariableExpression varExp, final Expression rhs) {
-        visit(rhs); // this will not produce anything if this is EmptyExpression
+    protected void visitAssignmentOrCast(ClassNode type, final Expression rhs) {
+        if (SandboxTransformer.isKnownSafeCast(type, rhs)) {
+            visit(rhs);
+            return;
+        }
+        makeNode("cast", new Runnable() {
+            @Override
+            public void run() {
+                loc(rhs);
+                visit(rhs);
+                literal(type);
+                literal(false);
+                // TODO what about ignoreAutoboxing & strict?
+            }
+        });
     }
 
     @Override
@@ -1308,77 +1365,6 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         // This can't be encountered in a source file.
         sourceUnit.addError(new SyntaxException("Unsupported expression for CPS transformation",
                 expression.getLineNumber(), expression.getColumnNumber()));
-    }
-
-    // Required because the methods we need have protected visibility in Verifier.
-    private static class InitialExpressionExpander extends Verifier {
-        private void expandInitialExpressions(ClassNode node) {
-            super.setClassNode(node);
-            super.addDefaultParameterMethods(node);
-            fixupVariableReferencesInGeneratedMethods(node);
-        }
-        // Methods generated by Verifier.addDefaultParameterMethods have some VariableExpressions where
-        // VariableExpression.getAccessedVariable returns null, when it should return the same variable. This causes
-        // problems in visitVariableExpression, so this method prevents errors by setting the accessed variable to the
-        // same variable here. The variables we need to fix are always in a cast expression in a method call expression
-        // in the final statement of the body of the generated method.
-        private void fixupVariableReferencesInGeneratedMethods(ClassNode node) {
-            for (MethodNode m : node.getMethods()) {
-                if (Boolean.TRUE.equals(m.getNodeMetaData(Verifier.DEFAULT_PARAMETER_GENERATED))) {
-                    MethodCallExpression mce = findMethodCallExpressionInLastStatementOfBody(m);
-                    if (mce != null) {
-                        for (Expression arg : ((TupleExpression)mce.getArguments()).getExpressions()) {
-                            if (arg instanceof CastExpression) {
-                                Expression castedExpr = ((CastExpression) arg).getExpression();
-                                if (castedExpr instanceof VariableExpression) {
-                                    VariableExpression varExpr = (VariableExpression) castedExpr;
-                                    if (varExpr.getAccessedVariable() == null) {
-                                        varExpr.setAccessedVariable(varExpr);
-                                    } else {
-                                        LOGGER.log(Level.FINE, "Variable {0} in method call arguments already had an initial expression", varExpr);
-                                    }
-                                } else {
-                                    // The initial expressions are inlined directly into the arguments in the
-                                    // MethodCallExpression, so if this isn't a variable expression, we just ignore it.
-                                }
-                            } else {
-                                LOGGER.log(Level.FINE, "Unexpected expression in method call arguments in {0}: {1}", new Object[]{ m, arg });
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        private MethodCallExpression findMethodCallExpressionInLastStatementOfBody(MethodNode m) {
-            if (m.getCode() instanceof BlockStatement) {
-                List<Statement> body = ((BlockStatement)m.getCode()).getStatements();
-                if (!body.isEmpty()) {
-                    Statement finalStatement = body.get(body.size() - 1);
-                    if (finalStatement instanceof ReturnStatement) { // For methods with return values.
-                        Expression returnExpr = ((ReturnStatement) finalStatement).getExpression();
-                        if (returnExpr instanceof MethodCallExpression) {
-                            return (MethodCallExpression) returnExpr;
-                        } else {
-                            LOGGER.log(Level.FINE, "Unexpected expression in return statement of {0}: {1}", new Object[]{ m, returnExpr });
-                        }
-                    } else if (finalStatement instanceof ExpressionStatement) { // For void methods.
-                        Expression expr = ((ExpressionStatement) finalStatement).getExpression();
-                        if (expr instanceof MethodCallExpression) {
-                            return (MethodCallExpression) expr;
-                        } else {
-                            LOGGER.log(Level.FINE, "Unexpected expression in last statement of {0}: {1}", new Object[]{ m, expr });
-                        }
-                    } else {
-                        LOGGER.log(Level.FINE, "Unexpected type of last statement of {0}: {1}", new Object[]{ m, finalStatement });
-                    }
-                } else {
-                    LOGGER.log(Level.FINE, "Body of {0} is empty", m);
-                }
-            } else {
-                LOGGER.log(Level.FINE, "Body of {0} is not a block statement", m);
-            }
-            return null;
-        }
     }
 
     private static final ClassNode OBJECT_TYPE = ClassHelper.makeCached(Object.class);

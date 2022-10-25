@@ -4,7 +4,6 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 
 /**
  * if (...) { ... } else { ... }
@@ -34,7 +33,9 @@ public class IfBlock implements Block {
         }
 
         public Next jump(Object cond) {
-            return then(DefaultTypeTransformation.castToBoolean(cond) ? then : els,e,k);
+            return castToBoolean(cond, e, b -> {
+                return then(b ? then : els, e, k);
+            });
         }
 
         private static final long serialVersionUID = 1L;

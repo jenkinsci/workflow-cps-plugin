@@ -5,9 +5,6 @@ import org.codehaus.groovy.ast.ClassCodeExpressionTransformer;
 import org.codehaus.groovy.ast.ClassNode;
 import org.codehaus.groovy.ast.FieldNode;
 import org.codehaus.groovy.ast.MethodNode;
-import org.codehaus.groovy.ast.expr.CastExpression;
-import org.codehaus.groovy.ast.expr.Expression;
-import org.codehaus.groovy.ast.expr.VariableExpression;
 import org.codehaus.groovy.ast.stmt.Statement;
 import org.codehaus.groovy.classgen.GeneratorContext;
 import org.codehaus.groovy.control.SourceUnit;
@@ -71,66 +68,6 @@ public class SandboxCpsTransformer extends CpsTransformer {
     public void visitMethod(MethodNode m) {
         st.forbidIfFinalizer(m);
         super.visitMethod(m);
-    }
-
-    @Override
-    public void visitCastExpression(final CastExpression exp) {
-        makeNode("sandboxCastOrCoerce", new Runnable() {
-            @Override
-            public void run() {
-                loc(exp);
-                visit(exp.getExpression());
-                literal(exp.getType());
-                literal(exp.isIgnoringAutoboxing());
-                literal(exp.isCoerce());
-                literal(exp.isStrict());
-            }
-        });
-    }
-
-    @Override
-    protected void visitAssignmentOrCast(final VariableExpression varExp, final Expression rhs) {
-        if (SandboxTransformer.mightBePositionalArgumentConstructor(varExp)) {
-            makeNode("sandboxCastOrCoerce", new Runnable() {
-                @Override
-                public void run() {
-                    loc(varExp);
-                    visit(rhs);
-                    literal(varExp.getType());
-                    literal(false);
-                    literal(true);
-                    literal(false);
-                }
-            });
-        } else {
-            super.visitAssignmentOrCast(varExp, rhs);
-        }
-    }
-
-    @Override
-    protected void getMultipleAssignmentValueOrCast(final VariableExpression varExp, final Expression rhs, final Expression index) {
-        if (SandboxTransformer.mightBePositionalArgumentConstructor(varExp)) {
-            makeNode("sandboxCastOrCoerce", new Runnable() {
-                @Override
-                public void run() {
-                    loc(varExp);
-                    makeNode("array", new Runnable() {
-                        @Override
-                        public void run() {
-                            loc(rhs);
-                            visit(rhs);
-                            makeNode("constant", index);
-                        }
-                    });
-                    literal(varExp.getType());
-                    literal(false);
-                    literal(true);
-                    literal(false);
-                }
-            });
-        } else {
-            super.getMultipleAssignmentValueOrCast(varExp, rhs, index);
-        }
     }
 
     @Override

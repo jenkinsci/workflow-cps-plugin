@@ -16,8 +16,8 @@
         <plugin>
             <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
-                <source>1.7</source>
-                <target>1.7</target>
+                <source>1.8</source>
+                <target>1.8</target>
             </configuration>
         </plugin>
         <plugin>
@@ -65,24 +65,6 @@
         </dependencies>
       </plugin>
       <plugin>
-        <groupId>org.codehaus.gmavenplus</groupId>
-        <artifactId>gmavenplus-plugin</artifactId>
-        <version>1.5</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>testGenerateStubs</goal>
-              <goal>testCompile</goal>
-            </goals>
-            <configuration>
-                <!-- bad defaults, fixed in Jenkins patch of gmaven-plugin -->
-                <stubsOutputDirectory>${project.build.directory}/generated-sources/groovy-stubs</stubsOutputDirectory>
-                <testStubsOutputDirectory>${project.build.directory}/generated-test-sources/groovy-stubs</testStubsOutputDirectory>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>2.20</version>
@@ -105,7 +87,7 @@
   </build>
 
   <properties>
-      <groovy-sandbox.version>1.21</groovy-sandbox.version>
+      <groovy-sandbox.version>1.30</groovy-sandbox.version>
   </properties>
   <dependencies>
     <dependency>
