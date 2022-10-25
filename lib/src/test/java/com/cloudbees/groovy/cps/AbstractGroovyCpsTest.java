@@ -10,17 +10,19 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.customizers.ImportCustomizer;
-import static org.hamcrest.CoreMatchers.equalTo;
-import org.junit.Assert;
 import org.junit.Before;
 import org.kohsuke.groovy.sandbox.impl.GroovyCallSiteSelector;
+
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  *
  *
  * @author Kohsuke Kawaguchi
  */
-public abstract class AbstractGroovyCpsTest extends Assert {
+public abstract class AbstractGroovyCpsTest {
     /**
      * CPS-transforming shelll
      */

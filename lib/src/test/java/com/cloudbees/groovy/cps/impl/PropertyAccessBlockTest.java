@@ -5,6 +5,8 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+
 /**
  *
  *
