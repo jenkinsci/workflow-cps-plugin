@@ -64,10 +64,10 @@ public class AssignmentBlock extends CallSiteBlockSupport {
         }
 
         /**
-         * Just straight assignment from RHS to LHS, then done
+         * Assign from RHS to LHS and pass RHS to the continuation.
          */
         public Next assignAndDone(Object rhs) {
-            return lhs.set(rhs,k);  // just straight assignment
+            return lhs.set(rhs, then(new ConstantBlock(rhs), e, k));
         }
 
         /**
