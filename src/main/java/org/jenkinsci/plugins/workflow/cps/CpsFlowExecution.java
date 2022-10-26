@@ -52,6 +52,7 @@ import hudson.ExtensionList;
 import hudson.model.Action;
 import hudson.model.Result;
 import hudson.util.Iterators;
+import hudson.util.VersionNumber;
 import io.jenkins.lib.versionnumber.JavaSpecificationVersion;
 import jenkins.model.CauseOfInterruption;
 import jenkins.model.Jenkins;
@@ -1390,9 +1391,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     private static void cleanUpClassInfoCache(Class<?> clazz) {
-        JavaSpecificationVersion current = JavaSpecificationVersion.forCurrentJVM();
-        if (current.isNewerThan(new JavaSpecificationVersion("1.8"))
-                && current.isOlderThan(new JavaSpecificationVersion("16"))) {
+        int releaseVersion = JavaSpecificationVersion.forCurrentJVM().toReleaseVersion();
+        if ((releaseVersion > 8 && releaseVersion < 11)
+                || (releaseVersion == 11 && new VersionNumber(System.getProperty("java.version")).isOlderThan(new VersionNumber("11.0.17")))
+                || (releaseVersion > 11 && releaseVersion < 16)) {
             try {
                 // TODO Work around JDK-8231454.
                 Class<?> classInfoC = Class.forName("com.sun.beans.introspect.ClassInfo");
