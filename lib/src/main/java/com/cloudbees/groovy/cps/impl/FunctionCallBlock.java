@@ -92,11 +92,12 @@ public class FunctionCallBlock extends CallSiteBlockSupport {
             if (args.length>idx)
                 return then(argExps[idx],e,fixArg);
             else {
+                Object[] expandedArgs = SpreadBlock.despreadList(args);
                 if (name.equals("<init>")) {
                     // constructor call
                     Object v;
                     try {
-                        v = e.getInvoker().contextualize(FunctionCallBlock.this).constructorCall((Class)lhs,args);
+                        v = e.getInvoker().contextualize(FunctionCallBlock.this).constructorCall((Class)lhs, expandedArgs);
                     } catch (Throwable t) {
                         if (t instanceof CpsCallableInvocation) {
                             ((CpsCallableInvocation) t).checkMismatch(lhs, Collections.singletonList(name));
@@ -112,7 +113,7 @@ public class FunctionCallBlock extends CallSiteBlockSupport {
                     if (safe && lhs == null) {
                         return k.receive(null);
                     } else {
-                        return methodCall(e, loc, k, FunctionCallBlock.this, lhs, name, args);
+                        return methodCall(e, loc, k, FunctionCallBlock.this, lhs, name, expandedArgs);
                     }
                 }
             }

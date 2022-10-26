@@ -11,10 +11,11 @@ import java.io.ObjectOutputStream;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.customizers.ImportCustomizer;
 import org.junit.Before;
+import org.junit.Rule;
+import org.junit.rules.ErrorCollector;
 import org.kohsuke.groovy.sandbox.impl.GroovyCallSiteSelector;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
@@ -23,6 +24,9 @@ import static org.junit.Assert.fail;
  * @author Kohsuke Kawaguchi
  */
 public abstract class AbstractGroovyCpsTest {
+    @Rule
+    public ErrorCollector ec = new ErrorCollector();
+
     /**
      * CPS-transforming shelll
      */
@@ -50,11 +54,21 @@ public abstract class AbstractGroovyCpsTest {
         cc.addCompilationCustomizers(imports);
         sh = new GroovyShell(binding,cc);
     }
-    
+
+    /**
+     * @return a GroovyShell that has {@link CpsTransformer} enabled and will CPS-transform all scripts
+     */
     public GroovyShell getCsh() {
         return csh;
     }
-    
+
+    /**
+     * @return a regular GroovyShell that will not CPS-transform scripts
+     */
+    public GroovyShell getSh() {
+        return sh;
+    }
+
     public Binding getBinding() {
         return binding;
     }
@@ -67,15 +81,15 @@ public abstract class AbstractGroovyCpsTest {
         Object actualCps = evalCPSonly(script);
         String actualCpsType = GroovyCallSiteSelector.getName(actualCps);
         String expectedType = GroovyCallSiteSelector.getName(expectedResult);
-        assertThat("CPS-transformed result (" + actualCpsType + ") does not match expected result (" + expectedType + ")", actualCps, equalTo(expectedResult));
+        ec.checkThat("CPS-transformed result (" + actualCpsType + ") does not match expected result (" + expectedType + ")", actualCps, equalTo(expectedResult));
         Object actualNonCps = sh.evaluate(script);
         String actualNonCpsType = GroovyCallSiteSelector.getName(actualNonCps);
-        assertThat("Non-CPS-transformed result (" + actualNonCpsType + ") does not match expected result (" + expectedType + ")", actualNonCps, equalTo(expectedResult));
+        ec.checkThat("Non-CPS-transformed result (" + actualNonCpsType + ") does not match expected result (" + expectedType + ")", actualNonCps, equalTo(expectedResult));
     }
 
     public Object evalCPS(String script) throws Throwable {
         Object resultInCps = evalCPSonly(script);
-        assertThat(resultInCps, equalTo(sh.evaluate(script))); // make sure that regular non-CPS execution reports the same result
+        ec.checkThat(resultInCps, equalTo(sh.evaluate(script))); // make sure that regular non-CPS execution reports the same result
         return resultInCps;
     }
 

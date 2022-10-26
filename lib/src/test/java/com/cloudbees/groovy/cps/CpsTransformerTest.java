@@ -2,6 +2,7 @@ package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import groovy.lang.IntRange;
+import groovy.lang.MissingMethodException;
 import java.io.File;
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -10,6 +11,7 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.codehaus.groovy.control.MultipleCompilationErrorsException;
+import org.codehaus.groovy.runtime.InvokerHelper;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -944,28 +946,108 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
         }
     }
 
-    @Test
-    public void spreadExpression() throws Throwable {
-        try {
-            evalCPSonly(
-                "def x = [1, 2, 3]\n" +
+    @Issue("JENKINS-46163")
+    @Test public void spreadExpression() throws Throwable {
+        String[] declarations = new String[] {
+            "def", // ArrayList
+            "Object[]", // Object array
+            "int[]" // Primitive array
+        };
+        for (String decl : declarations) {
+            assertEvaluate(Arrays.asList(1, 2, 3, 4, 5),
+                decl + " x = [1, 2, 3]\n" +
                 "return [*x, 4, 5]\n");
-        } catch (Exception e) {
-            assertThat(e, instanceOf(MultipleCompilationErrorsException.class));
-            assertThat(e.getMessage(), containsString("spread not yet supported for CPS transformation"));
+            assertEvaluate(Arrays.asList(4, 1, 2, 3, 5),
+                decl + " x = [1, 2, 3]\n" +
+                "return [4, *x, 5]\n");
+            assertEvaluate(Arrays.asList(4, 5, 1, 2, 3),
+                decl + " x = [1, 2, 3]\n" +
+                "return [4, 5, *x]\n");
+            assertEvaluate(Arrays.asList(1, 2, 3),
+                decl + " x = [1, 2, 3]\n" +
+                "return [*x]\n");
+            assertEvaluate(Arrays.asList(1, 2, 3, 4, 5, 6, 7),
+                decl + " x = [2, 3]\n" +
+                decl + " y = [5, 6]\n" +
+                "return [1, *x, 4, *y, 7]\n");
         }
+        assertEvaluate(Collections.singletonList(null),
+                "def x = null\n" +
+                "return [*x]\n");
     }
 
-    @Test
-    public void spreadMapExpression() throws Throwable {
-        try {
-            evalCPSonly(
-                "def x = [a: 1, b: 2, c: 3]\n" +
-                "return [*:x, d: 4, e: 5]\n");
-        } catch (Exception e) {
-            assertThat(e, instanceOf(MultipleCompilationErrorsException.class));
-            assertThat(e.getMessage(), containsString("spread map not yet supported for CPS transformation"));
+    @Issue("JENKINS-46163")
+    @Test public void spreadMapExpression() throws Throwable {
+        assertEvaluate(InvokerHelper.createMap(new Object[] { "a", 1, "b", 2, "c", 3, "d", 4, "e", 5 }),
+            "def x = [a: 1, b: 2, c: 3]\n" +
+            "return [*:x, d: 4, e: 5]\n");
+        assertEvaluate(InvokerHelper.createMap(new Object[] { "d", 4, "a", 1, "b", 2, "c", 3, "e", 5 }),
+            "def x = [a: 1, b: 2, c: 3]\n" +
+            "return [d: 4, *:x, e: 5]\n");
+        assertEvaluate(InvokerHelper.createMap(new Object[] { "d", 4, "e", 5, "a", 1, "b", 2, "c", 3, "e", 5 }),
+            "def x = [a: 1, b: 2, c: 3]\n" +
+            "return [d: 4, e: 5, *:x]\n");
+        assertEvaluate(InvokerHelper.createMap(new Object[] { "a", 1, "b", 2, "c", -1 }),
+            "def x = [a: 1, b: 2, c: 3]\n" +
+            "return [c: 4, *:x, c: -1]\n"); // The final value for a key takes precedence.
+        assertEvaluate(InvokerHelper.createMap(new Object[] { "a", 1, "b", 2, "c", 3 }),
+            "def x = [a: 1, b: 2, c: 3]\n" +
+            "return [*:x]\n");
+        assertEvaluate(InvokerHelper.createMap(new Object[] { "a", 1, "b", 2, "c", 3, "d", 4, "e", 5, "f", 6, "g", 7 }),
+            "def x = [b: 2, c: 3]\n" +
+            "def y = [e: 5, f: 6]\n" +
+            "return [a: 1, *:x, d: 4, *:y, g: 7]\n");
+    }
+
+    @Issue("JENKINS-46163")
+    @Test public void spreadMethodCallArguments() throws Throwable {
+        String[] declarations = new String[] {
+            "def", // ArrayList
+            "Object[]", // Object array
+            "int[]" // Primitive array
+        };
+        for (String decl : declarations) {
+            assertEvaluate(Arrays.asList(1, 2, 3),
+                decl + " x = [1, 2, 3]\n" +
+                "def id(a, b, c) { [a, b, c] }\n" +
+                "return id(*x)\n");
+            assertEvaluate(Arrays.asList(1, 2, 3),
+                decl + " x = [2, 3]\n" +
+                "def id(a, b, c) { [a, b, c] }\n" +
+                "return id(1, *x)\n");
+            assertEvaluate(Arrays.asList(1, 2, 3),
+                decl + " x = [1, 2]\n" +
+                "def id(a, b, c) { [a, b, c] }\n" +
+                "return id(*x, 3)\n");
+            assertEvaluate(Arrays.asList(1, 2, 3),
+                decl + " x = [2]\n" +
+                "def id(a, b, c) { [a, b, c] }\n" +
+                "return id(1, *x, 3)\n");
         }
+        assertEvaluate(Arrays.asList(1, null, 3),
+                "def x = null\n" +
+                "def id(a, b, c) { [a, b, c] }\n" +
+                "return id(1, *x, 3)\n");
+    }
+
+    @Issue("JENKINS-46163")
+    @Test public void spreadMapMethodCallArguments() throws Throwable {
+        assertEvaluate(Collections.singletonMap("a", 1),
+            "def x = [a: 1]\n" +
+            "def id(Map m) { m }\n" +
+            "return id(*:x)\n");
+        assertEvaluate(Collections.singletonMap("a", 1),
+            "def x = [a: 1]\n" +
+            "def id(def m) { m }\n" +
+            "return id(*:x)\n");
+        ec.checkThrows(MissingMethodException.class, () -> evalCPSonly(
+                "def x = [a: 1]\n" +
+                "def id(String a, int i) { [a, i] }\n" +
+                "return id(*:x)\n"));
+        ec.checkThrows(MissingMethodException.class, () -> getSh().evaluate(
+                "def x = [a: 1]\n" +
+                "def id(String a, int i) { [a, i] }\n" +
+                "return id(*:x)\n"));
     }
 
     @Test
