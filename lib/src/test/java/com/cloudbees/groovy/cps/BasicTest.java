@@ -3,17 +3,18 @@ package com.cloudbees.groovy.cps;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.CpsFunction;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
 
 import static java.util.Arrays.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /**
  * @author Kohsuke Kawaguchi
  */
-public class BasicTest extends Assert {
+public class BasicTest {
     Builder b = new Builder(MethodLocation.UNKNOWN);
 
     // useful fragment of expressions
@@ -24,11 +25,11 @@ public class BasicTest extends Assert {
     /**
      * Evaluates the given body and return the yielded value.
      */
-    private <T> T run(Block... bodies) {
+    private Object run(Block... bodies) {
         try {
             Env e = Envs.empty();
             Next p = new Next(b.block(bodies), e, Continuation.HALT);
-            return (T) p.run().yield.wrapReplay();
+            return p.run().yield.wrapReplay();
         } catch (InvocationTargetException x) {
             throw new AssertionError(x);
         }
@@ -165,10 +166,10 @@ public class BasicTest extends Assert {
     public void newInstance() {
         InstantiationTest v;
 
-        v = run(b.new_(0, InstantiationTest.class, b.constant(3)));
+        v = (InstantiationTest)run(b.new_(0, InstantiationTest.class, b.constant(3)));
         assertEquals(3, v.v);
 
-        v = run(b.new_(0, InstantiationTest.class, b.constant(3), b.constant(4)));
+        v = (InstantiationTest)run(b.new_(0, InstantiationTest.class, b.constant(3), b.constant(4)));
         assertEquals(7, v.v);
     }
 

@@ -53,6 +53,10 @@ public class SandboxInvoker implements Invoker {
         return new SandboxedMethodClosure(lhs, name);
     }
 
+    @Override
+    public Object cast(Object value, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict) throws Throwable {
+        return Checker.checkedCast(type, value, ignoreAutoboxing, coerce, strict);
+    }
 
     public Invoker contextualize(CallSiteBlock tags) {
         if (tags.getTags().contains(Untrusted.INSTANCE))

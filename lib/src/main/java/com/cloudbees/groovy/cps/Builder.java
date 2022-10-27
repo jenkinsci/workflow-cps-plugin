@@ -7,6 +7,7 @@ import com.cloudbees.groovy.cps.impl.AttributeAccessBlock;
 import com.cloudbees.groovy.cps.impl.BlockScopedBlock;
 import com.cloudbees.groovy.cps.impl.BreakBlock;
 import com.cloudbees.groovy.cps.impl.CallSiteBlock;
+import com.cloudbees.groovy.cps.impl.CastBlock;
 import com.cloudbees.groovy.cps.impl.ClosureBlock;
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.ContinueBlock;
@@ -49,8 +50,6 @@ import java.util.*;
 
 import static com.cloudbees.groovy.cps.Block.*;
 import static java.util.Arrays.*;
-import org.codehaus.groovy.ast.expr.CastExpression;
-import org.kohsuke.groovy.sandbox.impl.Checker;
 
 /**
  * Builder pattern for constructing {@link Block}s into a tree.
@@ -239,6 +238,7 @@ public class Builder {
     /**
      * Assignment operator to a local variable, such as {@code x += 3}
      */
+    // TODO: I think this is only used in tests.
     public Block localVariableAssignOp(int line, String name, String operator, Block rhs) {
         return setLocalVariable(line, name, functionCall(line, localVariable(line, name), operator, rhs));
     }
@@ -581,31 +581,29 @@ public class Builder {
      * Cast to type.
      *
      * @param coerce
-     *      True for {@code exp as type} cast. false for {@code (type)exp} cast.
+     *      If true, the cast will use ScriptBytecodeAdapter.asType. If false, it will use ScriptBytecodeAdapter.castToType.
+     *      Both methods are very willing to coerce their values to other types, so the name is a bit misleading.
+     *      Generally speaking, Groovy will use coerce=true for casts using the "as" operator, whereas coerce=false will
+     *      be used in all other cases, such as Java-syntax casts and implicit casts inserted by the Groovy runtime.
      */
     public Block cast(int line, Block block, Class type, boolean coerce) {
-        return staticCall(line,ScriptBytecodeAdapter.class,
-                coerce ? "asType" : "castToType",
-                block,constant(type));
+        return new CastBlock(loc(line), block, type, false, coerce, false);
     }
 
     /**
-     * @deprecated Just for compatibility with old scripts; prefer {@link #sandboxCastOrCoerce}
+     * @deprecated Just for compatibility with old scripts; prefer {@link #cast}
      */
     @Deprecated
     public Block sandboxCast(int line, Block block, Class<?> type, boolean ignoreAutoboxing, boolean strict) {
-        return sandboxCastOrCoerce(line, block, type, ignoreAutoboxing, true, strict);
+        return cast(line, block, type, true);
     }
 
     /**
-     * Cast to type when {@link CastExpression#isCoerce} from {@link SandboxCpsTransformer}.
+     * @deprecated Just for compatibility with old scripts; prefer {@link #cast}
      */
-    // TODO should ideally be defined in some sandbox-specific subtype of Builder
+    @Deprecated
     public Block sandboxCastOrCoerce(int line, Block block, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict) {
-        return staticCall(line, Checker.class,
-                "checkedCast",
-                constant(type), block,
-                constant(ignoreAutoboxing), constant(coerce), constant(strict));
+        return cast(line, block, type, coerce);
     }
 
     public Block instanceOf(int line, Block value, Block type) {

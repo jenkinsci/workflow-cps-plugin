@@ -4,7 +4,6 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
 import java.lang.reflect.Array;
 
@@ -42,7 +41,7 @@ public class NewArrayBlock implements Block {
 
         public Next fixArg(Object v) {
             try {
-                dimensions[idx++] = (Integer)ScriptBytecodeAdapter.castToType(v,int.class);
+                dimensions[idx++] = (Integer)e.getInvoker().cast(v, int.class, false, false, false);
             } catch (Throwable t) {
                 return throwException(e, t, loc, new ReferenceStackTrace());
             }

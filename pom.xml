@@ -17,7 +17,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <groovy.version>2.4.21</groovy.version>
-        <revision>1.33</revision>
+        <revision>1.35</revision>
         <changelist>-SNAPSHOT</changelist>
         <!-- TODO: Move these three properties to the parent POM or use org.jenkins-ci:jenkins as the parent POM here -->
         <incrementals-enforce-minimum.version>1.1</incrementals-enforce-minimum.version>
