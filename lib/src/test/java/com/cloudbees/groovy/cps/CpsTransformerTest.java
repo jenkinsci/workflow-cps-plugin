@@ -174,19 +174,19 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
      */
     @Test
     public void exceptionFromNonCpsCodeShouldBeCaughtByCatchBlockInCpsCode() throws Throwable {
-        try {
-            evalCPS(
-                "def foo() {\n" +
-                "  'abc'.substring(5);\n" + // will caught exception
-                "  return 'fail';\n" +
-                "}\n" +
-                "return foo()\n");
-            fail("Should have failed");
-        } catch(StringIndexOutOfBoundsException e) {
-            assertThat(e.getMessage(), anyOf(
-                    equalTo("String index out of range: -2"), // Before Java 14
-                    equalTo("begin 5, end 3, length 3"))); // Later versions
-        }
+        String message = (String) evalCPSonly(
+            "def foo() {\n" +
+            "  'abc'.substring(5);\n" + // will caught exception
+            "  return 'fail';\n" +
+            "}\n" +
+            "try {\n" +
+            "  return foo();\n" +
+            "} catch(StringIndexOutOfBoundsException e) {\n" +
+            "  return e.message;\n" +
+            "}\n");
+        assertThat(message, anyOf(
+                equalTo("String index out of range: -2"), // Before Java 14
+                equalTo("begin 5, end 3, length 3"))); // Later versions
     }
 
     /**
