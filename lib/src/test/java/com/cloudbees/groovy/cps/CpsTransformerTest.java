@@ -14,7 +14,9 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 
+import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -172,16 +174,19 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
      */
     @Test
     public void exceptionFromNonCpsCodeShouldBeCaughtByCatchBlockInCpsCode() throws Throwable {
-        assertEvaluate("begin 5, end 3, length 3",
-            "def foo() {\n" +
-            "  'abc'.substring(5);\n" + // will caught exception
-            "  return 'fail';\n" +
-            "}\n" +
-            "try {\n" +
-            "  return foo();\n" +
-            "} catch(StringIndexOutOfBoundsException e) {\n" +
-            "  return e.message;\n" +
-            "}\n");
+        try {
+            evalCPS(
+                "def foo() {\n" +
+                "  'abc'.substring(5);\n" + // will caught exception
+                "  return 'fail';\n" +
+                "}\n" +
+                "return foo()\n");
+            fail("Should have failed");
+        } catch(StringIndexOutOfBoundsException e) {
+            assertThat(e.getMessage(), anyOf(
+                    equalTo("String index out of range: -2"), // Before Java 14
+                    equalTo("begin 5, end 3, length 3"))); // Later versions
+        }
     }
 
     /**
