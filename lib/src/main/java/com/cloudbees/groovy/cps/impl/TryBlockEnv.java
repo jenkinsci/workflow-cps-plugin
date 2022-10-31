@@ -4,8 +4,7 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-
-import javax.annotation.Nullable;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -18,7 +17,7 @@ import java.util.Map.Entry;
 // TODO: should be package local once all the impls move into this class
 public class TryBlockEnv extends ProxyEnv {
     private final Map<Class,Continuation> handlers = new LinkedHashMap<Class, Continuation>(2);
-    @Nullable
+    @CheckForNull
     private final Block finally_;
 
     public TryBlockEnv(Env parent, Block finally_) {

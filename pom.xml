@@ -17,7 +17,6 @@
     <name>Groovy CPS Execution Parent</name>
 
     <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jenkins.version>2.346.1</jenkins.version>
         <groovy.version>2.4.21</groovy.version>
         <revision>1.35</revision>
@@ -27,7 +26,7 @@
 
     <scm child.scm.connection.inherit.append.path="false" child.scm.developerConnection.inherit.append.path="false" child.scm.url.inherit.append.path="false">
         <connection>scm:git:git@github.com/cloudbees/groovy-cps.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/cloudbees/groovy-cps.git</developerConnection>
+        <developerConnection>scm:git:git@github.com:cloudbees/groovy-cps.git</developerConnection>
         <tag>${scmTag}</tag>
     </scm>
 

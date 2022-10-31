@@ -3,9 +3,9 @@ package com.cloudbees.groovy.cps;
 import com.cloudbees.groovy.cps.impl.LocalVariableBlock;
 import com.cloudbees.groovy.cps.impl.VariableDeclBlock;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import groovy.lang.Closure;
-import javax.annotation.CheckForNull;
 import java.io.Serializable;
 import java.util.List;
 
