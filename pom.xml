@@ -25,7 +25,7 @@
         <scmTag>HEAD</scmTag>
     </properties>
 
-    <scm>
+    <scm child.scm.connection.inherit.append.path="false" child.scm.developerConnection.inherit.append.path="false" child.scm.url.inherit.append.path="false">
         <connection>scm:git:git@github.com/cloudbees/groovy-cps.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/cloudbees/groovy-cps.git</developerConnection>
         <tag>${scmTag}</tag>
