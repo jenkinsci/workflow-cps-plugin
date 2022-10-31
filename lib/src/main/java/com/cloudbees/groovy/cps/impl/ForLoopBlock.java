@@ -36,7 +36,7 @@ public class ForLoopBlock implements Block {
             this.loopEnd = loopEnd;
         }
 
-        public Next loopHead(Object _) {
+        public Next loopHead(Object unused) {
             return then(e2, e, loopCond);
         }
 
@@ -52,7 +52,7 @@ public class ForLoopBlock implements Block {
             });
         }
 
-        public Next increment(Object _) {
+        public Next increment(Object unused) {
             return then(e3,e,loopHead);
         }
 

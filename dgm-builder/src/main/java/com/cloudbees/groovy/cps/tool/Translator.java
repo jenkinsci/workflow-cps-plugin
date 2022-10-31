@@ -1,6 +1,5 @@
 package com.cloudbees.groovy.cps.tool;
 
-import com.google.common.io.Resources;
 import com.sun.codemodel.CodeWriter;
 import com.sun.codemodel.JClass;
 import com.sun.codemodel.JClassAlreadyExistsException;
@@ -75,6 +74,8 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.SimpleTypeVisitor6;
 import javax.lang.model.util.Types;
 import javax.tools.JavaCompiler.CompilationTask;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -88,7 +89,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
-import javax.annotation.processing.Generated;
+import java.util.stream.Collectors;
+import javax.annotation.Generated;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 
@@ -100,8 +102,8 @@ public class Translator {
 
     private static final Set<String> translatable;
     static {
-        try {
-            translatable = new HashSet<>(Resources.readLines(Translator.class.getResource("translatable.txt"), StandardCharsets.UTF_8));
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(Translator.class.getResourceAsStream("translatable.txt"), StandardCharsets.UTF_8))) {
+            translatable = new HashSet<>(reader.lines().collect(Collectors.toSet()));
         } catch (IOException x) {
             throw new ExceptionInInitializerError(x);
         }

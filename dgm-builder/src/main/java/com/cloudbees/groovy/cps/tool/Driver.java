@@ -12,6 +12,7 @@ import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 import java.io.File;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -68,7 +69,7 @@ public class Driver {
             }
 
 
-            dir.mkdirs();
+            Files.createDirectories(dir.toPath());
             t.generateTo(new FileCodeWriter(dir));
         }
     }

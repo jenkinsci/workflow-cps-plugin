@@ -57,7 +57,7 @@ public class ForInLoopBlock implements Block {
             return increment(null);
         }
 
-        public Next increment(Object _) {
+        public Next increment(Object unused) {
             if (itr.hasNext()) {
                 // one more iteration
                 e.setLocalVariable(variable,itr.next());

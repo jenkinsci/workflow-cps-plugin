@@ -34,7 +34,7 @@ public class SequenceBlock implements Block {
             this.exp2 = exp2;
         }
 
-        public Next receive(Object _) {
+        public Next receive(Object unused) {
             return new Next(exp2, e, k);
         }
 

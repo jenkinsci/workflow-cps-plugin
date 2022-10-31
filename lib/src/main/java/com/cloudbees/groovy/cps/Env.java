@@ -3,10 +3,9 @@ package com.cloudbees.groovy.cps;
 import com.cloudbees.groovy.cps.impl.LocalVariableBlock;
 import com.cloudbees.groovy.cps.impl.VariableDeclBlock;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import groovy.lang.Closure;
-
 import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
 import java.io.Serializable;
 import java.util.List;
 
@@ -36,7 +35,7 @@ public interface Env extends Serializable {
      *      Name of the local variable.
      * @see VariableDeclBlock
      */
-    void declareVariable(@Nonnull Class type, @Nonnull  String name);
+    void declareVariable(@NonNull Class type, @NonNull  String name);
 
     /**
      * Obtains the current value of a local variable in the current environment.
@@ -44,7 +43,7 @@ public interface Env extends Serializable {
      *      Name of the local variable.
      * @see LocalVariableBlock
      */
-    Object getLocalVariable(@Nonnull String name);
+    Object getLocalVariable(@NonNull String name);
 
     /**
      * Sets the local variable to a new value.
@@ -54,10 +53,10 @@ public interface Env extends Serializable {
      *      New value
      * @see LocalVariableBlock
      */
-    void setLocalVariable(@Nonnull String name, Object value);
+    void setLocalVariable(@NonNull String name, Object value);
 
     @CheckForNull
-    Class getLocalVariableType(@Nonnull String name);
+    Class getLocalVariableType(@NonNull String name);
 
     /**
      * Closure instance or 'this' object that surrounds the currently executing code.

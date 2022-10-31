@@ -39,7 +39,7 @@ public class DoWhileBlock implements Block {
             return then(body,e,loopHead);
         }
 
-        public Next loopHead(Object _) {
+        public Next loopHead(Object unused) {
             return then(cond, e, loopCond);
         }
 

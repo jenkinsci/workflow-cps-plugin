@@ -25,6 +25,8 @@ public interface Continuation extends Serializable {
      * Singleton implementation that maintains the singleton-ness across serialization
      */
     final class Halt implements Continuation {
+        private static final long serialVersionUID = 1996175119530893094L;
+
         private Halt() {
         }
 
