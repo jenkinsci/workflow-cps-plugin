@@ -98,7 +98,7 @@ public class SwitchBlock implements Block {
         /**
          * Executes the body and falls through to the next body.
          */
-        public Next body(Object _) {
+        public Next body(Object unused) {
             if (index==cases.size()) {
                 // that was the last block
                 return k.receive(null);

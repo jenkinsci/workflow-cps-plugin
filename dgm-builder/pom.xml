@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
@@ -11,15 +12,13 @@
 
     <name>CpsDefaultGroovyMethods generator</name>
 
+    <properties>
+        <maven.compiler.release>11</maven.compiler.release>
+        <maven.compiler.testRelease>11</maven.compiler.testRelease>
+    </properties>
+
     <build>
         <plugins>
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>
@@ -27,15 +26,6 @@
                     <skip>true</skip>
                 </configuration>
             </plugin>
-            <!-- TODO as per https://stackoverflow.com/a/27557285/12916 I am afraid of hitting NEXUS-9138; cannot see follow-up NEXUS-12365
-            <plugin>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
-                <configuration>
-                    <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
-                </configuration>
-            </plugin>
-            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
@@ -58,28 +48,15 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
-                </configuration>
-            </plugin>
         </plugins>
-        <extensions>
-            <extension>
-                <groupId>org.kathrynhuxtable.maven.wagon</groupId>
-                <artifactId>wagon-gitsite</artifactId>
-                <version>0.3.1</version>
-            </extension>
-        </extensions>
     </build>
 
     <dependencies>
         <dependency>
-            <groupId>org.kohsuke.sorcerer</groupId>
-            <artifactId>sorcerer-javac</artifactId>
-            <version>0.10</version>
+            <!-- TODO: Once we are ok limiting workflow-cps (and groovy-cps) to compile _and_ run only on Java 9+, we should delete this dependency and switch to javax.annotation.processing.Generated. -->
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <version>1.3.2</version>
         </dependency>
         <dependency>
             <groupId>org.kohsuke.codemodel</groupId>
@@ -89,7 +66,7 @@
         <dependency>
             <groupId>org.jenkins-ci.main</groupId>
             <artifactId>remoting</artifactId>
-            <version>2.51</version>
+            <version>4.13.3</version>
         </dependency>
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
@@ -101,17 +78,6 @@
             <artifactId>groovy</artifactId>
             <classifier>sources</classifier>
             <version>${groovy.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>11.0.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci</groupId>
-            <artifactId>test-annotations</artifactId>
-            <version>1.2</version>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 

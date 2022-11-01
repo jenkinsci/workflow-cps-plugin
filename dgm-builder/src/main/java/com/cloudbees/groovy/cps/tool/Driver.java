@@ -1,10 +1,6 @@
 package com.cloudbees.groovy.cps.tool;
 
 import com.sun.codemodel.writer.FileCodeWriter;
-import com.sun.tools.javac.api.JavacTool;
-import com.sun.tools.javac.file.JavacFileManager;
-import com.sun.tools.javac.file.RelativePath.RelativeDirectory;
-import com.sun.tools.javac.file.ZipArchive;
 import groovy.lang.GroovyShell;
 import hudson.remoting.Which;
 
@@ -13,13 +9,15 @@ import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
+import javax.tools.ToolProvider;
 import java.io.File;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.zip.ZipFile;
 
 import static java.util.Arrays.*;
 
@@ -29,7 +27,7 @@ public class Driver {
     }
 
     public void run(File dir) throws Exception {
-        JavaCompiler javac = JavacTool.create();
+        JavaCompiler javac = ToolProvider.getSystemJavaCompiler();
         DiagnosticListener<JavaFileObject> errorListener = createErrorListener();
 
         try (StandardJavaFileManager fileManager = javac.getStandardFileManager(errorListener, Locale.getDefault(), Charset.defaultCharset())) {
@@ -45,10 +43,13 @@ public class Driver {
                     "StringGroovyMethods");
 
             List<JavaFileObject> src = new ArrayList<>();
-            ZipArchive a = new ZipArchive((JavacFileManager) fileManager, new ZipFile(groovySrcJar));
-
-            for (String name : fileNames) {
-                src.add(a.getFileObject(new RelativeDirectory("org/codehaus/groovy/runtime"),name+".java"));
+            for (JavaFileObject jfo : fileManager.list(StandardLocation.CLASS_PATH, "org.codehaus.groovy.runtime", Collections.singleton(JavaFileObject.Kind.SOURCE), true)) {
+                for (String name : fileNames) {
+                    if (jfo.toUri().toString().endsWith("/org/codehaus/groovy/runtime/" + name + ".java")) {
+                        src.add(jfo);
+                        break;
+                    }
+                }
             }
 
             // annotation processing appears to cause the source files to be reparsed
@@ -68,7 +69,7 @@ public class Driver {
             }
 
 
-            dir.mkdirs();
+            Files.createDirectories(dir.toPath());
             t.generateTo(new FileCodeWriter(dir));
         }
     }

@@ -141,7 +141,7 @@ public final class Next implements Serializable, Continuation {
     /**
      * As a {@link Continuation}, just ignore the argument.
      */
-    public Next receive(Object _) {
+    public Next receive(Object unused) {
         return this;
     }
 

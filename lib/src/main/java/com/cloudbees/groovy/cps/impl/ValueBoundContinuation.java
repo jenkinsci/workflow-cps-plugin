@@ -17,7 +17,7 @@ final class ValueBoundContinuation implements Continuation {
         this.v = v;
     }
 
-    public Next receive(Object _) {
+    public Next receive(Object unused) {
         return k.receive(v);
     }
 

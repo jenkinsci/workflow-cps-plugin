@@ -6,12 +6,11 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
-import org.codehaus.groovy.runtime.InvokerHelper;
-import org.codehaus.groovy.runtime.MethodClosure;
-
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Collection;
 import java.util.Collections;
+import org.codehaus.groovy.runtime.InvokerHelper;
+import org.codehaus.groovy.runtime.MethodClosure;
 
 /**
  * Method pointer expression: {@code LHS&.methodName}
@@ -31,7 +30,7 @@ public class MethodPointerBlock implements CallSiteBlock {
         this.tags = tags;
     }
 
-    @Nonnull
+    @NonNull
     @Override
     public Collection<CallSiteTag> getTags() {
         return tags !=null ? Collections.unmodifiableCollection(tags) : Collections.<CallSiteTag>emptySet();

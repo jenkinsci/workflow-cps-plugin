@@ -4,14 +4,11 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import java.util.Arrays;
 import java.util.List;
-
-import static java.util.Arrays.*;
 import java.util.Collections;
 import java.util.Map;
-import javax.annotation.CheckForNull;
-
 import groovy.lang.Closure;
 import groovy.lang.GroovyObject;
 import groovy.lang.MetaClass;
@@ -50,7 +47,7 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
         this.methodName = methodName;
         this.call = call;
         this.receiver = receiver;
-        this.arguments = arguments != null ? asList(arguments) : Collections.emptyList();
+        this.arguments = arguments != null ? Arrays.asList(arguments) : Collections.emptyList();
     }
 
     public Next invoke(Env caller, SourceLocation loc, Continuation k) {

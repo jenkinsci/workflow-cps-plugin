@@ -6,8 +6,7 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 import com.google.common.collect.Maps;
-
-import javax.annotation.Nullable;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -34,7 +33,7 @@ import java.util.Map;
     /**
      * Source location of the call site.
      */
-    @Nullable
+    @CheckForNull
     private final SourceLocation callSiteLoc;
 
     private Invoker invoker;

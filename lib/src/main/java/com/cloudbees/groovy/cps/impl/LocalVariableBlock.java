@@ -16,6 +16,7 @@ public class LocalVariableBlock extends LValueBlock {
     private SourceLocation loc;
 
     public LocalVariableBlock(SourceLocation loc, String name) {
+        this.loc = loc;
         this.name = name;
     }
 

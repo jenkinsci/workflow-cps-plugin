@@ -7,8 +7,7 @@ import com.cloudbees.groovy.cps.LValue;
 import com.cloudbees.groovy.cps.LValueBlock;
 import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
-
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -31,7 +30,7 @@ abstract class PropertyishBlock extends LValueBlock implements CallSiteBlock,Blo
         this.tags = tags;
     }
 
-    @Nonnull
+    @NonNull
     public Collection<CallSiteTag> getTags() {
         return tags !=null ? Collections.unmodifiableCollection(tags) : Collections.<CallSiteTag>emptySet();
     }

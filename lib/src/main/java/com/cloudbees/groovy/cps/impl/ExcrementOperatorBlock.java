@@ -88,7 +88,7 @@ public class ExcrementOperatorBlock extends CallSiteBlockSupport {
         /**
          * The result of the evaluation of the entire result depends on whether this is prefix or postfix
          */
-        public Next done(Object _) {
+        public Next done(Object unused) {
             return k.receive(prefix?after:before);
         }
     }

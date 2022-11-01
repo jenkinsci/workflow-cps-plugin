@@ -34,7 +34,7 @@ public class WhileBlock implements Block {
             this.loopEnd = loopEnd;
         }
 
-        public Next loopHead(Object _) {
+        public Next loopHead(Object unused) {
             return then(cond, e, loopCond);
         }
 

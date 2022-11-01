@@ -35,7 +35,7 @@ public class ThrowBlock implements Block {
         this.fillStackTrace = fillStackTrace;
     }
 
-    public Next eval(final Env e, Continuation _) {
+    public Next eval(final Env e, Continuation unused) {
         return new Next(exp,e,new Continuation() {
             public Next receive(Object t) {
                 if (t==null) {
