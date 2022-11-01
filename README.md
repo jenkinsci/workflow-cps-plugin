@@ -2,7 +2,7 @@
 
 ## Introduction
 
-A key component of the Pipeline plugin suite, this provides the standard execution engine for Pipeline steps, based on a custom [Groovy](http://www.groovy-lang.org/) interpreter that runs inside the Jenkins controller process.
+A key component of the Pipeline plugin suite, this provides the standard execution engine for Pipeline steps, based on a custom [Groovy](https://www.groovy-lang.org/) interpreter that runs inside the Jenkins controller process.
 
 (In principle other execution engines could be supported, with `FlowDefinition` being the API entry point, but none has been prototyped and it would likely be a very substantial effort to write one.)
 
