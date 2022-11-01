@@ -42,8 +42,11 @@
         <changelist>999999-SNAPSHOT</changelist>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
         <jenkins.version>2.346.3</jenkins.version>
+        <groovy.version>2.4.21</groovy.version>
     </properties>
     <modules>
+        <module>dgm-builder</module>
+        <module>lib</module>
         <module>plugin</module>
     </modules>
 </project>
