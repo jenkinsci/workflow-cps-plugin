@@ -75,7 +75,7 @@
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-2.346.x</artifactId>
-                <version>1607.va_c1576527071</version>
+                <version>1654.vcb_69d035fa_20</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -85,12 +85,10 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
-            <version>639.v6eca_cd8c04a_a_</version> <!-- TODO until in BOM -->
         </dependency>
         <dependency>
             <groupId>io.jenkins.plugins</groupId>
             <artifactId>ionicons-api</artifactId>
-            <version>19.v744f3b_2b_b_e4e</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -107,7 +105,6 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1184.v85d16b_d851b_3</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
