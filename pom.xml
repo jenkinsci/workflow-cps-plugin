@@ -28,7 +28,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.48</version>
+        <version>4.49</version>
         <relativePath />
     </parent>
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -69,6 +69,7 @@
         <groovy-cps.version>1.34</groovy-cps.version>
         <node.version>16.17.0</node.version>
         <npm.version>8.18.0</npm.version>
+        <yarn.version>1.22.19</yarn.version>
     </properties>
     <dependencyManagement>
         <dependencies>
