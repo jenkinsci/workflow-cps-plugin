@@ -25,7 +25,7 @@
     "babel-loader": "^9.0.1",
     "clean-webpack-plugin": "^4.0.0",
     "css-loader": "^5.0.0",
-    "eslint": "^7.12.1",
+    "eslint": "^8.26.0",
     "eslint-plugin-only-warn": "^1.0.3",
     "less": "^3.12.2",
     "less-loader": "^7.0.2",
