@@ -8,6 +8,7 @@ import hudson.slaves.DumbSlave;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -24,6 +25,9 @@ import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.ClassRule;
@@ -253,4 +257,78 @@ public class CpsBodyExecutionTest {
         });
     }
 
+    /**
+     * When an exception is thrown in {@link BodyExecutionCallback#onStart(StepContext)}, we must ensure that we clean
+     * up after ourselves and not leave a zombie work unit runing on an executor.
+     * @throws Exception
+     */
+    @Test
+    public void unhandledAssertionsShouldNotCreateZombieExecutions() throws Exception {
+        rr.then(r -> {
+            r.jenkins.setNumExecutors(1);
+            WorkflowJob job = r.createProject(WorkflowJob.class);
+            job.setDefinition(new CpsFlowDefinition("node('master') { withStartFailure { echo 'oh dear' } }"));
+            r.buildAndAssertStatus(Result.FAILURE, job);
+            assertThat(r.jenkins.getComputers()[0].getExecutors().get(0).getCurrentWorkUnit(), nullValue());
+        });
+    }
+
+    public static class WithStartFailureStep extends Step {
+
+        @DataBoundConstructor
+        public WithStartFailureStep() {}
+
+        @TestExtension("unhandledAssertionsShouldNotCreateZombieExecutions")
+        public static class DescriptorImpl extends StepDescriptor {
+            @Override
+            public String getFunctionName() {
+                return "withStartFailure";
+            }
+
+            @Override
+            public Set<? extends Class<?>> getRequiredContext() {
+                return Collections.emptySet();
+            }
+
+            @Override
+            public boolean takesImplicitBlockArgument() {
+                return true;
+            }
+        }
+
+        @Override
+        public StepExecution start(StepContext context) throws Exception {
+            return new WithStartFailureStepExecution(context);
+        }
+
+        static class WithStartFailureStepExecution extends AbstractStepExecutionImpl {
+
+            WithStartFailureStepExecution(final StepContext context) {
+                super(context);
+            }
+
+            @Override
+            public boolean start() throws Exception {
+                getContext().newBodyInvoker().withCallback(new WithStartFailureStepCallback()).start();
+                return false;
+            }
+
+            static class WithStartFailureStepCallback extends BodyExecutionCallback {
+                @Override
+                public void onStart(StepContext context) {
+                    throw new RuntimeException("onStart broken");
+                }
+
+                @Override
+                public void onSuccess(StepContext context, Object result) {
+                    context.onSuccess(result);
+                }
+
+                @Override
+                public void onFailure(StepContext context, Throwable t) {
+                    context.onFailure(t);
+                }
+            }
+        }
+    }
 }
