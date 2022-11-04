@@ -1201,6 +1201,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     @Override
     public FlowNode getNode(String id) throws IOException {
+        if (storage == null) {
+            throw new IOException("storage not yet loaded");
+        }
         return storage.getNode(id);
     }
 
@@ -1212,11 +1215,19 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         return result;
     }
 
+    @Override
     public List<Action> loadActions(FlowNode node) throws IOException {
+        if (storage == null) {
+            throw new IOException("storage not yet loaded");
+        }
         return storage.loadActions(node);
     }
 
+    @Override
     public void saveActions(FlowNode node, List<Action> actions) throws IOException {
+        if (storage == null) {
+            throw new IOException("storage not yet loaded");
+        }
         storage.saveActions(node, actions);
     }
 
@@ -1263,8 +1274,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
         // shrink everything into a single new head
         try {
-            if (heads != null) {
-                FlowHead first = getFirstHead();
+            FlowHead first = getFirstHead();
+            if (first != null) {
                 first.setNewHead(head);
                 done = true;  // After setting the final head
                 heads.clear();
@@ -1491,9 +1502,15 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    synchronized FlowHead getFirstHead() {
-        assert !heads.isEmpty();
-        return heads.firstEntry().getValue();
+    synchronized @CheckForNull FlowHead getFirstHead() {
+        if (heads == null) {
+            return null;
+        }
+        Entry<Integer, FlowHead> firstEntry = heads.firstEntry();
+        if (firstEntry == null) {
+            return null;
+        }
+        return firstEntry.getValue();
     }
 
     List<GraphListener> getListenersToRun() {
