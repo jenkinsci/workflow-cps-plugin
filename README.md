@@ -50,7 +50,7 @@ This plugin was previously the "Workflow CPS plugin" or "Workflow Groovy Plugin"
 
 ## Technical design
 
-The plugin uses the [Groovy CPS library](https://github.com/cloudbees/groovy-cps/) to implement a [continuation-passing style transformation](https://en.wikipedia.org/wiki/Continuation-passing_style) on the program as it is compiled.
+The plugin uses the Groovy CPS library to implement a [continuation-passing style transformation](https://en.wikipedia.org/wiki/Continuation-passing_style) on the program as it is compiled.
 The standard Groovy compiler is used to create the AST, but generation of bytecode is intercepted by a `CompilationCustomizer` which replaces most operations with variants that throw a special “error”, `CpsCallableInvocation`.
 This is then caught by the engine, which uses information from it (such as arguments about to be passed to a method call) to pass control on to the next continuation.
 
@@ -73,3 +73,8 @@ The `parallel` step uses “green threads” (also known as coöperative multita
 The program may seem to perform tasks concurrently, but only because most steps run asynchronously, while the VM thread is idle, and they may overlap in time.
 No Java thread is consumed except during the typically brief intervals when Groovy code is actually being run on the VM thread.
 The executor widget only displays an entry for the “flyweight” executor on the built-in node when the VM thread is busy; normally it is hidden.
+
+* [Basics of CPS](doc/cps-basics.md)
+* [Continuation, Next, and Env](doc/cps-model.md) and how we interpret Groovy program
+* [How interpreted program is represented](doc/block-tree.md)
+* [CPS + Sandbox](doc/sandbox.md)
