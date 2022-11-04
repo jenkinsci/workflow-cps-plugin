@@ -25,7 +25,6 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.testRelease>11</maven.compiler.testRelease>
         <maven.deploy.skip>true</maven.deploy.skip>
-        <maven.install.skip>true</maven.install.skip>
     </properties>
 
     <build>
@@ -85,4 +84,18 @@
         </dependency>
     </dependencies>
 
+    <profiles>
+        <profile>
+            <id>skip-installation</id>
+            <activation>
+                <property>
+                    <name>set.changelist</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <properties>
+                <maven.install.skip>true</maven.install.skip>
+            </properties>
+        </profile>
+    </profiles>
 </project>
