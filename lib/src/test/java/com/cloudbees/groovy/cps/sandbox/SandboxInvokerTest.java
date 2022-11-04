@@ -671,4 +671,19 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
                 "LinkedHashMap.asBoolean()");
     }
 
+    @Test public void dynamicMethodPointer() throws Throwable {
+        assertIntercept(
+                "def method3() {\n" +
+                "    true\n" +
+                "}\n" +
+                "def mp = this.&/method${1 + 2}/\n" +
+                "mp()",
+                true,
+                "Script1.super(Script1).setBinding(Binding)",
+                "Integer.plus(Integer)",
+                "new GStringImpl(Object[],String[])",
+                "SandboxedMethodClosure.call()",
+                "Script1.method3()");
+    }
+
 }
