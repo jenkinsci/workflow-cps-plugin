@@ -10,5 +10,5 @@ public interface DepthTrackingEnv extends Env {
     int MAX_LEGAL_DEPTH = 1024;
 
     /** Return how deep this environment is within nested closure/function calls. */
-    public int getDepth();
+    int getDepth();
 }

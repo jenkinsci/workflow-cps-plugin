@@ -19,7 +19,7 @@ public interface Continuation extends Serializable {
     /**
      * Indicates the end of a program.
      */
-    final static Continuation HALT = new Halt();
+    Continuation HALT = new Halt();
 
     /**
      * Singleton implementation that maintains the singleton-ness across serialization
