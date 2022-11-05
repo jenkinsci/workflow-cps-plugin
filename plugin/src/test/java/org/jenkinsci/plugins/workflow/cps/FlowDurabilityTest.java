@@ -301,7 +301,7 @@ public class FlowDurabilityTest {
             if (TimeUnit.SECONDS.convert(currentTime-nanoStartTime, TimeUnit.NANOSECONDS) > 10) {
                 StringBuilder builder = new StringBuilder();
                 builder.append("Run result: "+run.getResult());
-                builder.append(" and execution != null:"+run.getExecution() != null+" ");
+                builder.append(" and execution != null:"+(run.getExecution() != null));
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
                     CpsFlowExecution cpsFlow = (CpsFlowExecution)exec;
