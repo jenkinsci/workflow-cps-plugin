@@ -676,10 +676,7 @@ public class ParallelStepTest extends SingleJobTestBase {
                     String.format("Scheduling project: %s", downstreamJob.getName()), run);
             story.j.waitForMessage(
                     String.format("Starting building: %s", downstreamJob.getName()), run);
-            List<FreeStyleBuild> downstreamBuilds = new ArrayList<>();
-            for (FreeStyleBuild downstreamBuild : downstreamJob.getBuilds()) {
-                downstreamBuilds.add(downstreamBuild);
-            }
+            List<FreeStyleBuild> downstreamBuilds = new ArrayList<>(downstreamJob.getBuilds());
             assertEquals(1, downstreamBuilds.size());
             story.j.waitForCompletion(downstreamBuilds.get(0));
             if (!downstreamResult.equals(Result.SUCCESS)) {
