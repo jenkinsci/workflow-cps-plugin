@@ -54,7 +54,7 @@ public class ThrowBlock implements Block {
                           this section contains the actual stack trace where 'throwable' was created
                      */
 
-                    List<StackTraceElement> stack = new ArrayList<StackTraceElement>();
+                    List<StackTraceElement> stack = new ArrayList<>();
 
                     stack.add((loc!=null ? loc : UNKNOWN).toStackTrace());
                     e.buildStackTraceElements(stack,Integer.MAX_VALUE);

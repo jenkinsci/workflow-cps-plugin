@@ -199,7 +199,7 @@ public class Continuable implements Serializable {
      * If this object represents a yet-started program, an empty list will be returned.
      */
     public List<StackTraceElement> getStackTrace() {
-        List<StackTraceElement> r = new ArrayList<StackTraceElement>();
+        List<StackTraceElement> r = new ArrayList<>();
         if (e!=null)
             e.buildStackTraceElements(r,Integer.MAX_VALUE);
         return r;

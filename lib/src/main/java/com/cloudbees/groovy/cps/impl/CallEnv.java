@@ -73,7 +73,7 @@ import java.util.Map;
     /** Used when we are actually going to mutate the types info */
     protected Map<String,Class> getTypesForMutation() {
         if (types == null || types == Collections.EMPTY_MAP) {
-            this.types = new HashMap<String, Class>(2);
+            this.types = new HashMap<>(2);
         }
         return this.types;
     }

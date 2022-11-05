@@ -942,8 +942,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                     params = new ListExpression(Collections.<Expression>singletonList(new ConstantExpression("it")));
                 } else {
                     Parameter[] paramArray = exp.getParameters();
-                    List<Expression> typesList = new ArrayList<Expression>(paramArray.length);
-                    List<Expression> paramsList = new ArrayList<Expression>(paramArray.length);
+                    List<Expression> typesList = new ArrayList<>(paramArray.length);
+                    List<Expression> paramsList = new ArrayList<>(paramArray.length);
                     // Note: This code currently ignores initial expressions for closure parameters.
                     // Be careful that any refactoring either maintains the status quo, or transforms these
                     // initial expressions in such a way that they are correctly intercepted by the sandbox.

@@ -64,11 +64,11 @@ public class Caller {
     @SuppressWarnings({"unchecked", "rawtypes"}) // generic array creation
     static void record(Object receiver, String method, Object[] args) {
         Info c = store.get();
-        c.receiver = new WeakReference<Object>(receiver);
+        c.receiver = new WeakReference<>(receiver);
         c.method = method;
         c.args = new WeakReference[args.length];
         for (int i = 0; i < args.length; i++) {
-            c.args[i] = new WeakReference<Object>(args[i]);
+            c.args[i] = new WeakReference<>(args[i]);
         }
     }
 }
