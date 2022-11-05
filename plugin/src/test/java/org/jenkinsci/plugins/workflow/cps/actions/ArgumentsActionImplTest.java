@@ -484,7 +484,7 @@ public class ArgumentsActionImplTest {
         WorkflowRun run  = job.scheduleBuild2(0).getStartCondition().get();
         r.waitForCompletion(run);
         FlowExecution exec = run.getExecution();
-        String log = r.getLog(run);
+        String log = JenkinsRule.getLog(run);
         ForkScanner scanner = new ForkScanner();
         List<FlowNode> filtered = scanner.filteredNodes(exec, new DescriptorMatchPredicate(BindingStep.DescriptorImpl.class));
 
