@@ -227,12 +227,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         final AtomicReference<Expression> body = new AtomicReference<>();
 
         // transform the body
-        parent = new ParentClosure() {
-            @Override
-            public void call(Expression e) {
-                body.set(e);
-            }
-        };
+        parent = body::set;
         visitWithSafepoint(m.getCode());
 
         ListExpression params = new ListExpression();
@@ -442,12 +437,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         final List<Expression> argExps = new ArrayList<>();
         ParentClosure old = parent;
         try {
-            parent = new ParentClosure() {
-                @Override
-                public void call(Expression e) {
-                    argExps.add(e);
-                }
-            };
+            parent = argExps::add;
             body.run(); // evaluate arguments
             return new TupleExpression(argExps);
         } finally {

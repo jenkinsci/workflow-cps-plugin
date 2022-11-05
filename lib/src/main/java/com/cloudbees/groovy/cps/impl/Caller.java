@@ -14,12 +14,7 @@ public class Caller {
     /**
      * Caller information needs to be recorded per thread.
      */
-    private static final ThreadLocal<Info> store = new ThreadLocal<Info>() {
-        @Override
-        protected Info initialValue() {
-            return new Info();
-        }
-    };
+    private static final ThreadLocal<Info> store = ThreadLocal.withInitial(Info::new);
 
     /**
      * Checks if the method is called from asynchronous CPS transformed code.
