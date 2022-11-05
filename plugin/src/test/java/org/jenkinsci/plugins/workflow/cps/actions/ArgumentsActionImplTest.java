@@ -6,8 +6,6 @@ import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Collections2;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import hudson.EnvVars;
 import hudson.Functions;
@@ -83,6 +81,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+import java.util.stream.Stream;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.steps.StepExecutions;
@@ -143,7 +142,7 @@ public class ArgumentsActionImplTest {
 
             ArgumentsAction expectedInfoAction = f.getPersistentAction(ArgumentsAction.class);
             if (expectedInfoAction != null) {
-                Action deserializedInfoAction = Iterables.getFirst(Iterables.filter(Lists.newArrayList(deserializedActions), Predicates.instanceOf(ArgumentsAction.class)), null);
+                Action deserializedInfoAction = Stream.of(deserializedActions).filter(ArgumentsAction.class::isInstance).findFirst().orElse(null);
                 assertNotNull(deserializedInfoAction);
                 ArgumentsAction ArgumentsAction = (ArgumentsAction)deserializedInfoAction;
 
