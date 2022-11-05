@@ -376,7 +376,7 @@ public class Translator {
                         ).findAny();
                         if (callSite.isPresent()) {
                             ExecutableElement e = (ExecutableElement) callSite.get();
-                            if (e.getModifiers().contains(Modifier.PUBLIC) && !e.isVarArgs() && !e.getParameters().stream().anyMatch(p -> types.isAssignable(p.asType(), closureType))) {
+                            if (e.getModifiers().contains(Modifier.PUBLIC) && !e.isVarArgs() && e.getParameters().stream().noneMatch(p -> types.isAssignable(p.asType(), closureType))) {
                                 // Delegate to the standard version.
                                 inv = $b.invoke("staticCall")
                                     .arg(loc(mt))
