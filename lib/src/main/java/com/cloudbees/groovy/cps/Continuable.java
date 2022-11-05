@@ -1,11 +1,8 @@
 package com.cloudbees.groovy.cps;
 
-import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.SuspendBlock;
-import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
-import com.google.common.base.Function;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 
@@ -16,9 +13,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.cloudbees.groovy.cps.impl.SourceLocation.UNKNOWN;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import groovy.lang.Closure;
 import org.codehaus.groovy.runtime.GroovyCategorySupport;
 

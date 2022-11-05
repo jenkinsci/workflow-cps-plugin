@@ -2,7 +2,6 @@ package com.cloudbees.groovy.cps;
 
 import java.math.BigDecimal;
 import java.util.AbstractMap;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;

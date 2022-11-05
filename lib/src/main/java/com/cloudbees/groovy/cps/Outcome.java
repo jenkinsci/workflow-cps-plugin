@@ -1,13 +1,10 @@
 package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
-import com.cloudbees.groovy.cps.impl.SourceLocation;
 import com.cloudbees.groovy.cps.impl.ThrowBlock;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
-
-import static com.cloudbees.groovy.cps.impl.SourceLocation.UNKNOWN;
 
 /**
  * Result of an evaluation.
