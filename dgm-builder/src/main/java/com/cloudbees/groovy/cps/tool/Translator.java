@@ -71,7 +71,7 @@ import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementScanner7;
 import javax.lang.model.util.Elements;
-import javax.lang.model.util.SimpleTypeVisitor6;
+import javax.lang.model.util.SimpleTypeVisitor8;
 import javax.lang.model.util.Types;
 import javax.tools.JavaCompiler.CompilationTask;
 import java.io.BufferedReader;
@@ -767,7 +767,7 @@ public class Translator {
         if (m.getKind().isPrimitive())
             return JType.parse(codeModel,m.toString());
 
-        return m.accept(new SimpleTypeVisitor6<JType, Void>() {
+        return m.accept(new SimpleTypeVisitor8<JType, Void>() {
             @Override
             public JType visitPrimitive(PrimitiveType t, Void __) {
                 return primitive(t, t.getKind());
