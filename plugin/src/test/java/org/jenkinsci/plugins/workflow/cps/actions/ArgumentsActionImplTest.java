@@ -281,7 +281,7 @@ public class ArgumentsActionImplTest {
     @Test
     public void oversizedList() {
         ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.emptySet());
-        List unsanitized = Arrays.asList(generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength()));
+        List unsanitized = Collections.singletonList(generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength()));
         Object sanitized = impl.sanitizeListAndRecordMutation(unsanitized, null);
         Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, sanitized);
     }
@@ -529,7 +529,7 @@ public class ArgumentsActionImplTest {
         assertEquals(true, args.get("moderate"));
         Map<String, Object> stateArgs = (Map<String,Object>)args.get("state");
         assertTrue("Nested state Describable should only include a class argument or none at all",
-                stateArgs.size() <= 1 && Sets.difference(stateArgs.keySet(), new HashSet<>(Arrays.asList("$class"))).size() == 0);
+                stateArgs.size() <= 1 && Sets.difference(stateArgs.keySet(), new HashSet<>(Collections.singletonList("$class"))).size() == 0);
 
         // Same metastep but only one arg supplied, shouldn't auto-unwrap the internal step because can take 2 args
         job = r.createProject(WorkflowJob.class);

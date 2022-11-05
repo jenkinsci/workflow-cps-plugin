@@ -57,7 +57,7 @@ public class Driver {
             // Tree symbols created by the original JavacTask.parse() call to be thrown away,
             // which breaks later processing.
             // So for now, don't perform annotation processing
-            List<String> options = asList("-proc:none");
+            List<String> options = Collections.singletonList("-proc:none");
 
             Translator t = new Translator(javac.getTask(null, fileManager, errorListener, options, null, src));
 

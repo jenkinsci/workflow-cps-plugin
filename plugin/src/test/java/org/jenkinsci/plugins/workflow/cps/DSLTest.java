@@ -462,7 +462,7 @@ public class DSLTest {
         assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
         assertThat(stepWarning.getStepName(), is(shellStep));
-        assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+        assertThat(stepWarning.getInterpolatedVariables(), is(Collections.singletonList("PASSWORD")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
@@ -492,7 +492,7 @@ public class DSLTest {
         assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
         assertThat(stepWarning.getStepName(), is("archiveArtifacts"));
-        assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+        assertThat(stepWarning.getInterpolatedVariables(), is(Collections.singletonList("PASSWORD")));
     }
 
     @Test public void multipleSensitiveVariables() throws Exception {
@@ -549,7 +549,7 @@ public class DSLTest {
         assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
         assertThat(stepWarning.getStepName(), is("monomorphWithSymbolStep"));
-        assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+        assertThat(stepWarning.getInterpolatedVariables(), is(Collections.singletonList("PASSWORD")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("monomorphWithSymbolStep"));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
@@ -632,7 +632,7 @@ public class DSLTest {
         assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
         assertThat(stepWarning.getStepName(), is(shellStep));
-        assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+        assertThat(stepWarning.getInterpolatedVariables(), is(Collections.singletonList("PASSWORD")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
