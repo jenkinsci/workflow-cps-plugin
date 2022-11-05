@@ -160,9 +160,7 @@ public class Translator {
 
     private String mangledName(ExecutableElement e) {
         StringBuilder overloadResolved = new StringBuilder("$").append(n(e));
-        e.getParameters().forEach(ve -> {
-            overloadResolved.append("__").append(types.erasure(ve.asType()).toString().replace("[]", "_array").replaceAll("[^\\p{javaJavaIdentifierPart}]+", "_"));
-        });
+        e.getParameters().forEach(ve -> overloadResolved.append("__").append(types.erasure(ve.asType()).toString().replace("[]", "_array").replaceAll("[^\\p{javaJavaIdentifierPart}]+", "_")));
         return overloadResolved.toString();
     }
 
@@ -298,9 +296,7 @@ public class Translator {
         JInvocation f = JExpr._new($CpsFunction);
 
         // parameter names
-        f.arg(codeModel.ref(Arrays.class).staticInvoke("asList").tap( inv -> {
-            e.getParameters().forEach( p -> inv.arg(n(p)) );
-        }));
+        f.arg(codeModel.ref(Arrays.class).staticInvoke("asList").tap(inv -> e.getParameters().forEach(p -> inv.arg(n(p)) )));
 
         // translate the method body into an expression that invokes Builder
         f.arg(trees.getTree(e).getBody().accept(new SimpleTreeVisitor<JExpression,Void>() {
@@ -577,9 +573,7 @@ public class Translator {
             @Override
             public JExpression visitNewArray(NewArrayTree nt, Void __) {
                 if (nt.getInitializers()!=null) {
-                    return $b.invoke("newArrayFromInitializers").tap(inv -> {
-                        nt.getInitializers().forEach(d -> inv.arg(visit(d)));
-                    });
+                    return $b.invoke("newArrayFromInitializers").tap(inv -> nt.getInitializers().forEach(d -> inv.arg(visit(d))));
                 } else {
                     return $b.invoke("newArray").tap(inv -> {
                         inv.arg(loc(nt));
