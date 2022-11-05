@@ -113,7 +113,7 @@ public class ArgumentsActionImplTest {
         getFileM.setAccessible(true);
 
         List<FlowNode> nodes = new DepthFirstScanner().allNodes(execution.getCurrentHeads());
-        Collections.sort(nodes, FlowScanningUtils.ID_ORDER_COMPARATOR);
+        nodes.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
 
         Field nodeExecutionF = FlowNode.class.getDeclaredField("exec");
         nodeExecutionF.setAccessible(true);
