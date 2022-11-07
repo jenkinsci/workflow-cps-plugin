@@ -2,6 +2,7 @@ package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
+import com.cloudbees.groovy.cps.CpsTransformer;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 import java.io.Serializable;
@@ -20,7 +21,7 @@ import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
  * but with a {@code groovy-cps}-specific {@link SpreadList} marker class.
  *
  * <p>We use a marker class because we cannot easily mimic the way that Groovy normally handles {@link SpreadExpression}.
- * To do so, we would need modifications to {@link CpsTransformer} for list and argument list visitors akin to {@link AsmClassGenerator.despreadList},
+ * To do so, we would need modifications to {@link CpsTransformer} for list and argument list visitors akin to {@code AsmClassGenerator.despreadList},
  * a new implementation of {@link Block} that would fix those expressions and then call {@link ScriptBytecodeAdapter#despreadList},
  * and a variant of {@link FunctionCallBlock} that takes a single {@link Block} which is expected to evaluate to {@code Object[]}
  * (rather than a {@code Block[]}) so that the result of {@code despreadList} can be used directly as the arguments array
