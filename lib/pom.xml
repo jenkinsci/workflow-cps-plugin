@@ -60,7 +60,7 @@
   </build>
 
   <properties>
-      <groovy-sandbox.version>1.30</groovy-sandbox.version>
+      <groovy-sandbox.version>1.31</groovy-sandbox.version>
       <no-test-jar>false</no-test-jar>
   </properties>
   <dependencies>
