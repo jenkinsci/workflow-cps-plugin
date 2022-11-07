@@ -33,7 +33,7 @@
     </parent>
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
     <artifactId>workflow-cps</artifactId>
-    <version>${changelist}</version>
+    <version>2729.${changelist}</version>
     <packaging>hpi</packaging>
     <name>Pipeline: Groovy</name>
     <url>https://github.com/jenkinsci/workflow-cps-plugin</url>
