@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.codehaus.groovy.control.MultipleCompilationErrorsException;
+import org.codehaus.groovy.runtime.InvokerHelper;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -21,7 +22,6 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  *
@@ -325,19 +325,15 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
             "assert true : 'message'\n" +
             "return 3;\n");
 
-        try {
-            evalCPS("assert 1+2 == ((4));");
-            fail();
-        } catch (AssertionError e) {
-            assertThat(e.getMessage(), containsString("1+2 == ((4))"));
-        }
+        evalCps("assert 1+2 == ((4));", ShouldFail.class, t -> {
+            ec.checkThat(t, instanceOf(AssertionError.class));
+            ec.checkThat(t.getMessage(), containsString("1+2 == ((4))"));
+        });
 
-        try {
-            evalCPS("assert (1+2) == 4 : 'with message';");
-            fail();
-        } catch (AssertionError e) {
-            assertThat(e.getMessage(), containsString("with message. Expression: assert (1+2) == 4 : 'with message'"));
-        }
+        evalCps("assert (1+2) == 4 : 'with message';", ShouldFail.class, t -> {
+            ec.checkThat(t, instanceOf(AssertionError.class));
+            ec.checkThat(t.getMessage(), containsString("with message. Expression: assert (1+2) == 4 : 'with message'"));
+        });
     }
 
     @Test
@@ -867,14 +863,14 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
             "return b.size()\n");
 
         String s2 = IntStream.range(0, 251).boxed().map(Object::toString).collect(Collectors.joining(",\n"));
-        try {
-            assertEvaluate(251,
-                "def b = [" + s2 + "]\n" +
-                "return b.size()\n");
-        } catch (Exception e) {
-            assertThat(e, instanceOf(MultipleCompilationErrorsException.class));
-            assertThat(e.getMessage(), containsString("List expressions can only contain up to 250 elements"));
-        }
+        evalCps(
+            "def b = [" + s2 + "]\n" +
+            "return b.size()\n",
+            ShouldFail.class,
+            t -> {
+                assertThat(t, instanceOf(MultipleCompilationErrorsException.class));
+                assertThat(t.getMessage(), containsString("List expressions can only contain up to 250 elements"));
+            });
     }
 
     @Issue("JENKINS-47363")
@@ -885,14 +881,14 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
             "def b = [" + s1 + "]\n" +
             "return b.size()\n");
         String s2 = IntStream.range(0, 126).boxed().map(i -> i + ":" + i).collect(Collectors.joining(",\n"));
-        try {
-            assertEvaluate(126,
-                "def b = [" + s2 + "]\n" +
-                "return b.size()\n");
-        } catch (Exception e) {
-            assertThat(e, instanceOf(MultipleCompilationErrorsException.class));
-            assertThat(e.getMessage(), containsString("Map expressions can only contain up to 125 entries"));
-        }
+        evalCps(
+            "def b = [" + s2 + "]\n" +
+            "return b.size()\n",
+            ShouldFail.class,
+            t -> {
+                assertThat(t, instanceOf(MultipleCompilationErrorsException.class));
+                assertThat(t.getMessage(), containsString("Map expressions can only contain up to 125 entries"));
+            });
     }
 
     @Issue("JENKINS-49679")
@@ -916,56 +912,126 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void mapEntryInBadContext() throws Throwable {
-        try {
-            evalCPSonly("return [[a: 'a'], [b: 'b'][c: 'c']]");
-        } catch (Exception e) {
-            assertThat(e, instanceOf(MultipleCompilationErrorsException.class));
-            assertThat(e.getMessage(), containsString("Unsupported map entry expression for CPS transformation in this context"));
-        }
+        evalCps("return [[a: 'a'], [b: 'b'][c: 'c']]", ShouldFail.class, e -> {
+            ec.checkThat(e, instanceOf(MultipleCompilationErrorsException.class));
+            ec.checkThat(e.getMessage(), containsString("Unsupported map entry expression for CPS transformation in this context"));
+        });
     }
 
     @Test
     public void spreadMethodCall() throws Throwable {
-        try {
-            evalCPSonly("return ['a', 'b', 'c']*.hashCode()");
-        } catch (Exception e) {
-            assertThat(e, instanceOf(MultipleCompilationErrorsException.class));
-            assertThat(e.getMessage(), containsString("spread not yet supported for CPS transformation"));
-        }
+        evalCps("return ['a', 'b', 'c']*.hashCode()", ShouldFail.class, e -> {
+            ec.checkThat(e, instanceOf(MultipleCompilationErrorsException.class));
+            ec.checkThat(e.getMessage(), containsString("spread not yet supported for CPS transformation"));
+        });
     }
 
     @Test
     public void synchronizedStatement() throws Throwable {
-        try {
-            evalCPSonly("synchronized(this) { return 1 }");
-        } catch (Exception e) {
-            assertThat(e, instanceOf(MultipleCompilationErrorsException.class));
-            assertThat(e.getMessage(), containsString("synchronized is unsupported for CPS transformation"));
-        }
+        evalCps("synchronized(this) { return 1 }", ShouldFail.class, e -> {
+            ec.checkThat(e, instanceOf(MultipleCompilationErrorsException.class));
+            ec.checkThat(e.getMessage(), containsString("synchronized is unsupported for CPS transformation"));
+        });
     }
 
-    @Test
-    public void spreadExpression() throws Throwable {
-        try {
-            evalCPSonly(
-                "def x = [1, 2, 3]\n" +
+    @Issue("JENKINS-46163")
+    @Test public void spreadExpression() throws Throwable {
+        String[] declarations = new String[] {
+            "def", // ArrayList
+            "Object[]", // Object array
+            "int[]" // Primitive array
+        };
+        for (String decl : declarations) {
+            assertEvaluate(Arrays.asList(1, 2, 3, 4, 5),
+                decl + " x = [1, 2, 3]\n" +
                 "return [*x, 4, 5]\n");
-        } catch (Exception e) {
-            assertThat(e, instanceOf(MultipleCompilationErrorsException.class));
-            assertThat(e.getMessage(), containsString("spread not yet supported for CPS transformation"));
+            assertEvaluate(Arrays.asList(4, 1, 2, 3, 5),
+                decl + " x = [1, 2, 3]\n" +
+                "return [4, *x, 5]\n");
+            assertEvaluate(Arrays.asList(4, 5, 1, 2, 3),
+                decl + " x = [1, 2, 3]\n" +
+                "return [4, 5, *x]\n");
+            assertEvaluate(Arrays.asList(1, 2, 3),
+                decl + " x = [1, 2, 3]\n" +
+                "return [*x]\n");
+            assertEvaluate(Arrays.asList(1, 2, 3, 4, 5, 6, 7),
+                decl + " x = [2, 3]\n" +
+                decl + " y = [5, 6]\n" +
+                "return [1, *x, 4, *y, 7]\n");
         }
+        assertEvaluate(Collections.singletonList(null),
+                "def x = null\n" +
+                "return [*x]\n");
+        assertFailsWithSameException(
+                "def x = 1\n" +
+                "return *x\n"); // *x cannot exist outside of list literals and method call arguments.
     }
 
-    @Test
-    public void spreadMapExpression() throws Throwable {
-        try {
-            evalCPSonly(
-                "def x = [a: 1, b: 2, c: 3]\n" +
-                "return [*:x, d: 4, e: 5]\n");
-        } catch (Exception e) {
-            assertThat(e, instanceOf(MultipleCompilationErrorsException.class));
-            assertThat(e.getMessage(), containsString("spread map not yet supported for CPS transformation"));
+    @Issue("JENKINS-46163")
+    @Test public void spreadMethodCallArguments() throws Throwable {
+        String[] declarations = new String[] {
+            "def", // ArrayList
+            "Object[]", // Object array
+            "int[]" // Primitive array
+        };
+        for (String decl : declarations) {
+            assertEvaluate(Arrays.asList(1, 2, 3),
+                decl + " x = [1, 2, 3]\n" +
+                "def id(a, b, c) { [a, b, c] }\n" +
+                "return id(*x)\n");
+            assertEvaluate(Arrays.asList(1, 2, 3),
+                decl + " x = [2, 3]\n" +
+                "def id(a, b, c) { [a, b, c] }\n" +
+                "return id(1, *x)\n");
+            assertEvaluate(Arrays.asList(1, 2, 3),
+                decl + " x = [1, 2]\n" +
+                "def id(a, b, c) { [a, b, c] }\n" +
+                "return id(*x, 3)\n");
+            assertEvaluate(Arrays.asList(1, 2, 3),
+                decl + " x = [2]\n" +
+                "def id(a, b, c) { [a, b, c] }\n" +
+                "return id(1, *x, 3)\n");
         }
+        assertEvaluate(Arrays.asList(1, null, 3),
+                "def x = null\n" +
+                "def id(a, b, c) { [a, b, c] }\n" +
+                "return id(1, *x, 3)\n");
+    }
+
+    @Issue("JENKINS-46163")
+    @Test public void spreadMapExpression() throws Throwable {
+        assertEvaluate(InvokerHelper.createMap(new Object[] { "a", 1, "b", 2, "c", 3, "d", 4, "e", 5 }),
+            "def x = [a: 1, b: 2, c: 3]\n" +
+            "return [*:x, d: 4, e: 5]\n");
+        assertEvaluate(InvokerHelper.createMap(new Object[] { "d", 4, "a", 1, "b", 2, "c", 3, "e", 5 }),
+            "def x = [a: 1, b: 2, c: 3]\n" +
+            "return [d: 4, *:x, e: 5]\n");
+        assertEvaluate(InvokerHelper.createMap(new Object[] { "d", 4, "e", 5, "a", 1, "b", 2, "c", 3, "e", 5 }),
+            "def x = [a: 1, b: 2, c: 3]\n" +
+            "return [d: 4, e: 5, *:x]\n");
+        assertEvaluate(InvokerHelper.createMap(new Object[] { "a", 1, "b", 2, "c", -1 }),
+            "def x = [a: 1, b: 2, c: 3]\n" +
+            "return [c: 4, *:x, c: -1]\n"); // The final value for a key takes precedence.
+        assertEvaluate(InvokerHelper.createMap(new Object[] { "a", 1, "b", 2, "c", 3 }),
+            "def x = [a: 1, b: 2, c: 3]\n" +
+            "return [*:x]\n");
+        assertEvaluate(InvokerHelper.createMap(new Object[] { "a", 1, "b", 2, "c", 3, "d", 4, "e", 5, "f", 6, "g", 7 }),
+            "def x = [b: 2, c: 3]\n" +
+            "def y = [e: 5, f: 6]\n" +
+            "return [a: 1, *:x, d: 4, *:y, g: 7]\n");
+        // When used in method call arguments, *:map is the same as map, except for creating an instance of SpreadMap.
+        // IDK why Groovy even allows the spread syntax here.
+        assertEvaluate(Collections.singletonMap("a", 1),
+            "def x = [a: 1]\n" +
+            "def id(def m) { m }\n" +
+            "return id(*:x)\n");
+        assertFailsWithSameException(
+            "def x = [a: 1]\n" +
+            "def id(String a, int i) { [a, i] }\n" +
+            "return id(*:x)\n");
+        assertFailsWithSameException(
+            "def x = [a: 1]\n" +
+            "return *:x\n"); // *:x is syntactically invalid outside of map literals and method call arguments.
     }
 
     @Test
@@ -997,7 +1063,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     }
 
     @Test public void voidMethodsWithInitialExpressionsAreExpandedToCorrectOverloads() throws Throwable {
-        assertEquals(Arrays.asList("abc", "xbc", "xyc", "xyz"), evalCPS(
+        assertEvaluate(Arrays.asList("abc", "xbc", "xyc", "xyz"),
                 "import groovy.transform.Field\n" +
                 "@Field def r = []\n" +
                 "void m2(a = 'a', b = 'b', c = 'c') {\n" +
@@ -1007,8 +1073,8 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                 "m2('x')\n" +
                 "m2('x', 'y')\n" +
                 "m2('x', 'y', 'z')\n" +
-                "r"));
-        assertEquals(Arrays.asList("abc", "xbc", "xby"), evalCPS(
+                "r");
+        assertEvaluate(Arrays.asList("abc", "xbc", "xby"),
                 "import groovy.transform.Field\n" +
                 "@Field def r = []\n" +
                 "void m2(a = 'a', b, c = 'c') {\n" +
@@ -1017,18 +1083,15 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                 "m2('b')\n" +
                 "m2('x', 'b')\n" +
                 "m2('x', 'b', 'y')\n" +
-                "r"));
+                "r");
     }
 
     @Issue("JENKINS-57253")
     @Test public void illegalBreakStatement() throws Throwable {
         getBinding().setProperty("sentinel", 1);
-        try {
-            evalCPSonly("sentinel = 2; break;");
-            fail("Execution should fail");
-        } catch (Exception e) {
+        evalCps("sentinel = 2; break;", ShouldFail.class, e -> {
             assertThat(e.toString(), containsString("the break statement is only allowed inside loops or switches"));
-        }
+        });
         assertEquals("Script should fail during compilation", 1, getBinding().getProperty("sentinel"));
     }
 
@@ -1088,8 +1151,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                 "t as Boolean\n" +
                 "t.auditLog");
         // asBoolean CPS (has never worked, still does not work)
-        try {
-            evalCPS(
+        evalCps(
                 "class Test {\n" +
                 "  def auditLog = []\n" +
                 "  def asBoolean() {\n" +
@@ -1098,11 +1160,11 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                 "}\n" +
                 "def t = new Test()\n" +
                 "(Boolean)t\n" +
-                "t.auditLog");
-            fail("Should have thrown an exception");
-        } catch (Throwable t) {
-            assertEquals("java.lang.IllegalStateException: Test.asBoolean must be @NonCPS; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/", t.toString());
-        }
+                "t.auditLog",
+                ShouldFail.class,
+                t -> {
+                    ec.checkThat(t.toString(), equalTo("java.lang.IllegalStateException: Test.asBoolean must be @NonCPS; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/"));
+                });
         // asBoolean NonCPS (required)
         assertEvaluate(Collections.singletonList("asBoolean"),
                 "class Test {\n" +

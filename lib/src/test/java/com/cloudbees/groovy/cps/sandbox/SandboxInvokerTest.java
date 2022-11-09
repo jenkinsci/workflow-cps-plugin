@@ -31,9 +31,7 @@ import org.codehaus.groovy.control.MultipleCompilationErrorsException;
 import org.codehaus.groovy.runtime.ProxyGeneratorAdapter;
 import org.junit.Before;
 import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ErrorCollector;
 import org.jvnet.hudson.test.Issue;
 import org.kohsuke.groovy.sandbox.ClassRecorder;
 import org.kohsuke.groovy.sandbox.impl.GroovyCallSiteSelector;
@@ -43,12 +41,8 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 public class SandboxInvokerTest extends AbstractGroovyCpsTest {
-    @Rule
-    public ErrorCollector ec = new ErrorCollector();
-
     ClassRecorder cr = new ClassRecorder();
 
     @Override
@@ -60,24 +54,42 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
         CpsTransformer.iota.set(0);
     }
 
-    protected Object evalCpsSandbox(String script) throws Throwable {
-        FunctionCallEnv e = (FunctionCallEnv)Envs.empty();
-        e.setInvoker(new SandboxInvoker());
+    private void evalCpsSandbox(String expression, Object expectedResult, ExceptionHandler handler) {
+        FunctionCallEnv env = (FunctionCallEnv)Envs.empty();
+        env.setInvoker(new SandboxInvoker());
 
         cr.reset();
         cr.register();
         try {
-            return parseCps(script).invoke(e, null, Continuation.HALT).run().yield.replay();
+            Object actual = parseCps(expression).invoke(env, null, Continuation.HALT).run().yield.replay();
+            String actualType = GroovyCallSiteSelector.getName(actual);
+            String expectedType = GroovyCallSiteSelector.getName(expectedResult);
+            ec.checkThat("CPS and sandbox-transformed result (" + actualType + ") does not match expected result (" + expectedType + ")", actual, equalTo(expectedResult));
+        } catch (Throwable t) {
+            ec.checkSucceeds(() -> {
+                try {
+                    handler.handleException(t);
+                } catch (Throwable t2) {
+                    t2.addSuppressed(t); // Keep the original error around in case an assertion fails in the handler.
+                    throw t2;
+                }
+                return null;
+            });
         } finally {
             cr.unregister();
         }
     }
 
+    @Override
+    public void assertEvaluate(Object expectedReturnValue, String script) {
+        evalCpsSandbox(script, expectedReturnValue, e -> {
+            throw new RuntimeException("Failed to evaluate CPS and sandboxed-transformed script: " + script, e);
+        });
+        // TODO: Refactor things so we can check evalCps as well.
+    }
+
     public void assertIntercept(String script, Object expectedResult, String... expectedInterceptions) throws Throwable {
-        Object actualResult = evalCpsSandbox(script);
-        String actualCpsType = GroovyCallSiteSelector.getName(actualResult);
-        String expectedType = GroovyCallSiteSelector.getName(expectedResult);
-        ec.checkThat("CPS and sandbox-transformed result (" + actualCpsType + ") does not match expected result (" + expectedType + ")", actualResult, equalTo(expectedResult));
+        assertEvaluate(expectedResult, script);
         ec.checkThat(cr.toString().split("\n"), equalTo(expectedInterceptions));
     }
 
@@ -440,7 +452,7 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
             "ArrayList[Integer]",
             "ArrayList[Integer]",
             "String.plus(String)",
-            "String.plus(String)", 
+            "String.plus(String)",
             "String.plus(String)");
     }
 
@@ -509,29 +521,27 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
     @Issue("SECURITY-1186")
     @Test
     public void finalizerForbidden() throws Throwable {
-        try {
-            evalCpsSandbox("class Test { @Override public void finalize() { } }; null");
-            fail("Finalizers should be rejected");
-        } catch (MultipleCompilationErrorsException e) {
+        evalCpsSandbox("class Test { @Override public void finalize() { } }; null", ShouldFail.class, t -> {
+            assertThat(t, instanceOf(MultipleCompilationErrorsException.class));
+            MultipleCompilationErrorsException e = (MultipleCompilationErrorsException) t;
             assertThat(e.getErrorCollector().getErrorCount(), equalTo(1));
             Exception innerE = e.getErrorCollector().getException(0);
             assertThat(innerE, instanceOf(SecurityException.class));
             assertThat(innerE.getMessage(), containsString("Object.finalize()"));
-        }
+        });
     }
 
     @Issue("SECURITY-1186")
     @Test
     public void nonCpsfinalizerForbidden() throws Throwable {
-        try {
-            evalCpsSandbox("class Test { @Override @NonCPS public void finalize() { } }; null");
-            fail("Finalizers should be rejected");
-        } catch (MultipleCompilationErrorsException e) {
+        evalCpsSandbox("class Test { @Override @NonCPS public void finalize() { } }; null", ShouldFail.class, t -> {
+            assertThat(t, instanceOf(MultipleCompilationErrorsException.class));
+            MultipleCompilationErrorsException e = (MultipleCompilationErrorsException) t;
             assertThat(e.getErrorCollector().getErrorCount(), equalTo(1));
             Exception innerE = e.getErrorCollector().getException(0);
             assertThat(innerE, instanceOf(SecurityException.class));
             assertThat(innerE.getMessage(), containsString("Object.finalize()"));
-        }
+        });
     }
 
     @Issue("SECURITY-1710")
@@ -587,15 +597,14 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
         // Regular Groovy casts the rhs of array assignments to match the component type of the array, but the
         // sandbox does not do this (with or without the CPS transformation). Ideally the sandbox would have the same
         // behavior as regular Groovy, but the current behavior is safe, which is good enough.
-        try {
-            evalCpsSandbox(
-                "File[] files = [null]\n" +
-                "files[0] = ['secret.key']\n " +
-                "files[0]");
-            fail("The sandbox must intercept unsafe array element assignments");
-        } catch (Throwable t) {
-            assertEquals("java.lang.ArrayStoreException: java.util.ArrayList", t.toString());
-        }
+        evalCpsSandbox(
+            "File[] files = [null]\n" +
+            "files[0] = ['secret.key']\n " +
+            "files[0]",
+            ShouldFail.class,
+            t -> {
+                assertEquals("java.lang.ArrayStoreException: java.util.ArrayList", t.toString());
+            });
     }
 
     @Issue("SECURITY-2824")
