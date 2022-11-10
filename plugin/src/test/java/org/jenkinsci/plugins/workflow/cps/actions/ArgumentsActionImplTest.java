@@ -6,8 +6,6 @@ import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Collections2;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import hudson.EnvVars;
 import hudson.Functions;
@@ -83,6 +81,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+import java.util.stream.Stream;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.steps.StepExecutions;
@@ -113,7 +112,7 @@ public class ArgumentsActionImplTest {
         getFileM.setAccessible(true);
 
         List<FlowNode> nodes = new DepthFirstScanner().allNodes(execution.getCurrentHeads());
-        Collections.sort(nodes, FlowScanningUtils.ID_ORDER_COMPARATOR);
+        nodes.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
 
         Field nodeExecutionF = FlowNode.class.getDeclaredField("exec");
         nodeExecutionF.setAccessible(true);
@@ -143,7 +142,7 @@ public class ArgumentsActionImplTest {
 
             ArgumentsAction expectedInfoAction = f.getPersistentAction(ArgumentsAction.class);
             if (expectedInfoAction != null) {
-                Action deserializedInfoAction = Iterables.getFirst(Iterables.filter(Lists.newArrayList(deserializedActions), Predicates.instanceOf(ArgumentsAction.class)), null);
+                Action deserializedInfoAction = Stream.of(deserializedActions).filter(ArgumentsAction.class::isInstance).findFirst().orElse(null);
                 assertNotNull(deserializedInfoAction);
                 ArgumentsAction ArgumentsAction = (ArgumentsAction)deserializedInfoAction;
 
@@ -282,7 +281,7 @@ public class ArgumentsActionImplTest {
     @Test
     public void oversizedList() {
         ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.emptySet());
-        List unsanitized = Arrays.asList(generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength()));
+        List unsanitized = Collections.singletonList(generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength()));
         Object sanitized = impl.sanitizeListAndRecordMutation(unsanitized, null);
         Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, sanitized);
     }
@@ -485,7 +484,7 @@ public class ArgumentsActionImplTest {
         WorkflowRun run  = job.scheduleBuild2(0).getStartCondition().get();
         r.waitForCompletion(run);
         FlowExecution exec = run.getExecution();
-        String log = r.getLog(run);
+        String log = JenkinsRule.getLog(run);
         ForkScanner scanner = new ForkScanner();
         List<FlowNode> filtered = scanner.filteredNodes(exec, new DescriptorMatchPredicate(BindingStep.DescriptorImpl.class));
 
@@ -530,7 +529,7 @@ public class ArgumentsActionImplTest {
         assertEquals(true, args.get("moderate"));
         Map<String, Object> stateArgs = (Map<String,Object>)args.get("state");
         assertTrue("Nested state Describable should only include a class argument or none at all",
-                stateArgs.size() <= 1 && Sets.difference(stateArgs.keySet(), new HashSet<>(Arrays.asList("$class"))).size() == 0);
+                stateArgs.size() <= 1 && Sets.difference(stateArgs.keySet(), new HashSet<>(Collections.singletonList("$class"))).size() == 0);
 
         // Same metastep but only one arg supplied, shouldn't auto-unwrap the internal step because can take 2 args
         job = r.createProject(WorkflowJob.class);

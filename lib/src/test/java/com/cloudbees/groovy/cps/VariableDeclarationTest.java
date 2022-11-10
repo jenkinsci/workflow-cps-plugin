@@ -4,6 +4,7 @@ package com.cloudbees.groovy.cps;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import java.lang.reflect.InvocationTargetException;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import org.junit.Test;
 
 /**
@@ -41,7 +42,7 @@ public class VariableDeclarationTest {
 		assertEquals(0L, lv);
 		
 		Object ov = createVariable(Object.class);
-		assertEquals(null, ov);
+		assertNull(ov);
 		
 		float fv = createVariable(float.class); 
 		assertEquals(0.0f, fv, 0.0);

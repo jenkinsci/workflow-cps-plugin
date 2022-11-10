@@ -145,7 +145,7 @@ abstract class ContinuationGroup implements Serializable {
 
         List<StackTraceElement> orig = Arrays.asList(ts);
         int pos = ts.length-rs.length;
-        List<StackTraceElement> stack = new ArrayList<StackTraceElement>(orig.subList(0,pos));
+        List<StackTraceElement> stack = new ArrayList<>(orig.subList(0,pos));
 
         stack.add((loc!=null ? loc : UNKNOWN).toStackTrace());
         e.buildStackTraceElements(stack,Integer.MAX_VALUE);

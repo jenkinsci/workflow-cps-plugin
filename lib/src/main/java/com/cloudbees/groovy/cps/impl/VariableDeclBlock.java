@@ -28,7 +28,7 @@ public class VariableDeclBlock implements Block {
 
     private static final long serialVersionUID = 1L;
 
-    private static final Map<Class,Object> defaultPrimitiveValue = new HashMap<Class, Object>();
+    private static final Map<Class,Object> defaultPrimitiveValue = new HashMap<>();
     static {
         defaultPrimitiveValue.put(boolean.class,false);
         defaultPrimitiveValue.put(int.class,0);

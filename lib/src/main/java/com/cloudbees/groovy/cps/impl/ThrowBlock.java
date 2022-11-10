@@ -7,7 +7,6 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import static com.cloudbees.groovy.cps.impl.SourceLocation.*;
@@ -54,7 +53,7 @@ public class ThrowBlock implements Block {
                           this section contains the actual stack trace where 'throwable' was created
                      */
 
-                    List<StackTraceElement> stack = new ArrayList<StackTraceElement>();
+                    List<StackTraceElement> stack = new ArrayList<>();
 
                     stack.add((loc!=null ? loc : UNKNOWN).toStackTrace());
                     e.buildStackTraceElements(stack,Integer.MAX_VALUE);

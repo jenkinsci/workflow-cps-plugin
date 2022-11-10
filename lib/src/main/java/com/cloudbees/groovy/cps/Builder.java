@@ -79,7 +79,7 @@ public class Builder {
     private Collection<CallSiteTag> combine(Collection<CallSiteTag> a, Collection<CallSiteTag> b) {
         if (a.isEmpty())    return b;
         if (b.isEmpty())    return a;
-        Collection<CallSiteTag> all = new ArrayList<CallSiteTag>(a);
+        Collection<CallSiteTag> all = new ArrayList<>(a);
         all.addAll(b);
         return all;
     }

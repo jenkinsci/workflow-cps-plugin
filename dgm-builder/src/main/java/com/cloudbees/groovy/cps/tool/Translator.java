@@ -71,7 +71,7 @@ import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementScanner7;
 import javax.lang.model.util.Elements;
-import javax.lang.model.util.SimpleTypeVisitor6;
+import javax.lang.model.util.SimpleTypeVisitor8;
 import javax.lang.model.util.Types;
 import javax.tools.JavaCompiler.CompilationTask;
 import java.io.BufferedReader;
@@ -160,9 +160,7 @@ public class Translator {
 
     private String mangledName(ExecutableElement e) {
         StringBuilder overloadResolved = new StringBuilder("$").append(n(e));
-        e.getParameters().forEach(ve -> {
-            overloadResolved.append("__").append(types.erasure(ve.asType()).toString().replace("[]", "_array").replaceAll("[^\\p{javaJavaIdentifierPart}]+", "_"));
-        });
+        e.getParameters().forEach(ve -> overloadResolved.append("__").append(types.erasure(ve.asType()).toString().replace("[]", "_array").replaceAll("[^\\p{javaJavaIdentifierPart}]+", "_")));
         return overloadResolved.toString();
     }
 
@@ -291,16 +289,14 @@ public class Translator {
         } else {
             delegating.body()._return(delegateCall);
         }
-        delegatingParams.forEach(p -> delegateCall.arg(p));
+        delegatingParams.forEach(delegateCall::arg);
 
         JVar $b = m.body().decl($Builder, "b", JExpr._new($Builder).arg(JExpr.invoke("loc").arg(methodName)).
             invoke("contextualize").arg(codeModel.ref("com.cloudbees.groovy.cps.sandbox.Trusted").staticRef("INSTANCE")));
         JInvocation f = JExpr._new($CpsFunction);
 
         // parameter names
-        f.arg(codeModel.ref(Arrays.class).staticInvoke("asList").tap( inv -> {
-            e.getParameters().forEach( p -> inv.arg(n(p)) );
-        }));
+        f.arg(codeModel.ref(Arrays.class).staticInvoke("asList").tap(inv -> e.getParameters().forEach(p -> inv.arg(n(p)) )));
 
         // translate the method body into an expression that invokes Builder
         f.arg(trees.getTree(e).getBody().accept(new SimpleTreeVisitor<JExpression,Void>() {
@@ -380,7 +376,7 @@ public class Translator {
                         ).findAny();
                         if (callSite.isPresent()) {
                             ExecutableElement e = (ExecutableElement) callSite.get();
-                            if (e.getModifiers().contains(Modifier.PUBLIC) && !e.isVarArgs() && !e.getParameters().stream().anyMatch(p -> types.isAssignable(p.asType(), closureType))) {
+                            if (e.getModifiers().contains(Modifier.PUBLIC) && !e.isVarArgs() && e.getParameters().stream().noneMatch(p -> types.isAssignable(p.asType(), closureType))) {
                                 // Delegate to the standard version.
                                 inv = $b.invoke("staticCall")
                                     .arg(loc(mt))
@@ -577,9 +573,7 @@ public class Translator {
             @Override
             public JExpression visitNewArray(NewArrayTree nt, Void __) {
                 if (nt.getInitializers()!=null) {
-                    return $b.invoke("newArrayFromInitializers").tap(inv -> {
-                        nt.getInitializers().forEach(d -> inv.arg(visit(d)));
-                    });
+                    return $b.invoke("newArrayFromInitializers").tap(inv -> nt.getInitializers().forEach(d -> inv.arg(visit(d))));
                 } else {
                     return $b.invoke("newArray").tap(inv -> {
                         inv.arg(loc(nt));
@@ -767,7 +761,7 @@ public class Translator {
         if (m.getKind().isPrimitive())
             return JType.parse(codeModel,m.toString());
 
-        return m.accept(new SimpleTypeVisitor6<JType, Void>() {
+        return m.accept(new SimpleTypeVisitor8<JType, Void>() {
             @Override
             public JType visitPrimitive(PrimitiveType t, Void __) {
                 return primitive(t, t.getKind());

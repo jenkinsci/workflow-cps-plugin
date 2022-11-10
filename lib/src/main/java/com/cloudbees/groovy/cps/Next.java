@@ -61,7 +61,7 @@ public final class Next implements Serializable, Continuation {
             @Override
             public Outcome call() {
                 int remaining = max;
-                List<String> functions = new ArrayList<String>();
+                List<String> functions = new ArrayList<>();
                 Next n = Next.this;
                 while(n.yield==null) {
                     functions.add(n.f.getClass().getCanonicalName());

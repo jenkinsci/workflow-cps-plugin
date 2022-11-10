@@ -14,12 +14,7 @@ public class Caller {
     /**
      * Caller information needs to be recorded per thread.
      */
-    private static final ThreadLocal<Info> store = new ThreadLocal<Info>() {
-        @Override
-        protected Info initialValue() {
-            return new Info();
-        }
-    };
+    private static final ThreadLocal<Info> store = ThreadLocal.withInitial(Info::new);
 
     /**
      * Checks if the method is called from asynchronous CPS transformed code.
@@ -64,11 +59,11 @@ public class Caller {
     @SuppressWarnings({"unchecked", "rawtypes"}) // generic array creation
     static void record(Object receiver, String method, Object[] args) {
         Info c = store.get();
-        c.receiver = new WeakReference<Object>(receiver);
+        c.receiver = new WeakReference<>(receiver);
         c.method = method;
         c.args = new WeakReference[args.length];
         for (int i = 0; i < args.length; i++) {
-            c.args[i] = new WeakReference<Object>(args[i]);
+            c.args[i] = new WeakReference<>(args[i]);
         }
     }
 }

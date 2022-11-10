@@ -126,7 +126,7 @@ public class FunctionCallBlock extends CallSiteBlockSupport {
      * Insert the logical CPS stack trace in front of the actual stack trace.
      */
     private void fillInStackTrace(Env e, Throwable t) {
-        List<StackTraceElement> stack = new ArrayList<StackTraceElement>();
+        List<StackTraceElement> stack = new ArrayList<>();
         stack.add((loc!=null ? loc : UNKNOWN).toStackTrace());
         e.buildStackTraceElements(stack,Integer.MAX_VALUE);
         stack.add(Continuable.SEPARATOR_STACK_ELEMENT);

@@ -15,7 +15,7 @@ import java.util.List;
  */
 public class TransformerConfiguration {
     private ClassNode closureType = new ClassNode(CpsClosure.class);
-    private List<Safepoint> safepoints = new ArrayList<Safepoint>();
+    private List<Safepoint> safepoints = new ArrayList<>();
 
     public ClassNode getClosureType() {
         return closureType;

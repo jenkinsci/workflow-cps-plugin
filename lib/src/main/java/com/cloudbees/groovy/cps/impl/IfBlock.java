@@ -33,9 +33,7 @@ public class IfBlock implements Block {
         }
 
         public Next jump(Object cond) {
-            return castToBoolean(cond, e, b -> {
-                return then(b ? then : els, e, k);
-            });
+            return castToBoolean(cond, e, b -> then(b ? then : els, e, k));
         }
 
         private static final long serialVersionUID = 1L;

@@ -38,12 +38,12 @@ public class BlockScopeEnv extends ProxyEnv {
 
     public void declareVariable(Class type, String name) {
         if (locals == Collections.EMPTY_MAP) {
-            this.locals = new HashMap<String, Object>(2);
+            this.locals = new HashMap<>(2);
         }
         locals.put(name, null);
 
         if (types == null || types == Collections.EMPTY_MAP) {
-            types = new HashMap<String, Class>(2);
+            types = new HashMap<>(2);
         }
         types.put(name, type);
     }

@@ -41,7 +41,7 @@ class ClosureCallEnv extends CallEnv {
 
     public void declareVariable(Class type, String name) {
         if (locals == Collections.EMPTY_MAP) {
-            locals = new HashMap<String, Object>(2);
+            locals = new HashMap<>(2);
         }
         locals.put(name, null);
         getTypesForMutation().put(name, type);
