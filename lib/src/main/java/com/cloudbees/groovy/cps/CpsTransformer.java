@@ -1267,14 +1267,24 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void visitSpreadExpression(SpreadExpression expression) {
-        sourceUnit.addError(new SyntaxException("spread not yet supported for CPS transformation",
-                expression.getLineNumber(), expression.getColumnNumber()));
+        makeNode("spread", new Runnable() {
+            @Override
+            public void run() {
+                loc(expression);
+                visit(expression.getExpression());
+            }
+        });
     }
 
     @Override
     public void visitSpreadMapExpression(SpreadMapExpression expression) {
-        sourceUnit.addError(new SyntaxException("spread map not yet supported for CPS transformation",
-                expression.getLineNumber(), expression.getColumnNumber()));
+        makeNode("spreadMap", new Runnable() {
+            @Override
+            public void run() {
+                loc(expression);
+                visit(expression.getExpression());
+            }
+        });
     }
 
     @Override

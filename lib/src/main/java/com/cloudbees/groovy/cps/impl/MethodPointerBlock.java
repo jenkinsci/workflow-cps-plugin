@@ -6,6 +6,7 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import groovy.lang.GString;
 import java.util.Collection;
 import java.util.Collections;
 import org.codehaus.groovy.runtime.MethodClosure;
@@ -62,6 +63,9 @@ public class MethodPointerBlock implements CallSiteBlock {
          * Obtain a method pointer, which is really just a {@link MethodClosure}.
          */
         public Next done(Object methodName) {
+            if (methodName instanceof GString) {
+                methodName = methodName.toString();
+            }
             return k.receive(e.getInvoker().contextualize(MethodPointerBlock.this).methodPointer(lhs, (String)methodName));
         }
 

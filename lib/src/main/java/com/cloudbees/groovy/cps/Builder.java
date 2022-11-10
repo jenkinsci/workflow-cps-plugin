@@ -32,6 +32,8 @@ import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
 import com.cloudbees.groovy.cps.impl.ReturnBlock;
 import com.cloudbees.groovy.cps.impl.SequenceBlock;
 import com.cloudbees.groovy.cps.impl.SourceLocation;
+import com.cloudbees.groovy.cps.impl.SpreadBlock;
+import com.cloudbees.groovy.cps.impl.SpreadMapBlock;
 import com.cloudbees.groovy.cps.impl.StaticFieldBlock;
 import com.cloudbees.groovy.cps.impl.SuperBlock;
 import com.cloudbees.groovy.cps.impl.SwitchBlock;
@@ -730,6 +732,14 @@ public class Builder {
 
     public Block yield(Object o) {
         return new YieldBlock(o);
+    }
+
+    public Block spread(int line, Block list) {
+        return new SpreadBlock(loc(line), list);
+    }
+
+    public Block spreadMap(int line, Block map) {
+        return new SpreadMapBlock(loc(line), map);
     }
 
     private SourceLocation loc(int line) {
