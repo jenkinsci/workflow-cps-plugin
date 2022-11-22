@@ -198,7 +198,6 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      *      This method returns null if the step descriptor used is not recoverable in the current VM session,
      *      such as when the plugin that implements this was removed. So the caller should defend against null.
      */
-    @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")
     public @CheckForNull StepDescriptor getStepDescriptor() {
         Jenkins j = Jenkins.getInstanceOrNull();
         if (j == null) {

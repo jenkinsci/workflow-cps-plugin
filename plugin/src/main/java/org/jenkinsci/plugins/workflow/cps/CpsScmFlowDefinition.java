@@ -99,7 +99,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
 
     @SuppressFBWarnings(
             value = {"NP_LOAD_OF_KNOWN_NULL_VALUE", "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE",
-                    "RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE", "RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE"},
+                    "RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE"},
             justification = "false positives for try-resource in java 11"
     )
     @Override public CpsFlowExecution create(FlowExecutionOwner owner, TaskListener listener, List<? extends Action> actions) throws Exception {

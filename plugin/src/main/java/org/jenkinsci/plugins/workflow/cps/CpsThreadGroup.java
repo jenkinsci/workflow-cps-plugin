@@ -554,7 +554,6 @@ public final class CpsThreadGroup implements Serializable {
         saveProgram(f);
     }
 
-    @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")
     @CpsVmThreadOnly
     public void saveProgram(File f) throws IOException {
         File dir = f.getParentFile();
