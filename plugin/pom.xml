@@ -81,6 +81,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
+	    <version>1190.v65867a_a_47126</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -198,12 +199,20 @@
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>git</artifactId>
+            <artifactId>git-client</artifactId>
+            <version>3.13.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>git</artifactId>
+            <version>4.13.1-rc4943.54a_f228609a_8</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>git</artifactId>
+            <version>4.13.1-rc4943.54a_f228609a_8</version>
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
