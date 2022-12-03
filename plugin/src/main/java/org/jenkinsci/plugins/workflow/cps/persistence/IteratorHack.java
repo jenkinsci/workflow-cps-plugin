@@ -102,7 +102,7 @@ public class IteratorHack {
 
     public static <E> Iterator<E> iterator(E[] array) {
         // TODO as above
-        return new Itr<>(Arrays.asList(array));
+        return new Itr<>(List.of(array));
     }
 
     public static <E> Iterator<E> iterator(Deque deque) {

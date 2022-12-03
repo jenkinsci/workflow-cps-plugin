@@ -290,7 +290,7 @@ public class ReplayActionTest {
                 SemaphoreStep.success("wait/2", null);
                 WorkflowRun b2 = (WorkflowRun) b1.getAction(ReplayAction.class).run(
                     "echo 'trying edits'\nnode {load 'f1.groovy'}; semaphore 'wait'; node {load 'f2.groovy'}",
-                    Collections.singletonMap("Script2", "echo 'new second part'")).get();
+                    Map.of("Script2", "echo 'new second part'")).get();
                 story.j.assertBuildStatusSuccess(b2);
                 story.j.assertLogContains("trying edits", b2);
                 story.j.assertLogContains("original first part", b2);
@@ -307,12 +307,10 @@ public class ReplayActionTest {
                 assertThat(diff, not(containsString("first part")));
                 System.out.println(diff);
                 // Now replay #2, editing all scripts, and restarting in the middle.
-                Map<String,String> replayMap = new HashMap<>();
-                replayMap.put("Script1", "echo 'new first part'");
-                replayMap.put("Script2", "echo 'newer second part'");
+                Map<String,String> replayMap = Map.of("Script1", "echo 'new first part'", "Script2", "echo 'newer second part'");
                 WorkflowRun b3 = (WorkflowRun) b2.getAction(ReplayAction.class).run(
                     "node {load 'f1.groovy'}; semaphore 'wait'; node {load 'f2.groovy'}",
-                    Collections.unmodifiableMap(replayMap)).waitForStart();
+                    replayMap).waitForStart();
                 SemaphoreStep.waitForStart("wait/3", b3);
             }
         });

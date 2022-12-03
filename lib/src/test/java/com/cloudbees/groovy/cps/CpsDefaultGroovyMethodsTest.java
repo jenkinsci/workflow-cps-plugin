@@ -379,6 +379,6 @@ public class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
     }
 
     private static Set<Object> set(Object... values) {
-        return new HashSet<>(asList(values));
+        return new HashSet<>(List.of(values));
     }
 }

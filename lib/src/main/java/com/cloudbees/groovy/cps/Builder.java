@@ -51,7 +51,6 @@ import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import java.util.*;
 
 import static com.cloudbees.groovy.cps.Block.*;
-import static java.util.Arrays.*;
 
 /**
  * Builder pattern for constructing {@link Block}s into a tree.
@@ -100,7 +99,7 @@ public class Builder {
      * @see Invoker#contextualize(CallSiteBlock)
      */
     public Builder contextualize(CallSiteTag... tags) {
-        return new Builder(this,Arrays.asList(tags));
+        return new Builder(this,List.of(tags));
     }
 
     /**
@@ -289,7 +288,7 @@ public class Builder {
     }
 
     public Block tryCatch(Block body, Block finally_, CatchExpression... catches) {
-        return tryCatch(body, asList(catches), finally_);
+        return tryCatch(body, List.of(catches), finally_);
     }
 
 
@@ -723,7 +722,7 @@ public class Builder {
      * @see #case_(int, Block, Block)
      */
     public Block switch_(String label, Block switchExp, Block defaultStmt, CaseExpression... caseExps) {
-        return new SwitchBlock(label, switchExp, defaultStmt, Arrays.asList(caseExps));
+        return new SwitchBlock(label, switchExp, defaultStmt, List.of(caseExps));
     }
 
     public CaseExpression case_(int line, Block matcher, Block body) {

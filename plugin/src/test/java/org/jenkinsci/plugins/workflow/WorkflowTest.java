@@ -157,7 +157,7 @@ public class WorkflowTest extends SingleJobTestBase {
             @Override public void evaluate() throws Throwable {
                 jenkins().setSecurityRealm(story.j.createDummySecurityRealm());
                 jenkins().save();
-                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("demo", User.getById("someone", true).impersonate())));
+                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Map.of("demo", User.getById("someone", true).impersonate())));
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition("checkAuth()", false));
                 ScriptApproval.get().preapproveAll();
@@ -212,7 +212,7 @@ public class WorkflowTest extends SingleJobTestBase {
             }
         }
         public static void finish(final boolean terminate) {
-            StepExecution.applyAll(Execution.class, new Function<Execution,Void>() {
+            StepExecution.applyAll(Execution.class, new Function<>() {
                 @Override public Void apply(Execution input) {
                     try {
                         input.listener.getLogger().println((terminate ? "finally" : "still") + " running as " + input.flow.getAuthentication().getName() + " from " + Thread.currentThread().getName());
@@ -234,7 +234,7 @@ public class WorkflowTest extends SingleJobTestBase {
             @Override public void evaluate() throws Throwable {
                 jenkins().setSecurityRealm(story.j.createDummySecurityRealm());
                 jenkins().save();
-                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("demo", User.getById("someone", true).impersonate())));
+                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Map.of("demo", User.getById("someone", true).impersonate())));
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition("echo \"ran as ${auth()}\"", true));
                 b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));

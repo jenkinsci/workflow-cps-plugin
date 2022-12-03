@@ -22,8 +22,6 @@
     </licenses>
 
     <properties>
-        <maven.compiler.release>11</maven.compiler.release>
-        <maven.compiler.testRelease>11</maven.compiler.testRelease>
         <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
 
@@ -55,12 +53,6 @@
     </build>
 
     <dependencies>
-        <dependency>
-            <!-- TODO: Once we are ok limiting workflow-cps (and groovy-cps) to compile _and_ run only on Java 9+, we should delete this dependency and switch to javax.annotation.processing.Generated. -->
-            <groupId>javax.annotation</groupId>
-            <artifactId>javax.annotation-api</artifactId>
-            <version>1.3.2</version>
-        </dependency>
         <dependency>
             <groupId>org.kohsuke.codemodel</groupId>
             <artifactId>codemodel</artifactId>

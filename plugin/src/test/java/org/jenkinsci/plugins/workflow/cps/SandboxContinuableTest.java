@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import hudson.model.Result;
 import java.util.Collections;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
@@ -53,7 +54,7 @@ public class SandboxContinuableTest {
         p.setDefinition(new CpsFlowDefinition("catchError {Jenkins.instance}", true));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogContains(RejectedAccessException.class.getName() + ": Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
-        assertEquals(Collections.singleton("staticMethod jenkins.model.Jenkins getInstance"),
+        assertEquals(Set.of("staticMethod jenkins.model.Jenkins getInstance"),
             ScriptApproval.get().getPendingSignatures().stream().map(ps -> ps.signature).collect(Collectors.toSet()));
         r.assertLogContains(org.jenkinsci.plugins.scriptsecurity.scripts.Messages.ScriptApprovalNote_message(), b);
     }

@@ -90,7 +90,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-import javax.annotation.Generated;
+import javax.annotation.processing.Generated;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 

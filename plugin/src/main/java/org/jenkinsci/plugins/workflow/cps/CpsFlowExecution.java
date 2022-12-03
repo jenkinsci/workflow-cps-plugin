@@ -129,6 +129,7 @@ import java.io.PrintWriter;
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
+import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Date;
@@ -476,7 +477,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     public Map<String,String> getLoadedScripts() {
-        return Collections.unmodifiableMap(new HashMap<>(loadedScripts));
+        return Map.copyOf(loadedScripts);
     }
 
     /**
@@ -568,9 +569,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         s.execution = this;
         if (false) {
             System.out.println("scriptName="+s.getClass().getName());
-            System.out.println(Arrays.asList(s.getClass().getInterfaces()));
-            System.out.println(Arrays.asList(s.getClass().getDeclaredFields()));
-            System.out.println(Arrays.asList(s.getClass().getDeclaredMethods()));
+            System.out.println(List.of(s.getClass().getInterfaces()));
+            System.out.println(List.of(s.getClass().getDeclaredFields()));
+            System.out.println(List.of(s.getClass().getDeclaredMethods()));
         }
         return s;
     }
@@ -781,7 +782,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             Futures.addCallback(
                     r.restorePickles(pickleFutures = new ArrayList<>()),
 
-                    new FutureCallback<Unmarshaller>() {
+                    new FutureCallback<>() {
                         public void onSuccess(Unmarshaller u) {
                             pickleFutures = null;
                             try {
@@ -849,7 +850,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         final FlowHead head_ = head;
 
         promise.set(g);
-        runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+        runInCpsVmThread(new FutureCallback<>() {
             @Override public void onSuccess(CpsThreadGroup g) {
                 CpsThread t = g.addThread(
                         new Continuable(new ThrowBlock(new ConstantBlock(
@@ -878,7 +879,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     @Override protected void afterStepExecutionsResumed() {
-        runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+        runInCpsVmThread(new FutureCallback<>() {
             @Override public void onSuccess(CpsThreadGroup g) {
                 try {
                     if (pausedWhenLoaded) {
@@ -918,8 +919,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             throw new IllegalStateException("build storage unloadable, or build already finished");
         }
         // first we need to wait for programPromise to fullfil CpsThreadGroup, then we need to run in its runner, phew!
-        Futures.addCallback(programPromise, new FutureCallback<CpsThreadGroup>() {
+        Futures.addCallback(programPromise, new FutureCallback<>() {
             final Exception source = new Exception();   // call stack of this object captures who called this. useful during debugging.
+
             @Override
             public void onSuccess(final CpsThreadGroup g) {
                 g.runner.submit(new Runnable() {
@@ -1009,7 +1011,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         final SettableFuture<List<StepExecution>> r = SettableFuture.create();
-        runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+        runInCpsVmThread(new FutureCallback<>() {
             @Override
             public void onSuccess(CpsThreadGroup g) {
                 if (innerMostOnly) {
@@ -1160,7 +1162,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         final FlowInterruptedException ex = new FlowInterruptedException(result,causes);
 
         // stop all ongoing activities
-        runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+        runInCpsVmThread(new FutureCallback<>() {
             @Override
             public void onSuccess(CpsThreadGroup g) {
                 // don't touch outer ones. See JENKINS-26148
@@ -1169,7 +1171,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     m.put(t.head, t);
                 }
                 // for each inner most CpsThread, from young to old...
-                for (CpsThread t : Iterators.reverse(ImmutableList.copyOf(m.values()))) {
+                for (CpsThread t : Iterators.reverse(List.copyOf(m.values()))) {
                     try {
                         t.stop(ex);
                     } catch (Exception x) {
@@ -1412,7 +1414,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 Field cacheF = classInfoC.getDeclaredField("CACHE");
                 try {
                     cacheF.setAccessible(true);
-                } catch (RuntimeException e) { // TODO Java 9+ InaccessibleObjectException
+                } catch (InaccessibleObjectException e) {
                     /*
                      * Not running with "--add-opens java.desktop/com.sun.beans.introspect=ALL-UNNAMED".
                      * Until core adds this to its --add-opens configuration, and until that core
@@ -1626,7 +1628,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             ((AccessControlled) executable).checkPermission(Item.CANCEL);
         }
         done = false;
-        Futures.addCallback(programPromise, new FutureCallback<CpsThreadGroup>() {
+        Futures.addCallback(programPromise, new FutureCallback<>() {
             @Override public void onSuccess(CpsThreadGroup g) {
                 if (v) {
                     g.pause();
@@ -1675,7 +1677,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             }
                         }
                         cpsExec.checkpoint(true);
-                        cpsExec.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+                        cpsExec.runInCpsVmThread(new FutureCallback<>() {
                             @Override public void onSuccess(CpsThreadGroup g) {
                                 LOGGER.fine(() -> "shutting down CPS VM threadin for " + cpsExec);
                                 g.shutdown();
@@ -1990,7 +1992,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     @Extension(optional=true) public static class PipelineTimings extends Component {
 
         @Override public Set<Permission> getRequiredPermissions() {
-            return Collections.singleton(Jenkins.ADMINISTER);
+            return Set.of(Jenkins.ADMINISTER);
         }
 
         @Override public String getDisplayName() {
@@ -2092,7 +2094,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 final CompletableFuture<Void> myOutcome = new CompletableFuture<>();
                 LOGGER.log(Level.FINE, "About to try to checkpoint the program for: {0}", this);
                 if (programPromise != null && programPromise.isDone()) {
-                    runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+                    runInCpsVmThread(new FutureCallback<>() {
                         @Override
                         public void onSuccess(CpsThreadGroup result) {
                             try {
@@ -2165,7 +2167,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         try {
             owner.getListener().getLogger().println("Failing build: shutting down controller and build is marked to not resume");
             final Throwable x = new FlowInterruptedException(Result.ABORTED);
-            Futures.addCallback(this.getCurrentExecutions(/* cf. JENKINS-26148 */true), new FutureCallback<List<StepExecution>>() {
+            Futures.addCallback(this.getCurrentExecutions(/* cf. JENKINS-26148 */true), new FutureCallback<>() {
                 @Override public void onSuccess(List<StepExecution> l) {
                     for (StepExecution e : Iterators.reverse(l)) {
                         StepContext context = e.getContext();

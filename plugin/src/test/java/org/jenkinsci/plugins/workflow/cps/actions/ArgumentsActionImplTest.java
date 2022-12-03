@@ -281,7 +281,7 @@ public class ArgumentsActionImplTest {
     @Test
     public void oversizedList() {
         ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.emptySet());
-        List unsanitized = Collections.singletonList(generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength()));
+        List unsanitized = List.of(generateStringOfSize(ArgumentsActionImpl.getMaxRetainedLength()));
         Object sanitized = impl.sanitizeListAndRecordMutation(unsanitized, null);
         Assert.assertEquals(ArgumentsAction.NotStoredReason.OVERSIZE_VALUE, sanitized);
     }
@@ -422,7 +422,7 @@ public class ArgumentsActionImplTest {
     @Issue("JENKINS-54186")
     @Test public void fauxDescribable() throws Exception {
         logging.record(ArgumentsActionImpl.class, Level.FINE);
-        ArgumentsActionImpl impl = new ArgumentsActionImpl(Collections.singletonMap("curve", new Fractal()));
+        ArgumentsActionImpl impl = new ArgumentsActionImpl(Map.of("curve", new Fractal()));
         Map<String, Object> args = impl.getArguments();
         assertThat(args, IsMapContaining.hasEntry("curve", ArgumentsAction.NotStoredReason.UNSERIALIZABLE));
     }
@@ -438,9 +438,9 @@ public class ArgumentsActionImplTest {
         HashMap<String, Object> testMap = new HashMap<>();
         testMap.put("safe", 5);
         testMap.put("maskme", new SuperSpecialThing());
-        testMap.put("maskMyMapValue", Collections.singletonMap("bob", new SuperSpecialThing(-5, "testing")));
-        testMap.put("maskAnElement", Arrays.asList("cheese", new SuperSpecialThing(5, "pi"), -8,
-                Arrays.asList("nested", new SuperSpecialThing())));
+        testMap.put("maskMyMapValue", Map.of("bob", new SuperSpecialThing(-5, "testing")));
+        testMap.put("maskAnElement", List.of("cheese", new SuperSpecialThing(5, "pi"), -8,
+                List.of("nested", new SuperSpecialThing())));
 
         ArgumentsActionImpl argsAction = new ArgumentsActionImpl(testMap);
         Map<String, Object> maskedArgs = argsAction.getArguments();
@@ -529,7 +529,7 @@ public class ArgumentsActionImplTest {
         assertEquals(true, args.get("moderate"));
         Map<String, Object> stateArgs = (Map<String,Object>)args.get("state");
         assertTrue("Nested state Describable should only include a class argument or none at all",
-                stateArgs.size() <= 1 && Sets.difference(stateArgs.keySet(), new HashSet<>(Collections.singletonList("$class"))).size() == 0);
+                stateArgs.size() <= 1 && Sets.difference(stateArgs.keySet(), Set.of("$class")).size() == 0);
 
         // Same metastep but only one arg supplied, shouldn't auto-unwrap the internal step because can take 2 args
         job = r.createProject(WorkflowJob.class);

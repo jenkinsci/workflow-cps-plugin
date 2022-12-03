@@ -27,7 +27,7 @@ public class StepEndNode extends BlockEndNode<StepStartNode> implements StepNode
     }
 
     public StepEndNode(CpsFlowExecution exec, StepStartNode stepStartNode, FlowNode... parents) {
-        this(exec, stepStartNode, Arrays.asList(parents));
+        this(exec, stepStartNode, List.of(parents));
     }
 
     @Override

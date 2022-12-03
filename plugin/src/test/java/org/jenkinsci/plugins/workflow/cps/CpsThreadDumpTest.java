@@ -1,7 +1,6 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import java.util.ArrayList;
-import static java.util.Arrays.asList;
 import java.util.List;
 
 import hudson.model.queue.QueueTaskFuture;
@@ -38,7 +37,7 @@ public class CpsThreadDumpTest {
 
     @Test
     public void simple() throws Exception {
-        p.setDefinition(new CpsFlowDefinition(StringUtils.join(asList(
+        p.setDefinition(new CpsFlowDefinition(StringUtils.join(List.of(
                 "def foo() { bar() }",
                 "def bar() {",
                 "   semaphore 'x'",
@@ -77,7 +76,7 @@ public class CpsThreadDumpTest {
 
     @Test
     public void parallel() throws Exception {
-        p.setDefinition(new CpsFlowDefinition(StringUtils.join(asList(
+        p.setDefinition(new CpsFlowDefinition(StringUtils.join(List.of(
                 "def foo(x) { bar(x) }",// 1
                 "def bar(x) {",
                 "   semaphore x",       // 3
@@ -153,7 +152,7 @@ public class CpsThreadDumpTest {
     }
 
     private void assertStackTrace(ThreadInfo t, String... expected) {
-        assertEquals(asList(expected), toString(t.getStackTrace()));
+        assertEquals(List.of(expected), toString(t.getStackTrace()));
     }
 
     private List<String> toString(List<StackTraceElement> in) {

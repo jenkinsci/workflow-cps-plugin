@@ -6,8 +6,8 @@ import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 
-import static java.util.Arrays.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
@@ -131,7 +131,7 @@ public class BasicTest {
     public void asyncCallingAsync() {
         class Op {
             public int add(int x, int y) {
-                CpsFunction f = new CpsFunction(asList("x", "y"),
+                CpsFunction f = new CpsFunction(List.of("x", "y"),
                         b.sequence(
                                 b.setLocalVariable(0, "z", b.functionCall(0, $x, "plus", $y)),
                                 b.return_($z)
@@ -212,7 +212,7 @@ public class BasicTest {
              */
             public void throw_(int depth, String message) {
                 Block $depth = b.localVariable("depth");
-                CpsFunction f = new CpsFunction(asList("depth", "message"),
+                CpsFunction f = new CpsFunction(List.of("depth", "message"),
                         b.block(
                                 b.if_(b.lessThan(0, b.zero(), $depth),
                                         b.functionCall(0, b.this_(), "throw_", b.minus(0, $depth, b.one()), b.localVariable("message")),

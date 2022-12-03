@@ -8,7 +8,6 @@ import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import com.cloudbees.groovy.cps.impl.TryBlockEnv;
 import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
-import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import hudson.model.Action;
 import hudson.util.Iterators;
@@ -197,7 +196,7 @@ class CpsBodyExecution extends BodyExecution {
             }
         }
         final CompletableFuture<Collection<StepExecution>> result = new CompletableFuture<>();
-        t.getExecution().runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+        t.getExecution().runInCpsVmThread(new FutureCallback<>() {
             @Override public void onSuccess(CpsThreadGroup g) {
                 try {
                     List<StepExecution> executions = new ArrayList<>();
@@ -249,7 +248,7 @@ class CpsBodyExecution extends BodyExecution {
         }
 
         if (t!=null) {
-            t.getExecution().runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+            t.getExecution().runInCpsVmThread(new FutureCallback<>() {
                 @Override
                 public void onSuccess(CpsThreadGroup g) {
                     // Similar to getCurrentExecutions but we want the raw CpsThread, not a StepExecution; cf. CpsFlowExecution.interrupt
@@ -257,7 +256,7 @@ class CpsBodyExecution extends BodyExecution {
                     for (CpsThread t : thread.group.getThreads()) {
                         m.put(t.head, t);
                     }
-                    for (CpsThread t : Iterators.reverse(ImmutableList.copyOf(m.values()))) {
+                    for (CpsThread t : Iterators.reverse(List.copyOf(m.values()))) {
                         LinearBlockHoppingScanner scanner = new LinearBlockHoppingScanner();
                         scanner.setup(t.head.get());
                         for (FlowNode node : scanner) {

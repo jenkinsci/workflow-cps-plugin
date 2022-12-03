@@ -73,7 +73,7 @@ public class StepNodeTest {
         assertThat(coreStepNodes, hasSize(1));
         assertEquals("archiveArtifacts", coreStepNodes.get(0).getDisplayFunctionName());
         assertEquals(r.jenkins.getDescriptor(ArtifactArchiver.class).getDisplayName(), coreStepNodes.get(0).getDisplayName());
-        List<FlowNode> coreWrapperStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), Predicates.and(new NodeStepTypePredicate("wrap"), new Predicate<FlowNode>() {
+        List<FlowNode> coreWrapperStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), Predicates.and(new NodeStepTypePredicate("wrap"), new Predicate<>() {
             @Override public boolean apply(FlowNode n) {
                 return n instanceof StepStartNode && !((StepStartNode) n).isBody();
             }
@@ -100,7 +100,7 @@ public class StepNodeTest {
         assertThat(coreStepNodes, hasSize(1));
         assertEquals("archiveArtifacts", coreStepNodes.get(0).getDisplayFunctionName());
         assertEquals(r.jenkins.getDescriptor(ArtifactArchiver.class).getDisplayName(), coreStepNodes.get(0).getDisplayName());
-        List<FlowNode> coreWrapperStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), Predicates.and(new NodeStepTypePredicate("wrap"), new Predicate<FlowNode>() {
+        List<FlowNode> coreWrapperStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), Predicates.and(new NodeStepTypePredicate("wrap"), new Predicate<>() {
             @Override public boolean apply(FlowNode n) {
                 return n instanceof StepStartNode && !((StepStartNode) n).isBody();
             }
@@ -127,7 +127,7 @@ public class StepNodeTest {
         assertThat(coreStepNodes, hasSize(1));
         assertEquals("archiveArtifacts", coreStepNodes.get(0).getDisplayFunctionName());
         assertEquals(r.jenkins.getDescriptor(ArtifactArchiver.class).getDisplayName(), coreStepNodes.get(0).getDisplayName());
-        List<FlowNode> coreWrapperStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), Predicates.and(new NodeStepTypePredicate("wrap"), new Predicate<FlowNode>() {
+        List<FlowNode> coreWrapperStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), Predicates.and(new NodeStepTypePredicate("wrap"), new Predicate<>() {
             @Override public boolean apply(FlowNode n) {
                 return n instanceof StepStartNode && !((StepStartNode) n).isBody();
             }
@@ -156,7 +156,7 @@ public class StepNodeTest {
         assertThat(coreStepNodes, hasSize(1));
         assertEquals("junit", coreStepNodes.get(0).getDisplayFunctionName());
         assertEquals(r.jenkins.getDescriptor(JUnitResultArchiver.class).getDisplayName(), coreStepNodes.get(0).getDisplayName());
-        List<FlowNode> coreWrapperStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), Predicates.and(new NodeStepTypePredicate("wrap"), new Predicate<FlowNode>() {
+        List<FlowNode> coreWrapperStepNodes = new DepthFirstScanner().filteredNodes(b.getExecution(), Predicates.and(new NodeStepTypePredicate("wrap"), new Predicate<>() {
             @Override public boolean apply(FlowNode n) {
                 return n instanceof StepStartNode && !((StepStartNode) n).isBody();
             }

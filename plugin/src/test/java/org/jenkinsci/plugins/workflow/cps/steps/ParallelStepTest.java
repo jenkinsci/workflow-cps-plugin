@@ -10,10 +10,6 @@ import hudson.model.Result;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
-
-import static java.util.Arrays.asList;
-
 import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Level;
@@ -405,7 +401,7 @@ public class ParallelStepTest extends SingleJobTestBase {
                 assert b.isBuilding();
 
                 // we let one branch go at a time
-                for (String branch : asList("A", "B")) {
+                for (String branch : List.of("A", "B")) {
                     SemaphoreStep.success("suspend" + branch + "/1", null);
                     waitForWorkflowToSuspend();
 
@@ -419,7 +415,7 @@ public class ParallelStepTest extends SingleJobTestBase {
                 story.j.waitForCompletion(b);
 
                 // make sure all the three branches have executed to the end.
-                for (String branch : asList("A", "B", "C")) {
+                for (String branch : List.of("A", "B", "C")) {
                     story.j.assertLogContains(branch + " done", b);
                 }
 
@@ -461,7 +457,7 @@ public class ParallelStepTest extends SingleJobTestBase {
                 actual.add(a.getThreadName());
         }
 
-        assertEquals(Arrays.asList(expected),actual);
+        assertEquals(List.of(expected),actual);
     }
 
     /**
