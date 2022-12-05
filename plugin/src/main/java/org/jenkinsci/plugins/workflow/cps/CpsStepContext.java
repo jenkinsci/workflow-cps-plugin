@@ -378,7 +378,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                 }
             }
 
-            flow.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+            flow.runInCpsVmThread(new FutureCallback<>() {
                 @CpsVmThreadOnly
                 @Override
                 public void onSuccess(CpsThreadGroup g) {
@@ -543,7 +543,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                 return f;
             }
 
-            exec.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+            exec.runInCpsVmThread(new FutureCallback<>() {
                 @Override public void onSuccess(CpsThreadGroup result) {
                     try {
                         // TODO keep track of whether the program was saved anyway after saveState was called but before now, and do not bother resaving it in that case

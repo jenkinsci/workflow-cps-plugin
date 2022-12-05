@@ -13,7 +13,6 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.google.common.collect.ImmutableList;
 import groovy.lang.Closure;
 import org.codehaus.groovy.runtime.GroovyCategorySupport;
 
@@ -25,7 +24,7 @@ import org.codehaus.groovy.runtime.GroovyCategorySupport;
 public class Continuable implements Serializable {
 
     @SuppressWarnings("rawtypes")
-    public static final List<Class> categories = ImmutableList.<Class>of(
+    public static final List<Class> categories = List.of(
         CpsDefaultGroovyMethods.class,
         CpsDefaultGroovyStaticMethods.class,
         CpsStringGroovyMethods.class);
@@ -144,7 +143,7 @@ public class Continuable implements Serializable {
      * throwing an exception
      */
     public Outcome run0(final Outcome cn, List<Class> categories) {
-        return GroovyCategorySupport.use(categories, new Closure<Outcome>(null) {
+        return GroovyCategorySupport.use(categories, new Closure<>(null) {
             @Override
             public Outcome call() {
                 Next n = cn.resumeFrom(e,k);

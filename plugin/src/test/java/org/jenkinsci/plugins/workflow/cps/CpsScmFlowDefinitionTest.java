@@ -233,8 +233,8 @@ public class CpsScmFlowDefinitionTest {
         sampleRepo.write("flow.groovy", "echo 'version two'");
         sampleRepo.git("commit", "--all", "--message=two");
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        CpsScmFlowDefinition def = new CpsScmFlowDefinition(new GitSCM(Collections.singletonList(new UserRemoteConfig(sampleRepo.fileUrl(), null, null, null)),
-            Collections.singletonList(new BranchSpec("${VERSION}")),
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(new GitSCM(List.of(new UserRemoteConfig(sampleRepo.fileUrl(), null, null, null)),
+            List.of(new BranchSpec("${VERSION}")),
             false, Collections.<SubmoduleConfig>emptyList(), null, null, Collections.<GitSCMExtension>emptyList()), "flow.groovy");
         def.setLightweight(false); // TODO SCMFileSystem.of cannot pick up build parameters
         p.setDefinition(def);
@@ -252,8 +252,8 @@ public class CpsScmFlowDefinitionTest {
         sampleRepo.git("add", "otherFlow.groovy");
         sampleRepo.git("commit", "--all", "--message=commits");
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        CpsScmFlowDefinition def = new CpsScmFlowDefinition(new GitSCM(Collections.singletonList(new UserRemoteConfig(sampleRepo.fileUrl(), null, null, null)),
-                Collections.singletonList(new BranchSpec("master")),
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(new GitSCM(List.of(new UserRemoteConfig(sampleRepo.fileUrl(), null, null, null)),
+                List.of(new BranchSpec("master")),
                 false, Collections.<SubmoduleConfig>emptyList(), null, null, Collections.<GitSCMExtension>emptyList()), "${SCRIPT_PATH}");
 
         p.setDefinition(def);

@@ -59,7 +59,7 @@ class CpsVmExecutorService extends InterceptingExecutorService {
 
     @Override
     protected <V> Callable<V> wrap(final Callable<V> r) {
-        return new Callable<V>() {
+        return new Callable<>() {
             @Override
             public V call() throws Exception {
                 ThreadContext context = setUp();

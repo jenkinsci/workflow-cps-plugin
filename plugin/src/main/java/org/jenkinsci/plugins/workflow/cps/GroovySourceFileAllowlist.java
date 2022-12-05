@@ -190,7 +190,7 @@ public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
             loadDefaultAllowlist(ALLOWED_SOURCE_FILES);
             // Some plugins use test-specific Groovy DSLs.
             if (Main.isUnitTest) {
-                ALLOWED_SOURCE_FILES.addAll(Arrays.asList(
+                ALLOWED_SOURCE_FILES.addAll(List.of(
                         // pipeline-model-definition
                         "/org/jenkinsci/plugins/pipeline/modeldefinition/agent/impl/LabelAndOtherFieldAgentScript.groovy",
                         "/org/jenkinsci/plugins/pipeline/modeldefinition/parser/GlobalStageNameTestConditionalScript.groovy",

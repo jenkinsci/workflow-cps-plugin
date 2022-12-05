@@ -489,7 +489,7 @@ public final class CpsThreadGroup implements Serializable {
     @CpsVmThreadOnly
     /*package*/ void notifyNewHead(final FlowNode head) {
         assertVmThread();
-        execution.notifyListeners(Collections.singletonList(head), true);
+        execution.notifyListeners(List.of(head), true);
         synchronized (nodesToNotifyLock) {
             if (nodesToNotify == null) {
                 nodesToNotify = new ArrayList<>();

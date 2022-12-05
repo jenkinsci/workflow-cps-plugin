@@ -100,7 +100,7 @@ public class FunctionCallBlock extends CallSiteBlockSupport {
                         v = e.getInvoker().contextualize(FunctionCallBlock.this).constructorCall((Class)lhs, expandedArgs);
                     } catch (Throwable t) {
                         if (t instanceof CpsCallableInvocation) {
-                            ((CpsCallableInvocation) t).checkMismatch(lhs, Collections.singletonList(name));
+                            ((CpsCallableInvocation) t).checkMismatch(lhs, List.of(name));
                         }
                         return throwException(e, t, loc, new ReferenceStackTrace());
                     }
@@ -130,7 +130,7 @@ public class FunctionCallBlock extends CallSiteBlockSupport {
         stack.add((loc!=null ? loc : UNKNOWN).toStackTrace());
         e.buildStackTraceElements(stack,Integer.MAX_VALUE);
         stack.add(Continuable.SEPARATOR_STACK_ELEMENT);
-        stack.addAll(Arrays.asList(t.getStackTrace()));
+        stack.addAll(List.of(t.getStackTrace()));
         t.setStackTrace(stack.toArray(new StackTraceElement[stack.size()]));
     }
 

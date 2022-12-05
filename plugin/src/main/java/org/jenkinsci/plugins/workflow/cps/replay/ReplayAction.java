@@ -25,7 +25,6 @@
 package org.jenkinsci.plugins.workflow.cps.replay;
 
 import com.cloudbees.diff.Diff;
-import com.google.common.collect.ImmutableList;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.ExtensionList;
@@ -233,7 +232,7 @@ public class ReplayAction implements Action {
         rsp.sendRedirect("../.."); // back to WorkflowJob; new build might not start instantly so cannot redirect to it
     }
 
-    private static final Iterable<Class<? extends Action>> COPIED_ACTIONS = ImmutableList.of(
+    private static final Iterable<Class<? extends Action>> COPIED_ACTIONS = List.of(
         ParametersAction.class,
         SCMRevisionAction.class
     );

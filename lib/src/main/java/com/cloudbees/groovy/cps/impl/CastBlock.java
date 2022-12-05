@@ -5,6 +5,7 @@ import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 import java.util.Collections;
+import java.util.List;
 import org.codehaus.groovy.runtime.InvokerInvocationException;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
@@ -45,7 +46,7 @@ public class CastBlock implements Block {
             } catch (CpsCallableInvocation inv) {
                 // Implementations of asType and other methods used by the Groovy stdlib should be @NonCPS, but we
                 // just log a warning and invoke the callable anyway to maintain the existing behavior.
-                inv.checkMismatch(ScriptBytecodeAdapter.class, Collections.singletonList(coerce ? "asType" : "castToType"));
+                inv.checkMismatch(ScriptBytecodeAdapter.class, List.of(coerce ? "asType" : "castToType"));
                 return inv.invoke(e, loc, k);
             } catch (Throwable t) {
                 if (t instanceof InvokerInvocationException) {
@@ -56,7 +57,7 @@ public class CastBlock implements Block {
                     Throwable cause = t.getCause();
                     if (cause instanceof CpsCallableInvocation) {
                         CpsCallableInvocation inv = (CpsCallableInvocation)cause;
-                        inv.checkMismatch(ScriptBytecodeAdapter.class, Collections.singletonList(coerce ? "asType" : "castToType"));
+                        inv.checkMismatch(ScriptBytecodeAdapter.class, List.of(coerce ? "asType" : "castToType"));
                         String classAndMethod = inv.getClassAndMethodForDisplay();
                         t = new IllegalStateException(classAndMethod + " must be @NonCPS; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/");
                     }

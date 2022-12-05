@@ -143,7 +143,7 @@ abstract class ContinuationGroup implements Serializable {
               to show how the actual execution happened on JVM
          */
 
-        List<StackTraceElement> orig = Arrays.asList(ts);
+        List<StackTraceElement> orig = List.of(ts);
         int pos = ts.length-rs.length;
         List<StackTraceElement> stack = new ArrayList<>(orig.subList(0,pos));
 
@@ -238,7 +238,7 @@ abstract class ContinuationGroup implements Serializable {
                 Throwable cause = t.getCause();
                 if (cause instanceof CpsCallableInvocation) {
                     CpsCallableInvocation inv = (CpsCallableInvocation)cause;
-                    inv.checkMismatch(ScriptBytecodeAdapter.class, Collections.singletonList("castToType"));
+                    inv.checkMismatch(ScriptBytecodeAdapter.class, List.of("castToType"));
                     String classAndMethod = inv.getClassAndMethodForDisplay();
                     t = new IllegalStateException(classAndMethod + " must be @NonCPS; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/");
                 }

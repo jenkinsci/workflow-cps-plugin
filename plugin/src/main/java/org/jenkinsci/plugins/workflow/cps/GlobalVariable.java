@@ -88,9 +88,9 @@ public abstract class GlobalVariable implements ExtensionPoint {
      * @return a possibly empty list
      */
     public static @NonNull Iterable<GlobalVariable> forRun(@CheckForNull final Run<?,?> run) {
-        return new Iterable<GlobalVariable>() {
+        return new Iterable<>() {
             @Override public Iterator<GlobalVariable> iterator() {
-                return new FlattenIterator<GlobalVariable,GlobalVariableSet>(ExtensionList.lookup(GlobalVariableSet.class).iterator()) {
+                return new FlattenIterator<>(ExtensionList.lookup(GlobalVariableSet.class).iterator()) {
                     @Override protected Iterator<GlobalVariable> expand(GlobalVariableSet vs) {
                         return vs.forRun(run).iterator();
                     }
@@ -105,9 +105,9 @@ public abstract class GlobalVariable implements ExtensionPoint {
      * @return a possibly empty list
      */
     public static @NonNull Iterable<GlobalVariable> forJob(@CheckForNull final Job<?,?> job) {
-        return new Iterable<GlobalVariable>() {
+        return new Iterable<>() {
             @Override public Iterator<GlobalVariable> iterator() {
-                return new FlattenIterator<GlobalVariable,GlobalVariableSet>(ExtensionList.lookup(GlobalVariableSet.class).iterator()) {
+                return new FlattenIterator<>(ExtensionList.lookup(GlobalVariableSet.class).iterator()) {
                     @Override protected Iterator<GlobalVariable> expand(GlobalVariableSet vs) {
                         return vs.forJob(job).iterator();
                     }

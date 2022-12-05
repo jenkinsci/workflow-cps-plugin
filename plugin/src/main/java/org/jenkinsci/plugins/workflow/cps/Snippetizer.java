@@ -510,7 +510,7 @@ import org.kohsuke.stapler.StaplerRequest;
                         DescribableModel<?> m = DescribableModel.of(d.clazz);
                         DescribableParameter soleRequiredParameter = m.getSoleRequiredParameter();
                         if (soleRequiredParameter != null) {
-                            step = d.newInstance(Collections.singletonMap(soleRequiredParameter.getName(), o));
+                            step = d.newInstance(Map.of(soleRequiredParameter.getName(), o));
                             break;
                         }
                     }
@@ -554,7 +554,7 @@ import org.kohsuke.stapler.StaplerRequest;
         @Override public Collection<? extends Action> createFor(Job target) {
             // TODO probably want an API for FlowExecutionContainer or something
             if (target.getClass().getName().equals("org.jenkinsci.plugins.workflow.job.WorkflowJob") && target.hasPermission(Item.EXTENDED_READ)) {
-                return Collections.singleton(new LocalAction());
+                return Set.of(new LocalAction());
             } else {
                 return Collections.emptySet();
             }

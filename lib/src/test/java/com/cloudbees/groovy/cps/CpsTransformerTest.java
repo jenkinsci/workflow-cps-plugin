@@ -6,6 +6,8 @@ import java.io.File;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -390,7 +392,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void ternaryOp3() throws Throwable {
-        assertEvaluate(Arrays.asList("ok", 2), "def x = 'ok'; def y = null; [x ?: 1, y ?: 2]");
+        assertEvaluate(List.of("ok", 2), "def x = 'ok'; def y = null; [x ?: 1, y ?: 2]");
     }
 
     @Test
@@ -500,7 +502,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
         assertEvaluate(2147483647, "-1>>>1");
         assertEvaluate(2147483647, "x=-1; x>>>=1; x");
 
-        assertEvaluate(Arrays.asList("hello", "world"), "x=[]; x<<'hello'; x<<'world'; x");
+        assertEvaluate(List.of("hello", "world"), "x=[]; x<<'hello'; x<<'world'; x");
     }
 
     @Test
@@ -525,7 +527,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     public void arrayPassedToMethod() throws Throwable {
         assertEvaluate(4, "def m(x) {x.size()}; def a = [1, 2]; a.size() + m(a)"); // control case
-        assertEvaluate(4, "def m(x) {x.size()}; def a = [1, 2].toArray(); a.length + m(Arrays.asList(a))"); // workaround #1
+        assertEvaluate(4, "def m(x) {x.size()}; def a = [1, 2].toArray(); a.length + m(List.of(a))"); // workaround #1
         assertEvaluate(4, "@NonCPS def m(x) {x.length}; def a = [1, 2].toArray(); a.length + m(a)"); // workaround #2
         assertEvaluate(4, "def m(x) {x.length}; def a = [1, 2].toArray(); a.length + m(a)"); // formerly: groovy.lang.MissingPropertyException: No such property: length for class: java.lang.Integer
     }
@@ -545,7 +547,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("JENKINS-28277")
     @Test
     public void ncurrying_native_closure() throws Throwable {
-        assertEvaluate(Arrays.asList(-3, 2),
+        assertEvaluate(List.of(-3, 2),
             "@NonCPS\n" +
             "def makeNativeClosure() {\n" +
             "    Collections.&binarySearch\n" +
@@ -591,17 +593,17 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     public void method_pointer() throws Throwable {
         // method pointer to a native static method
-        assertEvaluate(Arrays.asList(3, 7),
+        assertEvaluate(List.of(3, 7),
             "def add = CpsTransformerTest.&add\n" +
             "return [ add(1,2), add(3,4) ]\n");
 
         // method pointer to a native instance method
-        assertEvaluate(Arrays.asList(true, false),
+        assertEvaluate(List.of(true, false),
             "def contains = 'foobar'.&contains\n" +
             "return [ contains('oo'), contains('xyz') ]\n");
 
         // method pointer to a CPS transformed method
-        assertEvaluate(Arrays.asList(1101, 10011),
+        assertEvaluate(List.of(1101, 10011),
             "class X {\n" +
             "    int z;\n" +
             "    X(int z) { this.z = z; }\n" +
@@ -782,7 +784,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("JENKINS-38268")
     @Test
     public void lexicalScope() throws Throwable {
-        assertEvaluate(Arrays.asList(1, 1),
+        assertEvaluate(List.of(1, 1),
             "def a = [id: 'a', count: 0]\n" +
             "def b = [id: 'b', count: 0]\n" +
             "def toRun = [a, b].collect { thing -> return { thing.count = thing.count + 1 } }\n" +
@@ -942,19 +944,19 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
             "int[]" // Primitive array
         };
         for (String decl : declarations) {
-            assertEvaluate(Arrays.asList(1, 2, 3, 4, 5),
+            assertEvaluate(List.of(1, 2, 3, 4, 5),
                 decl + " x = [1, 2, 3]\n" +
                 "return [*x, 4, 5]\n");
-            assertEvaluate(Arrays.asList(4, 1, 2, 3, 5),
+            assertEvaluate(List.of(4, 1, 2, 3, 5),
                 decl + " x = [1, 2, 3]\n" +
                 "return [4, *x, 5]\n");
-            assertEvaluate(Arrays.asList(4, 5, 1, 2, 3),
+            assertEvaluate(List.of(4, 5, 1, 2, 3),
                 decl + " x = [1, 2, 3]\n" +
                 "return [4, 5, *x]\n");
-            assertEvaluate(Arrays.asList(1, 2, 3),
+            assertEvaluate(List.of(1, 2, 3),
                 decl + " x = [1, 2, 3]\n" +
                 "return [*x]\n");
-            assertEvaluate(Arrays.asList(1, 2, 3, 4, 5, 6, 7),
+            assertEvaluate(List.of(1, 2, 3, 4, 5, 6, 7),
                 decl + " x = [2, 3]\n" +
                 decl + " y = [5, 6]\n" +
                 "return [1, *x, 4, *y, 7]\n");
@@ -975,19 +977,19 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
             "int[]" // Primitive array
         };
         for (String decl : declarations) {
-            assertEvaluate(Arrays.asList(1, 2, 3),
+            assertEvaluate(List.of(1, 2, 3),
                 decl + " x = [1, 2, 3]\n" +
                 "def id(a, b, c) { [a, b, c] }\n" +
                 "return id(*x)\n");
-            assertEvaluate(Arrays.asList(1, 2, 3),
+            assertEvaluate(List.of(1, 2, 3),
                 decl + " x = [2, 3]\n" +
                 "def id(a, b, c) { [a, b, c] }\n" +
                 "return id(1, *x)\n");
-            assertEvaluate(Arrays.asList(1, 2, 3),
+            assertEvaluate(List.of(1, 2, 3),
                 decl + " x = [1, 2]\n" +
                 "def id(a, b, c) { [a, b, c] }\n" +
                 "return id(*x, 3)\n");
-            assertEvaluate(Arrays.asList(1, 2, 3),
+            assertEvaluate(List.of(1, 2, 3),
                 decl + " x = [2]\n" +
                 "def id(a, b, c) { [a, b, c] }\n" +
                 "return id(1, *x, 3)\n");
@@ -1021,7 +1023,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
             "return [a: 1, *:x, d: 4, *:y, g: 7]\n");
         // When used in method call arguments, *:map is the same as map, except for creating an instance of SpreadMap.
         // IDK why Groovy even allows the spread syntax here.
-        assertEvaluate(Collections.singletonMap("a", 1),
+        assertEvaluate(Map.of("a", 1),
             "def x = [a: 1]\n" +
             "def id(def m) { m }\n" +
             "return id(*:x)\n");
@@ -1043,7 +1045,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     }
 
     @Test public void methodsWithInitialExpressionsAreExpandedToCorrectOverloads() throws Throwable {
-        assertEvaluate(Arrays.asList("abc", "xbc", "xyc", "xyz"),
+        assertEvaluate(List.of("abc", "xbc", "xyc", "xyz"),
                 "def m2(a = 'a', b = 'b', c = 'c') {\n" +
                 "    a + b + c\n" +
                 "}\n" +
@@ -1052,7 +1054,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                 "def r3 = m2('x', 'y')\n" +
                 "def r4 = m2('x', 'y', 'z')\n" +
                 "[r1, r2, r3, r4]");
-        assertEvaluate(Arrays.asList("abc", "xbc", "xby"),
+        assertEvaluate(List.of("abc", "xbc", "xby"),
                 "def m2(a = 'a', b, c = 'c') {\n" +
                 "    a + b + c\n" +
                 "}\n" +
@@ -1063,7 +1065,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     }
 
     @Test public void voidMethodsWithInitialExpressionsAreExpandedToCorrectOverloads() throws Throwable {
-        assertEvaluate(Arrays.asList("abc", "xbc", "xyc", "xyz"),
+        assertEvaluate(List.of("abc", "xbc", "xyc", "xyz"),
                 "import groovy.transform.Field\n" +
                 "@Field def r = []\n" +
                 "void m2(a = 'a', b = 'b', c = 'c') {\n" +
@@ -1074,7 +1076,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                 "m2('x', 'y')\n" +
                 "m2('x', 'y', 'z')\n" +
                 "r");
-        assertEvaluate(Arrays.asList("abc", "xbc", "xby"),
+        assertEvaluate(List.of("abc", "xbc", "xby"),
                 "import groovy.transform.Field\n" +
                 "@Field def r = []\n" +
                 "void m2(a = 'a', b, c = 'c') {\n" +
@@ -1103,7 +1105,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     }
 
     @Test public void castToTypeShouldBeUsedForImplicitCasts() throws Throwable {
-        assertEvaluate(Arrays.asList("toString", "toString", "toString", "asType"),
+        assertEvaluate(List.of("toString", "toString", "toString", "asType"),
                 "class Test {\n" +
                 "  def auditLog = []\n" +
                 "  @NonCPS\n" +
@@ -1127,7 +1129,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test public void castRelatedMethodsShouldBeNonCps() throws Throwable {
         // asType CPS (supported (to the extent possible) for compatibility with existing code)
-        assertEvaluate(Arrays.asList(false, "asType class java.lang.Boolean"),
+        assertEvaluate(List.of(false, "asType class java.lang.Boolean"),
                 "class Test {\n" +
                 "  def auditLog = []\n" +
                 "  def asType(Class c) {\n" +
@@ -1138,7 +1140,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                 "def t = new Test()\n" +
                 "[t as Boolean, t.auditLog[0]]");
         // asType NonCPS (preferred)
-        assertEvaluate(Collections.singletonList("asType class java.lang.Boolean"),
+        assertEvaluate(List.of("asType class java.lang.Boolean"),
                 "class Test {\n" +
                 "  def auditLog = []\n" +
                 "  @NonCPS\n" +
@@ -1166,7 +1168,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                     ec.checkThat(t.toString(), equalTo("java.lang.IllegalStateException: Test.asBoolean must be @NonCPS; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/"));
                 });
         // asBoolean NonCPS (required)
-        assertEvaluate(Collections.singletonList("asBoolean"),
+        assertEvaluate(List.of("asBoolean"),
                 "class Test {\n" +
                 "  def auditLog = []\n" +
                 "  @NonCPS\n" +
@@ -1196,10 +1198,10 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Issue("JENKINS-62064")
     @Test public void assignmentExprsEvalToRHS() throws Throwable {
-        assertEvaluate(Arrays.asList(1, 1, 1),
+        assertEvaluate(List.of(1, 1, 1),
                 "def a = b = c = 1\n" +
                 "[a, b, c]\n");
-        assertEvaluate(Arrays.asList(2, 3, 4),
+        assertEvaluate(List.of(2, 3, 4),
                 "def a = b = c = 1\n" +
                 "c += b += a += 1\n" +
                 "[a, b, c]\n");

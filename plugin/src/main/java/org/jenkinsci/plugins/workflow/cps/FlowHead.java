@@ -32,6 +32,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -124,8 +125,8 @@ final class FlowHead implements Serializable {
             // in recovering from error and such situation, we sometimes need to grow the graph
             // without running the program.
             // TODO can CpsThreadGroup.notifyNewHead be used instead to notify both kinds of listeners?
-            execution.notifyListeners(Collections.singletonList(head), true);
-            execution.notifyListeners(Collections.singletonList(head), false);
+            execution.notifyListeners(List.of(head), true);
+            execution.notifyListeners(List.of(head), false);
         }
     }
 
@@ -159,8 +160,8 @@ final class FlowHead implements Serializable {
             // in recovering from error and such situation, we sometimes need to grow the graph
             // without running the program.
             // TODO can CpsThreadGroup.notifyNewHead be used instead to notify both kinds of listeners?
-            execution.notifyListeners(Collections.singletonList(v), true);
-            execution.notifyListeners(Collections.singletonList(v), false);
+            execution.notifyListeners(List.of(v), true);
+            execution.notifyListeners(List.of(v), false);
         }
     }
 

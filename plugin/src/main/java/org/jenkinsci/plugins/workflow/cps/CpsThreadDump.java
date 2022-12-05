@@ -71,7 +71,7 @@ public final class CpsThreadDump {
          */
         public ThreadInfo(Throwable t) {
             headline = t.toString();
-            stack.addAll(Arrays.asList(t.getStackTrace()));
+            stack.addAll(List.of(t.getStackTrace()));
         }
 
         /**

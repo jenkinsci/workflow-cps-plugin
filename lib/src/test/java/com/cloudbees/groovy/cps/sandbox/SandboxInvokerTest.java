@@ -26,6 +26,7 @@ import java.awt.Point;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import org.codehaus.groovy.control.MultipleCompilationErrorsException;
 import org.codehaus.groovy.runtime.ProxyGeneratorAdapter;
@@ -193,7 +194,7 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
 
         assertIntercept(
             "trusted.foo(4)",
-            Arrays.asList(new Point(1, 4), new File("foo")),
+            List.of(new Point(1, 4), new File("foo")),
             //"Script1.super(Script1).setBinding(Binding)",
             "Script2.super(Script2).setBinding(Binding)",
             "Script2.trusted",

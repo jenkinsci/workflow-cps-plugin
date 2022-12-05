@@ -24,7 +24,6 @@
 
 package org.jenkinsci.plugins.workflow.cps.replay;
 
-import com.google.common.collect.ImmutableSet;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.InvisibleAction;
@@ -74,7 +73,7 @@ class ReplayFlowFactoryAction extends InvisibleAction implements CpsFlowFactoryA
     }
 
     Set<String> replaceableScripts() {
-        return ImmutableSet.copyOf(replacementLoadedScripts.keySet());
+        return Set.copyOf(replacementLoadedScripts.keySet());
     }
 
     @CheckForNull String replace(String clazz) {
