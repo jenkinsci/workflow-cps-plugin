@@ -1485,6 +1485,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     private static void cleanUpObjectStreamClassCaches(@NonNull Class<?> clazz) throws Exception {
+      int releaseVersion = JavaSpecificationVersion.forCurrentJVM().toReleaseVersion();
+      VersionNumber javaVersion = new VersionNumber(System.getProperty("java.version"));
+      if ((releaseVersion < 11)
+              || (releaseVersion == 11 && javaVersion.isOlderThan(new VersionNumber("11.0.16")))
+              || (releaseVersion > 11 && releaseVersion < 17)
+              || (releaseVersion == 17 && javaVersion.isOlderThan(new VersionNumber("17.0.4")))
+              || (releaseVersion == 18 && javaVersion.isOlderThan(new VersionNumber("18.0.2")))) {
         Class<?> cachesC = Class.forName("java.io.ObjectStreamClass$Caches");
         for (String cacheFName : new String[] {"localDescs", "reflectors"}) {
             Field cacheF = cachesC.getDeclaredField(cacheFName);
@@ -1502,6 +1509,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 }
             }
         }
+      }
     }
 
     synchronized @CheckForNull FlowHead getFirstHead() {
