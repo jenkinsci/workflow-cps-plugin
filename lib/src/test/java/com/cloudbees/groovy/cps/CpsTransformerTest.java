@@ -527,7 +527,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     public void arrayPassedToMethod() throws Throwable {
         assertEvaluate(4, "def m(x) {x.size()}; def a = [1, 2]; a.size() + m(a)"); // control case
-        assertEvaluate(4, "def m(x) {x.size()}; def a = [1, 2].toArray(); a.length + m(List.of(a))"); // workaround #1
+        assertEvaluate(4, "def m(x) {x.size()}; def a = [1, 2].toArray(); a.length + m(Arrays.asList(a))"); // workaround #1
         assertEvaluate(4, "@NonCPS def m(x) {x.length}; def a = [1, 2].toArray(); a.length + m(a)"); // workaround #2
         assertEvaluate(4, "def m(x) {x.length}; def a = [1, 2].toArray(); a.length + m(a)"); // formerly: groovy.lang.MissingPropertyException: No such property: length for class: java.lang.Integer
     }
