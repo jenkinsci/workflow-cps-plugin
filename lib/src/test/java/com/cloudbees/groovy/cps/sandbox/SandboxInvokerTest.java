@@ -696,4 +696,16 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
                 "Script1.method3()");
     }
 
+    @Test public void castsInTrustedCodeCalledByUntrustedCodeShouldBeTrusted() throws Throwable {
+        TrustedCpsCompiler trusted = new TrustedCpsCompiler();
+        trusted.setUp();
+        getBinding().setVariable("trusted", trusted.getCsh().parse("def foo() { File f = ['secret.key'] }"));
+
+        assertIntercept(
+            "trusted.foo()", // Untrusted script
+            new File("secret.key"),
+            "Script1.super(Script1).setBinding(Binding)",
+            "Script1.trusted",
+            "Script1.foo()");
+    }
 }

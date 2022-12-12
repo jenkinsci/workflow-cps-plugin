@@ -4,12 +4,13 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-import java.util.Collections;
+import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
+import java.util.Collection;
 import java.util.List;
 import org.codehaus.groovy.runtime.InvokerInvocationException;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
-public class CastBlock implements Block {
+public class CastBlock extends CallSiteBlockSupport {
     private final SourceLocation loc;
     private final Block valueExp;
     private final Class<?> type;
@@ -17,7 +18,8 @@ public class CastBlock implements Block {
     private final boolean coerce;
     private final boolean strict;
 
-    public CastBlock(SourceLocation loc, Block valueExp, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict) {
+    public CastBlock(SourceLocation loc, Collection<CallSiteTag> tags, Block valueExp, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict) {
+        super(tags);
         this.loc = loc;
         this.valueExp = valueExp;
         this.type = type;
@@ -42,7 +44,7 @@ public class CastBlock implements Block {
 
         public Next cast(Object value) {
             try {
-                return k.receive(e.getInvoker().cast(value, type, ignoreAutoboxing, coerce, strict));
+                return k.receive(e.getInvoker().contextualize(CastBlock.this).cast(value, type, ignoreAutoboxing, coerce, strict));
             } catch (CpsCallableInvocation inv) {
                 // Implementations of asType and other methods used by the Groovy stdlib should be @NonCPS, but we
                 // just log a warning and invoke the callable anyway to maintain the existing behavior.
