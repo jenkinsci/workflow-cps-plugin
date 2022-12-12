@@ -124,10 +124,10 @@ public abstract class AbstractGroovyCpsTest {
      */
     public void assertEvaluate(Object expectedReturnValue, String script) {
         evalCps(script, expectedReturnValue, e -> {
-            throw new RuntimeException("Failed to evaluate sandboxed script: " + script, e);
+            throw new RuntimeException("Failed to evaluate CPS-transformed script: " + script, e);
         });
         eval(script, expectedReturnValue, e -> {
-            throw new RuntimeException("Failed to evaluate unsandboxed script: " + script, e);
+            throw new RuntimeException("Failed to evaluate non-CPS-transformed script: " + script, e);
         });
     }
 
