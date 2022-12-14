@@ -696,4 +696,44 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
                 "Script1.method3()");
     }
 
+    @Issue("JENKINS-70108")
+    @Test public void castsInTrustedCodeCalledByUntrustedCodeShouldNotBeIntercepted() throws Throwable {
+        TrustedCpsCompiler trusted = new TrustedCpsCompiler();
+        trusted.setUp();
+        getBinding().setVariable("trusted", trusted.getCsh().parse("def foo() { File f = ['secret.key'] }"));
+        assertIntercept(
+            "trusted.foo()", // Untrusted script
+            new File("secret.key"),
+            "Script1.super(Script1).setBinding(Binding)",
+            "Script1.trusted",
+            "Script1.foo()");
+    }
+
+    /*
+     * All blocks that perform boolean casts internally using ContinuationGroup.castToBoolean incorrectly intercept
+     * calls performed by the cast when the cast is in trusted code that is called by untrusted code. For boolean
+     * casts, this is not that interesting, since it only causes problems in practice if you cast a type that
+     * implements an asBoolean method that would not be allowed by the sandbox.
+     * I see two obvious ways to fix this:
+     * 1. Add a CallSiteBlock parameter to ContinuationGroup.castToBoolean, and use it to contextualize the invoker
+     *    used in that method. All Blocks that use the method would need to be updated to implement CallSiteBlock.
+     * 2. Delete ContinuationGroup.castToBoolean and replace all uses with basic Java casts to boolean. Modify
+     *    CpsTransformer to insert explicit boolean casts into the CPS-transformed program for all AST nodes whose
+     *    Blocks previously used castToBoolean.
+     */
+    @Ignore("This variant of JENKINS-70108 seems less likely to cause problems in practice and is more complex to fix")
+    @Test public void booleanCastsInTrustedCodeCalledByUntrustedCodeShouldNotBeIntercepted() throws Throwable {
+        TrustedCpsCompiler trusted = new TrustedCpsCompiler();
+        trusted.setUp();
+        getBinding().setVariable("trusted", trusted.getCsh().parse(
+                "class Test { @NonCPS def asBoolean() { false } }\n" +
+                "def foo() { if (new Test()) { 123 } else { 456 } }"));
+        assertIntercept(
+            "trusted.foo()", // Untrusted script
+            456,
+            "Script1.super(Script1).setBinding(Binding)",
+            "Script1.trusted",
+            "Script1.foo()");
+            // Currently the call to Test.asBoolean() is also intercepted, which is incorrect.
+    }
 }

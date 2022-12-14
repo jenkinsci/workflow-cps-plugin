@@ -588,7 +588,7 @@ public class Builder {
      *      be used in all other cases, such as Java-syntax casts and implicit casts inserted by the Groovy runtime.
      */
     public Block cast(int line, Block block, Class type, boolean coerce) {
-        return new CastBlock(loc(line), block, type, false, coerce, false);
+        return new CastBlock(loc(line), tags, block, type, false, coerce, false);
     }
 
     /**
