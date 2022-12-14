@@ -28,8 +28,7 @@ Running pipelines persist in 3 pieces:
 
 Some basic rules:
 
-1. If the FlowNodeStorage is corrupt, incomplete, or un-persisted, all manner of check will break loose
-    - In terms of Pipeline execution, the impact is like the Resonance Cascade from the Half-Life games
+1. If the FlowNodeStorage is corrupt, incomplete, or un-persisted, various things will break
     - The pipeline can never be resumed (the key piece is missing)
     - Usually we fake up some placeholder FlowNodes to cover this situation and save them
 2. Whenever persisting data, the Pipeline *must* have the FlowNodes persisted on disk (via `storage.flush()` generally)
