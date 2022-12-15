@@ -256,4 +256,18 @@ public class IteratorHackTest {
             r.assertBuildStatusSuccess(r.waitForCompletion(b));
         });
     }
+
+    @Issue("https://github.com/jenkinsci/workflow-cps-plugin/pull/627#issuecomment-1352869571")
+    @Test public void arrayIterator() throws Exception {
+        rr.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition(
+                    "Object[] arr = [1, null, 2]\n" +
+                    "for (def elt : arr) {\n" +
+                    "  echo(/iterating on $elt/)\n" +
+                    "}\n", false));
+            rr.j.assertLogContains("iterating on null", rr.j.buildAndAssertSuccess(p));
+        });
+    }
+
 }
