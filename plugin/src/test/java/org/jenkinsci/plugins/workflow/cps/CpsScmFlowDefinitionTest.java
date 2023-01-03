@@ -204,7 +204,7 @@ public class CpsScmFlowDefinitionTest {
 
     @Issue("JENKINS-42971")
     @Test
-    public void lightweight_brach_parametrised() throws Exception {
+    public void lightweight_branch_parametrised() throws Exception {
         sampleRepo.init();
         sampleRepo.git("checkout", "-b", "master2");
         sampleRepo.write("flow.groovy", "echo 'version one'");
