@@ -15,7 +15,6 @@ Running pipelines persist in 3 pieces:
         - If null, probably the build dates back to before this field was added - we check to see if this is running in a highly persistent DurabilityMode (Max_survivability generally)
     * done - if true, this execution completed, if false or un-set, the pipeline is a candidate to resume unless its only head is a FlowEndNode
         - The handling of false is for legacy reasons, since it was only recently made persistent.
-    *
     * various other boolean flags & settings for the execution (durability setting, user that started the build, is it sandboxed, etc)
 3. The Program -- this is the current execution state of the Pipeline
     * This holds the Groovy state - the `CpsThreadGroup` - with runtime calls transformed by CPS so they can persist
@@ -29,8 +28,7 @@ Running pipelines persist in 3 pieces:
 
 Some basic rules:
 
-1. If the FlowNodeStorage is corrupt, incomplete, or un-persisted, all manner of heck will break loose
-    - In terms of Pipeline execution, the impact is like the Resonance Cascade from the Half-Life games
+1. If the FlowNodeStorage is corrupt, incomplete, or un-persisted, various things will break
     - The pipeline can never be resumed (the key piece is missing)
     - Usually we fake up some placeholder FlowNodes to cover this situation and save them
 2. Whenever persisting data, the Pipeline *must* have the FlowNodes persisted on disk (via `storage.flush()` generally)
