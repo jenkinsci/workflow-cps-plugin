@@ -70,7 +70,7 @@ THE SOFTWARE.
                 <f:block>
                     <input type="button" id="generatePipelineScript" value="${%Generate Pipeline Script}"
                            class="submit-button primary" data-url="${rootURL}/${it.GENERATE_URL}"/>
-                    <f:textarea id="prototypeText" readonly="true" style="margin-top: 10px" />
+                    <f:textarea id="prototypeText" readonly="true" style="margin-top: 10px"/>
                     <st:adjunct includes="org.jenkinsci.plugins.workflow.cps.Snippetizer.handle-prototype"/>
                 </f:block>
                 <f:section title="${%Global Variables}"/>
