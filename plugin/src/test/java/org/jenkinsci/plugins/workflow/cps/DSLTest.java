@@ -600,7 +600,10 @@ public class DSLTest {
         p.setDefinition(new CpsFlowDefinition(
                 "stage(name: 'A');\n" +
                         "echo('done')", true));
-        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        WorkflowRun b = r.waitForCompletion(p.scheduleBuild2(0).waitForStart());
+        r.assertLogContains(org.jenkinsci.plugins.workflow.support.steps.stage.Messages.StageStepExecution_non_block_mode_deprecated(), b);
+        // Special case in DSL.invokeStep:
+        r.assertLogNotContains("stage step must be called with a body", b);
     }
 
     @Test public void standardStage() throws Exception {
