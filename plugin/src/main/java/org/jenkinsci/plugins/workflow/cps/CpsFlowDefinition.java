@@ -37,6 +37,8 @@ import hudson.util.StreamTaskListener;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.cps.replay.ReplayAction;
+import org.jenkinsci.plugins.workflow.cps.view.ThemeUtil;
 import org.jenkinsci.plugins.workflow.flow.DurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinitionDescriptor;
@@ -179,5 +181,10 @@ public class CpsFlowDefinition extends FlowDefinition {
             // Approval requirements are managed by regular stapler form validation (via doCheckScript)
         }
 
+    }
+
+    /** @see ReplayAction#getTheme */
+    /* accessible to Jelly */ public String getTheme() {
+        return ThemeUtil.getTheme();
     }
 }

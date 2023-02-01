@@ -10,6 +10,7 @@ import ace from "ace-builds/src-noconflict/ace";
 import "ace-builds/src-noconflict/ext-language_tools";
 import "ace-builds/src-noconflict/mode-groovy";
 import "ace-builds/src-noconflict/theme-tomorrow";
+import "ace-builds/src-noconflict/theme-tomorrow_night";
 
 // Import custom snippets
 import "./snippets/workflow";
@@ -45,7 +46,7 @@ var editorIdCounter = 0;
                 snippetManager.register(snippets, 'groovy');
 
                     editor.session.setMode("ace/mode/groovy");
-                    editor.setTheme("ace/theme/tomorrow");
+                    editor.setTheme("ace/theme/" + aceContainer.attr("theme"));
                     editor.setAutoScrollEditorIntoView(true);
                     editor.setOption("minLines", 20);
                     // enable autocompletion and snippets
