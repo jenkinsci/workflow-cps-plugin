@@ -42,8 +42,8 @@
     </licenses>
     <properties>
         <no-test-jar>false</no-test-jar>
-        <node.version>16.17.0</node.version>
-        <npm.version>8.18.0</npm.version>
+        <node.version>18.13.0</node.version>
+        <npm.version>8.19.3</npm.version>
         <yarn.version>1.22.19</yarn.version>
     </properties>
     <dependencyManagement>
@@ -162,16 +162,6 @@
                 <exclusion> <!-- we pick this up from jenkins-core -->
                     <groupId>com.google.guava</groupId>
                     <artifactId>guava</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.ui</groupId>
-            <artifactId>ace-editor</artifactId>
-            <exclusions>
-                <exclusion> <!-- TODO remove when ace-editor is refreshed -->
-                    <groupId>javax.servlet</groupId>
-                    <artifactId>servlet-api</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
