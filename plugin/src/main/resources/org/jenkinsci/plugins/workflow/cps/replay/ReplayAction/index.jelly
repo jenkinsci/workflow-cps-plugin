@@ -16,9 +16,11 @@
                                 <wfe:workflow-editor script="${it.originalScript}" checkUrl="${rootURL}/${it.owner.url}${it.urlName}/checkScript" checkDependsOn=""/>
                             </f:entry>
                             <j:forEach var="loadedScript" items="${it.originalLoadedScripts.entrySet()}">
-                                <f:entry field="${loadedScript.key.replace('.', '_')}" title="${loadedScript.key}">
-                                    <wfe:workflow-editor script="${loadedScript.value}" checkUrl="${rootURL}/${it.owner.url}${it.urlName}/checkScript" checkDependsOn=""/>
-                                </f:entry>
+                                <f:optionalBlock name="dynamic" title="${loadedScript.key}">
+                                    <f:entry field="${loadedScript.key.replace('.', '_')}" title="${loadedScript.key}">
+                                        <wfe:workflow-editor script="${loadedScript.value}" checkUrl="${rootURL}/${it.owner.url}${it.urlName}/checkScript" checkDependsOn=""/>
+                                    </f:entry>
+                                </f:optionalBlock>
                             </j:forEach>
                             <f:block>
                                 <a href="${rootURL}/${it.owner.parent.url}/pipeline-syntax" target="_blank">${%Pipeline Syntax}</a>
