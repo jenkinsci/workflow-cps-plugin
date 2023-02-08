@@ -14,7 +14,12 @@ public final class ThemeUtil {
     }
 
     public static String getTheme() {
-        Theme theme = ThemeManagerPageDecorator.get().findTheme();
-        return theme.getProperty("ace-editor", "theme").orElse("tomorrow");
+        try {
+            Theme theme = ThemeManagerPageDecorator.get().findTheme();
+            return theme.getProperty("ace-editor", "theme").orElse("tomorrow");
+        } catch (LinkageError e) {
+            // Optional plugin not installed
+            return "tomorrow";
+        }
     }
 }

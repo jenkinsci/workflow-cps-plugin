@@ -183,6 +183,7 @@
         <dependency>
             <groupId>io.jenkins.plugins</groupId>
             <artifactId>theme-manager</artifactId>
+            <optional>true</optional>
             <exclusions>
                 <exclusion>
                     <groupId>io.jenkins.blueocean</groupId>
