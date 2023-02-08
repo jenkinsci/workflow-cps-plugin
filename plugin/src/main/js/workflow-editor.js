@@ -46,7 +46,8 @@ var editorIdCounter = 0;
                 snippetManager.register(snippets, 'groovy');
 
                     editor.session.setMode("ace/mode/groovy");
-                    editor.setTheme("ace/theme/" + aceContainer.attr("theme"));
+                    var theme = aceContainer.attr("theme") === "tomorrow_night" ? "tomorrow_night" : "tomorrow";
+                    editor.setTheme("ace/theme/" + theme);
                     editor.setAutoScrollEditorIntoView(true);
                     editor.setOption("minLines", 20);
                     // enable autocompletion and snippets
