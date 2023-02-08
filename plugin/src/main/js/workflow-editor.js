@@ -9,6 +9,7 @@ import { addSamplesWidget } from './samples';
 import ace from "ace-builds/src-noconflict/ace";
 import "ace-builds/src-noconflict/ext-language_tools";
 import "ace-builds/src-noconflict/mode-groovy";
+import "ace-builds/src-noconflict/snippets/javascript";
 import "ace-builds/src-noconflict/theme-tomorrow";
 import "ace-builds/src-noconflict/theme-tomorrow_night";
 
@@ -17,6 +18,7 @@ import "./snippets/workflow";
 
 var editorIdCounter = 0;
 
+document.addEventListener("DOMContentLoaded", function() {
         $('.workflow-editor-wrapper').each(function() {
             initEditor($(this));
         });
@@ -130,3 +132,4 @@ var editorIdCounter = 0;
             wrapper.show();
             textarea.hide();
         }
+});
