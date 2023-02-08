@@ -45,6 +45,8 @@ import org.jenkinsci.plugins.workflow.flow.FlowDefinitionDescriptor;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.flow.GlobalDefaultFlowDurabilityLevel;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 
@@ -184,6 +186,7 @@ public class CpsFlowDefinition extends FlowDefinition {
     }
 
     /** @see ReplayAction#getTheme */
+    @Restricted(DoNotUse.class)
     /* accessible to Jelly */ public String getTheme() {
         return ThemeUtil.getTheme();
     }

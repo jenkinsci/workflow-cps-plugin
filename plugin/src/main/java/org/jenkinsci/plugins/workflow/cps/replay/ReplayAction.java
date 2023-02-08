@@ -201,6 +201,7 @@ public class ReplayAction implements Action {
     }
 
     /** @see CpsFlowDefinition#getTheme */
+    @Restricted(DoNotUse.class)
     /* accessible to Jelly */ public String getTheme() {
         return ThemeUtil.getTheme();
     }
