@@ -18,7 +18,7 @@ import "./snippets/workflow";
 
 var editorIdCounter = 0;
 
-document.addEventListener("DOMContentLoaded", function() {
+$(function() {
         $('.workflow-editor-wrapper').each(function() {
             initEditor($(this));
         });
