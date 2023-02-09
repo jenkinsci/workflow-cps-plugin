@@ -1,4 +1,3 @@
-import ace from "ace-builds/src-noconflict/ace";
 ace.define("ace/snippets/groovy",["require","exports","module"], function(require, exports, module) {
 "use strict";
 
