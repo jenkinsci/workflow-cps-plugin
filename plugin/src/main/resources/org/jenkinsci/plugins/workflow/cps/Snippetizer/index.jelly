@@ -70,7 +70,8 @@ THE SOFTWARE.
                 <j:set var="id" value="${h.generateId()}"/>
                 <f:block>
                     <input type="button" value="${%Generate Pipeline Script}" onclick="handlePrototype_${id}(); return false" class="submit-button primary"/>
-                    <f:textarea id="prototypeText_${id}" readonly="true" style="margin-top: 10px" />
+                    <f:textarea id="prototypeText_${id}" readonly="true" style="margin-top: 10px; margin-bottom: 5px" />
+                    <l:copyButton text="" clazz="jenkins-hidden"/>
                     <script>
                         function handlePrototype_${id}() {
                             buildFormTree(document.forms.config);
@@ -84,6 +85,9 @@ THE SOFTWARE.
                                 parameters: {json: json},
                                 onSuccess: function(r) {
                                     document.getElementById('prototypeText_${id}').value = r.responseText;
+                                    copybutton = document.querySelector('.jenkins-copy-button');
+                                    copybutton.setAttribute("text", r.responseText);
+                                    copybutton.classList.remove('jenkins-hidden');
                                 }
                             });
                         }
