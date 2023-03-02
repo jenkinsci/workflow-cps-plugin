@@ -1306,8 +1306,18 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     void cleanUpHeap() {
         LOGGER.log(Level.FINE, "cleanUpHeap on {0}", owner);
-        shell = null;
-        trusted = null;
+        try {
+            if (shell != null) {
+                shell.getClassLoader().close();
+                shell = null;
+            }
+            if (trusted != null) {
+                trusted.getClassLoader().close();
+                trusted = null;
+            }
+        } catch (IOException x) {
+            LOGGER.log(Level.WARNING, "failed to close class loaders from " + owner, x);
+        }
         if (scriptClass != null) {
             try {
                 cleanUpLoader(scriptClass.getClassLoader(), new HashSet<>(), new HashSet<>());
