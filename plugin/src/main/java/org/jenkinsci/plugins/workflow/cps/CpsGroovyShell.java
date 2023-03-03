@@ -14,6 +14,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URLClassLoader;
+import java.security.CodeSource;
 import org.codehaus.groovy.control.CompilationFailedException;
 import org.codehaus.groovy.control.CompilationUnit;
 import org.codehaus.groovy.control.CompilerConfiguration;
@@ -74,6 +78,27 @@ class CpsGroovyShell extends GroovyShell {
         @Override protected ClassCollector createCollector(CompilationUnit unit, SourceUnit su) {
             // Super implementation is what creates the InnerLoader.
             return new CleanClassCollector(unit, su);
+        }
+
+        /**
+         * The default implementation handles JAR entries poorly, setting the {@link CodeSource#getLocation} to {@code file:/groovy/script}.
+         * When called from {@link #recompile} the actual URL is in fact known.
+         * (This implementation yields {@code jar:file:/x.jar!/pkg/Clazz.groovy}
+         * which is not the same as {@link URLClassLoader}’s {@code file:/x.jar} or {@code jar:file:/x.jar!/}
+         * but the only way to set {@link GroovyCodeSource#getURL} is to have it load the text itself.)
+         */
+        @SuppressWarnings("rawtypes")
+        @Deprecated
+        @Override public Class parseClass(InputStream in, String fileName) throws CompilationFailedException {
+            LOGGER.finer(() -> "processing " + fileName);
+            if (fileName.startsWith("jar:file:")) {
+                try {
+                    return parseClass(new GroovyCodeSource(new URL(fileName)));
+                } catch (MalformedURLException x) {
+                    LOGGER.log(Level.WARNING, null, x);
+                }
+            }
+            return super.parseClass(in, fileName);
         }
 
         private final class CleanClassCollector extends ClassCollector {
