@@ -90,6 +90,11 @@ class CpsGroovyShell extends GroovyShell {
         @SuppressWarnings("rawtypes")
         @Deprecated
         @Override public Class parseClass(InputStream in, String fileName) throws CompilationFailedException {
+            try {
+                in.close();
+            } catch (IOException x) {
+                LOGGER.log(Level.WARNING, "failed to close input stream for " + fileName, x);
+            }
             LOGGER.finer(() -> "processing " + fileName);
             if (fileName.startsWith("jar:file:")) {
                 try {
