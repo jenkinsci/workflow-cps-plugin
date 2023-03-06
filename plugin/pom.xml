@@ -45,6 +45,7 @@
         <node.version>18.13.0</node.version>
         <npm.version>8.19.3</npm.version>
         <yarn.version>1.22.19</yarn.version>
+        <jenkins-test-harness.version>1926.v9b_323a_4da_421</jenkins-test-harness.version> <!-- Temporary, required to diagnose RJR issues due to https://github.com/jenkinsci/jenkins-test-harness/pull/544#issuecomment-1456707299 -->
     </properties>
     <dependencyManagement>
         <dependencies>
