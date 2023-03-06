@@ -69,7 +69,7 @@ When a `WorkflowRun` is loaded from disk after a restart, the program state is d
 If and when all pickles are successfully deserialized and the resulting objects placed back in the program state, the program begins running again, and `StepExecution.onResume` is called to restore timers and the like.
 
 All program logic is run inside a “CPS VM thread”, which is just a Java thread pool that can run binary methods and figure out which continuation to do next.
-The `parallel` step uses “green threads” (also known as coöperative multitasking): it records logical thread (~ branch) names for various actions, but does not literally run them simultaneously.
+The `parallel` step uses “green threads” (also known as cooperative multitasking): it records logical thread (~ branch) names for various actions, but does not literally run them simultaneously.
 The program may seem to perform tasks concurrently, but only because most steps run asynchronously, while the VM thread is idle, and they may overlap in time.
 No Java thread is consumed except during the typically brief intervals when Groovy code is actually being run on the VM thread.
 The executor widget only displays an entry for the “flyweight” executor on the built-in node when the VM thread is busy; normally it is hidden.
