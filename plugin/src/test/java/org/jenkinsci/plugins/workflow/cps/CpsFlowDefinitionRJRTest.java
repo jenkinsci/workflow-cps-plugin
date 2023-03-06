@@ -1,8 +1,10 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import hudson.Functions;
 import java.util.logging.Level;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -26,6 +28,7 @@ public class CpsFlowDefinitionRJRTest {
 
     @Test
     public void flushLogsOnShutdown() throws Throwable {
+        Assume.assumeFalse("RealJenkinsRule does not shut down Jenkins cleanly on Windows, see https://github.com/jenkinsci/jenkins-test-harness/pull/559", Functions.isWindows());
         rjr.withLogger(CpsFlowExecution.class, Level.FINER);
         rjr.then(CpsFlowDefinitionRJRTest::flushLogsOnShutdownPreRestart);
         rjr.then(CpsFlowDefinitionRJRTest::flushLogsOnShutdownPostRestart);

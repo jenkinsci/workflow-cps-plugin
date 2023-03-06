@@ -45,7 +45,6 @@
         <node.version>18.13.0</node.version>
         <npm.version>8.19.3</npm.version>
         <yarn.version>1.22.19</yarn.version>
-        <jenkins.version>2.391</jenkins.version> <!-- TODO: Trying to diagnose errors with RealJenkinsRule in tests -->
     </properties>
     <dependencyManagement>
         <dependencies>
