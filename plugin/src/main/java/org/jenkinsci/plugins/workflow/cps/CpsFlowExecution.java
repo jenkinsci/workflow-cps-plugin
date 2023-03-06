@@ -426,7 +426,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override public void close() {
-            timings.merge(kind.name(), System.nanoTime() - start, Long::sum);
+            // Not using ConcurrentHashMap::merge since it can acquire a lock:
+            long delta = System.nanoTime() - start;
+            Long prev = timings.get(kind.name());
+            long nue = prev == null ? delta : prev + delta;
+            timings.put(kind.name(), nue);
         }
     }
 
