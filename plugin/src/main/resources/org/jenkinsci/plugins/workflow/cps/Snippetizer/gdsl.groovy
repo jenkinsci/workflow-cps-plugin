@@ -57,7 +57,7 @@ steps.each { StepDescriptor step, DescribableModel model ->
 
     boolean requiresNode = step.requiredContext.contains(FilePath)
     boolean takesClosure = step.takesImplicitBlockArgument()
-    def sanitizedDisplayName = StringEscapeUtils.escapeJavaScript(step.displayName)
+    def sanitizedDisplayName = StringEscapeUtils.escapeJava(step.displayName)
     String description = sanitizedDisplayName
     if (step.isAdvanced()) {
         description = "Advanced/Deprecated " + description
@@ -70,7 +70,7 @@ steps.each { StepDescriptor step, DescribableModel model ->
         if (takesClosure) {
             fixedParams = params + ['body': "'Closure'"]
         }
-        String contr = "method(name: '${step.functionName}', type: 'Object', params: ${fixedParams}, doc: '${description}')"
+        String contr = "method(name: '${step.functionName}', type: 'Object', params: ${fixedParams}, doc: '''${description}''')"
         if (requiresNode) {
             nodeContext.add(contr)
         } else {
@@ -91,9 +91,9 @@ steps.each { StepDescriptor step, DescribableModel model ->
         }
         String contr
         if (takesClosure) {
-            contr = "method(name: '${step.functionName}', type: 'Object', params: [body:Closure], namedParams: [${namedParamsS.toString()}], doc: '${sanitizedDisplayName}')"
+            contr = "method(name: '${step.functionName}', type: 'Object', params: [body:Closure], namedParams: [${namedParamsS.toString()}], doc: '''${sanitizedDisplayName}''')"
         } else {
-            contr = "method(name: '${step.functionName}', type: 'Object', namedParams: [${namedParamsS.toString()}], doc: '${sanitizedDisplayName}')"
+            contr = "method(name: '${step.functionName}', type: 'Object', namedParams: [${namedParamsS.toString()}], doc: '''${sanitizedDisplayName}''')"
         }
         if (requiresNode) {
             nodeContext.add(contr)
