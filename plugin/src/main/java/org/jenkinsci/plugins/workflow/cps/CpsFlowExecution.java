@@ -1720,6 +1720,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                 LOGGER.log(Level.WARNING, null, t);
                             }
                         });
+                        cpsExec.getOwner().getListener().getLogger().close();
                     }
                 } catch (Exception ex) {
                     LOGGER.log(Level.WARNING, "Error persisting Pipeline execution at shutdown: "+((CpsFlowExecution) execution).owner, ex);
