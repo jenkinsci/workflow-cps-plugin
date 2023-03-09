@@ -1271,7 +1271,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     @Override
     public boolean isComplete() {
-        return done || super.isComplete();
+        return done || (heads != null && super.isComplete());
     }
 
     /**
