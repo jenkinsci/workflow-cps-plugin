@@ -268,7 +268,7 @@
         <dependency>
             <groupId>org.tmatesoft.svnkit</groupId>
             <artifactId>svnkit-cli</artifactId>
-            <version>1.10.10</version>
+            <version>1.10.11</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
