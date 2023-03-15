@@ -34,7 +34,7 @@
     "postcss-less": "^4.0.0",
     "postcss-loader": "^4.0.4",
     "style-loader": "^2.0.0",
-    "webpack": "5.74.0",
+    "webpack": "5.76.0",
     "webpack-cli": "^4.10.0",
     "webpack-fix-style-only-entries": "^0.6.1"
   },
