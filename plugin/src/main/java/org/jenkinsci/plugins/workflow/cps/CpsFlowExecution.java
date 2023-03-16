@@ -141,6 +141,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -395,7 +396,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     /** accumulated time in ns of a given {@link TimingKind#name}; {@link String} key for pretty XStream form */
-    @NonNull Map<String, Long> timings = new ConcurrentHashMap<>();
+    transient @NonNull Map<String, LongAdder> liveTimings = new ConcurrentHashMap<>();
+    /** XStream simplified form of {@link #liveTimings} */
+    private Map<String, Long> timings;
 
     @Deprecated
     public CpsFlowExecution(String script, FlowExecutionOwner owner) throws IOException {
@@ -426,11 +429,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override public void close() {
-            // Not using ConcurrentHashMap::merge since it can acquire a lock:
-            long delta = System.nanoTime() - start;
-            Long prev = timings.get(kind.name());
-            long nue = prev == null ? delta : prev + delta;
-            timings.put(kind.name(), nue);
+            liveTimings.computeIfAbsent(kind.name(), k -> new LongAdder()).add(System.nanoTime() - start);
         }
     }
 
@@ -448,7 +447,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     void logTimings() {
         if (TIMING_LOGGER.isLoggable(Level.FINE)) {
             Map<String, String> formatted = new TreeMap<>();
-            timings.forEach((k, v) -> formatted.put(k, v / 1000 / 1000 + "ms"));
+            liveTimings.forEach((k, v) -> formatted.put(k, v.longValue() / 1000 / 1000 + "ms"));
             TIMING_LOGGER.log(Level.FINE, "timings for {0}: {1}", new Object[] {owner, formatted});
         }
     }
@@ -1769,7 +1768,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             if (e.durabilityHint != null) {
                 writeChild(w, context, "durabilityHint", e.durabilityHint, FlowDurabilityHint.class);
             }
-            writeChild(w, context, "timings", e.timings, Map.class);
+            writeChild(w, context, "timings", e.liveTimings.entrySet().stream().collect(Collectors.toMap(kv -> kv.getKey(), kv -> kv.getValue().longValue())), Map.class);
             writeChild(w, context, "sandbox", e.sandbox, Boolean.class);
             if (e.user != null) {
                 writeChild(w, context, "user", e.user, String.class);
@@ -1887,10 +1886,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     if (result.loadedScripts == null) {
                         result.loadedScripts = new HashMap<>();   // field added later
                     }
-                    // Convert timings to concurrent hash map
-                    if (!(result.timings instanceof ConcurrentHashMap)) {
-                        result.timings = result.timings == null ? new ConcurrentHashMap<>() : new ConcurrentHashMap<>(result.timings);
-                    }
+                    result.liveTimings = result.timings == null ?
+                        new ConcurrentHashMap<>() :
+                        result.timings.entrySet().stream().collect(Collectors.toConcurrentMap(kv -> kv.getKey(), kv -> {
+                            LongAdder la = new LongAdder();
+                            la.add(kv.getValue());
+                            return la;
+                        }));
                     return result;
                 } catch (Exception ex) {
                     LOGGER.log(Level.SEVERE, "Failed to even load the FlowExecution", ex);
@@ -2060,9 +2062,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                         continue;
                                     }
                                     if (exec instanceof CpsFlowExecution) {
-                                        Map<String, Long> sortedTimings = new TreeMap<>(((CpsFlowExecution) exec).timings);
+                                        Map<String, LongAdder> sortedTimings = new TreeMap<>(((CpsFlowExecution) exec).liveTimings);
                                         pw.println("Timings for " + run + ":");
-                                        sortedTimings.forEach((k, v) -> pw.println("  " + k + "\t" + v / 1000 / 1000 + "ms"));
+                                        sortedTimings.forEach((k, v) -> pw.println("  " + k + "\t" + v.longValue() / 1000 / 1000 + "ms"));
                                         pw.println();
                                     }
                                 }
