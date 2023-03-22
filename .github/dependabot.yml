@@ -11,8 +11,6 @@ updates:
       interval: "weekly"
     ignore:
     - dependency-name: org.codehaus.groovy:groovy
-    # Must match transitive version from org.jenkins-ci.plugins:subversion:
-    - dependency-name: org.tmatesoft.svnkit:svnkit-cli
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
