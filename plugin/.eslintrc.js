@@ -9,11 +9,6 @@ module.exports = {
     },
     // Uses eslint default ruleset
     extends: "eslint:recommended",
-    plugins: [
-        // Keeps the default level to warn to avoid breaking the current
-        // CI build environment
-        "only-warn"
-    ],
     parserOptions: {
         ecmaVersion: 2018,
         sourceType: "module"

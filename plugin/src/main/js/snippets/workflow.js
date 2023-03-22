@@ -1,4 +1,5 @@
 import ace from "ace-builds/src-noconflict/ace";
+// eslint-disable-next-line no-unused-vars
 ace.define("ace/snippets/groovy",["require","exports","module"], function(require, exports, module) {
 "use strict";
 
