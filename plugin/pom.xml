@@ -99,6 +99,10 @@
                     <groupId>com.github.stephenc.findbugs</groupId>
                     <artifactId>findbugs-annotations</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>io.jenkins.lib</groupId>
+                    <artifactId>support-log-formatter</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -268,7 +272,7 @@
         <dependency>
             <groupId>org.tmatesoft.svnkit</groupId>
             <artifactId>svnkit-cli</artifactId>
-            <version>1.10.11</version>
+            <version>1.10.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
