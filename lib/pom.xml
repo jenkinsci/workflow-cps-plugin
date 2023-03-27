@@ -78,14 +78,6 @@
   </properties>
   <dependencies>
     <dependency>
-      <groupId>com.cloudbees</groupId>
-      <artifactId>groovy-cps-dgm-builder</artifactId>
-      <version>${changelist}</version>
-      <classifier>jar-with-dependencies</classifier>
-      <scope>runtime</scope> <!-- somehow provide to dependency:properties without actually adding to CP -->
-      <optional>true</optional>
-    </dependency>
-    <dependency>
       <groupId>com.github.spotbugs</groupId>
       <artifactId>spotbugs-annotations</artifactId>
       <optional>true</optional>
