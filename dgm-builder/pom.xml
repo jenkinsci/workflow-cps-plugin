@@ -21,6 +21,11 @@
         </license>
     </licenses>
 
+    <properties>
+        <maven.install.skip>true</maven.install.skip>
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+
     <build>
         <plugins>
             <plugin>
@@ -28,7 +33,7 @@
                 <artifactId>maven-assembly-plugin</artifactId>
                 <executions>
                     <execution>
-                        <phase>package</phase>
+                        <phase>process-classes</phase>
                         <goals>
                             <goal>single</goal>
                         </goals>
