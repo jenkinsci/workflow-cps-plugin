@@ -22,6 +22,7 @@
     </licenses>
 
     <properties>
+        <maven.install.skip>true</maven.install.skip>
         <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
 
@@ -32,7 +33,7 @@
                 <artifactId>maven-assembly-plugin</artifactId>
                 <executions>
                     <execution>
-                        <phase>package</phase>
+                        <phase>process-classes</phase>
                         <goals>
                             <goal>single</goal>
                         </goals>
@@ -74,19 +75,4 @@
             <version>${groovy.version}</version>
         </dependency>
     </dependencies>
-
-    <profiles>
-        <profile>
-            <id>skip-installation</id>
-            <activation>
-                <property>
-                    <name>set.changelist</name>
-                    <value>true</value>
-                </property>
-            </activation>
-            <properties>
-                <maven.install.skip>true</maven.install.skip>
-            </properties>
-        </profile>
-    </profiles>
 </project>
