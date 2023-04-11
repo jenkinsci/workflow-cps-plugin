@@ -51,7 +51,7 @@
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-2.361.x</artifactId>
-                <version>1750.v0071fa_4c4a_e3</version>
+                <version>1883.vcb_768a_7c3610</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -98,6 +98,10 @@
                 <exclusion>
                     <groupId>com.github.stephenc.findbugs</groupId>
                     <artifactId>findbugs-annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.jenkins.lib</groupId>
+                    <artifactId>support-log-formatter</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -241,6 +245,16 @@
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>subversion</artifactId>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.sshd</groupId>
+                    <artifactId>sshd-common</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.sshd</groupId>
+                    <artifactId>sshd-core</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -251,7 +265,7 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.17.6</version>
+            <version>1.18.0</version>
             <scope>test</scope>
             <exclusions>
                 <!-- Provided by Jenkins core -->
@@ -268,7 +282,7 @@
         <dependency>
             <groupId>org.tmatesoft.svnkit</groupId>
             <artifactId>svnkit-cli</artifactId>
-            <version>1.10.11</version>
+            <version>1.10.10</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
