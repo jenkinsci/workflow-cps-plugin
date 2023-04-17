@@ -14,6 +14,14 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import java.io.File;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URLConnection;
+import java.net.URLStreamHandler;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.codehaus.groovy.control.CompilationFailedException;
 import org.codehaus.groovy.control.CompilationUnit;
 import org.codehaus.groovy.control.CompilerConfiguration;
@@ -74,6 +82,46 @@ class CpsGroovyShell extends GroovyShell {
         @Override protected ClassCollector createCollector(CompilationUnit unit, SourceUnit su) {
             // Super implementation is what creates the InnerLoader.
             return new CleanClassCollector(unit, su);
+        }
+
+        private static final Pattern JAR_URL = Pattern.compile("jar:(file:/.+[.]jar)!/.+");
+
+        // Avoid expensive and (JDK-6956385) leaky implementations of certain JarURLConnection methods:
+        @Override public URL findResource(String name) {
+            URL url = super.findResource(name);
+            if (url != null && url.getProtocol().equals("jar")) {
+                try {
+                    return new URL(url.getProtocol(), url.getHost(), url.getPort(), url.getFile(), new URLStreamHandler() {
+                        @Override protected URLConnection openConnection(URL url2) throws IOException {
+                            URLConnection delegate = url.openConnection();
+                            return new URLConnection(url2) {
+                                @Override public void connect() throws IOException {
+                                    delegate.connect();
+                                }
+                                @Override public InputStream getInputStream() throws IOException {
+                                    return delegate.getInputStream();
+                                }
+                                @Override public String getHeaderField(String name) {
+                                    return delegate.getHeaderField(name);
+                                }
+                                @Override public long getLastModified() {
+                                    Matcher m = JAR_URL.matcher(url.toString());
+                                    if (m.matches()) {
+                                        return new File(URI.create(m.group(1))).lastModified();
+                                    }
+                                    return delegate.getLastModified();
+                                }
+                                @Override public String getContentEncoding() {
+                                    return null;
+                                }
+                            };
+                        }
+                    });
+                } catch (MalformedURLException x) {
+                    LOGGER.log(Level.WARNING, null, x);
+                }
+            }
+            return url;
         }
 
         private final class CleanClassCollector extends ClassCollector {

@@ -426,7 +426,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override public void close() {
-            timings.merge(kind.name(), System.nanoTime() - start, Long::sum);
+            // Not using ConcurrentHashMap::merge since it can acquire a lock:
+            long delta = System.nanoTime() - start;
+            Long prev = timings.get(kind.name());
+            long nue = prev == null ? delta : prev + delta;
+            timings.put(kind.name(), nue);
         }
     }
 
@@ -557,13 +561,19 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     private CpsScript parseScript() throws IOException {
         // classloader hierarchy. See doc/classloader.md
-        trusted = new CpsGroovyShellFactory(this).forTrusted().build();
-        shell = new CpsGroovyShellFactory(this).withParent(trusted).build();
+        CpsScript s;
+        try {
+            trusted = new CpsGroovyShellFactory(this).forTrusted().build();
+            shell = new CpsGroovyShellFactory(this).withParent(trusted).build();
 
-        CpsScript s = (CpsScript) shell.reparse("WorkflowScript",script);
+            s = (CpsScript) shell.reparse("WorkflowScript",script);
 
-        for (Entry<String, String> e : loadedScripts.entrySet()) {
-            shell.reparse(e.getKey(), e.getValue());
+            for (Entry<String, String> e : loadedScripts.entrySet()) {
+                shell.reparse(e.getKey(), e.getValue());
+            }
+        } catch (RuntimeException | Error x) {
+            closeShells();
+            throw x;
         }
 
         s.execution = this;
@@ -1261,7 +1271,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     @Override
     public boolean isComplete() {
-        return done || super.isComplete();
+        if (done) {
+            return true;
+        } else {
+            synchronized (this) {
+                return heads != null && super.isComplete();
+            }
+        }
     }
 
     /**
@@ -1304,10 +1320,26 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this.persistedClean = Boolean.TRUE;
     }
 
+    private void closeShells() {
+        try {
+            if (shell != null) {
+                LOGGER.fine(() -> "closing main class loader from " + owner);
+                shell.getClassLoader().close();
+                shell = null;
+            }
+            if (trusted != null) {
+                LOGGER.fine(() -> "closing trusted class loader from " + owner);
+                trusted.getClassLoader().close();
+                trusted = null;
+            }
+        } catch (IOException x) {
+            LOGGER.log(Level.WARNING, "failed to close class loaders from " + owner, x);
+        }
+    }
+
     void cleanUpHeap() {
         LOGGER.log(Level.FINE, "cleanUpHeap on {0}", owner);
-        shell = null;
-        trusted = null;
+        closeShells();
         if (scriptClass != null) {
             try {
                 cleanUpLoader(scriptClass.getClassLoader(), new HashSet<>(), new HashSet<>());
@@ -1694,6 +1726,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                 LOGGER.log(Level.WARNING, null, t);
                             }
                         });
+                        cpsExec.getOwner().getListener().getLogger().close();
                     }
                 } catch (Exception ex) {
                     LOGGER.log(Level.WARNING, "Error persisting Pipeline execution at shutdown: "+((CpsFlowExecution) execution).owner, ex);
