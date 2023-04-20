@@ -46,7 +46,9 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
+import java.io.File;
 import jenkins.model.Jenkins;
+import org.apache.commons.io.FileUtils;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
@@ -361,6 +363,7 @@ public class CpsFlowExecutionTest {
         sessions.then(r -> {
                 WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
                 WorkflowRun b = p.getLastBuild();
+                FileUtils.copyFile(new File(b.getRootDir(), "build.xml"), System.out);
                 SemaphoreStep.success("wait/1", null);
                 r.assertBuildStatusSuccess(r.waitForCompletion(b));
                 while (logger.getRecords().isEmpty()) {
@@ -368,7 +371,7 @@ public class CpsFlowExecutionTest {
                 }
                 // TODO https://github.com/jenkinsci/workflow-cps-plugin/pull/570#issuecomment-1192679404 message can be duplicated
                 assertThat(logger.getRecords(), Matchers.not(Matchers.empty()));
-                assertEquals(CpsFlowExecution.TimingKind.values().length, ((CpsFlowExecution) b.getExecution()).timings.keySet().size());
+                assertEquals(CpsFlowExecution.TimingKind.values().length, ((CpsFlowExecution) b.getExecution()).liveTimings.keySet().size());
         });
     }
 
