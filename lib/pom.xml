@@ -73,7 +73,7 @@
   </build>
 
   <properties>
-      <groovy-sandbox.version>1.32</groovy-sandbox.version>
+      <groovy-sandbox.version>1.33</groovy-sandbox.version>
       <no-test-jar>false</no-test-jar>
   </properties>
   <dependencies>
