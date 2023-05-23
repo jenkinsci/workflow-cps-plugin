@@ -2065,6 +2065,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                         Map<String, LongAdder> sortedTimings = new TreeMap<>(((CpsFlowExecution) exec).liveTimings);
                                         pw.println("Timings for " + run + ":");
                                         sortedTimings.forEach((k, v) -> pw.println("  " + k + "\t" + v.longValue() / 1000 / 1000 + "ms"));
+                                        pw.println("Approximate graph size: " + ((CpsFlowExecution) exec).approximateNodeCount());
                                         pw.println();
                                     }
                                 }
