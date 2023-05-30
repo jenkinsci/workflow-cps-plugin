@@ -16,6 +16,7 @@ import org.jenkinsci.plugins.workflow.job.properties.DurabilityHintJobProperty;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputAction;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStepExecution;
 import org.junit.Assert;
+import org.junit.AssumptionViolatedException;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -24,6 +25,7 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -288,8 +290,11 @@ public class PersistenceProblemsTest {
         final int[] build = new int[1];
         story.thenWithHardShutdown( j -> {
             WorkflowRun run = runBasicPauseOnInput(j, DEFAULT_JOBNAME, build);
-            CpsFlowExecution cpsExec = (CpsFlowExecution) run.getExecution();
-            FileUtils.deleteDirectory(((CpsFlowExecution) run.getExecution()).getStorageDir());
+            try {
+                FileUtils.deleteDirectory(((CpsFlowExecution) run.getExecution()).getStorageDir());
+            } catch (IOException x) {
+                throw new AssumptionViolatedException("Failed to delete storage directory (race condition?)", x);
+            }
         });
         story.then( j->{
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
