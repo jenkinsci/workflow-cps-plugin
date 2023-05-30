@@ -29,8 +29,21 @@
             <executions>
                 <execution>
                     <goals>
-                        <goal>properties</goal>
+                        <goal>copy</goal>
                     </goals>
+                    <phase>generate-sources</phase>
+                    <configuration>
+                        <artifactItems>
+                            <artifactItem>
+                                <groupId>com.cloudbees</groupId>
+                                <artifactId>groovy-cps-dgm-builder</artifactId>
+                                <version>${project.version}</version>
+                                <classifier>jar-with-dependencies</classifier>
+                            </artifactItem>
+                        </artifactItems>
+                        <outputDirectory>${project.build.directory}</outputDirectory>
+                        <overWriteIfNewer>true</overWriteIfNewer>
+                    </configuration>
                 </execution>
             </executions>
         </plugin>
@@ -49,7 +62,7 @@
                         <executable>java</executable>
                         <arguments>
                             <argument>-jar</argument>
-                            <argument>${com.cloudbees:groovy-cps-dgm-builder:jar:jar-with-dependencies}</argument>
+                            <argument>${project.build.directory}/groovy-cps-dgm-builder-${project.version}-jar-with-dependencies.jar</argument>
                             <argument>${project.build.directory}/generated-sources/dgm</argument>
                         </arguments>
                     </configuration>
@@ -60,7 +73,7 @@
   </build>
 
   <properties>
-      <groovy-sandbox.version>1.32</groovy-sandbox.version>
+      <groovy-sandbox.version>1.33</groovy-sandbox.version>
       <no-test-jar>false</no-test-jar>
   </properties>
   <dependencies>
