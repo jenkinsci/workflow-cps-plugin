@@ -60,6 +60,7 @@ $(function() {
                     });
 
                     editor.setValue(textarea.val(), 1);
+                    // eslint-disable-next-line no-unused-vars
                     editor.getSession().on('change', function(delta) {
                         textarea.val(editor.getValue());
                         showSamplesWidget();
