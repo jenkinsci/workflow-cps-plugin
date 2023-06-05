@@ -1948,17 +1948,17 @@ kind-of@^6.0.2:
   version "6.0.3"
   resolved "https://registry.yarnpkg.com/kind-of/-/kind-of-6.0.3.tgz#07c05034a6c349fa06e24fa35aa76db4580ce4dd"
 
-klona@^2.0.4:
-  version "2.0.5"
-  resolved "https://registry.yarnpkg.com/klona/-/klona-2.0.5.tgz#d166574d90076395d9963aa7a928fabb8d76afbc"
+klona@^2.0.4, klona@^2.0.6:
+  version "2.0.6"
+  resolved "https://registry.yarnpkg.com/klona/-/klona-2.0.6.tgz#85bffbf819c03b2f53270412420a4555ef882e22"
+  integrity sha512-dhG34DXATL5hSxJbIexCft8FChFXtmskoZYnoPWjXQuebWYCNkVeV3KkGegCK9CP1oswI/vQibS2GY7Em/sJJA==
 
-less-loader@^7.0.2:
-  version "7.3.0"
-  resolved "https://registry.yarnpkg.com/less-loader/-/less-loader-7.3.0.tgz#f9d6d36d18739d642067a05fb5bd70c8c61317e5"
+less-loader@^11.1.2:
+  version "11.1.2"
+  resolved "https://registry.yarnpkg.com/less-loader/-/less-loader-11.1.2.tgz#ff1ea68ce60347a0a1ec67f998ac1e56b204f6da"
+  integrity sha512-2bSaN2j13bUh/5BuwJKuY2DDWVmfBsS6oWRe8v1mGj7F0EpcL+WyWkDQVoEfsVRE4ac5/OuP44ZCaVsXWrQQ9A==
   dependencies:
-    klona "^2.0.4"
-    loader-utils "^2.0.0"
-    schema-utils "^3.0.0"
+    klona "^2.0.6"
 
 less@^3.12.2:
   version "3.13.1"
