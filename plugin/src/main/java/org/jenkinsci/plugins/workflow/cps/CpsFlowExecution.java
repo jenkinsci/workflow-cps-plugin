@@ -632,11 +632,15 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             trusted = new CpsGroovyShellFactory(this).forTrusted().build();
             shell = new CpsGroovyShellFactory(this).withParent(trusted).build();
 
-            s = (CpsScript) shell.reparse("WorkflowScript",script);
+            s = (CpsScript) shell.reparse("WorkflowScript", script);
 
             for (Entry<String, String> e : loadedScripts.entrySet()) {
                 shell.reparse(e.getKey(), e.getValue());
             }
+        } catch (groovyjarjarasm.asm.MethodTooLargeException x) {
+            LOGGER.log(Level.SEVERE, "FAILED to parse WorkflowScript (the pipeline script) due to MethodTooLargeException: " + x.toString());
+            closeShells();
+            throw x;
         } catch (RuntimeException | Error x) {
             closeShells();
             throw x;
