@@ -24,10 +24,10 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import com.gargoylesoftware.htmlunit.ElementNotFoundException;
-import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
-import com.gargoylesoftware.htmlunit.HttpMethod;
-import com.gargoylesoftware.htmlunit.WebRequest;
+import org.htmlunit.ElementNotFoundException;
+import org.htmlunit.FailingHttpStatusCodeException;
+import org.htmlunit.HttpMethod;
+import org.htmlunit.WebRequest;
 import com.google.common.util.concurrent.ListenableFuture;
 import groovy.lang.GroovyShell;
 import hudson.AbortException;
