@@ -203,13 +203,16 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>git</artifactId>
-            <scope>test</scope>
+            <!-- TODO: Remove version declaration when git plugin 5.1.0 or newer is in plugin BOM -->
+            <version>5.1.0</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>git</artifactId>
             <classifier>tests</classifier>
             <scope>test</scope>
+            <!-- TODO: Remove version declaration when git plugin 5.1.0 or newer is in plugin BOM -->
+            <version>5.1.0</version>
         </dependency>
         <dependency>
             <!-- Needed because matrix-project is a detached plugin and git plugin has a dependency on a newer version than the one bundled in core. -->
