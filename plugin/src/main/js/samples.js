@@ -12,13 +12,17 @@ export function addSamplesWidget(editor, editorId, samplesUrl) {
     var sampleSelect = $('<select></select>');
 
     sampleSelect.append('<option >try sample Pipeline...</option>');
-    // eslint-disable-next-line no-undef
-    new Ajax.Request(samplesUrl, {
-        onSuccess : function(data) {
-            samples = data.responseJSON.samples;
-            for (var i = 0; i < samples.length; i++) {
-                sampleSelect.append('<option value="' + samples[i].name + '">' + samples[i].title + '</option>');
-            }
+    fetch(samplesUrl, {
+        method: "post",
+        headers: crumb.wrap({}),
+    }).then((rsp) => {
+        if (rsp.ok) {
+            rsp.json().then((json) => {
+                samples = json.samples;
+                for (var i = 0; i < samples.length; i++) {
+                    sampleSelect.append('<option value="' + samples[i].name + '">' + samples[i].title + '</option>');
+                }
+            });
         }
     });
 
