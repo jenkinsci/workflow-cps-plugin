@@ -73,7 +73,7 @@ $(function() {
 
                         fetch(url, {
                             method: textarea.attr('checkMethod') || 'POST',
-                            headers: crumb.wrap({
+                            headers: crumb.wrap({  // eslint-disable-line no-undef
                                 "Content-Type": "application/x-www-form-urlencoded",
                             }),
                             body: new URLSearchParams({
