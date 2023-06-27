@@ -14,7 +14,7 @@ export function addSamplesWidget(editor, editorId, samplesUrl) {
     sampleSelect.append('<option >try sample Pipeline...</option>');
     fetch(samplesUrl, {
         method: "post",
-        headers: crumb.wrap({}),
+        headers: crumb.wrap({}),  // eslint-disable-line no-undef
     }).then((rsp) => {
         if (rsp.ok) {
             rsp.json().then((json) => {
