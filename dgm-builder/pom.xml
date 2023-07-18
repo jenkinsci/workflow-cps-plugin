@@ -21,10 +21,6 @@
         </license>
     </licenses>
 
-    <properties>
-        <maven.deploy.skip>true</maven.deploy.skip>
-    </properties>
-
     <build>
         <plugins>
             <plugin>
@@ -74,19 +70,4 @@
             <version>${groovy.version}</version>
         </dependency>
     </dependencies>
-
-    <profiles>
-        <profile>
-            <id>skip-installation</id>
-            <activation>
-                <property>
-                    <name>set.changelist</name>
-                    <value>true</value>
-                </property>
-            </activation>
-            <properties>
-                <maven.install.skip>true</maven.install.skip>
-            </properties>
-        </profile>
-    </profiles>
 </project>

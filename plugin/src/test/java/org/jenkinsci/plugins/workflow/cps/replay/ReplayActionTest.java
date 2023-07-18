@@ -24,10 +24,10 @@
 
 package org.jenkinsci.plugins.workflow.cps.replay;
 
-import com.gargoylesoftware.htmlunit.WebAssert;
-import com.gargoylesoftware.htmlunit.html.HtmlForm;
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.gargoylesoftware.htmlunit.html.HtmlTextArea;
+import org.htmlunit.WebAssert;
+import org.htmlunit.html.HtmlForm;
+import org.htmlunit.html.HtmlPage;
+import org.htmlunit.html.HtmlTextArea;
 import hudson.FilePath;
 import hudson.XmlFile;
 import hudson.cli.CLICommandInvoker;

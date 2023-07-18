@@ -1,6 +1,4 @@
 import $ from 'jquery';
-// Polyfill for window.requestAnimationFrame
-import 'raf/polyfill';
 // Import the resizable module to allow the textarea to be expanded
 import 'jquery-ui/ui/widgets/resizable';
 import { addSamplesWidget } from './samples';
@@ -60,6 +58,7 @@ $(function() {
                     });
 
                     editor.setValue(textarea.val(), 1);
+                    // eslint-disable-next-line no-unused-vars
                     editor.getSession().on('change', function(delta) {
                         textarea.val(editor.getValue());
                         showSamplesWidget();
@@ -70,31 +69,35 @@ $(function() {
                         var url = textarea.attr("checkUrl") + 'Compile';
 
 
-                        // eslint-disable-next-line no-undef
-                        new Ajax.Request(url, { // jshint ignore:line
+                        fetch(url, {
                             method: textarea.attr('checkMethod') || 'POST',
-                            parameters: {
-                                value: editor.getValue()
-                            },
-                            onSuccess : function(data) {
-                                var json = data.responseJSON;
-                                var annotations = [];
-                                if (json.status && json.status === 'success') {
-                                    // Fire script approval check - only if the script is syntactically correct
-                                    textarea.trigger('change');
-                                    return;
-                                } else {
-                                    // Syntax errors
-                                    $.each(json, function(i, value) {
-                                        annotations.push({
-                                            row: value.line - 1,
-                                            column: value.column,
-                                            text: value.message,
-                                            type: 'error'
+                            headers: crumb.wrap({  // eslint-disable-line no-undef
+                                "Content-Type": "application/x-www-form-urlencoded",
+                            }),
+                            body: new URLSearchParams({
+                                value: editor.getValue(),
+                            }),
+                        }).then((rsp) => {
+                            if (rsp.ok) {
+                                rsp.json().then((json) => {
+                                    var annotations = [];
+                                    if (json.status && json.status === 'success') {
+                                        // Fire script approval check - only if the script is syntactically correct
+                                        textarea.trigger('change');
+                                        return;
+                                    } else {
+                                        // Syntax errors
+                                        $.each(json, function(i, value) {
+                                            annotations.push({
+                                                row: value.line - 1,
+                                                column: value.column,
+                                                text: value.message,
+                                                type: 'error'
+                                            });
                                         });
-                                    });
-                                }
-                                editor.getSession().setAnnotations(annotations);
+                                    }
+                                    editor.getSession().setAnnotations(annotations);
+                                });
                             }
                         });
                     });
