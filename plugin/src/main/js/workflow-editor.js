@@ -1,6 +1,4 @@
 import $ from 'jquery';
-// Polyfill for window.requestAnimationFrame
-import 'raf/polyfill';
 // Import the resizable module to allow the textarea to be expanded
 import 'jquery-ui/ui/widgets/resizable';
 import { addSamplesWidget } from './samples';
