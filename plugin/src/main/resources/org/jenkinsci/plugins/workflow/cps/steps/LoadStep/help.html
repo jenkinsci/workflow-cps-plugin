@@ -5,7 +5,7 @@
     </p>
     <pre>
     def pipeline
-    node('slave') {
+    node('agent') {
         pipeline = load 'pipeline.groovy'
         pipeline.functionA()
     }
