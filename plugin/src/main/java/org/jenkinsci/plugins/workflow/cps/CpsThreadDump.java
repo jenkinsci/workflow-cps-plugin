@@ -24,6 +24,10 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
  */
 public final class CpsThreadDump {
 
+    /**
+     * Whether this is an actual list of threads, or just some special text such as a list of pickles.
+     */
+    public final boolean valid;
     private final List<ThreadInfo> threads = new ArrayList<>();
 
     public static final class ThreadInfo {
@@ -103,7 +107,8 @@ public final class CpsThreadDump {
     /**
      * Use one of the {@link #from(CpsThreadGroup)} method.
      */
-    private CpsThreadDump() {
+    private CpsThreadDump(boolean valid) {
+        this.valid = valid;
     }
 
     public List<ThreadInfo> getThreads() {
@@ -128,7 +133,7 @@ public final class CpsThreadDump {
     }
 
     public static CpsThreadDump from(Throwable t) {
-        CpsThreadDump td = new CpsThreadDump();
+        CpsThreadDump td = new CpsThreadDump(false);
         td.threads.add(new ThreadInfo(t));
         return td;}
 
@@ -140,7 +145,7 @@ public final class CpsThreadDump {
             l.add(t);
         }
 
-        CpsThreadDump td = new CpsThreadDump();
+        CpsThreadDump td = new CpsThreadDump(true);
         for (List<CpsThread> e : m.values())
             td.threads.add(new ThreadInfo(e));
         return td;
@@ -165,7 +170,7 @@ public final class CpsThreadDump {
     /**
      * Constant that indicates everything is done and no thread is alive.
      */
-    public static final CpsThreadDump EMPTY = new CpsThreadDump();
+    public static final CpsThreadDump EMPTY = new CpsThreadDump(false);
 
     @Deprecated
     public static final CpsThreadDump UNKNOWN = fromText("Program state is not yet known");

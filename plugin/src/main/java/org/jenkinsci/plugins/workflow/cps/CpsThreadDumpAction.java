@@ -60,8 +60,8 @@ public final class CpsThreadDumpAction implements Action {
         return execution.getThreadDump();
     }
 
-    public String getThreadDump() {
-        return execution.getThreadDump().toString();
+    public CpsThreadDump getThreadDump() {
+        return execution.getThreadDump();
     }
 
     @WebMethod(name = "program.xml") public void doProgramDotXml(StaplerRequest req, StaplerResponse rsp) throws Exception {
