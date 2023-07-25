@@ -28,19 +28,22 @@
   <l:layout title="${%Thread Dump}" type="one-column">
     <l:main-panel>
       <j:set var="td" value="${it.threadDump}"/>
+      <j:set var="tds" value="${td.toString()}"/>
 
       <h1>
         ${%Thread Dump}
-        <l:copyButton text="${td}" message="${%Thread dump copied to clipboard}"/>
+        <l:copyButton text="${tds}" message="${%Thread dump copied to clipboard}"/>
       </h1>
 
       <pre class="console">
-        ${td}
+        ${tds}
       </pre>
 
-      <l:hasPermission permission="${app.RUN_SCRIPTS}">
-        <a href="program.xml">Serialized program state</a>
-      </l:hasPermission>
+      <j:if test="${td.valid}">
+        <l:hasPermission permission="${app.RUN_SCRIPTS}">
+          <a href="program.xml">Serialized program state</a>
+        </l:hasPermission>
+      </j:if>
     </l:main-panel>
   </l:layout>
 </j:jelly>
