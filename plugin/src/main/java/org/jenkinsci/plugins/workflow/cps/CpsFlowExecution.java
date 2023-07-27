@@ -52,8 +52,6 @@ import hudson.ExtensionList;
 import hudson.model.Action;
 import hudson.model.Result;
 import hudson.util.Iterators;
-import hudson.util.VersionNumber;
-import io.jenkins.lib.versionnumber.JavaSpecificationVersion;
 import jenkins.model.CauseOfInterruption;
 import jenkins.model.Jenkins;
 import org.jboss.marshalling.Unmarshaller;
@@ -126,10 +124,8 @@ import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
-import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Date;
@@ -138,7 +134,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
@@ -1373,10 +1368,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             if (encounteredClasses.add(clazz)) {
                 LOGGER.finer(() -> "found " + clazz.getName());
                 Introspector.flushFromCaches(clazz);
-                cleanUpClassInfoCache(clazz);
                 cleanUpGlobalClassSet(clazz);
                 cleanUpClassHelperCache(clazz);
-                cleanUpObjectStreamClassCaches(clazz);
                 cleanUpLoader(clazz.getClassLoader(), encounteredLoaders, encounteredClasses);
             }
         }
@@ -1434,45 +1427,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    private static void cleanUpClassInfoCache(Class<?> clazz) {
-        int releaseVersion = JavaSpecificationVersion.forCurrentJVM().toReleaseVersion();
-        if ((releaseVersion > 8 && releaseVersion < 11)
-                || (releaseVersion == 11 && new VersionNumber(System.getProperty("java.version")).isOlderThan(new VersionNumber("11.0.17")))
-                || (releaseVersion > 11 && releaseVersion < 16)) {
-            try {
-                // TODO Work around JDK-8231454.
-                Class<?> classInfoC = Class.forName("com.sun.beans.introspect.ClassInfo");
-                Field cacheF = classInfoC.getDeclaredField("CACHE");
-                try {
-                    cacheF.setAccessible(true);
-                } catch (InaccessibleObjectException e) {
-                    /*
-                     * Not running with "--add-opens java.desktop/com.sun.beans.introspect=ALL-UNNAMED".
-                     * Until core adds this to its --add-opens configuration, and until that core
-                     * change is widely adopted, avoid unnecessary log spam and return early.
-                     */
-                    if (LOGGER.isLoggable(Level.FINER)) {
-                        LOGGER.log(Level.FINER, "Failed to clean up " + clazz.getName() + " from ClassInfo#CACHE. A metaspace leak may have occurred.", e);
-                    }
-                    return;
-                }
-                Object cache = cacheF.get(null);
-                Class<?> cacheC = Class.forName("com.sun.beans.util.Cache");
-                if (LOGGER.isLoggable(Level.FINER)) {
-                    LOGGER.log(Level.FINER, "Cleaning up " + clazz.getName() + " from ClassInfo#CACHE.");
-                }
-                Method removeM = cacheC.getMethod("remove", Object.class);
-                removeM.invoke(cache, clazz);
-            } catch (ReflectiveOperationException e) {
-                /*
-                 * Should never happen, but if it does, ensure the failure is isolated to this
-                 * method and does not prevent other cleanup logic from executing.
-                 */
-                LOGGER.log(Level.WARNING, "Failed to clean up " + clazz.getName() + " from ClassInfo#CACHE. A metaspace leak may have occurred.", e);
-            }
-        }
-    }
-
     private static void cleanUpGlobalClassSet(@NonNull Class<?> clazz) throws Exception {
         Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo"); // or just ClassInfo.class, but unclear whether this will always be there
         Field globalClassSetF = classInfoC.getDeclaredField("globalClassSet");
@@ -1513,34 +1467,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             LOGGER.log(Level.FINER, "cleaning up {0} from ClassHelperCache? {1}", new Object[] {clazz.getName(), classCache.getClass().getMethod("get", Object.class).invoke(classCache, clazz) != null});
         }
         classCache.getClass().getMethod("remove", Object.class).invoke(classCache, clazz);
-    }
-
-    private static void cleanUpObjectStreamClassCaches(@NonNull Class<?> clazz) throws Exception {
-      int releaseVersion = JavaSpecificationVersion.forCurrentJVM().toReleaseVersion();
-      VersionNumber javaVersion = new VersionNumber(System.getProperty("java.version"));
-      if ((releaseVersion < 11)
-              || (releaseVersion == 11 && javaVersion.isOlderThan(new VersionNumber("11.0.16")))
-              || (releaseVersion > 11 && releaseVersion < 17)
-              || (releaseVersion == 17 && javaVersion.isOlderThan(new VersionNumber("17.0.4")))
-              || (releaseVersion == 18 && javaVersion.isOlderThan(new VersionNumber("18.0.2")))) {
-        Class<?> cachesC = Class.forName("java.io.ObjectStreamClass$Caches");
-        for (String cacheFName : new String[] {"localDescs", "reflectors"}) {
-            Field cacheF = cachesC.getDeclaredField(cacheFName);
-            cacheF.setAccessible(true);
-            Object cache = cacheF.get(null);
-            if (cache instanceof ConcurrentMap) {
-                // Prior to JDK-8277072
-                Iterator<? extends Entry<Reference<Class<?>>, ?>> iterator = ((ConcurrentMap) cache).entrySet().iterator();
-                while (iterator.hasNext()) {
-                    if (iterator.next().getKey().get() == clazz) {
-                        iterator.remove();
-                        LOGGER.log(Level.FINER, "cleaning up {0} from ObjectStreamClass.Caches.{1}", new Object[]{clazz.getName(), cacheFName});
-                        break;
-                    }
-                }
-            }
-        }
-      }
     }
 
     synchronized @CheckForNull FlowHead getFirstHead() {
