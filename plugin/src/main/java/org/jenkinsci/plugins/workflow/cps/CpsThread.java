@@ -327,8 +327,11 @@ public final class CpsThread implements Serializable {
     }
 
     public List<StackTraceElement> getStackTrace() {
-        assert program != null; // Otherwise this CpsThread is not even part of the CpsThreadGroup, so how is it being accessed?
-        return program.getStackTrace();
+        Continuable p = program;
+        if (p == null) {
+            return List.of(new StackTraceElement("not", "running", null, -1));
+        }
+        return p.getStackTrace();
     }
 
     private static final Logger LOGGER = Logger.getLogger(CpsThread.class.getName());
