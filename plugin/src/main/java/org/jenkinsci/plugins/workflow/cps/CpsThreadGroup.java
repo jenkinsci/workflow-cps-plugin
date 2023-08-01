@@ -366,7 +366,7 @@ public final class CpsThreadGroup implements Serializable {
      * @param persist whether this is a user-initiated pause that should be persisted
      * @return
      *      {@link Future} object that represents the actual suspension of the CPS VM.
-     *      When the {@link #pause()} method is called, CPS VM might be still executing.
+     *      When this method is called, the CPS VM might be still executing.
      */
     public Future<?> pause(boolean persist) {
         paused.set(true);
