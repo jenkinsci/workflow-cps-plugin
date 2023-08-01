@@ -24,45 +24,6 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import org.htmlunit.ElementNotFoundException;
-import org.htmlunit.FailingHttpStatusCodeException;
-import org.htmlunit.HttpMethod;
-import org.htmlunit.WebRequest;
-import com.google.common.util.concurrent.ListenableFuture;
-import groovy.lang.GroovyShell;
-import hudson.AbortException;
-import hudson.model.Item;
-import hudson.model.Result;
-import hudson.model.TaskListener;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import java.io.File;
-import jenkins.model.Jenkins;
-import org.apache.commons.io.FileUtils;
-import org.hamcrest.Matchers;
-import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
-import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
-import org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DefaultAllowlist;
-import org.jenkinsci.plugins.workflow.flow.FlowExecution;
-import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
-import org.jenkinsci.plugins.workflow.job.WorkflowJob;
-import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.jenkinsci.plugins.workflow.pickles.Pickle;
-import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
-import org.jenkinsci.plugins.workflow.steps.StepExecution;
-import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
-import org.jenkinsci.plugins.workflow.support.pickles.TryRepeatedly;
-import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -73,6 +34,49 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.util.concurrent.ListenableFuture;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import groovy.lang.GroovyShell;
+import hudson.AbortException;
+import hudson.ExtensionList;
+import hudson.model.Item;
+import hudson.model.Result;
+import hudson.model.TaskListener;
+import java.io.File;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Set;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import jenkins.model.Jenkins;
+import org.apache.commons.io.FileUtils;
+import org.hamcrest.Matchers;
+import org.htmlunit.ElementNotFoundException;
+import org.htmlunit.FailingHttpStatusCodeException;
+import org.htmlunit.HttpMethod;
+import org.htmlunit.WebRequest;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
+import org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DefaultAllowlist;
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
+import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.pickles.Pickle;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
+import org.jenkinsci.plugins.workflow.support.pickles.TryRepeatedly;
+import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -84,6 +88,7 @@ import org.jvnet.hudson.test.JenkinsSessionRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.TestExtension;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 public class CpsFlowExecutionTest {
 
@@ -350,6 +355,70 @@ public class CpsFlowExecutionTest {
             r.waitForMessage("Resuming (Shutdown was canceled)", b);
             r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
         });
+    }
+
+    @Issue("JENKINS-59743")
+    @Test public void restartWhileTemporarilyPaused() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("slowToResume()", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            r.waitForMessage("Started…", b);
+        });
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getBuildByNumber(1);
+            r.waitForMessage("Waiting until ready…", b);
+        });
+        sessions.then(r -> {
+            SlowToResume.DescriptorImpl d = ExtensionList.lookupSingleton(SlowToResume.DescriptorImpl.class);
+            synchronized (d) {
+                d.ready = true;
+                d.notifyAll();
+            }
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getBuildByNumber(1);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+        });
+    }
+    public static final class SlowToResume extends Step {
+        @DataBoundConstructor public SlowToResume() {}
+        @Override public StepExecution start(StepContext context) throws Exception {
+            return new Execution(context);
+        }
+        private static final class Execution extends StepExecution {
+            Execution(StepContext context) {
+                super(context);
+            }
+            @Override public boolean start() throws Exception {
+                getContext().get(TaskListener.class).getLogger().println("Started…");
+                return false;
+            }
+            @Override public void onResume() {
+                DescriptorImpl d = ExtensionList.lookupSingleton(DescriptorImpl.class);
+                synchronized (d) {
+                    try {
+                        while (!d.ready) {
+                            getContext().get(TaskListener.class).getLogger().println("Waiting until ready…");
+                            d.wait();
+                        }
+                        getContext().get(TaskListener.class).getLogger().println("…ready.");
+                        getContext().onSuccess(null);
+                    } catch (Exception x) {
+                        getContext().onFailure(x);
+                    }
+                }
+            }
+        }
+        @TestExtension("restartWhileTemporarilyPaused") public static final class DescriptorImpl extends StepDescriptor {
+            boolean ready;
+            @Override public String getFunctionName() {
+                return "slowToResume";
+            }
+            @Override public Set<? extends Class<?>> getRequiredContext() {
+                return Set.of(TaskListener.class);
+            }
+        }
     }
 
     @Test public void timing() throws Throwable {
