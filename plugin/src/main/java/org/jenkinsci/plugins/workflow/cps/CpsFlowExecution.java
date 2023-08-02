@@ -796,7 +796,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                 CpsThreadGroup g = (CpsThreadGroup) u.readObject();
                                 result.set(g);
                                 pausedWhenLoaded = g.isPaused();
-                                g.pause();
+                                g.pause(false);
                             } catch (Throwable t) {
                                 onFailure(t);
                             } finally {
@@ -1596,7 +1596,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         Futures.addCallback(programPromise, new FutureCallback<>() {
             @Override public void onSuccess(CpsThreadGroup g) {
                 if (v) {
-                    g.pause();
+                    g.pause(true);
                     checkAndAbortNonresumableBuild();  // TODO Verify if we can rely on just killing paused builds at shutdown via checkAndAbortNonresumableBuild()
                     checkpoint(false);
                 } else {
