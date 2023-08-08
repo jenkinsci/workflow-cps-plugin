@@ -4,8 +4,6 @@ package org.jenkinsci.plugins.workflow.cps.Snippetizer
 import org.jenkinsci.plugins.workflow.cps.GlobalVariable
 import org.jenkinsci.plugins.workflow.cps.Snippetizer
 
-import javax.servlet.RequestDispatcher
-
 Snippetizer snippetizer = my;
 
 def l = namespace(lib.LayoutTagLib)
@@ -32,7 +30,7 @@ l.layout(title:_("Pipeline Syntax: Global Variable Reference"), norefresh: true)
                 }
               }
               dd{
-                RequestDispatcher rd = request.getView(v, "help");
+                def rd = request.getView(v, "help");
                 div(class:"help", style:"display: block") {
                   if (rd != null) {
                     st.include(page: "help", it: v)
