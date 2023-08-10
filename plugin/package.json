@@ -1,0 +1,52 @@
+{
+  "name": "workflow-ui",
+  "version": "1.0.0",
+  "description": "Jenkins Pipeline UI",
+  "private": true,
+  "author": "Tom Fennelly <tom.fennelly@gmail.com> (https://github.com/tfennelly)",
+  "license": "MIT",
+  "scripts": {
+    "dev": "webpack --config webpack.dev.js",
+    "prod": "webpack --config webpack.prod.js",
+    "start": "yarn dev -- --watch",
+    "lint:js": "eslint src/main/js --ext js",
+    "mvnbuild": "yarn prod",
+    "mvntest": "yarn lint:js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jenkinsci/workflow-cps-plugin"
+  },
+  "readme": "../README.md",
+  "devDependencies": {
+    "@babel/cli": "^7.19.3",
+    "@babel/core": "^7.19.3",
+    "@babel/preset-env": "^7.19.3",
+    "autoprefixer": "^10.4.13",
+    "babel-loader": "^9.0.1",
+    "clean-webpack-plugin": "^4.0.0",
+    "css-loader": "^5.0.0",
+    "eslint": "^8.41.0",
+    "eslint-plugin-only-warn": "^1.1.0",
+    "less": "^3.12.2",
+    "less-loader": "^7.0.2",
+    "mini-css-extract-plugin": "^1.2.1",
+    "postcss": "^8.2.13",
+    "postcss-less": "^4.0.0",
+    "postcss-loader": "^4.0.4",
+    "style-loader": "^2.0.0",
+    "webpack": "^5.76.3",
+    "webpack-cli": "^5.0.1",
+    "webpack-fix-style-only-entries": "^0.6.1",
+    "webpack-merge": "^5.8.0"
+  },
+  "dependencies": {
+    "ace-builds": "^1.15.0",
+    "jquery": "^3.6.1",
+    "jquery-ui": "^1.13.2"
+  },
+  "browserslist": [
+    "defaults",
+    "not IE 11"
+  ]
+}

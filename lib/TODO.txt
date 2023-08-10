@@ -1,0 +1,11 @@
+- array access (trivial, so can be done later)
+- "synchronized" block
+- finally block
+- how do we handle multi-threading?
+
+Tests to be written:
+    - verify a proper method overload resolution
+    - trying to make constructor a workflow should be detected and rejected
+
+Multi-threading TODO
+- how to suspend just one thread while letting other threads run

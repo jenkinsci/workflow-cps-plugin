@@ -9,7 +9,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+    - dependency-name: org.codehaus.groovy:groovy
   - package-ecosystem: "github-actions"
     directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/plugin"
     schedule:
       interval: "weekly"
