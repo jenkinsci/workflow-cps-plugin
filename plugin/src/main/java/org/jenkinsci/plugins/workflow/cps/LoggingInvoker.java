@@ -28,10 +28,10 @@ import com.cloudbees.groovy.cps.impl.CallSiteBlock;
 import com.cloudbees.groovy.cps.sandbox.DefaultInvoker;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import groovy.lang.GroovyClassLoader;
 import java.util.function.Supplier;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
 
 /**
  * Captures CPS-transformed events.
@@ -87,7 +87,7 @@ final class LoggingInvoker implements Invoker {
         }
     }
 
-    private static @Nonnull Class<?> classOf(@CheckForNull Object receiver) {
+    private static @NonNull Class<?> classOf(@CheckForNull Object receiver) {
         if (receiver == null) {
             return Void.class;
         } else if (receiver instanceof Class) {
@@ -149,6 +149,12 @@ final class LoggingInvoker implements Invoker {
         Class<?> clazz = classOf(lhs);
         maybeRecord(clazz, () -> clazz.getName() + "." + name);
         return delegate.methodPointer(lhs, name);
+    }
+
+    @Override public Object cast(Object value, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict) throws Throwable {
+        Class<?> clazz = classOf(value);
+        maybeRecord(clazz, () -> clazz.getName() + " as " + type.getClass().getName());
+        return delegate.cast(value, type, ignoreAutoboxing, coerce, strict);
     }
 
     @Override public Invoker contextualize(CallSiteBlock tags) {
