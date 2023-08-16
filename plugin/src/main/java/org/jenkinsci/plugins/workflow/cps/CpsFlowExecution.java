@@ -1619,7 +1619,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     @Restricted(DoNotUse.class)
-    @Terminator public static void suspendAll() {
+    @Terminator(attains = FlowExecutionList.EXECUTIONS_SUSPENDED)
+    public static void suspendAll() {
         CpsFlowExecution exec = null;
         try (Timeout t = Timeout.limit(3, TimeUnit.MINUTES)) { // TODO some complicated sequence of calls to Futures could allow all of them to run in parallel
             LOGGER.fine("starting to suspend all executions");
@@ -2162,12 +2163,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         } catch (IOException ioe) {
             LOGGER.log(Level.WARNING, "Error just doing logging", ioe);
         }
-    }
-
-    /** Ensures that even if we're limiting persistence of data for performance, we still write out data for shutdown. */
-    @Override
-    protected void notifyShutdown() {
-        // No-op, handled in the suspendAll terminator
     }
 
 }
