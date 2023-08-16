@@ -58,6 +58,7 @@ import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.FileUtils;
 import org.hamcrest.Matchers;
+import static org.hamcrest.Matchers.containsInRelativeOrder;
 import org.htmlunit.ElementNotFoundException;
 import org.htmlunit.FailingHttpStatusCodeException;
 import org.htmlunit.HttpMethod;
@@ -66,6 +67,7 @@ import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DefaultAllowlist;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -622,4 +624,16 @@ public class CpsFlowExecutionTest {
             assertThat(EnvActionImpl.forRun(b).getEnvironment().get("foo"), equalTo("bar"));
         });
     }
+
+    @Test public void suspendOrder() throws Throwable {
+        System.setProperty(Jenkins.class.getName() + "." + "termLogLevel", "INFO");
+        logger.record(CpsFlowExecution.class, Level.FINE).record(FlowExecutionList.class, Level.FINE).capture(100);
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition("echo 'ok'", true));
+            r.buildAndAssertSuccess(p);
+        });
+        assertThat(logger.getMessages(), containsInRelativeOrder("finished suspending all executions", "ensuring all executions are saved"));
+    }
+
 }
