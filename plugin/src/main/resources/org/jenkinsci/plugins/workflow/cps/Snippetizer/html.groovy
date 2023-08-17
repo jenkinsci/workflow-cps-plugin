@@ -14,8 +14,6 @@ import org.jenkinsci.plugins.workflow.cps.GlobalVariable
 import org.jenkinsci.plugins.workflow.cps.Snippetizer
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor
 
-import javax.servlet.RequestDispatcher
-
 // keeps track of recursion inside generateHelp
 stack = new Stack();
 

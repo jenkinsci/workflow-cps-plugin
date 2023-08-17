@@ -51,6 +51,7 @@ import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -94,7 +95,7 @@ public class CpsFlowDefinitionTest {
         assertFalse(ScriptApproval.get().isScriptApproved(groovy, GroovyLanguage.get()));
     }
 
-    @Issue("SECURITY-2450")
+    @Issue({"SECURITY-2450", "SECURITY-3103"})
     @Test
     public void cpsScriptAdminConfiguration() throws Exception {
         jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
@@ -126,10 +127,11 @@ public class CpsFlowDefinitionTest {
 
         jenkins.submit(config);
 
-        assertTrue(ScriptApproval.get().isScriptApproved(groovy, GroovyLanguage.get()));
+        assertThat(ScriptApproval.get().getPendingScripts(), hasSize(1));
+        assertFalse(ScriptApproval.get().isScriptApproved(groovy, GroovyLanguage.get()));
     }
 
-    @Issue("SECURITY-2450")
+    @Issue({"SECURITY-2450", "SECURITY-3103"})
     @Test
     public void cpsScriptAdminModification() throws Exception {
         jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
@@ -173,7 +175,7 @@ public class CpsFlowDefinitionTest {
 
         wc.login("admin");
 
-        // modification by admin, script gets approved automatically
+        // modification by admin, script does not approved automatically
         {
             HtmlForm config = wc.getPage(p, "configure").getFormByName("config");
             List<HtmlTextArea> scripts = config.getTextAreasByName("_.script");
@@ -190,12 +192,13 @@ public class CpsFlowDefinitionTest {
 
             // script content was modified by admin, so it should be approved upon save
             // the one that had been submitted by the user previously stays in pending
-            assertTrue(ScriptApproval.get().isScriptApproved(adminGroovy, GroovyLanguage.get()));
+            assertFalse(ScriptApproval.get().isScriptApproved(adminGroovy, GroovyLanguage.get()));
             assertFalse(ScriptApproval.get().isScriptApproved(userGroovy, GroovyLanguage.get()));
         }
     }
 
     @Test
+    @Issue("SECURITY-3103")
     public void cpsScriptSubmissionViaCli() throws Exception {
         jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
 
@@ -223,18 +226,22 @@ public class CpsFlowDefinitionTest {
         String viaCliScript = "echo configured via CLI";
         assertThat(new CLICommandInvoker(jenkins, cmd).withStdin(new StringInputStream(xml.replace(preconfiguredScript, viaCliScript))).invokeWithArgs(p.getName()), CLICommandInvoker.Matcher.succeededSilently());
         assertEquals(viaCliScript, ((CpsFlowDefinition)p.getDefinition()).getScript());
-        assertTrue(ScriptApproval.get().isScriptApproved(viaCliScript, GroovyLanguage.get()));
+
+        assertThat(ScriptApproval.get().getPendingScripts(), hasSize(1));
+        assertFalse(ScriptApproval.get().isScriptApproved(viaCliScript, GroovyLanguage.get()));
 
         // now with non-admin user, script should end up in pending
         cmd.setTransportAuth2(User.getById("devel", true).impersonate2());
         String viaCliByDevelScript = "echo configured via CLI by devel";
         assertThat(new CLICommandInvoker(jenkins, cmd).withStdin(new StringInputStream(xml.replace(preconfiguredScript, viaCliByDevelScript))).invokeWithArgs(p.getName()), CLICommandInvoker.Matcher.succeededSilently());
         assertEquals(viaCliByDevelScript, ((CpsFlowDefinition)p.getDefinition()).getScript());
+        assertThat(ScriptApproval.get().getPendingScripts(), hasSize(2));
         assertFalse(ScriptApproval.get().isScriptApproved(viaCliByDevelScript, GroovyLanguage.get()));
         wc.close();
     }
 
     @Test
+    @Issue("SECURITY-3103")
     public void cpsScriptSubmissionViaRest() throws Exception {
         jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
 
@@ -263,7 +270,7 @@ public class CpsFlowDefinitionTest {
         req.setRequestBody(xml.replace(preconfiguredScript, configuredViaRestScript));
         wc.getPage(req);
         assertEquals(configuredViaRestScript, ((CpsFlowDefinition)p.getDefinition()).getScript());
-        assertTrue(ScriptApproval.get().isScriptApproved(configuredViaRestScript, GroovyLanguage.get()));
+        assertFalse(ScriptApproval.get().isScriptApproved(configuredViaRestScript, GroovyLanguage.get()));
 
         wc.login("devel");
         String configuredViaRestByNonAdmin = "echo configured via REST by devel";
