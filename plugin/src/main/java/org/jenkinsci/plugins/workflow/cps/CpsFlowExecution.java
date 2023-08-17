@@ -30,8 +30,7 @@ import com.cloudbees.groovy.cps.Envs;
 import com.cloudbees.groovy.cps.Outcome;
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.ThrowBlock;
-import com.cloudbees.groovy.cps.sandbox.DefaultInvoker;
-import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
+import com.cloudbees.groovy.cps.sandbox.Invoker;
 import com.cloudbees.jenkins.support.api.Component;
 import com.cloudbees.jenkins.support.api.Container;
 import com.cloudbees.jenkins.support.api.Content;
@@ -83,7 +82,6 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -133,6 +131,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -395,6 +394,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /** XStream simplified form of {@link #liveTimings} */
     private Map<String, Long> timings;
 
+    private @NonNull Set<String> internalCalls = ConcurrentHashMap.newKeySet();
+
     @Deprecated
     public CpsFlowExecution(String script, FlowExecutionOwner owner) throws IOException {
         this(script, false, owner);
@@ -445,6 +446,18 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             liveTimings.forEach((k, v) -> formatted.put(k, v.longValue() / 1000 / 1000 + "ms"));
             TIMING_LOGGER.log(Level.FINE, "timings for {0}: {1}", new Object[] {owner, formatted});
         }
+    }
+
+    /**
+     * Mark a call to an internal API made by this build.
+     * @param call a representation of the call site; for example, {@code hudson.model.Run.setDescription}
+     */
+    void recordInternalCall(@NonNull String call) {
+        internalCalls.add(call);
+    }
+
+    @NonNull Set<String> getInternalCalls() {
+        return new TreeSet<>(internalCalls);
     }
 
     /**
@@ -548,9 +561,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
              * During sandbox execution, we need to call sandbox interceptor while executing asynchronous code.
              */
             private Env createInitialEnv() {
-                return Envs.empty( isSandbox() ? new SandboxInvoker() : new DefaultInvoker());
+                return Envs.empty(createInvoker());
             }
         });
+    }
+
+    Invoker createInvoker() {
+        return LoggingInvoker.create(isSandbox());
     }
 
     private CpsScript parseScript() throws IOException {
@@ -1698,6 +1715,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 writeChild(w, context, "durabilityHint", e.durabilityHint, FlowDurabilityHint.class);
             }
             writeChild(w, context, "timings", e.liveTimings.entrySet().stream().collect(Collectors.toMap(kv -> kv.getKey(), kv -> kv.getValue().longValue())), Map.class);
+            writeChild(w, context, "internalCalls", new TreeSet<>(e.internalCalls), Set.class);
             writeChild(w, context, "sandbox", e.sandbox, Boolean.class);
             if (e.user != null) {
                 writeChild(w, context, "user", e.user, String.class);
@@ -1775,6 +1793,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         } else if (nodeName.equals("timings")) {
                             Map timings = readChild(reader, context, Map.class, result);
                             setField(result, "timings", timings);
+                        } else if (nodeName.equals("internalCalls")) {
+                            Set internalCalls = readChild(reader, context, Set.class, result);
+                            result.internalCalls = ConcurrentHashMap.newKeySet();
+                            for (Object internalCall : internalCalls) {
+                                result.internalCalls.add((String) internalCall);
+                            }
                         } else if (nodeName.equals("sandbox")) {
                             boolean sandbox = readChild(reader, context, Boolean.class, result);
                             setField(result, "sandbox", sandbox);
@@ -1996,6 +2020,57 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                         sortedTimings.forEach((k, v) -> pw.println("  " + k + "\t" + v.longValue() / 1000 / 1000 + "ms"));
                                         pw.println("Approximate graph size: " + ((CpsFlowExecution) exec).approximateNodeCount());
                                         pw.println();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    pw.flush();
+                }
+            });
+        }
+
+    }
+
+    @Extension(optional=true) public static class PipelineInternalCalls extends Component {
+
+        @Override public Set<Permission> getRequiredPermissions() {
+            return Collections.singleton(Jenkins.ADMINISTER);
+        }
+
+        @Override public String getDisplayName() {
+            return "List of internal API calls made by Pipeline builds (typically from trusted libraries)";
+        }
+
+        @Override public void addContents(Container container) {
+            container.add(new Content("nodes/master/pipeline-internal-calls.txt") {
+                @Override public void writeTo(OutputStream outputStream) throws IOException {
+                    PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
+                    for (Job<?, ?> job : Jenkins.get().getAllItems(Job.class)) {
+                        // TODO as above
+                        if (job instanceof Queue.FlyweightTask) {
+                            Run<?, ?> run = job.getLastCompletedBuild();
+                            if (run instanceof FlowExecutionOwner.Executable) {
+                                FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
+                                if (owner != null) {
+                                    FlowExecution exec;
+                                    try {
+                                        exec = owner.get();
+                                    } catch (IOException x) {
+                                        LOGGER.log(Level.WARNING, null, x);
+                                        pw.println("Could not load metadata from " + run);
+                                        pw.println();
+                                        continue;
+                                    }
+                                    if (exec instanceof CpsFlowExecution) {
+                                        Set<String> calls = ((CpsFlowExecution) exec).getInternalCalls();
+                                        if (!calls.isEmpty()) {
+                                            pw.println("Internal calls for " + run + ":");
+                                            for (String call : calls) {
+                                                pw.println("  " + call);
+                                            }
+                                            pw.println();
+                                        }
                                     }
                                 }
                             }

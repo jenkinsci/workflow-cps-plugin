@@ -39,6 +39,7 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import groovy.lang.GroovyShell;
 import hudson.AbortException;
 import hudson.ExtensionList;
+import hudson.XmlFile;
 import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.TaskListener;
@@ -58,6 +59,7 @@ import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.FileUtils;
 import org.hamcrest.Matchers;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInRelativeOrder;
 import org.htmlunit.ElementNotFoundException;
 import org.htmlunit.FailingHttpStatusCodeException;
@@ -443,6 +445,32 @@ public class CpsFlowExecutionTest {
                 // TODO https://github.com/jenkinsci/workflow-cps-plugin/pull/570#issuecomment-1192679404 message can be duplicated
                 assertThat(logger.getRecords(), Matchers.not(Matchers.empty()));
                 assertEquals(CpsFlowExecution.TimingKind.values().length, ((CpsFlowExecution) b.getExecution()).liveTimings.keySet().size());
+        });
+    }
+
+    @Test public void internalCallsAcrossRestart() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("currentBuild.rawBuild.description = 'XXX'; semaphore 'wait'; Jenkins.instance.systemMessage = 'XXX'", false));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+        });
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getLastBuild();
+            assertThat(new XmlFile(new File(b.getRootDir(), "build.xml")).asString(), containsString(
+                "<string>org.jenkinsci.plugins.workflow.job.WorkflowRun.description</string>"));
+            CpsFlowExecution exec = (CpsFlowExecution) b.getExecution();
+            assertThat(exec.getInternalCalls(), contains(
+                "org.jenkinsci.plugins.workflow.job.WorkflowRun.description",
+                "org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper.rawBuild"));
+            SemaphoreStep.success("wait/1", null);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+            assertThat(exec.getInternalCalls(), contains(
+                "hudson.model.Hudson.systemMessage",
+                "jenkins.model.Jenkins.instance",
+                "org.jenkinsci.plugins.workflow.job.WorkflowRun.description",
+                "org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper.rawBuild"));
         });
     }
 
