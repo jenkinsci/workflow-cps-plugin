@@ -32,6 +32,7 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import groovy.lang.GroovyClassLoader;
 import java.util.function.Supplier;
+import jenkins.util.SystemProperties;
 
 /**
  * Captures CPS-transformed events.
@@ -39,7 +40,8 @@ import java.util.function.Supplier;
 final class LoggingInvoker implements Invoker {
 
     public static Invoker create(boolean sandbox) {
-        return new LoggingInvoker(sandbox ? new SandboxInvoker() : new DefaultInvoker());
+        Invoker delegate = sandbox ? new SandboxInvoker() : new DefaultInvoker();
+        return  SystemProperties.getBoolean(LoggingInvoker.class.getName() + ".enabled", true) ? new LoggingInvoker(delegate) : delegate;
     }
 
     private final Invoker delegate;
