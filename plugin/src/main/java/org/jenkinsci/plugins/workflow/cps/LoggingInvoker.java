@@ -152,8 +152,7 @@ final class LoggingInvoker implements Invoker {
     }
 
     @Override public Object cast(Object value, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict) throws Throwable {
-        Class<?> clazz = classOf(value);
-        maybeRecord(clazz, () -> clazz.getName() + " as " + type.getClass().getName());
+        // Nothing obvious to record.
         return delegate.cast(value, type, ignoreAutoboxing, coerce, strict);
     }
 
