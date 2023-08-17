@@ -82,7 +82,6 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -395,8 +394,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /** XStream simplified form of {@link #liveTimings} */
     private Map<String, Long> timings;
 
-    @GuardedBy("this")
-    private @CheckForNull Set<String> internalCalls;
+    private @NonNull Set<String> internalCalls = ConcurrentHashMap.newKeySet();
 
     @Deprecated
     public CpsFlowExecution(String script, FlowExecutionOwner owner) throws IOException {
@@ -454,15 +452,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * Mark a call to an internal API made by this build.
      * @param call a representation of the call site; for example, {@code hudson.model.Run.setDescription}
      */
-    synchronized void recordInternalCall(@NonNull String call) {
-        if (internalCalls == null) {
-            internalCalls = new TreeSet<>();
-        }
+    void recordInternalCall(@NonNull String call) {
         internalCalls.add(call);
     }
 
-    synchronized @NonNull Set<String> getInternalCalls() {
-        return internalCalls != null ? new TreeSet<>(internalCalls) : Collections.emptySet();
+    @NonNull Set<String> getInternalCalls() {
+        return new TreeSet<>(internalCalls);
     }
 
     /**
@@ -1720,11 +1715,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 writeChild(w, context, "durabilityHint", e.durabilityHint, FlowDurabilityHint.class);
             }
             writeChild(w, context, "timings", e.liveTimings.entrySet().stream().collect(Collectors.toMap(kv -> kv.getKey(), kv -> kv.getValue().longValue())), Map.class);
-            synchronized (e) {
-                if (e.internalCalls != null) {
-                    writeChild(w, context, "internalCalls", e.internalCalls, Set.class);
-                }
-            }
+            writeChild(w, context, "internalCalls", new TreeSet<>(e.internalCalls), Set.class);
             writeChild(w, context, "sandbox", e.sandbox, Boolean.class);
             if (e.user != null) {
                 writeChild(w, context, "user", e.user, String.class);
@@ -1804,7 +1795,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             setField(result, "timings", timings);
                         } else if (nodeName.equals("internalCalls")) {
                             Set internalCalls = readChild(reader, context, Set.class, result);
-                            setField(result, "internalCalls", internalCalls);
+                            result.internalCalls = ConcurrentHashMap.newKeySet();
+                            for (Object internalCall : internalCalls) {
+                                result.internalCalls.add((String) internalCall);
+                            }
                         } else if (nodeName.equals("sandbox")) {
                             boolean sandbox = readChild(reader, context, Boolean.class, result);
                             setField(result, "sandbox", sandbox);
