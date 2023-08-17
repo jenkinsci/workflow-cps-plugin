@@ -40,7 +40,7 @@
       </pre>
 
       <j:if test="${td.valid}">
-        <l:hasPermission permission="${app.RUN_SCRIPTS}">
+        <l:hasPermission permission="${app.ADMINISTER}">
           <a href="program.xml">Serialized program state</a>
         </l:hasPermission>
       </j:if>

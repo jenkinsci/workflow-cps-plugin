@@ -228,7 +228,7 @@ public class ReplayActionTest {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("", /* whole-script approval */ false));
                 WorkflowRun b1 = p.scheduleBuild2(0).get();
-                // Jenkins admins can of course do as they please. But developers without RUN_SCRIPTS are out of luck.
+                // Jenkins admins can of course do as they please. But developers without ADMINISTER are out of luck.
                 assertTrue(canReplay(b1, "admin"));
                 assertFalse("not sandboxed, so only safe for admins", canReplay(b1, "dev1"));
                 assertFalse(canReplay(b1, "dev2"));
