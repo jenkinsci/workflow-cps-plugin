@@ -1776,6 +1776,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
                     result.startNodesSerial = new ArrayList<>();
                     result.headsSerial = new TreeMap<>();
+                    result.internalCalls = ConcurrentHashMap.newKeySet();
 
                     while (reader.hasMoreChildren()) {
                         reader.moveDown();
@@ -1795,7 +1796,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             setField(result, "timings", timings);
                         } else if (nodeName.equals("internalCalls")) {
                             Set internalCalls = readChild(reader, context, Set.class, result);
-                            result.internalCalls = ConcurrentHashMap.newKeySet();
                             for (Object internalCall : internalCalls) {
                                 result.internalCalls.add((String) internalCall);
                             }
