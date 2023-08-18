@@ -65,7 +65,7 @@ public final class CpsThreadDumpAction implements Action {
     }
 
     @WebMethod(name = "program.xml") public void doProgramDotXml(StaplerRequest req, StaplerResponse rsp) throws Exception {
-        Jenkins.get().checkPermission(Jenkins.RUN_SCRIPTS);
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         CompletableFuture<String> f = new CompletableFuture<>();
         execution.runInCpsVmThread(new FutureCallback<>() {
             @Override public void onSuccess(CpsThreadGroup g) {
