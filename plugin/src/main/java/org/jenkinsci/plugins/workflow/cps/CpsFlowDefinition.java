@@ -37,21 +37,16 @@ import hudson.util.StreamTaskListener;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-import org.jenkinsci.plugins.workflow.cps.replay.ReplayAction;
-import org.jenkinsci.plugins.workflow.cps.view.ThemeUtil;
 import org.jenkinsci.plugins.workflow.flow.DurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinitionDescriptor;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.flow.GlobalDefaultFlowDurabilityLevel;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 
 import net.sf.json.JSON;
@@ -183,11 +178,5 @@ public class CpsFlowDefinition extends FlowDefinition {
             // Approval requirements are managed by regular stapler form validation (via doCheckScript)
         }
 
-    }
-
-    /** @see ReplayAction#getTheme */
-    @Restricted(DoNotUse.class)
-    /* accessible to Jelly */ public String getTheme() {
-        return ThemeUtil.getTheme();
     }
 }

@@ -70,7 +70,6 @@ import net.sf.json.JSONObject;
 import org.acegisecurity.AccessDeniedException;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
-import org.jenkinsci.plugins.workflow.cps.view.ThemeUtil;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.kohsuke.accmod.Restricted;
@@ -198,12 +197,6 @@ public class ReplayAction implements Action {
 
     /* accessible to Jelly */ public Run getOwner() {
         return run;
-    }
-
-    /** @see CpsFlowDefinition#getTheme */
-    @Restricted(DoNotUse.class)
-    /* accessible to Jelly */ public String getTheme() {
-        return ThemeUtil.getTheme();
     }
 
     @Restricted(DoNotUse.class)
