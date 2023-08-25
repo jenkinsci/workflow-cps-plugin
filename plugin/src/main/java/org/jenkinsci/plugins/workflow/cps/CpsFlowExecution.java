@@ -2053,15 +2053,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             if (run instanceof FlowExecutionOwner.Executable) {
                                 FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
                                 if (owner != null) {
-                                    FlowExecution exec;
-                                    try {
-                                        exec = owner.get();
-                                    } catch (IOException x) {
-                                        LOGGER.log(Level.WARNING, null, x);
-                                        pw.println("Could not load metadata from " + run);
-                                        pw.println();
-                                        continue;
-                                    }
+                                    FlowExecution exec = owner.getOrNull();
                                     if (exec instanceof CpsFlowExecution) {
                                         Set<String> calls = ((CpsFlowExecution) exec).getInternalCalls();
                                         if (!calls.isEmpty()) {
