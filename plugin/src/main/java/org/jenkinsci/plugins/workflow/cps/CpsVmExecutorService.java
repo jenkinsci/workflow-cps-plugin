@@ -62,25 +62,21 @@ class CpsVmExecutorService extends InterceptingExecutorService {
             return;
         }
         LOGGER.log(Level.WARNING, "Unexpected exception in CPS VM thread: " + cpsThreadGroup.getExecution(), t);
-        try {
-            // Give steps a chance to clean up.
-            for (CpsThread thread : cpsThreadGroup.getThreads()) {
-                StepExecution se = thread.getStep();
-                if (se != null) {
-                    try {
-                        se.stop(t);
-                        TaskListener listener = se.getContext().get(TaskListener.class);
-                        FlowNode node = se.getContext().get(FlowNode.class);
-                        if (listener != null && node != null) {
-                            listener.getLogger().println("Terminating " + node.getDisplayFunctionName() + " (id: " + node.getId() + ")");
-                        }
-                    } catch (Exception e) {
-                        t.addSuppressed(e);
+        // Give steps a chance to clean up.
+        for (CpsThread thread : cpsThreadGroup.getThreads()) {
+            StepExecution se = thread.getStep();
+            if (se != null) {
+                try {
+                    se.stop(t);
+                    TaskListener listener = se.getContext().get(TaskListener.class);
+                    FlowNode node = se.getContext().get(FlowNode.class);
+                    if (listener != null && node != null) {
+                        listener.getLogger().println("Terminating " + node.getDisplayFunctionName() + " (id: " + node.getId() + ")");
                     }
+                } catch (Throwable e) {
+                    t.addSuppressed(e);
                 }
             }
-        } catch (Throwable t2) {
-            t.addSuppressed(t2);
         }
         cpsThreadGroup.getExecution().croak(t);
         shutdown(); // cpsThreadGroup.run() must not execute again.
