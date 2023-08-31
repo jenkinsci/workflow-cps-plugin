@@ -28,6 +28,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -40,6 +41,7 @@ import groovy.lang.GroovyShell;
 import hudson.AbortException;
 import hudson.ExtensionList;
 import hudson.XmlFile;
+import hudson.model.Executor;
 import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.TaskListener;
@@ -52,6 +54,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -662,6 +665,49 @@ public class CpsFlowExecutionTest {
             r.buildAndAssertSuccess(p);
         });
         assertThat(logger.getMessages(), containsInRelativeOrder("finished suspending all executions", "ensuring all executions are saved"));
+    }
+
+    @Issue("JENKINS-71692")
+    @Test public void stepsAreStoppedWhenCpsVmCroaks() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition(
+                "parallel(\n" +
+                "  'willCroak': {\n" +
+                "    node {\n" +
+                "      label: {\n" + // Defines a label on a BlockStatement, which is erroneously ignored by CpsTransformer.
+                "        while (true) {\n" +
+                "          semaphore('croak')\n" +
+                "          break label\n" + // CallEnv.getBreakAddress throws an IllegalStateException when this runs.
+                "        }\n" +
+                "      }\n" +
+                "    }\n" +
+                "  },\n" +
+                "  'keepsRunning': {\n" +
+                "    semaphore('other')\n" +
+                "    echo 'kept running!'\n" +
+                "  }\n" +
+                ")", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("croak/1", b);
+            SemaphoreStep.waitForStart("other/1", b);
+            SemaphoreStep.success("croak/1", null);
+            r.assertBuildStatus(Result.FAILURE, r.waitForCompletion(b));
+            r.assertLogContains("Terminating parallel (id: 3)", b);
+            r.assertLogContains("Terminating node (id: 7)", b);
+            r.assertLogContains("Terminating semaphore (id: 8)", b);
+            for (Executor executor : Jenkins.get().toComputer().getExecutors()) {
+                // Node step should have cleaned up its PlaceholderExecutable.
+                assertThat(executor.getCurrentWorkUnit(), nullValue());
+            }
+            // Simulate some async step completing after CpsFlowExecution.croak.
+            SemaphoreStep.success("other/1", null);
+            // It's difficult to add meaningful non-flaky test assertions here.
+            // Even before the associated fix, 'kept running' wasn't printed, because although CpsThreadGroup.run
+            // did execute again, it hit an IllegalStateException in SandboxContinuable, which resulted in a second
+            // call to CpsFlowExecution.croak.
+            assertTrue(((CpsFlowExecution) b.getExecution()).programPromise.get(1, TimeUnit.SECONDS).runner.isShutdown());
+        });
     }
 
 }

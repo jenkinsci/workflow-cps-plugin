@@ -11,8 +11,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
+import hudson.model.TaskListener;
 import jenkins.model.Jenkins;
 import jenkins.util.InterceptingExecutorService;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 /**
  * {@link ExecutorService} for running CPS VM.
@@ -53,8 +56,34 @@ class CpsVmExecutorService extends InterceptingExecutorService {
      * That makes it worth reporting.
      */
     private void reportProblem(Throwable t) {
+        if (isShutdown()) {
+            // We probably already got here once with the actual root cause.
+            LOGGER.log(Level.FINE, t, () -> "Unexpected exception in CPS VM thread: " + cpsThreadGroup.getExecution());
+            return;
+        }
         LOGGER.log(Level.WARNING, "Unexpected exception in CPS VM thread: " + cpsThreadGroup.getExecution(), t);
+        try {
+            // Give steps a chance to clean up.
+            for (CpsThread thread : cpsThreadGroup.getThreads()) {
+                StepExecution se = thread.getStep();
+                if (se != null) {
+                    try {
+                        se.stop(t);
+                        TaskListener listener = se.getContext().get(TaskListener.class);
+                        FlowNode node = se.getContext().get(FlowNode.class);
+                        if (listener != null && node != null) {
+                            listener.getLogger().println("Terminating " + node.getDisplayFunctionName() + " (id: " + node.getId() + ")");
+                        }
+                    } catch (Exception e) {
+                        t.addSuppressed(e);
+                    }
+                }
+            }
+        } catch (Throwable t2) {
+            t.addSuppressed(t2);
+        }
         cpsThreadGroup.getExecution().croak(t);
+        shutdown(); // cpsThreadGroup.run() must not execute again.
     }
 
     @Override
