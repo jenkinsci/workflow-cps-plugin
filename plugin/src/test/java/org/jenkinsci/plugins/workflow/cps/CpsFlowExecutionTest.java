@@ -46,6 +46,7 @@ import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.TaskListener;
 import java.io.File;
+import java.io.Serializable;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -77,6 +78,8 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.pickles.Pickle;
+import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
+import org.jenkinsci.plugins.workflow.steps.BodyInvoker;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -708,6 +711,76 @@ public class CpsFlowExecutionTest {
             // call to CpsFlowExecution.croak.
             assertTrue(((CpsFlowExecution) b.getExecution()).programPromise.get(1, TimeUnit.SECONDS).runner.isShutdown());
         });
+    }
+
+    @Issue("JENKINS-71692")
+    @Test public void stepsAreStoppedWhenBodyExecutionCallbackThrows() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition(
+                "node {\n" +
+                "  badBodyCallback() { }\n" +
+                "}\n", true));
+            WorkflowRun b = r.buildAndAssertStatus(Result.FAILURE, p);
+            r.assertLogContains("Exception in onSuccess", b);
+            r.assertLogContains("Terminating node (id: 3)", b);
+            for (Executor executor : Jenkins.get().toComputer().getExecutors()) {
+                // Node step should have cleaned up its PlaceholderExecutable.
+                assertThat(executor.getCurrentWorkUnit(), nullValue());
+            }
+            p.setDefinition(new CpsFlowDefinition(
+                "node {\n" +
+                "  badBodyCallback() { error('original') }\n" +
+                "}\n", true));
+            b = r.buildAndAssertStatus(Result.FAILURE, p);
+            r.assertLogContains("Exception in onFailure", b);
+            r.assertLogContains("Terminating node (id: 3)", b);
+            for (Executor executor : Jenkins.get().toComputer().getExecutors()) {
+                // Node step should have cleaned up its PlaceholderExecutable.
+                assertThat(executor.getCurrentWorkUnit(), nullValue());
+            }
+        });
+    }
+
+    public static class BadBodyCallback extends Step implements Serializable {
+        private static final long serialVersionUID = 1L;
+        @DataBoundConstructor
+        public BadBodyCallback() { }
+        @Override
+        public StepExecution start(StepContext context) throws Exception {
+            return new StepExecution(context) {
+                @Override public boolean start() throws Exception {
+                    StepContext context = getContext();
+                    BodyInvoker invoker = context.newBodyInvoker();
+                    invoker.withCallback(new BodyExecutionCallback() {
+                        @Override
+                        public void onSuccess(StepContext context, Object result) {
+                            throw new IllegalStateException("Exception in onSuccess");
+                        }
+                        @Override
+                        public void onFailure(StepContext context, Throwable t) {
+                            throw new IllegalStateException("Exception in onFailure");
+                        }
+                    }).start();
+                    return false;
+                }
+            };
+        }
+        @TestExtension
+        public static class DescriptorImpl extends StepDescriptor {
+            @Override
+            public Set<? extends Class<?>> getRequiredContext() {
+                return Set.of();
+            }
+            @Override
+            public String getFunctionName() {
+                return "badBodyCallback";
+            }
+            @Override
+            public boolean takesImplicitBlockArgument() {
+                return true;
+            }
+        }
     }
 
 }
