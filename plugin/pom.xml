@@ -50,16 +50,9 @@
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-2.387.x</artifactId>
-                <!-- TODO when updating the bom check for script-security update and remove version override below -->
-                <version>2163.v2d916d90c305</version>
+                <version>2378.v3e03930028f2</version>
                 <scope>import</scope>
                 <type>pom</type>
-            </dependency>
-            <!-- TODO until in BOM -->
-            <dependency>
-                <groupId>org.jenkins-ci.plugins.workflow</groupId>
-                <artifactId>workflow-api</artifactId>
-                <version>1259.vb_47f14fffc8a_</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -87,7 +80,6 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1265.va_fb_290b_4b_d34</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
