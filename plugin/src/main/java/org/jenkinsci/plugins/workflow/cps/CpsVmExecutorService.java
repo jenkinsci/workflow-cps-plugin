@@ -56,9 +56,11 @@ class CpsVmExecutorService extends InterceptingExecutorService {
      * That makes it worth reporting.
      */
     private void reportProblem(Throwable t) {
-        if (isShutdown()) {
-            // We probably already got here once with the actual root cause.
-            LOGGER.log(Level.FINE, t, () -> "Unexpected exception in CPS VM thread: " + cpsThreadGroup.getExecution());
+        if (cpsThreadGroup.getExecution().isComplete()) {
+            // We probably already got here once with the actual root cause, and in all likelihood the interesting part
+            // of the stack trace has been lost to the async boundary and the error is just a side effect of the
+            // execution being complete.
+            LOGGER.log(Level.FINE, t, () -> "Unexpected exception in CPS VM thread and execution is already complete: " + cpsThreadGroup.getExecution());
             return;
         }
         LOGGER.log(Level.WARNING, "Unexpected exception in CPS VM thread: " + cpsThreadGroup.getExecution(), t);
@@ -79,7 +81,10 @@ class CpsVmExecutorService extends InterceptingExecutorService {
             }
         }
         cpsThreadGroup.getExecution().croak(t);
-        shutdown(); // cpsThreadGroup.run() must not execute again.
+        // cpsThreadGroup.run() must not execute again. We shut it down after stopping steps and completing the build
+        // to avoid RejectedExecutionExceptions inside of StepExecution.stop above as the steps try to call
+        // StepContext.onFailure which eventually submits a task to this executor service to trigger CpsThreadGroup.run.
+        shutdown();
     }
 
     @Override
