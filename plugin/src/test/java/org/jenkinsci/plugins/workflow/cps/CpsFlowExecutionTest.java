@@ -35,6 +35,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import groovy.lang.GroovyShell;
@@ -671,19 +672,14 @@ public class CpsFlowExecutionTest {
     }
 
     @Issue("JENKINS-71692")
-    @Test public void stepsAreStoppedWhenCpsVmCroaks() throws Throwable {
+    @Test public void stepsAreStoppedWhenCpsVmExecutorServiceHandlesUncaughtException() throws Throwable {
         sessions.then(r -> {
             WorkflowJob p = r.createProject(WorkflowJob.class, "p");
             p.setDefinition(new CpsFlowDefinition(
                 "parallel(\n" +
                 "  'willCroak': {\n" +
                 "    node {\n" +
-                "      label: {\n" + // Defines a label on a BlockStatement, which is erroneously ignored by CpsTransformer.
-                "        while (true) {\n" +
-                "          semaphore('croak')\n" +
-                "          break label\n" + // CallEnv.getBreakAddress throws an IllegalStateException when this runs.
-                "        }\n" +
-                "      }\n" +
+                "      semaphore('croak')\n" +
                 "    }\n" +
                 "  },\n" +
                 "  'keepsRunning': {\n" +
@@ -694,8 +690,17 @@ public class CpsFlowExecutionTest {
             WorkflowRun b = p.scheduleBuild2(0).waitForStart();
             SemaphoreStep.waitForStart("croak/1", b);
             SemaphoreStep.waitForStart("other/1", b);
-            SemaphoreStep.success("croak/1", null);
+            ((CpsFlowExecution) b.getExecution()).runInCpsVmThread(new FutureCallback<>() {
+                @Override
+                public void onSuccess(CpsThreadGroup g) {
+                    // In practice this would be some kind of unhandled exception in groovy-cps.
+                    throw new IllegalStateException("Failure in CPS VM thread!");
+                }
+                @Override
+                public void onFailure(Throwable t) { }
+            });
             r.assertBuildStatus(Result.FAILURE, r.waitForCompletion(b));
+            r.assertLogContains("Failure in CPS VM thread!", b);
             r.assertLogContains("Terminating parallel (id: 3)", b);
             r.assertLogContains("Terminating node (id: 7)", b);
             r.assertLogContains("Terminating semaphore (id: 8)", b);
@@ -703,7 +708,8 @@ public class CpsFlowExecutionTest {
                 // Node step should have cleaned up its PlaceholderExecutable.
                 assertThat(executor.getCurrentWorkUnit(), nullValue());
             }
-            // Simulate some async step completing after CpsFlowExecution.croak.
+            // Simulate some async steps completing after CpsFlowExecution.croak.
+            SemaphoreStep.success("croak/1", null);
             SemaphoreStep.success("other/1", null);
             // It's difficult to add meaningful non-flaky test assertions here.
             // Even before the associated fix, 'kept running' wasn't printed, because although CpsThreadGroup.run
