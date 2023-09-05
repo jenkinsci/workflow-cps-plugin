@@ -350,7 +350,12 @@ class CpsBodyExecution extends BodyExecution {
             setOutcome(new Outcome(null,t));
             StepContext sc = new CpsBodySubContext(context, en);
             for (BodyExecutionCallback c : callbacks) {
-                c.onFailure(sc, t);
+                try {
+                    c.onFailure(sc, t);
+                } catch (Exception e) {
+                    t.addSuppressed(e);
+                    sc.onFailure(t);
+                }
             }
             return Next.terminate(null);
         }
@@ -366,7 +371,11 @@ class CpsBodyExecution extends BodyExecution {
             setOutcome(new Outcome(o,null));
             StepContext sc = new CpsBodySubContext(context, en);
             for (BodyExecutionCallback c : callbacks) {
-                c.onSuccess(sc, o);
+                try {
+                    c.onSuccess(sc, o);
+                } catch (Exception e) {
+                    sc.onFailure(e);
+                }
             }
             return Next.terminate(null);
         }

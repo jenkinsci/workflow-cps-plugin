@@ -713,7 +713,7 @@ public class CpsFlowExecutionTest {
         });
     }
 
-    @Issue("JENKINS-71692")
+    @Issue("JENKINS-70267")
     @Test public void stepsAreStoppedWhenBodyExecutionCallbackThrows() throws Throwable {
         sessions.then(r -> {
             WorkflowJob p = r.createProject(WorkflowJob.class, "p");
@@ -723,18 +723,17 @@ public class CpsFlowExecutionTest {
                 "}\n", true));
             WorkflowRun b = r.buildAndAssertStatus(Result.FAILURE, p);
             r.assertLogContains("Exception in onSuccess", b);
-            r.assertLogContains("Terminating node (id: 3)", b);
             for (Executor executor : Jenkins.get().toComputer().getExecutors()) {
                 // Node step should have cleaned up its PlaceholderExecutable.
                 assertThat(executor.getCurrentWorkUnit(), nullValue());
             }
             p.setDefinition(new CpsFlowDefinition(
                 "node {\n" +
-                "  badBodyCallback() { error('original') }\n" +
-                "}\n", true));
+                "  badBodyCallback() { throw new Exception('original') }\n" +
+                "}\n", false));
             b = r.buildAndAssertStatus(Result.FAILURE, p);
             r.assertLogContains("Exception in onFailure", b);
-            r.assertLogContains("Terminating node (id: 3)", b);
+            r.assertLogContains("Exception: original", b);
             for (Executor executor : Jenkins.get().toComputer().getExecutors()) {
                 // Node step should have cleaned up its PlaceholderExecutable.
                 assertThat(executor.getCurrentWorkUnit(), nullValue());
