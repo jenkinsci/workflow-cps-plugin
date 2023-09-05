@@ -28,22 +28,26 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import groovy.lang.GroovyShell;
 import hudson.AbortException;
 import hudson.ExtensionList;
 import hudson.XmlFile;
+import hudson.model.Executor;
 import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.TaskListener;
 import java.io.File;
+import java.io.Serializable;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -52,6 +56,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -74,6 +79,8 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.pickles.Pickle;
+import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
+import org.jenkinsci.plugins.workflow.steps.BodyInvoker;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -662,6 +669,123 @@ public class CpsFlowExecutionTest {
             r.buildAndAssertSuccess(p);
         });
         assertThat(logger.getMessages(), containsInRelativeOrder("finished suspending all executions", "ensuring all executions are saved"));
+    }
+
+    @Issue("JENKINS-71692")
+    @Test public void stepsAreStoppedWhenCpsVmExecutorServiceHandlesUncaughtException() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition(
+                "parallel(\n" +
+                "  'willCroak': {\n" +
+                "    node {\n" +
+                "      semaphore('croak')\n" +
+                "    }\n" +
+                "  },\n" +
+                "  'keepsRunning': {\n" +
+                "    semaphore('other')\n" +
+                "    echo 'kept running!'\n" +
+                "  }\n" +
+                ")", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("croak/1", b);
+            SemaphoreStep.waitForStart("other/1", b);
+            ((CpsFlowExecution) b.getExecution()).runInCpsVmThread(new FutureCallback<>() {
+                @Override
+                public void onSuccess(CpsThreadGroup g) {
+                    // In practice this would be some kind of unhandled exception in groovy-cps.
+                    throw new IllegalStateException("Failure in CPS VM thread!");
+                }
+                @Override
+                public void onFailure(Throwable t) { }
+            });
+            r.assertBuildStatus(Result.FAILURE, r.waitForCompletion(b));
+            r.assertLogContains("Failure in CPS VM thread!", b);
+            r.assertLogContains("Terminating parallel (id: 3)", b);
+            r.assertLogContains("Terminating node (id: 7)", b);
+            r.assertLogContains("Terminating semaphore (id: 8)", b);
+            for (Executor executor : Jenkins.get().toComputer().getExecutors()) {
+                // Node step should have cleaned up its PlaceholderExecutable.
+                assertThat(executor.getCurrentWorkUnit(), nullValue());
+            }
+            // Simulate some async steps completing after CpsFlowExecution.croak.
+            SemaphoreStep.success("croak/1", null);
+            SemaphoreStep.success("other/1", null);
+            // It's difficult to add meaningful non-flaky test assertions here.
+            // Even before the associated fix, 'kept running' wasn't printed, because although CpsThreadGroup.run
+            // did execute again, it hit an IllegalStateException in SandboxContinuable, which resulted in a second
+            // call to CpsFlowExecution.croak.
+            assertTrue(((CpsFlowExecution) b.getExecution()).programPromise.get(1, TimeUnit.SECONDS).runner.isShutdown());
+        });
+    }
+
+    @Issue("JENKINS-70267")
+    @Test public void stepsAreStoppedWhenBodyExecutionCallbackThrows() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition(
+                "node {\n" +
+                "  badBodyCallback() { }\n" +
+                "}\n", true));
+            WorkflowRun b = r.buildAndAssertStatus(Result.FAILURE, p);
+            r.assertLogContains("Exception in onSuccess", b);
+            for (Executor executor : Jenkins.get().toComputer().getExecutors()) {
+                // Node step should have cleaned up its PlaceholderExecutable.
+                assertThat(executor.getCurrentWorkUnit(), nullValue());
+            }
+            p.setDefinition(new CpsFlowDefinition(
+                "node {\n" +
+                "  badBodyCallback() { throw new Exception('original') }\n" +
+                "}\n", false));
+            b = r.buildAndAssertStatus(Result.FAILURE, p);
+            r.assertLogContains("Exception in onFailure", b);
+            r.assertLogContains("Exception: original", b);
+            for (Executor executor : Jenkins.get().toComputer().getExecutors()) {
+                // Node step should have cleaned up its PlaceholderExecutable.
+                assertThat(executor.getCurrentWorkUnit(), nullValue());
+            }
+        });
+    }
+
+    public static class BadBodyCallback extends Step implements Serializable {
+        private static final long serialVersionUID = 1L;
+        @DataBoundConstructor
+        public BadBodyCallback() { }
+        @Override
+        public StepExecution start(StepContext context) throws Exception {
+            return new StepExecution(context) {
+                @Override public boolean start() throws Exception {
+                    StepContext context = getContext();
+                    BodyInvoker invoker = context.newBodyInvoker();
+                    invoker.withCallback(new BodyExecutionCallback() {
+                        @Override
+                        public void onSuccess(StepContext context, Object result) {
+                            throw new IllegalStateException("Exception in onSuccess");
+                        }
+                        @Override
+                        public void onFailure(StepContext context, Throwable t) {
+                            throw new IllegalStateException("Exception in onFailure");
+                        }
+                    }).start();
+                    return false;
+                }
+            };
+        }
+        @TestExtension
+        public static class DescriptorImpl extends StepDescriptor {
+            @Override
+            public Set<? extends Class<?>> getRequiredContext() {
+                return Set.of();
+            }
+            @Override
+            public String getFunctionName() {
+                return "badBodyCallback";
+            }
+            @Override
+            public boolean takesImplicitBlockArgument() {
+                return true;
+            }
+        }
     }
 
 }
