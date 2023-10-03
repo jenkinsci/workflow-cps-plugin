@@ -1060,7 +1060,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
             @Override
             public void onFailure(Throwable t) {
-                r.setException(t);
+                if (t instanceof RejectedExecutionException) {
+                    // Program already suspended, fine
+                    r.set(List.of());
+                } else {
+                    r.setException(t);
+                }
             }
         });
 

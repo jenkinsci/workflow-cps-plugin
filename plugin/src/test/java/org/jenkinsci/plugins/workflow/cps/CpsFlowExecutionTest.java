@@ -42,6 +42,7 @@ import groovy.lang.GroovyShell;
 import hudson.AbortException;
 import hudson.ExtensionList;
 import hudson.XmlFile;
+import hudson.init.Terminator;
 import hudson.model.Executor;
 import hudson.model.Item;
 import hudson.model.Result;
@@ -57,6 +58,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -66,6 +68,7 @@ import org.apache.commons.io.FileUtils;
 import org.hamcrest.Matchers;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInRelativeOrder;
+import static org.hamcrest.Matchers.empty;
 import org.htmlunit.ElementNotFoundException;
 import org.htmlunit.FailingHttpStatusCodeException;
 import org.htmlunit.HttpMethod;
@@ -182,6 +185,33 @@ public class CpsFlowExecutionTest {
             r.add(d.getFunctionName());
         }
         return r;
+    }
+
+    @Test public void iterateAfterSuspend() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "iterateAfterSuspend");
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'", true));
+            SemaphoreStep.waitForStart("wait/1", p.scheduleBuild2(0).waitForStart());
+        });
+        sessions.then(r -> {
+            SemaphoreStep.success("wait/1", null);
+            r.assertBuildStatusSuccess(r.waitForCompletion(r.jenkins.getItemByFullName("iterateAfterSuspend", WorkflowJob.class).getLastBuild()));
+        });
+        if (iterateAfterSuspendError.get() != null) {
+            throw iterateAfterSuspendError.get();
+        }
+    }
+    private static AtomicReference<Throwable> iterateAfterSuspendError = new AtomicReference<>();
+    @Terminator(requires = FlowExecutionList.EXECUTIONS_SUSPENDED) public static void iterateAfterSuspendTerminator() {
+        WorkflowJob p = Jenkins.get().getItemByFullName("iterateAfterSuspend", WorkflowJob.class);
+        if (p == null) {
+            return; // different test
+        }
+        try {
+            assertThat(p.getLastBuild().getExecution().getCurrentExecutions(false).get(), empty());
+        } catch (Throwable t) {
+            iterateAfterSuspendError.set(t);
+        }
     }
 
     @Issue("JENKINS-25736")
