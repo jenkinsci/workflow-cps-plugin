@@ -45,6 +45,7 @@ import org.jvnet.hudson.test.RestartableJenkinsRule;
  * @author Kohsuke Kawaguchi
  * @deprecated inline relevant parts
  */
+@Deprecated
 public abstract class SingleJobTestBase extends Assert {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
@@ -72,6 +73,7 @@ public abstract class SingleJobTestBase extends Assert {
     }
 
     /** @deprecated use {@link JenkinsRule#waitForCompletion} instead */
+    @Deprecated
     public void waitForWorkflowToComplete() throws Exception {
         do {
             waitForWorkflowToSuspend(e);
@@ -79,6 +81,7 @@ public abstract class SingleJobTestBase extends Assert {
     }
 
     /** @deprecated Use some other idiom, like {@link SemaphoreStep}. */
+    @Deprecated
     public void waitForWorkflowToSuspend() throws Exception {
         waitForWorkflowToSuspend(e);
     }
