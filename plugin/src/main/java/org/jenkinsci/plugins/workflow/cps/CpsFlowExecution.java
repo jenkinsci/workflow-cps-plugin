@@ -1060,7 +1060,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
             @Override
             public void onFailure(Throwable t) {
-                r.setException(t);
+                if (t instanceof RejectedExecutionException) {
+                    // Program already suspended, fine
+                    r.set(List.of());
+                } else {
+                    r.setException(t);
+                }
             }
         });
 
@@ -1638,25 +1643,23 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     @Restricted(DoNotUse.class)
     @Terminator(attains = FlowExecutionList.EXECUTIONS_SUSPENDED)
     public static void suspendAll() {
-        CpsFlowExecution exec = null;
         try (Timeout t = Timeout.limit(3, TimeUnit.MINUTES)) { // TODO some complicated sequence of calls to Futures could allow all of them to run in parallel
             LOGGER.fine("starting to suspend all executions");
             for (FlowExecution execution : FlowExecutionList.get()) {
-                try {
-                    if (execution instanceof CpsFlowExecution) {
-                        CpsFlowExecution cpsExec = (CpsFlowExecution)execution;
+                if (execution instanceof CpsFlowExecution) {
+                    CpsFlowExecution cpsExec = (CpsFlowExecution) execution;
+                    try {
                         cpsExec.checkAndAbortNonresumableBuild();
 
                         LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
-                        exec = (CpsFlowExecution) execution;
                         // Like waitForSuspension but with a timeout:
-                        if (exec.programPromise != null) {
+                        if (cpsExec.programPromise != null) {
                             LOGGER.log(Level.FINER, "Waiting for Pipeline to go to sleep for shutdown: "+execution);
                             try {
-                                exec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
+                                cpsExec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
                                 LOGGER.log(Level.FINER, " Pipeline went to sleep OK: "+execution);
                             } catch (InterruptedException | TimeoutException ex) {
-                                LOGGER.log(Level.WARNING, "Error waiting for Pipeline to suspend: "+exec, ex);
+                                LOGGER.log(Level.WARNING, "Error waiting for Pipeline to suspend: " + cpsExec, ex);
                             }
                         }
                         cpsExec.checkpoint(true);
@@ -1671,15 +1674,15 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                 }
                             });
                         }
-                        cpsExec.getOwner().getListener().getLogger().close();
+                        if (cpsExec.owner != null) {
+                            cpsExec.owner.getListener().getLogger().close();
+                        }
+                    } catch (Exception ex) {
+                        LOGGER.log(Level.WARNING, "Error persisting Pipeline execution at shutdown: " + cpsExec.owner, ex);
                     }
-                } catch (Exception ex) {
-                    LOGGER.log(Level.WARNING, "Error persisting Pipeline execution at shutdown: "+((CpsFlowExecution) execution).owner, ex);
                 }
             }
             LOGGER.fine("finished suspending all executions");
-        } catch (Exception x) {
-            LOGGER.log(Level.WARNING, "problem suspending " + exec, x);
         }
     }
 
