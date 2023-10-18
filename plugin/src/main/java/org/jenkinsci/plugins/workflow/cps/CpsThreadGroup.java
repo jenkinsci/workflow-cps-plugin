@@ -557,7 +557,7 @@ public final class CpsThreadGroup implements Serializable {
     @CpsVmThreadOnly
     public void saveProgram(File f) throws IOException {
         File dir = f.getParentFile();
-        File tmpFile = File.createTempFile("atomic",null, dir);
+        File tmpFile = Files.createTempFile(dir.toPath(), "atomic", null).toFile();
 
         assertVmThread();
 
