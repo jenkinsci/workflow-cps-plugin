@@ -66,6 +66,7 @@ import org.jenkinsci.plugins.workflow.graph.BlockStartNode;
 import org.jenkinsci.plugins.workflow.graph.FlowEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
+import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
@@ -107,6 +108,7 @@ import groovy.lang.GroovyCodeSource;
 import hudson.AbortException;
 import hudson.BulkChange;
 import hudson.Extension;
+import hudson.Util;
 import hudson.init.Terminator;
 import hudson.model.Item;
 import hudson.model.Job;
@@ -506,11 +508,51 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     private TimingFlowNodeStorage createStorage() throws IOException {
         FlowNodeStorage wrappedStorage;
 
-        FlowDurabilityHint hint = getDurabilityHint();
-        wrappedStorage = (hint.isPersistWithEveryStep())
-                ? new SimpleXStreamFlowNodeStorage(this, getStorageDir())
-                : new BulkFlowNodeStorage(this, getStorageDir());
+        if (this.storageDir != null && this.storageDir.endsWith("-completed")) {
+           wrappedStorage = new BulkFlowNodeStorage(this, getStorageDir());
+        } else {
+            FlowDurabilityHint hint = getDurabilityHint();
+            wrappedStorage = (hint.isPersistWithEveryStep())
+                    ? new SimpleXStreamFlowNodeStorage(this, getStorageDir())
+                    : new BulkFlowNodeStorage(this, getStorageDir());
+        }
         return new TimingFlowNodeStorage(wrappedStorage);
+    }
+
+    /**
+     * Called when the build completes to migrate from {@link SimpleXStreamFlowNodeStorage} to
+     * {@link BulkFlowNodeStorage} to improve read performance for completed builds.
+     */
+    private void optimizeStorage(FlowNode flowEndNode) {
+        if (storage.delegate instanceof SimpleXStreamFlowNodeStorage) {
+            String newStorageDir = (this.storageDir != null) ? this.storageDir + "-completed" : "workflow-completed";
+            try {
+                FlowNodeStorage newStorage = new BulkFlowNodeStorage(this, new File(this.owner.getRootDir(), newStorageDir));
+                DepthFirstScanner scanner = new DepthFirstScanner();
+                scanner.setup(flowEndNode);
+                // The hope is that by doing this right when the execution completes, most of the nodes will already be
+                // cached in memory, saving us the cost of having to read them all from disk.
+                for (FlowNode node : scanner) {
+                    newStorage.storeNode(node, true);
+                }
+                newStorage.flush();
+                File oldStorageDir = getStorageDir();
+                synchronized (this) {
+                    this.storageDir = newStorageDir;
+                    // TODO: A more conservative option could be to instead keep using the current storage until after
+                    // a restart. In that case we'd have to defer deletion of the old storage dir and handle it in
+                    // initializeStorage.
+                    this.storage = new TimingFlowNodeStorage(newStorage);
+                }
+                try {
+                    Util.deleteRecursive(oldStorageDir);
+                } catch (IOException e) {
+                    LOGGER.log(Level.FINE, e, () -> "Unable to delete unused flow node storage directory " + oldStorageDir + " for " + this);
+                }
+            } catch (IOException e) {
+                LOGGER.log(Level.FINE, e, () -> "Unable to migrate " + this + " to BulkFlowNodeStorage");
+            }
+        }
     }
 
     /**
@@ -1332,6 +1374,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         } catch (IOException ioe) {
             LOGGER.log(Level.WARNING, "Error flushing FlowNodeStorage to disk at end of run", ioe);
         }
+        this.optimizeStorage(head);
 
         this.persistedClean = Boolean.TRUE;
     }
