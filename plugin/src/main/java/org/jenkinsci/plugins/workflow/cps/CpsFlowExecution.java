@@ -1929,7 +1929,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     static final ThreadLocal<CpsFlowExecution> PROGRAM_STATE_SERIALIZATION = new ThreadLocal<>();
 
     class TimingFlowNodeStorage extends FlowNodeStorage {
-        private final FlowNodeStorage delegate;
+        final FlowNodeStorage delegate;
         private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
 
         TimingFlowNodeStorage(FlowNodeStorage delegate) {

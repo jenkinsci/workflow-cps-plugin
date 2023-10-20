@@ -26,8 +26,10 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -63,6 +65,7 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.FileUtils;
 import org.hamcrest.Matchers;
@@ -75,10 +78,13 @@ import org.htmlunit.HttpMethod;
 import org.htmlunit.WebRequest;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.TimingFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DefaultAllowlist;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.pickles.Pickle;
@@ -90,6 +96,9 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
 import org.jenkinsci.plugins.workflow.support.pickles.TryRepeatedly;
+import org.jenkinsci.plugins.workflow.support.storage.BulkFlowNodeStorage;
+import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
+import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -816,6 +825,39 @@ public class CpsFlowExecutionTest {
                 return true;
             }
         }
+    }
+
+    @Test public void flowNodeStorageOptimizedUponExecutionCompletion() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition(
+                "echo 'Hello, world!'\n" +
+                "semaphore('wait')\n" +
+                "echo 'Goodbye, world!'", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            FlowNodeStorage storage = ((TimingFlowNodeStorage) ((CpsFlowExecution) b.getExecution()).getStorage()).delegate;
+            assertThat(storage, instanceOf(SimpleXStreamFlowNodeStorage.class));
+            assertThat(((CpsFlowExecution) b.getExecution()).getStorageDir().toString(), endsWith("/workflow"));
+            SemaphoreStep.success("wait/1", null);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+            storage = ((TimingFlowNodeStorage) ((CpsFlowExecution) b.getExecution()).getStorage()).delegate;
+            assertThat(storage, instanceOf(BulkFlowNodeStorage.class));
+            assertThat(((CpsFlowExecution) b.getExecution()).getStorageDir().toString(), endsWith("/workflow-completed"));
+            List<FlowNode> nodes = new DepthFirstScanner().allNodes(b.getExecution());
+            assertThat(nodes.stream().map(FlowNode::getDisplayFunctionName).collect(Collectors.toList()), equalTo(
+                    List.of("End of Pipeline", "echo", "semaphore", "echo", "Start of Pipeline")));
+        });
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getBuildByNumber(1);
+            FlowNodeStorage storage = ((TimingFlowNodeStorage) ((CpsFlowExecution) b.getExecution()).getStorage()).delegate;
+            assertThat(storage, instanceOf(BulkFlowNodeStorage.class));
+            assertThat(((CpsFlowExecution) b.getExecution()).getStorageDir().toString(), endsWith("/workflow-completed"));
+            List<FlowNode> nodes = new DepthFirstScanner().allNodes(b.getExecution());
+            assertThat(nodes.stream().map(FlowNode::getDisplayFunctionName).collect(Collectors.toList()), equalTo(
+                    List.of("End of Pipeline", "echo", "semaphore", "echo", "Start of Pipeline")));
+        });
     }
 
 }
