@@ -846,7 +846,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         try {
             Functions.printStackTrace(problem, owner.getListener().getLogger());
         } catch (Exception x) {
-            LOGGER.log(Level.WARNING, "failed to log problem to " + owner, x);
+            LOGGER.log(Level.WARNING, x, () -> "failed to log problem to " + owner);
         }
         promise.setException(problem);
         croak(new AbortException("Failed to load program"));
