@@ -107,6 +107,7 @@ import groovy.lang.GroovyCodeSource;
 import hudson.AbortException;
 import hudson.BulkChange;
 import hudson.Extension;
+import hudson.Functions;
 import hudson.init.Terminator;
 import hudson.model.Item;
 import hudson.model.Job;
@@ -846,6 +847,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * @param promise same as {@link #programPromise} but more strongly typed
      */
     private void loadProgramFailed(final Throwable problem, SettableFuture<CpsThreadGroup> promise) {
+        try {
+            Functions.printStackTrace(problem, owner.getListener().getLogger());
+        } catch (Exception x) {
+            LOGGER.log(Level.WARNING, "failed to log problem to " + owner, x);
+        }
+
         FlowHead head;
 
         synchronized(this) {
