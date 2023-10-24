@@ -617,6 +617,29 @@ public class CpsFlowExecutionTest {
         });
     }
 
+    @Issue("JENKINS-50407")
+    @Test public void shellLoadingError() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'", true));
+            SemaphoreStep.waitForStart("wait/1", p.scheduleBuild2(0).waitForStart());
+        });
+        sessions.then(r -> {
+            r.assertLogContains("IllegalStateException: decorator problem here",
+                r.assertBuildStatus(Result.FAILURE,
+                    r.waitForCompletion(r.jenkins.getItemByFullName("p", WorkflowJob.class).getLastBuild())));
+        });
+    }
+    @TestExtension("shellLoadingError") public static final class BrokenDecorator extends GroovyShellDecorator {
+        static int count;
+        @Override
+        public void configureShell(CpsFlowExecution context, GroovyShell shell) {
+            if (count++ == 1) {
+                throw new IllegalStateException("decorator problem here");
+            }
+        }
+    }
+
     /**
      * This field shouldn't be visible to regular script.
      */

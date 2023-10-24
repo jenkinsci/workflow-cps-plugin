@@ -28,8 +28,6 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Envs;
 import com.cloudbees.groovy.cps.Outcome;
-import com.cloudbees.groovy.cps.impl.ConstantBlock;
-import com.cloudbees.groovy.cps.impl.ThrowBlock;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 import com.cloudbees.jenkins.support.api.Component;
 import com.cloudbees.jenkins.support.api.Container;
@@ -109,6 +107,7 @@ import hudson.AbortException;
 import hudson.BulkChange;
 import hudson.Extension;
 import hudson.Util;
+import hudson.Functions;
 import hudson.init.Terminator;
 import hudson.model.Item;
 import hudson.model.Job;
@@ -882,51 +881,17 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     /**
-     * Used by {@link #loadProgramAsync(File)} to propagate a failure to load the persisted execution state.
-     * <p>
-     * Let the workflow interrupt by throwing an exception that indicates how it failed.
+     * Used to propagate a failure to load the persisted execution state.
      * @param promise same as {@link #programPromise} but more strongly typed
      */
     private void loadProgramFailed(final Throwable problem, SettableFuture<CpsThreadGroup> promise) {
-        FlowHead head;
-
-        synchronized(this) {
-            if (heads == null || heads.isEmpty()) {
-                head = null;
-            } else {
-                head = getFirstHead();
-            }
+        try {
+            Functions.printStackTrace(problem, owner.getListener().getLogger());
+        } catch (Exception x) {
+            LOGGER.log(Level.WARNING, x, () -> "failed to log problem to " + owner);
         }
-
-        if (head==null) {
-            // something went catastrophically wrong and there's no live head. fake one
-            head = new FlowHead(this);
-            try {
-                head.newStartNode(new FlowStartNode(this, iotaStr()));
-            } catch (IOException e) {
-                LOGGER.log(Level.FINE, "Failed to persist", e);
-            }
-        }
-
-
-        CpsThreadGroup g = new CpsThreadGroup(this);
-        final FlowHead head_ = head;
-
-        promise.set(g);
-        runInCpsVmThread(new FutureCallback<>() {
-            @Override public void onSuccess(CpsThreadGroup g) {
-                CpsThread t = g.addThread(
-                        new Continuable(new ThrowBlock(new ConstantBlock(
-                            problem instanceof AbortException || problem instanceof FlowInterruptedException ? problem : new IOException("Failed to load build state", problem)))),
-                        head_, null
-                );
-                t.resume(new Outcome(null,null));
-            }
-            @Override public void onFailure(Throwable t) {
-                LOGGER.log(Level.WARNING, "Failed to set program failure on " + owner, t);
-                croak(t);
-            }
-        });
+        promise.setException(problem);
+        croak(new AbortException("Failed to load program"));
     }
 
     /** Report a fatal error in the VM. */
