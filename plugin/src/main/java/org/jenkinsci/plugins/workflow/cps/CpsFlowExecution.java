@@ -535,7 +535,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             return;
         }
         if (storage.delegate instanceof SimpleXStreamFlowNodeStorage) {
-            LOGGER.log(Level.FINER, () -> "Migrating " + this + " to BulkFlowNodeStorage");
+            LOGGER.log(Level.FINE, () -> "Migrating " + this + " to BulkFlowNodeStorage");
             String newStorageDir = (this.storageDir != null) ? this.storageDir + "-completed" : "workflow-completed";
             try {
                 FlowNodeStorage newStorage = new BulkFlowNodeStorage(this, new File(this.owner.getRootDir(), newStorageDir));
@@ -547,6 +547,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     newStorage.storeNode(node, true);
                 }
                 newStorage.flush();
+                LOGGER.log(Level.FINE, () -> "Copied nodes to " + newStorageDir);
                 File oldStorageDir = getStorageDir();
                 this.storageDir = newStorageDir;
                 // TODO: A more conservative option could be to instead keep using the current storage until after
@@ -555,11 +556,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 this.storage = new TimingFlowNodeStorage(newStorage);
                 try {
                     Util.deleteRecursive(oldStorageDir);
+                    LOGGER.log(Level.FINE, () -> "Deleted " + oldStorageDir);
                 } catch (IOException e) {
                     LOGGER.log(Level.FINE, e, () -> "Unable to delete unused flow node storage directory " + oldStorageDir + " for " + this);
                 }
             } catch (Exception e) {
-                LOGGER.log(Level.FINE, e, () -> "Unable to migrate " + this + " to BulkFlowNodeStorage");
+                LOGGER.log(Level.WARNING, e, () -> "Unable to migrate " + this + " to BulkFlowNodeStorage");
             }
         }
     }
