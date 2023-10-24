@@ -145,6 +145,7 @@ import net.jcip.annotations.GuardedBy;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import java.nio.charset.StandardCharsets;
+import jenkins.util.SystemProperties;
 import org.codehaus.groovy.GroovyBugError;
 import org.jboss.marshalling.reflect.SerializableClassRegistry;
 
@@ -237,6 +238,13 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
  */
 @PersistIn(RUN)
 public class CpsFlowExecution extends FlowExecution implements BlockableResume {
+    /**
+     * If {@code true}, then when the execution completes, we migrate the flow node storage from
+     * {@link SimpleXStreamFlowNodeStorage} to {@link BulkFlowNodeStorage}.
+     */
+    @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "non-final for modification via script console")
+    public static boolean OPTIMIZE_STORAGE_UPON_COMPLETION = SystemProperties.getBoolean(CpsFlowExecution.class.getName() + ".OPTIMIZE_STORAGE_UPON_COMPLETION", true);
+
     /**
      * Groovy script of the main source file (that the user enters in the GUI)
      */
@@ -519,11 +527,15 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     /**
-     * Called when the build completes to migrate from {@link SimpleXStreamFlowNodeStorage} to
+     * Called when the execution completes to migrate from {@link SimpleXStreamFlowNodeStorage} to
      * {@link BulkFlowNodeStorage} to improve read performance for completed builds.
      */
-    private void optimizeStorage(FlowNode flowEndNode) {
+    private synchronized void optimizeStorage(FlowNode flowEndNode) {
+        if (!OPTIMIZE_STORAGE_UPON_COMPLETION) {
+            return;
+        }
         if (storage.delegate instanceof SimpleXStreamFlowNodeStorage) {
+            LOGGER.log(Level.FINER, () -> "Migrating " + this + " to BulkFlowNodeStorage");
             String newStorageDir = (this.storageDir != null) ? this.storageDir + "-completed" : "workflow-completed";
             try {
                 FlowNodeStorage newStorage = new BulkFlowNodeStorage(this, new File(this.owner.getRootDir(), newStorageDir));
@@ -536,19 +548,17 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 }
                 newStorage.flush();
                 File oldStorageDir = getStorageDir();
-                synchronized (this) {
-                    this.storageDir = newStorageDir;
-                    // TODO: A more conservative option could be to instead keep using the current storage until after
-                    // a restart. In that case we'd have to defer deletion of the old storage dir and handle it in
-                    // initializeStorage.
-                    this.storage = new TimingFlowNodeStorage(newStorage);
-                }
+                this.storageDir = newStorageDir;
+                // TODO: A more conservative option could be to instead keep using the current storage until after
+                // a restart. In that case we'd have to defer deletion of the old storage dir and handle it in
+                // initializeStorage.
+                this.storage = new TimingFlowNodeStorage(newStorage);
                 try {
                     Util.deleteRecursive(oldStorageDir);
                 } catch (IOException e) {
                     LOGGER.log(Level.FINE, e, () -> "Unable to delete unused flow node storage directory " + oldStorageDir + " for " + this);
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
                 LOGGER.log(Level.FINE, e, () -> "Unable to migrate " + this + " to BulkFlowNodeStorage");
             }
         }

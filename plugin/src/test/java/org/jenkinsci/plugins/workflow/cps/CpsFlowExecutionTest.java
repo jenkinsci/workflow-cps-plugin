@@ -26,7 +26,6 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
@@ -54,6 +53,9 @@ import java.io.Serializable;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -859,14 +861,19 @@ public class CpsFlowExecutionTest {
                 "echo 'Goodbye, world!'", true));
             WorkflowRun b = p.scheduleBuild2(0).waitForStart();
             SemaphoreStep.waitForStart("wait/1", b);
-            FlowNodeStorage storage = ((TimingFlowNodeStorage) ((CpsFlowExecution) b.getExecution()).getStorage()).delegate;
+            CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
+            FlowNodeStorage storage = ((TimingFlowNodeStorage) e.getStorage()).delegate;
             assertThat(storage, instanceOf(SimpleXStreamFlowNodeStorage.class));
-            assertThat(((CpsFlowExecution) b.getExecution()).getStorageDir().toString(), endsWith("/workflow"));
+            Path oldStorageDir = e.getStorageDir().toPath();
+            assertThat(oldStorageDir.getFileName(), equalTo(Paths.get("workflow")));
             SemaphoreStep.success("wait/1", null);
             r.assertBuildStatusSuccess(r.waitForCompletion(b));
-            storage = ((TimingFlowNodeStorage) ((CpsFlowExecution) b.getExecution()).getStorage()).delegate;
+            storage = ((TimingFlowNodeStorage) e.getStorage()).delegate;
             assertThat(storage, instanceOf(BulkFlowNodeStorage.class));
-            assertThat(((CpsFlowExecution) b.getExecution()).getStorageDir().toString(), endsWith("/workflow-completed"));
+            assertFalse("workflow/ should have been deleted", Files.exists(oldStorageDir));
+            Path newStorageDir = e.getStorageDir().toPath();
+            assertThat(newStorageDir.getFileName(), equalTo(Paths.get("workflow-completed")));
+            assertThat(Files.list(newStorageDir).collect(Collectors.toList()), contains(newStorageDir.resolve("flowNodeStore.xml")));
             List<FlowNode> nodes = new DepthFirstScanner().allNodes(b.getExecution());
             assertThat(nodes.stream().map(FlowNode::getDisplayFunctionName).collect(Collectors.toList()), equalTo(
                     List.of("End of Pipeline", "echo", "semaphore", "echo", "Start of Pipeline")));
@@ -874,9 +881,13 @@ public class CpsFlowExecutionTest {
         sessions.then(r -> {
             WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
             WorkflowRun b = p.getBuildByNumber(1);
-            FlowNodeStorage storage = ((TimingFlowNodeStorage) ((CpsFlowExecution) b.getExecution()).getStorage()).delegate;
+            CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
+            FlowNodeStorage storage = ((TimingFlowNodeStorage) e.getStorage()).delegate;
             assertThat(storage, instanceOf(BulkFlowNodeStorage.class));
-            assertThat(((CpsFlowExecution) b.getExecution()).getStorageDir().toString(), endsWith("/workflow-completed"));
+            Path newStorageDir = e.getStorageDir().toPath();
+            assertFalse("workflow/ should have been deleted", Files.exists(newStorageDir.resolveSibling("workflow")));
+            assertThat(newStorageDir.getFileName(), equalTo(Paths.get("workflow-completed")));
+            assertThat(Files.list(newStorageDir).collect(Collectors.toList()), contains(newStorageDir.resolve("flowNodeStore.xml")));
             List<FlowNode> nodes = new DepthFirstScanner().allNodes(b.getExecution());
             assertThat(nodes.stream().map(FlowNode::getDisplayFunctionName).collect(Collectors.toList()), equalTo(
                     List.of("End of Pipeline", "echo", "semaphore", "echo", "Start of Pipeline")));
