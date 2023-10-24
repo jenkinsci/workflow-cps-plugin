@@ -145,6 +145,7 @@ import net.jcip.annotations.GuardedBy;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import java.nio.charset.StandardCharsets;
+import java.util.function.Function;
 import jenkins.util.SystemProperties;
 import org.codehaus.groovy.GroovyBugError;
 import org.jboss.marshalling.reflect.SerializableClassRegistry;
@@ -274,6 +275,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * Recreated from {@link #owner}
      */
     /*package*/ transient /*almost final*/ TimingFlowNodeStorage storage;
+    /**
+     * Controls access to {@link #storage}.
+     * The write lock must be acquired when setting the field, but all other usage only needs to use a read lock.
+     */
+    private transient /*almost final*/ ReentrantReadWriteLock storageLock;
 
     /** User ID associated with this build, or null if none specific. */
     private final @CheckForNull String user;
@@ -417,6 +423,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this.durabilityHint = durabilityHint;
         Authentication auth = Jenkins.getAuthentication();
         this.user = auth.equals(ACL.SYSTEM) ? null : auth.getName();
+        this.storageLock = new ReentrantReadWriteLock();
         this.storage = createStorage();
         this.storage.setAvoidAtomicWrite(!this.getDurabilityHint().isAtomicWrite());
     }
@@ -488,8 +495,28 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         return trusted;
     }
 
+    /**
+     * @deprecated Use {@link #withStorage} instead.
+     */
+    @Deprecated
     public FlowNodeStorage getStorage() {
         return storage;
+    }
+
+    /**
+     * Perform the given operation on the {@link FlowNodeStorage} for this execution.
+     *
+     * <p>You must not acquire the monitor for {@code this} inside of the operation if there is a chance that the
+     * execution could complete concurrently to avoid possible deadlock.
+     */
+    @Restricted(NoExternalUse.class)
+    public <T> T withStorage(Function<FlowNodeStorage, T> fn) {
+        storageLock.readLock().lock();
+        try {
+            return fn.apply(storage);
+        } finally {
+            storageLock.readLock().unlock();
+        }
     }
 
     public String getScript() {
@@ -534,10 +561,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         if (!OPTIMIZE_STORAGE_UPON_COMPLETION) {
             return;
         }
-        if (storage.delegate instanceof SimpleXStreamFlowNodeStorage) {
-            LOGGER.log(Level.FINE, () -> "Migrating " + this + " to BulkFlowNodeStorage");
-            String newStorageDir = (this.storageDir != null) ? this.storageDir + "-completed" : "workflow-completed";
-            try {
+        storageLock.readLock().lock();
+        try {
+            if (storage.delegate instanceof SimpleXStreamFlowNodeStorage) {
+                LOGGER.log(Level.FINE, () -> "Migrating " + this + " to BulkFlowNodeStorage");
+                String newStorageDir = (this.storageDir != null) ? this.storageDir + "-completed" : "workflow-completed";
                 FlowNodeStorage newStorage = new BulkFlowNodeStorage(this, new File(this.owner.getRootDir(), newStorageDir));
                 DepthFirstScanner scanner = new DepthFirstScanner();
                 scanner.setup(flowEndNode);
@@ -550,19 +578,25 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 LOGGER.log(Level.FINE, () -> "Copied nodes to " + newStorageDir);
                 File oldStorageDir = getStorageDir();
                 this.storageDir = newStorageDir;
-                // TODO: A more conservative option could be to instead keep using the current storage until after
-                // a restart. In that case we'd have to defer deletion of the old storage dir and handle it in
-                // initializeStorage.
-                this.storage = new TimingFlowNodeStorage(newStorage);
+                storageLock.readLock().unlock();
+                storageLock.writeLock().lock();
                 try {
-                    Util.deleteRecursive(oldStorageDir);
-                    LOGGER.log(Level.FINE, () -> "Deleted " + oldStorageDir);
-                } catch (IOException e) {
-                    LOGGER.log(Level.FINE, e, () -> "Unable to delete unused flow node storage directory " + oldStorageDir + " for " + this);
+                    this.storage = new TimingFlowNodeStorage(newStorage);
+                    try {
+                        Util.deleteRecursive(oldStorageDir);
+                        LOGGER.log(Level.FINE, () -> "Deleted " + oldStorageDir);
+                    } catch (IOException e) {
+                        LOGGER.log(Level.FINE, e, () -> "Unable to delete unused flow node storage directory " + oldStorageDir + " for " + this);
+                    }
+                } finally {
+                    storageLock.readLock().lock();
+                    storageLock.writeLock().unlock();
                 }
-            } catch (Exception e) {
-                LOGGER.log(Level.WARNING, e, () -> "Unable to migrate " + this + " to BulkFlowNodeStorage");
             }
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, e, () -> "Unable to migrate " + this + " to BulkFlowNodeStorage");
+        } finally {
+            storageLock.readLock().unlock();
         }
     }
 
@@ -742,14 +776,19 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification="Storage does not actually NEED to be synchronized but the rest does.")
     protected synchronized void initializeStorage() throws IOException {
-        storage = createStorage();
+        storageLock.writeLock().lock();
+        try {
+            storage = createStorage();
+        } finally {
+            storageLock.writeLock().unlock();
+        }
         heads = new TreeMap<>();
         for (Map.Entry<Integer,String> entry : headsSerial.entrySet()) {
             FlowHead h = new FlowHead(this, entry.getKey());
 
-            FlowNode n = storage.getNode(entry.getValue());
+            FlowNode n = getNode(entry.getValue());
             if (n != null) {
-                h.setForDeserialize(storage.getNode(entry.getValue()));
+                h.setForDeserialize(getNode(entry.getValue()));
                 heads.put(h.getId(), h);
             } else {
                 FlowDurabilityHint durabilitySetting = getDurabilityHint();
@@ -766,9 +805,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
         startNodes = new Stack<>();
         for (String id : startNodesSerial) {
-            FlowNode node = storage.getNode(id);
+            FlowNode node = getNode(id);
             if (node != null) {
-                startNodes.add((BlockStartNode) storage.getNode(id));
+                startNodes.add((BlockStartNode) getNode(id));
             } else {
                 // TODO if possible, consider trying to close out unterminated blocks using heads, to keep existing graph history
                 throw  new IOException( "Tried to load startNode FlowNodes for execution "+this.owner+" but FlowNode was not found in storage for FlowNode Id "+id);
@@ -796,6 +835,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
         try {
             try {
+                this.storageLock = new ReentrantReadWriteLock();
                 initializeStorage();  // Throws exception and bombs out if we can't load FlowNodes
             } catch (Exception ex) {
                 LOGGER.log(Level.WARNING, "Error initializing storage and loading nodes, will try to create placeholders for: "+this, ex);
@@ -1248,10 +1288,15 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     @Override
     public FlowNode getNode(String id) throws IOException {
-        if (storage == null) {
-            throw new IOException("storage not yet loaded");
+        storageLock.readLock().lock();
+        try {
+            if (storage == null) {
+                throw new IOException("storage not yet loaded");
+            }
+            return storage.getNode(id);
+        } finally {
+            storageLock.readLock().unlock();
         }
-        return storage.getNode(id);
     }
 
     public void setResult(Result v) {
@@ -1264,44 +1309,57 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     @Override
     public List<Action> loadActions(FlowNode node) throws IOException {
-        if (storage == null) {
-            throw new IOException("storage not yet loaded");
+        storageLock.readLock().lock();
+        try {
+            if (storage == null) {
+                throw new IOException("storage not yet loaded");
+            }
+            return storage.loadActions(node);
+        } finally {
+            storageLock.readLock().unlock();
         }
-        return storage.loadActions(node);
     }
 
     @Override
     public void saveActions(FlowNode node, List<Action> actions) throws IOException {
-        if (storage == null) {
-            throw new IOException("storage not yet loaded");
+        storageLock.readLock().lock();
+        try {
+            if (storage == null) {
+                throw new IOException("storage not yet loaded");
+            }
+            storage.saveActions(node, actions);
+        } finally {
+            storageLock.readLock().unlock();
         }
-        storage.saveActions(node, actions);
     }
 
     /** Stores FlowNode with write deferred */
     void cacheNode(@NonNull FlowNode node) {
-        try {
-            getStorage().storeNode(node, true);
-        } catch (IOException ioe) {
-            LOGGER.log(Level.WARNING, "Attempt to persist triggered IOException for node "+node.getId(), ioe);
-        }
-
+        withStorage(storage -> {
+            try {
+                storage.storeNode(node, true);
+            } catch (IOException ioe) {
+                LOGGER.log(Level.WARNING, "Attempt to persist triggered IOException for node "+node.getId(), ioe);
+            }
+            return null;
+        });
     }
 
     /** Invoke me to toggle autopersist back on for steps that delay it. */
     public static void maybeAutoPersistNode(@NonNull FlowNode node) {
-        try {
-            FlowExecution exec = node.getExecution();
-            if (exec instanceof CpsFlowExecution) {
-                if (exec.getDurabilityHint().isPersistWithEveryStep()) {
-                    FlowNodeStorage exc = ((CpsFlowExecution) exec).getStorage();
-                    exc.autopersist(node);
-                }
+        FlowExecution exec = node.getExecution();
+        if (exec instanceof CpsFlowExecution) {
+            if (exec.getDurabilityHint().isPersistWithEveryStep()) {
+                ((CpsFlowExecution) exec).withStorage(storage -> {
+                    try {
+                        storage.autopersist(node);
+                    } catch (IOException ioe) {
+                        LOGGER.log(Level.WARNING, "Attempt to persist triggered IOException for node "+node.getId(), ioe);
+                    }
+                    return null;
+                });
             }
-        } catch (IOException ioe) {
-            LOGGER.log(Level.WARNING, "Attempt to persist triggered IOException for node "+node.getId(), ioe);
         }
-
     }
 
     @Override
@@ -1346,11 +1404,14 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             LOGGER.log(Level.WARNING, "Error trying to end execution "+this, ex);
         }
 
-        try {
-            this.getStorage().flush();
-        } catch (IOException ioe) {
-            LOGGER.log(Level.WARNING, "Error flushing FlowNodeStorage to disk at end of run", ioe);
-        }
+        withStorage(storage -> {
+            try {
+                storage.flush();
+            } catch (IOException ioe) {
+                LOGGER.log(Level.WARNING, "Error flushing FlowNodeStorage to disk at end of run", ioe);
+            }
+            return null;
+        });
         this.optimizeStorage(head);
 
         this.persistedClean = Boolean.TRUE;
@@ -2113,15 +2174,18 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             if (this.owner != null && this.owner.getExecutable() instanceof Saveable) {  // Null-check covers some anomalous cases we've seen
                 Saveable saveable = (Saveable)(this.owner.getExecutable());
                 persistedClean = true;
-                if (storage != null && storage.delegate != null) {
-                    // Defensively flush FlowNodes to storage
-                    try {
-                        storage.flush();
-                    } catch (Exception ex) {
-                        LOGGER.log(Level.WARNING, "Error persisting FlowNodes for execution "+owner, ex);
-                        persistedClean = false;
+                withStorage(storage -> {
+                    if (storage instanceof TimingFlowNodeStorage && ((TimingFlowNodeStorage) storage).delegate != null) {
+                        // Defensively flush FlowNodes to storage
+                        try {
+                            storage.flush();
+                        } catch (Exception ex) {
+                            LOGGER.log(Level.WARNING, "Error persisting FlowNodes for execution "+owner, ex);
+                            persistedClean = false;
+                        }
                     }
-                }
+                    return null;
+                });
                 saveable.save();
             }
         } catch (IOException ex) {
@@ -2142,9 +2206,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         LOGGER.log(Level.INFO, "Attempting to save a checkpoint of all data for {0}{1}", new Object[] {
             this, shuttingDown ? " before shutdown" : ""
         });
-        boolean persistOk = true;
-        FlowNodeStorage storage = getStorage();
-        if (storage != null) {
+        boolean _persistOk = withStorage(storage -> {
+            if (storage == null) {
+                LOGGER.log(Level.WARNING, "No FlowNode storage for: {0}", this);
+                return false;
+            }
+            boolean persistOk = true;
             try { // Node storage must be flushed first so program can be restored
                 storage.flush();
             } catch (IOException ioe) {
@@ -2205,13 +2272,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 persistOk = false;
                 LOGGER.log(Level.WARNING, "Error saving build for: " + this, ex);
             }
+            return persistOk;
+        });
 
-        } else {
-            persistOk = false;
-            LOGGER.log(Level.WARNING, "No FlowNode storage for: {0}", this);
-        }
-
-        if (persistOk) {
+        if (_persistOk) {
             LOGGER.log(Level.INFO, "Successfully checkpointed {0}{1}", new Object[] {
                 this, (shuttingDown ? " before shutdown" : "")
             });

@@ -103,11 +103,11 @@ public class ArgumentsActionImplTest {
 
     /** Helper function to test direct file deserialization for an execution */
     private void testDeserialize(FlowExecution execution) throws Exception {
-        if (!(execution instanceof CpsFlowExecution) || !(((CpsFlowExecution)execution).getStorage() instanceof SimpleXStreamFlowNodeStorage)) {
+        if (!(execution instanceof CpsFlowExecution) || !(((CpsFlowExecution)execution).withStorage(storage -> storage instanceof SimpleXStreamFlowNodeStorage))) {
             return;  // Test is unfortunately coupled to the implementation -- otherwise it will simply hit caches
         }
 
-        SimpleXStreamFlowNodeStorage storage = (SimpleXStreamFlowNodeStorage)(((CpsFlowExecution)execution).getStorage());
+        SimpleXStreamFlowNodeStorage storage = (SimpleXStreamFlowNodeStorage)(((CpsFlowExecution)execution).withStorage(s -> s));
         Method getFileM = SimpleXStreamFlowNodeStorage.class.getDeclaredMethod("getNodeFile", String.class);
         getFileM.setAccessible(true);
 
