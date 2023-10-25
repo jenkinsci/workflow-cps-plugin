@@ -527,17 +527,14 @@ public final class CpsThreadGroup implements Serializable {
         if (this.getExecution() != null && (this.getExecution().getDurabilityHint().isPersistWithEveryStep()
                 || enteringQuietState)) {
 
-            // Program may depend on flownodes being saved, so save nodes
-            this.execution.withStorage(storage -> {
-                try {
-                    if (storage != null) {
-                        storage.flush();
-                    }
-                } catch (IOException ioe) {
-                    LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before saving program", ioe);
+            try {  // Program may depend on flownodes being saved, so save nodes
+                FlowNodeStorage storage = this.execution.getStorage();
+                if (storage != null) {
+                    storage.flush();
                 }
-                return null;
-            });
+            } catch (IOException ioe) {
+                LOGGER.log(Level.WARNING, "Error persisting FlowNode storage before saving program", ioe);
+            }
 
             try {
                 saveProgram();

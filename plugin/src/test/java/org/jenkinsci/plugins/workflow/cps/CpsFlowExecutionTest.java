@@ -862,13 +862,13 @@ public class CpsFlowExecutionTest {
             WorkflowRun b = p.scheduleBuild2(0).waitForStart();
             SemaphoreStep.waitForStart("wait/1", b);
             CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
-            FlowNodeStorage storage = e.withStorage(s -> ((TimingFlowNodeStorage) s).delegate);
+            FlowNodeStorage storage = ((TimingFlowNodeStorage) e.getStorage()).delegate;
             assertThat(storage, instanceOf(SimpleXStreamFlowNodeStorage.class));
             Path oldStorageDir = e.getStorageDir().toPath();
             assertThat(oldStorageDir.getFileName(), equalTo(Paths.get("workflow")));
             SemaphoreStep.success("wait/1", null);
             r.assertBuildStatusSuccess(r.waitForCompletion(b));
-            storage = e.withStorage(s -> ((TimingFlowNodeStorage) s).delegate);
+            storage = ((TimingFlowNodeStorage) e.getStorage()).delegate;
             assertThat(storage, instanceOf(BulkFlowNodeStorage.class));
             assertFalse("workflow/ should have been deleted", Files.exists(oldStorageDir));
             Path newStorageDir = e.getStorageDir().toPath();
@@ -882,7 +882,7 @@ public class CpsFlowExecutionTest {
             WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
             WorkflowRun b = p.getBuildByNumber(1);
             CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
-            FlowNodeStorage storage = e.withStorage(s -> ((TimingFlowNodeStorage) s).delegate);
+            FlowNodeStorage storage = ((TimingFlowNodeStorage) e.getStorage()).delegate;
             assertThat(storage, instanceOf(BulkFlowNodeStorage.class));
             Path newStorageDir = e.getStorageDir().toPath();
             assertFalse("workflow/ should have been deleted", Files.exists(newStorageDir.resolveSibling("workflow")));

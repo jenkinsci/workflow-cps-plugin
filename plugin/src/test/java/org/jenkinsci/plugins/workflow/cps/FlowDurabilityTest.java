@@ -131,7 +131,7 @@ public class FlowDurabilityTest {
 
     static void assertBaseStorageType(FlowExecution exec, Class<? extends FlowNodeStorage> storageClass) throws Exception {
         if (exec instanceof CpsFlowExecution) {
-            FlowNodeStorage store = getStorage(exec);
+            FlowNodeStorage store = ((CpsFlowExecution) exec).getStorage();
             if (store instanceof CpsFlowExecution.TimingFlowNodeStorage) {
                 Field f = CpsFlowExecution.TimingFlowNodeStorage.class.getDeclaredField("delegate");
                 f.setAccessible(true);
@@ -348,7 +348,7 @@ public class FlowDurabilityTest {
 
         if (exec instanceof CpsFlowExecution) {
             CpsFlowExecution cpsFlow = (CpsFlowExecution)exec;
-            assert getStorage(cpsFlow) != null;
+            assert cpsFlow.getStorage() != null;
             Assert.assertFalse("Should always be able to retrieve script", StringUtils.isEmpty(cpsFlow.getScript()));
             Assert.assertNull("We should have no Groovy shell left or that's a memory leak", cpsFlow.getShell());
             Assert.assertNull("We should have no Groovy shell left or that's a memory leak", cpsFlow.getTrustedShell());
@@ -695,7 +695,7 @@ public class FlowDurabilityTest {
                 WorkflowRun run = createAndRunBasicJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
-                    assert getStorage(exec).isPersistedFully();
+                    assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
                 }
                 logStart[0] = JenkinsRule.getLog(run);
             }
@@ -726,7 +726,7 @@ public class FlowDurabilityTest {
                 WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY, false);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
-                    assert getStorage(exec).isPersistedFully();
+                    assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
                 }
                 logStart[0] = JenkinsRule.getLog(run);
             }
@@ -755,7 +755,7 @@ public class FlowDurabilityTest {
                 FlowExecution exec = run.getExecution();
                 Assert.assertTrue(((CpsFlowExecution) exec).isResumeBlocked());
                 if (exec instanceof CpsFlowExecution) {
-                    assert getStorage(exec).isPersistedFully();
+                    assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
                 }
                 Assert.assertFalse(((CpsFlowExecution) exec).getProgramDataFile().exists());
                 logStart[0] = JenkinsRule.getLog(run);
@@ -786,7 +786,7 @@ public class FlowDurabilityTest {
                 WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY, false);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
-                    assert getStorage(exec).isPersistedFully(); // single node xmls written
+                    assert ((CpsFlowExecution) exec).getStorage().isPersistedFully(); // single node xmls written
                 }
                 nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
                 nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
@@ -1012,10 +1012,5 @@ public class FlowDurabilityTest {
                 assertIncludesNodes(nodesOut, run);
             }
         });
-    }
-
-    private static FlowNodeStorage getStorage(FlowExecution e) {
-        // We do not care about race conditions in this context, so we just return the storage directly.
-        return ((CpsFlowExecution) e).withStorage(s -> s);
     }
 }

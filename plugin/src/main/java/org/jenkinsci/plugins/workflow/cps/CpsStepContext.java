@@ -548,14 +548,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                     try {
                         // TODO keep track of whether the program was saved anyway after saveState was called but before now, and do not bother resaving it in that case
                         if (result.getExecution().getDurabilityHint().isPersistWithEveryStep()) {
-                            result.getExecution().withStorage(storage -> {
-                                try {
-                                    storage.flush();
-                                } catch (Exception x) {
-                                    f.setException(x);
-                                }
-                                return null;
-                            });
+                            result.getExecution().getStorage().flush();
                             result.saveProgram();
                         }
                         f.set(null);
