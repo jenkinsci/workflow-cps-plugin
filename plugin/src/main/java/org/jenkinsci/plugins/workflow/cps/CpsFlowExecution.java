@@ -64,6 +64,7 @@ import org.jenkinsci.plugins.workflow.graph.BlockStartNode;
 import org.jenkinsci.plugins.workflow.graph.FlowEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
+import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
@@ -105,6 +106,7 @@ import groovy.lang.GroovyCodeSource;
 import hudson.AbortException;
 import hudson.BulkChange;
 import hudson.Extension;
+import hudson.Util;
 import hudson.Functions;
 import hudson.init.Terminator;
 import hudson.model.Item;
@@ -143,6 +145,7 @@ import net.jcip.annotations.GuardedBy;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import java.nio.charset.StandardCharsets;
+import jenkins.util.SystemProperties;
 import org.codehaus.groovy.GroovyBugError;
 import org.jboss.marshalling.reflect.SerializableClassRegistry;
 
@@ -235,6 +238,13 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
  */
 @PersistIn(RUN)
 public class CpsFlowExecution extends FlowExecution implements BlockableResume {
+    /**
+     * If {@code true}, then when the execution completes, we migrate the flow node storage from
+     * {@link SimpleXStreamFlowNodeStorage} to {@link BulkFlowNodeStorage}.
+     */
+    @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "non-final for modification via script console")
+    public static boolean OPTIMIZE_STORAGE_UPON_COMPLETION = SystemProperties.getBoolean(CpsFlowExecution.class.getName() + ".OPTIMIZE_STORAGE_UPON_COMPLETION", true);
+
     /**
      * Groovy script of the main source file (that the user enters in the GUI)
      */
@@ -505,11 +515,57 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     private TimingFlowNodeStorage createStorage() throws IOException {
         FlowNodeStorage wrappedStorage;
 
-        FlowDurabilityHint hint = getDurabilityHint();
-        wrappedStorage = (hint.isPersistWithEveryStep())
-                ? new SimpleXStreamFlowNodeStorage(this, getStorageDir())
-                : new BulkFlowNodeStorage(this, getStorageDir());
+        if (this.storageDir != null && this.storageDir.endsWith("-completed")) {
+           wrappedStorage = new BulkFlowNodeStorage(this, getStorageDir());
+        } else {
+            FlowDurabilityHint hint = getDurabilityHint();
+            wrappedStorage = (hint.isPersistWithEveryStep())
+                    ? new SimpleXStreamFlowNodeStorage(this, getStorageDir())
+                    : new BulkFlowNodeStorage(this, getStorageDir());
+        }
         return new TimingFlowNodeStorage(wrappedStorage);
+    }
+
+    /**
+     * Called when the execution completes to migrate from {@link SimpleXStreamFlowNodeStorage} to
+     * {@link BulkFlowNodeStorage} to improve read performance for completed builds.
+     */
+    private synchronized void optimizeStorage(FlowNode flowEndNode) {
+        if (!OPTIMIZE_STORAGE_UPON_COMPLETION) {
+            return;
+        }
+        if (storage.delegate instanceof SimpleXStreamFlowNodeStorage) {
+            LOGGER.log(Level.FINE, () -> "Migrating " + this + " to BulkFlowNodeStorage");
+            String newStorageDir = (this.storageDir != null) ? this.storageDir + "-completed" : "workflow-completed";
+            try {
+                FlowNodeStorage newStorage = new BulkFlowNodeStorage(this, new File(this.owner.getRootDir(), newStorageDir));
+                DepthFirstScanner scanner = new DepthFirstScanner();
+                scanner.setup(flowEndNode);
+                // The hope is that by doing this right when the execution completes, most of the nodes will already be
+                // cached in memory, saving us the cost of having to read them all from disk.
+                for (FlowNode node : scanner) {
+                    newStorage.storeNode(node, true);
+                }
+                newStorage.flush();
+                LOGGER.log(Level.FINE, () -> "Copied nodes to " + newStorageDir);
+                File oldStorageDir = getStorageDir();
+                this.storageDir = newStorageDir;
+                storage.readWriteLock.writeLock().lock();
+                try {
+                    storage.delegate = newStorage;
+                    try {
+                        Util.deleteRecursive(oldStorageDir);
+                        LOGGER.log(Level.FINE, () -> "Deleted " + oldStorageDir);
+                    } catch (IOException e) {
+                        LOGGER.log(Level.FINE, e, () -> "Unable to delete unused flow node storage directory " + oldStorageDir + " for " + this);
+                    }
+                } finally {
+                    storage.readWriteLock.writeLock().unlock();
+                }
+            } catch (Exception e) {
+                LOGGER.log(Level.WARNING, e, () -> "Unable to migrate " + this + " to BulkFlowNodeStorage");
+            }
+        }
     }
 
     /**
@@ -1297,6 +1353,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         } catch (IOException ioe) {
             LOGGER.log(Level.WARNING, "Error flushing FlowNodeStorage to disk at end of run", ioe);
         }
+        this.optimizeStorage(head);
 
         this.persistedClean = Boolean.TRUE;
     }
@@ -1851,7 +1908,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     static final ThreadLocal<CpsFlowExecution> PROGRAM_STATE_SERIALIZATION = new ThreadLocal<>();
 
     class TimingFlowNodeStorage extends FlowNodeStorage {
-        private final FlowNodeStorage delegate;
+        FlowNodeStorage delegate;
         private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
 
         TimingFlowNodeStorage(FlowNodeStorage delegate) {
