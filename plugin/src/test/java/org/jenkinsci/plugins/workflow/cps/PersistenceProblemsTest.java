@@ -18,10 +18,10 @@ import org.jenkinsci.plugins.workflow.support.steps.input.InputStepExecution;
 import org.junit.Assert;
 import org.junit.AssumptionViolatedException;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.FlagRule;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
@@ -40,6 +40,9 @@ public class PersistenceProblemsTest {
 
     @Rule
     public RestartableJenkinsRule story = new RestartableJenkinsRule();
+
+    @Rule
+    public FlagRule<Boolean> optimizeStorageFlag = new FlagRule<>(() -> CpsFlowExecution.OPTIMIZE_STORAGE_UPON_COMPLETION, v -> { CpsFlowExecution.OPTIMIZE_STORAGE_UPON_COMPLETION = v; });
 
     /** Verifies all the assumptions about a cleanly finished build. */
     static void assertCompletedCleanly(WorkflowRun run) throws Exception {
@@ -154,9 +157,9 @@ public class PersistenceProblemsTest {
     final  static String DEFAULT_JOBNAME = "testJob";
 
     /** Simulates something happening badly during final shutdown, which may cause build to not appear done. */
-    @Ignore("TODO: test needs to be adapted")
     @Test
     public void completedFinalFlowNodeNotPersisted() throws Exception {
+        CpsFlowExecution.OPTIMIZE_STORAGE_UPON_COMPLETION = false;
         final int[] build = new int[1];
         final Result[] executionAndBuildResult = new Result[2];
         story.thenWithHardShutdown( j -> {
