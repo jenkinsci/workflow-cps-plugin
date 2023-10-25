@@ -550,15 +550,17 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 LOGGER.log(Level.FINE, () -> "Copied nodes to " + newStorageDir);
                 File oldStorageDir = getStorageDir();
                 this.storageDir = newStorageDir;
-                // TODO: A more conservative option could be to instead keep using the current storage until after
-                // a restart. In that case we'd have to defer deletion of the old storage dir and handle it in
-                // initializeStorage.
-                this.storage = new TimingFlowNodeStorage(newStorage);
+                storage.readWriteLock.writeLock().lock();
                 try {
-                    Util.deleteRecursive(oldStorageDir);
-                    LOGGER.log(Level.FINE, () -> "Deleted " + oldStorageDir);
-                } catch (IOException e) {
-                    LOGGER.log(Level.FINE, e, () -> "Unable to delete unused flow node storage directory " + oldStorageDir + " for " + this);
+                    storage.delegate = newStorage;
+                    try {
+                        Util.deleteRecursive(oldStorageDir);
+                        LOGGER.log(Level.FINE, () -> "Deleted " + oldStorageDir);
+                    } catch (IOException e) {
+                        LOGGER.log(Level.FINE, e, () -> "Unable to delete unused flow node storage directory " + oldStorageDir + " for " + this);
+                    }
+                } finally {
+                    storage.readWriteLock.writeLock().unlock();
                 }
             } catch (Exception e) {
                 LOGGER.log(Level.WARNING, e, () -> "Unable to migrate " + this + " to BulkFlowNodeStorage");
@@ -1906,7 +1908,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     static final ThreadLocal<CpsFlowExecution> PROGRAM_STATE_SERIALIZATION = new ThreadLocal<>();
 
     class TimingFlowNodeStorage extends FlowNodeStorage {
-        final FlowNodeStorage delegate;
+        FlowNodeStorage delegate;
         private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
 
         TimingFlowNodeStorage(FlowNodeStorage delegate) {
