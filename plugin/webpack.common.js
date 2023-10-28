@@ -4,7 +4,6 @@ const MiniCSSExtractPlugin = require('mini-css-extract-plugin');
 const { CleanWebpackPlugin: CleanPlugin } = require('clean-webpack-plugin');
 
 module.exports = {
-  mode: 'development',
   entry: {
     "workflow-editor": [
       path.join(__dirname, 'src/main/js/workflow-editor.js'),

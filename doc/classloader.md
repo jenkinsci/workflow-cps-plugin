@@ -23,7 +23,7 @@ which is not trusted.
 Scripts loaded in TCL, OTOH, does not live in the security sandbox. This
 classloader is meant to be used to load Groovy code packaged inside
 plugins and global libraries. Write access to these sources should be
-restricted to `RUN_SCRIPTS` permission.
+restricted to `ADMINISTER` permission.
 
 ## Persisting code & surviving restarts
 When a Groovy script is loaded via one of `GroovyShell.parse*()` and

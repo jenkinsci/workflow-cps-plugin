@@ -33,6 +33,7 @@ import java.util.List;
 /**
  * @deprecated Use {@link CpsFlowFactoryAction2} instead.
  */
+@Deprecated
 public interface CpsFlowFactoryAction extends Action {
     CpsFlowExecution create(CpsFlowDefinition def, FlowExecutionOwner owner, List<? extends Action> actions) throws IOException;
 }

@@ -3,6 +3,7 @@ package org.jenkinsci.plugins.workflow.cps;
 import com.google.common.util.concurrent.ListenableFuture;
 import hudson.model.Queue;
 import hudson.model.Result;
+import java.io.File;
 import org.apache.commons.io.FileUtils;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
@@ -15,14 +16,17 @@ import org.jenkinsci.plugins.workflow.job.properties.DurabilityHintJobProperty;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputAction;
 import org.jenkinsci.plugins.workflow.support.steps.input.InputStepExecution;
 import org.junit.Assert;
+import org.junit.AssumptionViolatedException;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.FlagRule;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -37,17 +41,8 @@ public class PersistenceProblemsTest {
     @Rule
     public RestartableJenkinsRule story = new RestartableJenkinsRule();
 
-    /** Execution bombed out due to some sort of irrecoverable persistence issue. */
-    static void assertNulledExecution(WorkflowRun run) throws Exception {
-        if (run.isBuilding()) {
-            System.out.println("Run initially building, going to wait a second to see if it finishes, run="+run);
-            Thread.sleep(1000);
-        }
-        Assert.assertFalse(run.isBuilding());
-        Assert.assertNotNull(run.getResult());
-        FlowExecution fe = run.getExecution();
-        Assert.assertNull(fe);
-    }
+    @Rule
+    public FlagRule<Boolean> optimizeStorageFlag = new FlagRule<>(() -> CpsFlowExecution.OPTIMIZE_STORAGE_UPON_COMPLETION, v -> { CpsFlowExecution.OPTIMIZE_STORAGE_UPON_COMPLETION = v; });
 
     /** Verifies all the assumptions about a cleanly finished build. */
     static void assertCompletedCleanly(WorkflowRun run) throws Exception {
@@ -100,7 +95,7 @@ public class PersistenceProblemsTest {
     }
 
     static void assertResultMatchExecutionAndRun(WorkflowRun run, Result[] executionAndBuildResult) throws Exception {
-        Assert.assertEquals(executionAndBuildResult[0], ((CpsFlowExecution)(run.getExecution())).getResult());
+        Assert.assertEquals(executionAndBuildResult[0], ((CpsFlowExecution) run.getExecution()).getResult());
         Assert.assertEquals(executionAndBuildResult[1], run.getResult());
     }
 
@@ -138,6 +133,13 @@ public class PersistenceProblemsTest {
             Thread.sleep(50);
         }
         Thread.sleep(100L);  // A little extra buffer for persistence etc
+        if (durabilityHint != FlowDurabilityHint.PERFORMANCE_OPTIMIZED) {
+            File f = ((CpsFlowExecution) run.getExecution()).getProgramDataFile();
+            while (!Files.exists(f.toPath())) {
+                System.out.println("Waiting for program to be persisted");
+                Thread.sleep(50);
+            }
+        }
         jobIdNumber[0] = run.getNumber();
         return run;
     }
@@ -157,6 +159,7 @@ public class PersistenceProblemsTest {
     /** Simulates something happening badly during final shutdown, which may cause build to not appear done. */
     @Test
     public void completedFinalFlowNodeNotPersisted() throws Exception {
+        CpsFlowExecution.OPTIMIZE_STORAGE_UPON_COMPLETION = false;
         final int[] build = new int[1];
         final Result[] executionAndBuildResult = new Result[2];
         story.thenWithHardShutdown( j -> {
@@ -164,9 +167,9 @@ public class PersistenceProblemsTest {
             String finalId = run.getExecution().getCurrentHeads().get(0).getId();
 
             // Hack but deletes the file from disk
-            CpsFlowExecution cpsExec = (CpsFlowExecution)(run.getExecution());
+            CpsFlowExecution cpsExec = (CpsFlowExecution) run.getExecution();
             Files.delete(cpsExec.getStorageDir().toPath().resolve(finalId+".xml"));
-            executionAndBuildResult[0] = ((CpsFlowExecution)(run.getExecution())).getResult();
+            executionAndBuildResult[0] = ((CpsFlowExecution) run.getExecution()).getResult();
             executionAndBuildResult[1] = run.getResult();
         });
         story.then(j-> {
@@ -185,8 +188,8 @@ public class PersistenceProblemsTest {
         final Result[] executionAndBuildResult = new Result[2];
         story.thenWithHardShutdown( j -> {
             WorkflowRun run = runBasicBuild(j, DEFAULT_JOBNAME, build);
-            FileUtils.deleteDirectory(((CpsFlowExecution)(run.getExecution())).getStorageDir());
-            executionAndBuildResult[0] = ((CpsFlowExecution)(run.getExecution())).getResult();
+            FileUtils.deleteDirectory(((CpsFlowExecution) run.getExecution()).getStorageDir());
+            executionAndBuildResult[0] = ((CpsFlowExecution) run.getExecution()).getResult();
             executionAndBuildResult[1] = run.getResult();
         });
         story.then(j-> {
@@ -209,10 +212,10 @@ public class PersistenceProblemsTest {
             String finalId = run.getExecution().getCurrentHeads().get(0).getId();
 
             // Hack but deletes the FlowNodeStorage from disk
-            CpsFlowExecution cpsExec = (CpsFlowExecution)(run.getExecution());
+            CpsFlowExecution cpsExec = (CpsFlowExecution) run.getExecution();
             cpsExec.done = false;
             cpsExec.saveOwner();
-            executionAndBuildResult[0] = ((CpsFlowExecution)(run.getExecution())).getResult();
+            executionAndBuildResult[0] = ((CpsFlowExecution) run.getExecution()).getResult();
             executionAndBuildResult[1] = run.getResult();
         });
         story.then(j-> {
@@ -292,8 +295,11 @@ public class PersistenceProblemsTest {
         final int[] build = new int[1];
         story.thenWithHardShutdown( j -> {
             WorkflowRun run = runBasicPauseOnInput(j, DEFAULT_JOBNAME, build);
-            CpsFlowExecution cpsExec = (CpsFlowExecution)(run.getExecution());
-            FileUtils.deleteDirectory(((CpsFlowExecution)(run.getExecution())).getStorageDir());
+            try {
+                FileUtils.deleteDirectory(((CpsFlowExecution) run.getExecution()).getStorageDir());
+            } catch (IOException x) {
+                throw new AssumptionViolatedException("Failed to delete storage directory (race condition?)", x);
+            }
         });
         story.then( j->{
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
@@ -302,13 +308,13 @@ public class PersistenceProblemsTest {
         });
     }
 
-    @Test
     /** Build okay but program fails to load */
+    @Test
     public void inProgressButProgramLoadFailure() throws Exception {
         final int[] build = new int[1];
         story.thenWithHardShutdown( j -> {
             WorkflowRun run = runBasicPauseOnInput(j, DEFAULT_JOBNAME, build);
-            CpsFlowExecution cpsExec = (CpsFlowExecution)(run.getExecution());
+            CpsFlowExecution cpsExec = (CpsFlowExecution) run.getExecution();
             // Wait until program.dat is written and then delete it.
             while (!Files.exists(cpsExec.getProgramDataFile().toPath())) {
                 Thread.sleep(100);
@@ -323,13 +329,13 @@ public class PersistenceProblemsTest {
         });
     }
 
-    @Test
     /** Build okay but then the start nodes get screwed up */
+    @Test
     public void inProgressButStartBlocksLost() throws Exception {
         final int[] build = new int[1];
         story.thenWithHardShutdown( j -> {
             WorkflowRun run = runBasicPauseOnInput(j, DEFAULT_JOBNAME, build);
-            CpsFlowExecution cpsExec = (CpsFlowExecution)(run.getExecution());
+            CpsFlowExecution cpsExec = (CpsFlowExecution) run.getExecution();
             cpsExec.startNodes.push(new FlowStartNode(cpsExec, cpsExec.iotaStr()));
             run.save();
         });

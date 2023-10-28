@@ -25,27 +25,25 @@
   -->
 
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:i="jelly:fmt">
-  <l:layout title="${%Thread Dump}">
-    <l:side-panel>
-      <l:tasks>
-        <l:task icon="icon-up icon-md" href="${rootURL}/${it.parentUrl}" title="${%Up}" contextMenu="false"/>
-      </l:tasks>
-    </l:side-panel>
+  <l:layout title="${%Thread Dump}" type="one-column">
     <l:main-panel>
       <j:set var="td" value="${it.threadDump}"/>
+      <j:set var="tds" value="${td.toString()}"/>
 
       <h1>
         ${%Thread Dump}
-        <l:copyButton text="${td}" message="${%Thread dump copied to clipboard}"/>
+        <l:copyButton text="${tds}" message="${%Thread dump copied to clipboard}"/>
       </h1>
 
       <pre class="console">
-        ${td}
+        ${tds}
       </pre>
 
-      <l:hasPermission permission="${app.RUN_SCRIPTS}">
-        <a href="program.xml">Serialized program state</a>
-      </l:hasPermission>
+      <j:if test="${td.valid}">
+        <l:hasPermission permission="${app.ADMINISTER}">
+          <a href="program.xml">Serialized program state</a>
+        </l:hasPermission>
+      </j:if>
     </l:main-panel>
   </l:layout>
 </j:jelly>

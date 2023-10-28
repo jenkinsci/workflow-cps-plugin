@@ -188,7 +188,8 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
             "}\n");
         assertThat(message, anyOf(
                 equalTo("String index out of range: -2"), // Before Java 14
-                equalTo("begin 5, end 3, length 3"))); // Later versions
+                equalTo("begin 5, end 3, length 3"), // Before Java 18
+                equalTo("Range [5, 3) out of bounds for length 3"))); // Later versions
     }
 
     /**

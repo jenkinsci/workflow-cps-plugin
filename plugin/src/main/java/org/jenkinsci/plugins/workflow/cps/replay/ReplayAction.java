@@ -70,7 +70,6 @@ import net.sf.json.JSONObject;
 import org.acegisecurity.AccessDeniedException;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
-import org.jenkinsci.plugins.workflow.cps.view.ThemeUtil;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.kohsuke.accmod.Restricted;
@@ -156,7 +155,7 @@ public class ReplayAction implements Action {
 
         CpsFlowExecution exec = getExecutionLazy();
         if (exec != null) {
-            return exec.isSandbox() || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS); // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-controller code
+            return exec.isSandbox() || Jenkins.get().hasPermission(Jenkins.ADMINISTER); // We have to check for ADMINISTER because un-sandboxed code can execute arbitrary on-controller code
         } else {
             // If the execution hasn't been lazy-loaded then we will wait to do deeper checks until someone tries to lazy load
             // OR until isReplayableSandboxTest is invoked b/c they actually try to replay the build
@@ -169,8 +168,8 @@ public class ReplayAction implements Action {
         CpsFlowExecution exec = getExecutionBlocking();
         if (exec != null) {
             if (!exec.isSandbox()) {
-                // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-controller code
-                return Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS);
+                // We have to check for ADMINISTER because un-sandboxed code can execute arbitrary on-controller code
+                return Jenkins.get().hasPermission(Jenkins.ADMINISTER);
             }
             return true;
         }
@@ -198,12 +197,6 @@ public class ReplayAction implements Action {
 
     /* accessible to Jelly */ public Run getOwner() {
         return run;
-    }
-
-    /** @see CpsFlowDefinition#getTheme */
-    @Restricted(DoNotUse.class)
-    /* accessible to Jelly */ public String getTheme() {
-        return ThemeUtil.getTheme();
     }
 
     @Restricted(DoNotUse.class)

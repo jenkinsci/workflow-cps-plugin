@@ -42,6 +42,7 @@ import hudson.Functions;
 import hudson.Main;
 import hudson.Util;
 import hudson.model.Result;
+import hudson.util.XStream2;
 import jenkins.model.Jenkins;
 import jenkins.util.Timer;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
@@ -363,14 +364,16 @@ public final class CpsThreadGroup implements Serializable {
 
     /**
      * Pauses the execution.
-     *
+     * @param persist whether this is a user-initiated pause that should be persisted
      * @return
      *      {@link Future} object that represents the actual suspension of the CPS VM.
-     *      When the {@link #pause()} method is called, CPS VM might be still executing.
+     *      When this method is called, the CPS VM might be still executing.
      */
-    public Future<?> pause() {
+    public Future<?> pause(boolean persist) {
         paused.set(true);
-        executionPaused = true;
+        if (persist) {
+            executionPaused = true;
+        }
         // CPS VM might have a long queue in its task list, so to properly ensure
         // that the execution has actually suspended, call scheduleRun() excessively
         return scheduleRun();
@@ -595,7 +598,7 @@ public final class CpsThreadGroup implements Serializable {
 
     @CpsVmThreadOnly
     String asXml() {
-        XStream xs = new XStream();
+        XStream xs = new XStream(XStream2.getDefaultDriver());
         // Could not handle a general PickleFactory without doing something weird with XStream
         // and there is no apparent way to make a high-priority generic Convertor delegate to others.
         // Anyway the only known exceptions are ThrowablePickle, which we are unlikely to need,
