@@ -692,6 +692,26 @@ public class CpsFlowExecutionTest {
         }
     }
 
+    @Test public void evaluateAfterRestart() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition(
+                "def x = evaluate('class X {X() {}; def m1() {/OK/}}; new X()')\n" +
+                "def y = evaluate('class Y {X x; def m2() {/really ${x.m1()}/}}; new Y()')\n" +
+                "semaphore('wait')\n" +
+                "y.x = x\n" +
+                "echo(/received ${y.m2()}/)\n", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+        });
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getLastBuild();
+            SemaphoreStep.success("wait/1", null);
+            r.assertLogContains("received really OK", r.assertBuildStatus(Result.SUCCESS, r.waitForCompletion(b)));
+        });
+    }
+
     @Issue({ "JENKINS-45327", "JENKINS-68849" })
     @Test public void envActionImplPickle() throws Throwable {
         sessions.then(r -> {
