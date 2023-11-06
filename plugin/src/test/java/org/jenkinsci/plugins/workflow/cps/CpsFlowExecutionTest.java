@@ -24,53 +24,84 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import com.gargoylesoftware.htmlunit.ElementNotFoundException;
-import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
-import com.gargoylesoftware.htmlunit.HttpMethod;
-import com.gargoylesoftware.htmlunit.WebRequest;
-import com.google.common.util.concurrent.ListenableFuture;
-import groovy.lang.GroovyShell;
-import hudson.AbortException;
-import hudson.model.Item;
-import hudson.model.Result;
-import hudson.model.TaskListener;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import jenkins.model.Jenkins;
-import org.hamcrest.Matchers;
-import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
-import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
-import org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DefaultAllowlist;
-import org.jenkinsci.plugins.workflow.flow.FlowExecution;
-import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
-import org.jenkinsci.plugins.workflow.job.WorkflowJob;
-import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.jenkinsci.plugins.workflow.pickles.Pickle;
-import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
-import org.jenkinsci.plugins.workflow.steps.StepExecution;
-import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
-import org.jenkinsci.plugins.workflow.support.pickles.TryRepeatedly;
-import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.ListenableFuture;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import groovy.lang.GroovyShell;
+import hudson.AbortException;
+import hudson.ExtensionList;
+import hudson.XmlFile;
+import hudson.init.Terminator;
+import hudson.model.Executor;
+import hudson.model.Item;
+import hudson.model.Result;
+import hudson.model.TaskListener;
+import java.io.File;
+import java.io.Serializable;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import jenkins.model.Jenkins;
+import org.apache.commons.io.FileUtils;
+import org.hamcrest.Matchers;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInRelativeOrder;
+import static org.hamcrest.Matchers.empty;
+import org.htmlunit.ElementNotFoundException;
+import org.htmlunit.FailingHttpStatusCodeException;
+import org.htmlunit.HttpMethod;
+import org.htmlunit.WebRequest;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.TimingFlowNodeStorage;
+import org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DefaultAllowlist;
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
+import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.pickles.Pickle;
+import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
+import org.jenkinsci.plugins.workflow.steps.BodyInvoker;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
+import org.jenkinsci.plugins.workflow.support.pickles.TryRepeatedly;
+import org.jenkinsci.plugins.workflow.support.storage.BulkFlowNodeStorage;
+import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
+import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStorage;
+import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -82,6 +113,7 @@ import org.jvnet.hudson.test.JenkinsSessionRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.TestExtension;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 public class CpsFlowExecutionTest {
 
@@ -164,6 +196,33 @@ public class CpsFlowExecutionTest {
             r.add(d.getFunctionName());
         }
         return r;
+    }
+
+    @Test public void iterateAfterSuspend() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "iterateAfterSuspend");
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'", true));
+            SemaphoreStep.waitForStart("wait/1", p.scheduleBuild2(0).waitForStart());
+        });
+        sessions.then(r -> {
+            SemaphoreStep.success("wait/1", null);
+            r.assertBuildStatusSuccess(r.waitForCompletion(r.jenkins.getItemByFullName("iterateAfterSuspend", WorkflowJob.class).getLastBuild()));
+        });
+        if (iterateAfterSuspendError.get() != null) {
+            throw iterateAfterSuspendError.get();
+        }
+    }
+    private static AtomicReference<Throwable> iterateAfterSuspendError = new AtomicReference<>();
+    @Terminator(requires = FlowExecutionList.EXECUTIONS_SUSPENDED) public static void iterateAfterSuspendTerminator() {
+        WorkflowJob p = Jenkins.get().getItemByFullName("iterateAfterSuspend", WorkflowJob.class);
+        if (p == null) {
+            return; // different test
+        }
+        try {
+            assertThat(p.getLastBuild().getExecution().getCurrentExecutions(false).get(), empty());
+        } catch (Throwable t) {
+            iterateAfterSuspendError.set(t);
+        }
     }
 
     @Issue("JENKINS-25736")
@@ -350,6 +409,70 @@ public class CpsFlowExecutionTest {
         });
     }
 
+    @Issue("JENKINS-59743")
+    @Test public void restartWhileTemporarilyPaused() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("slowToResume()", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            r.waitForMessage("Started…", b);
+        });
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getBuildByNumber(1);
+            r.waitForMessage("Waiting until ready…", b);
+        });
+        sessions.then(r -> {
+            SlowToResume.DescriptorImpl d = ExtensionList.lookupSingleton(SlowToResume.DescriptorImpl.class);
+            synchronized (d) {
+                d.ready = true;
+                d.notifyAll();
+            }
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getBuildByNumber(1);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+        });
+    }
+    public static final class SlowToResume extends Step {
+        @DataBoundConstructor public SlowToResume() {}
+        @Override public StepExecution start(StepContext context) throws Exception {
+            return new Execution(context);
+        }
+        private static final class Execution extends StepExecution {
+            Execution(StepContext context) {
+                super(context);
+            }
+            @Override public boolean start() throws Exception {
+                getContext().get(TaskListener.class).getLogger().println("Started…");
+                return false;
+            }
+            @Override public void onResume() {
+                DescriptorImpl d = ExtensionList.lookupSingleton(DescriptorImpl.class);
+                synchronized (d) {
+                    try {
+                        while (!d.ready) {
+                            getContext().get(TaskListener.class).getLogger().println("Waiting until ready…");
+                            d.wait();
+                        }
+                        getContext().get(TaskListener.class).getLogger().println("…ready.");
+                        getContext().onSuccess(null);
+                    } catch (Exception x) {
+                        getContext().onFailure(x);
+                    }
+                }
+            }
+        }
+        @TestExtension("restartWhileTemporarilyPaused") public static final class DescriptorImpl extends StepDescriptor {
+            boolean ready;
+            @Override public String getFunctionName() {
+                return "slowToResume";
+            }
+            @Override public Set<? extends Class<?>> getRequiredContext() {
+                return Set.of(TaskListener.class);
+            }
+        }
+    }
+
     @Test public void timing() throws Throwable {
         sessions.then(r -> {
                 logger.record(CpsFlowExecution.TIMING_LOGGER, Level.FINE).capture(100);
@@ -361,6 +484,7 @@ public class CpsFlowExecutionTest {
         sessions.then(r -> {
                 WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
                 WorkflowRun b = p.getLastBuild();
+                FileUtils.copyFile(new File(b.getRootDir(), "build.xml"), System.out);
                 SemaphoreStep.success("wait/1", null);
                 r.assertBuildStatusSuccess(r.waitForCompletion(b));
                 while (logger.getRecords().isEmpty()) {
@@ -368,7 +492,33 @@ public class CpsFlowExecutionTest {
                 }
                 // TODO https://github.com/jenkinsci/workflow-cps-plugin/pull/570#issuecomment-1192679404 message can be duplicated
                 assertThat(logger.getRecords(), Matchers.not(Matchers.empty()));
-                assertEquals(CpsFlowExecution.TimingKind.values().length, ((CpsFlowExecution) b.getExecution()).timings.keySet().size());
+                assertEquals(CpsFlowExecution.TimingKind.values().length, ((CpsFlowExecution) b.getExecution()).liveTimings.keySet().size());
+        });
+    }
+
+    @Test public void internalCallsAcrossRestart() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("currentBuild.rawBuild.description = 'XXX'; semaphore 'wait'; Jenkins.instance.systemMessage = 'XXX'", false));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+        });
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getLastBuild();
+            assertThat(new XmlFile(new File(b.getRootDir(), "build.xml")).asString(), containsString(
+                "<string>org.jenkinsci.plugins.workflow.job.WorkflowRun.description</string>"));
+            CpsFlowExecution exec = (CpsFlowExecution) b.getExecution();
+            assertThat(exec.getInternalCalls(), contains(
+                "org.jenkinsci.plugins.workflow.job.WorkflowRun.description",
+                "org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper.rawBuild"));
+            SemaphoreStep.success("wait/1", null);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+            assertThat(exec.getInternalCalls(), contains(
+                "hudson.model.Hudson.systemMessage",
+                "jenkins.model.Jenkins.instance",
+                "org.jenkinsci.plugins.workflow.job.WorkflowRun.description",
+                "org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper.rawBuild"));
         });
     }
 
@@ -469,6 +619,29 @@ public class CpsFlowExecutionTest {
         });
     }
 
+    @Issue("JENKINS-50407")
+    @Test public void shellLoadingError() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'", true));
+            SemaphoreStep.waitForStart("wait/1", p.scheduleBuild2(0).waitForStart());
+        });
+        sessions.then(r -> {
+            r.assertLogContains("IllegalStateException: decorator problem here",
+                r.assertBuildStatus(Result.FAILURE,
+                    r.waitForCompletion(r.jenkins.getItemByFullName("p", WorkflowJob.class).getLastBuild())));
+        });
+    }
+    @TestExtension("shellLoadingError") public static final class BrokenDecorator extends GroovyShellDecorator {
+        static int count;
+        @Override
+        public void configureShell(CpsFlowExecution context, GroovyShell shell) {
+            if (count++ == 1) {
+                throw new IllegalStateException("decorator problem here");
+            }
+        }
+    }
+
     /**
      * This field shouldn't be visible to regular script.
      */
@@ -530,6 +703,26 @@ public class CpsFlowExecutionTest {
         }
     }
 
+    @Test public void evaluateAfterRestart() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition(
+                "def x = evaluate('class X {X() {}; def m1() {/OK/}}; new X()')\n" +
+                "def y = evaluate('class Y {X x; def m2() {/really ${x.m1()}/}}; new Y()')\n" +
+                "semaphore('wait')\n" +
+                "y.x = x\n" +
+                "echo(/received ${y.m2()}/)\n", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+        });
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getLastBuild();
+            SemaphoreStep.success("wait/1", null);
+            r.assertLogContains("received really OK", r.assertBuildStatus(Result.SUCCESS, r.waitForCompletion(b)));
+        });
+    }
+
     @Issue({ "JENKINS-45327", "JENKINS-68849" })
     @Test public void envActionImplPickle() throws Throwable {
         sessions.then(r -> {
@@ -550,4 +743,175 @@ public class CpsFlowExecutionTest {
             assertThat(EnvActionImpl.forRun(b).getEnvironment().get("foo"), equalTo("bar"));
         });
     }
+
+    @Test public void suspendOrder() throws Throwable {
+        System.setProperty(Jenkins.class.getName() + "." + "termLogLevel", "INFO");
+        logger.record(CpsFlowExecution.class, Level.FINE).record(FlowExecutionList.class, Level.FINE).capture(100);
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition("echo 'ok'", true));
+            r.buildAndAssertSuccess(p);
+        });
+        assertThat(logger.getMessages(), containsInRelativeOrder("finished suspending all executions", "ensuring all executions are saved"));
+    }
+
+    @Issue("JENKINS-71692")
+    @Test public void stepsAreStoppedWhenCpsVmExecutorServiceHandlesUncaughtException() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition(
+                "parallel(\n" +
+                "  'willCroak': {\n" +
+                "    node {\n" +
+                "      semaphore('croak')\n" +
+                "    }\n" +
+                "  },\n" +
+                "  'keepsRunning': {\n" +
+                "    semaphore('other')\n" +
+                "    echo 'kept running!'\n" +
+                "  }\n" +
+                ")", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("croak/1", b);
+            SemaphoreStep.waitForStart("other/1", b);
+            ((CpsFlowExecution) b.getExecution()).runInCpsVmThread(new FutureCallback<>() {
+                @Override
+                public void onSuccess(CpsThreadGroup g) {
+                    // In practice this would be some kind of unhandled exception in groovy-cps.
+                    throw new IllegalStateException("Failure in CPS VM thread!");
+                }
+                @Override
+                public void onFailure(Throwable t) { }
+            });
+            r.assertBuildStatus(Result.FAILURE, r.waitForCompletion(b));
+            r.assertLogContains("Failure in CPS VM thread!", b);
+            r.assertLogContains("Terminating parallel (id: 3)", b);
+            r.assertLogContains("Terminating node (id: 7)", b);
+            r.assertLogContains("Terminating semaphore (id: 8)", b);
+            for (Executor executor : Jenkins.get().toComputer().getExecutors()) {
+                // Node step should have cleaned up its PlaceholderExecutable.
+                assertThat(executor.getCurrentWorkUnit(), nullValue());
+            }
+            // Simulate some async steps completing after CpsFlowExecution.croak.
+            SemaphoreStep.success("croak/1", null);
+            SemaphoreStep.success("other/1", null);
+            // It's difficult to add meaningful non-flaky test assertions here.
+            // Even before the associated fix, 'kept running' wasn't printed, because although CpsThreadGroup.run
+            // did execute again, it hit an IllegalStateException in SandboxContinuable, which resulted in a second
+            // call to CpsFlowExecution.croak.
+            assertTrue(((CpsFlowExecution) b.getExecution()).programPromise.get(1, TimeUnit.SECONDS).runner.isShutdown());
+        });
+    }
+
+    @Issue("JENKINS-70267")
+    @Test public void stepsAreStoppedWhenBodyExecutionCallbackThrows() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition(
+                "node {\n" +
+                "  badBodyCallback() { }\n" +
+                "}\n", true));
+            WorkflowRun b = r.buildAndAssertStatus(Result.FAILURE, p);
+            r.assertLogContains("Exception in onSuccess", b);
+            for (Executor executor : Jenkins.get().toComputer().getExecutors()) {
+                // Node step should have cleaned up its PlaceholderExecutable.
+                assertThat(executor.getCurrentWorkUnit(), nullValue());
+            }
+            p.setDefinition(new CpsFlowDefinition(
+                "node {\n" +
+                "  badBodyCallback() { throw new Exception('original') }\n" +
+                "}\n", false));
+            b = r.buildAndAssertStatus(Result.FAILURE, p);
+            r.assertLogContains("Exception in onFailure", b);
+            r.assertLogContains("Exception: original", b);
+            for (Executor executor : Jenkins.get().toComputer().getExecutors()) {
+                // Node step should have cleaned up its PlaceholderExecutable.
+                assertThat(executor.getCurrentWorkUnit(), nullValue());
+            }
+        });
+    }
+
+    public static class BadBodyCallback extends Step implements Serializable {
+        private static final long serialVersionUID = 1L;
+        @DataBoundConstructor
+        public BadBodyCallback() { }
+        @Override
+        public StepExecution start(StepContext context) throws Exception {
+            return new StepExecution(context) {
+                @Override public boolean start() throws Exception {
+                    StepContext context = getContext();
+                    BodyInvoker invoker = context.newBodyInvoker();
+                    invoker.withCallback(new BodyExecutionCallback() {
+                        @Override
+                        public void onSuccess(StepContext context, Object result) {
+                            throw new IllegalStateException("Exception in onSuccess");
+                        }
+                        @Override
+                        public void onFailure(StepContext context, Throwable t) {
+                            throw new IllegalStateException("Exception in onFailure");
+                        }
+                    }).start();
+                    return false;
+                }
+            };
+        }
+        @TestExtension
+        public static class DescriptorImpl extends StepDescriptor {
+            @Override
+            public Set<? extends Class<?>> getRequiredContext() {
+                return Set.of();
+            }
+            @Override
+            public String getFunctionName() {
+                return "badBodyCallback";
+            }
+            @Override
+            public boolean takesImplicitBlockArgument() {
+                return true;
+            }
+        }
+    }
+
+    @Test public void flowNodeStorageOptimizedUponExecutionCompletion() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition(
+                "echo 'Hello, world!'\n" +
+                "semaphore('wait')\n" +
+                "echo 'Goodbye, world!'", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
+            FlowNodeStorage storage = ((TimingFlowNodeStorage) e.getStorage()).delegate;
+            assertThat(storage, instanceOf(SimpleXStreamFlowNodeStorage.class));
+            Path oldStorageDir = e.getStorageDir().toPath();
+            assertThat(oldStorageDir.getFileName(), equalTo(Paths.get("workflow")));
+            SemaphoreStep.success("wait/1", null);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+            storage = ((TimingFlowNodeStorage) e.getStorage()).delegate;
+            assertThat(storage, instanceOf(BulkFlowNodeStorage.class));
+            assertFalse("workflow/ should have been deleted", Files.exists(oldStorageDir));
+            Path newStorageDir = e.getStorageDir().toPath();
+            assertThat(newStorageDir.getFileName(), equalTo(Paths.get("workflow-completed")));
+            assertThat(Files.list(newStorageDir).collect(Collectors.toList()), contains(newStorageDir.resolve("flowNodeStore.xml")));
+            List<FlowNode> nodes = new DepthFirstScanner().allNodes(b.getExecution());
+            assertThat(nodes.stream().map(FlowNode::getDisplayFunctionName).collect(Collectors.toList()), equalTo(
+                    List.of("End of Pipeline", "echo", "semaphore", "echo", "Start of Pipeline")));
+        });
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getBuildByNumber(1);
+            CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
+            FlowNodeStorage storage = ((TimingFlowNodeStorage) e.getStorage()).delegate;
+            assertThat(storage, instanceOf(BulkFlowNodeStorage.class));
+            Path newStorageDir = e.getStorageDir().toPath();
+            assertFalse("workflow/ should have been deleted", Files.exists(newStorageDir.resolveSibling("workflow")));
+            assertThat(newStorageDir.getFileName(), equalTo(Paths.get("workflow-completed")));
+            assertThat(Files.list(newStorageDir).collect(Collectors.toList()), contains(newStorageDir.resolve("flowNodeStore.xml")));
+            List<FlowNode> nodes = new DepthFirstScanner().allNodes(b.getExecution());
+            assertThat(nodes.stream().map(FlowNode::getDisplayFunctionName).collect(Collectors.toList()), equalTo(
+                    List.of("End of Pipeline", "echo", "semaphore", "echo", "Start of Pipeline")));
+        });
+    }
+
 }

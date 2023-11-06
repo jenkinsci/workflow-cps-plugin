@@ -7,7 +7,6 @@ import com.cloudbees.groovy.cps.Outcome;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.FunctionCallEnv;
 import com.cloudbees.groovy.cps.impl.TryBlockEnv;
-import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
 import com.google.common.util.concurrent.FutureCallback;
 import hudson.model.Action;
 import hudson.util.Iterators;
@@ -173,8 +172,7 @@ class CpsBodyExecution extends BodyExecution {
         // TODO: we need to capture the surrounding calling context to capture variables, and switch to ClosureCallEnv
 
         FunctionCallEnv caller = new FunctionCallEnv(null, onSuccess, null, null);
-        if (currentThread.getExecution().isSandbox())
-            caller.setInvoker(new SandboxInvoker());
+        caller.setInvoker(currentThread.getExecution().createInvoker());
 
         // catch an exception thrown from body and treat that as a failure
         TryBlockEnv env = new TryBlockEnv(caller, null);
@@ -352,7 +350,12 @@ class CpsBodyExecution extends BodyExecution {
             setOutcome(new Outcome(null,t));
             StepContext sc = new CpsBodySubContext(context, en);
             for (BodyExecutionCallback c : callbacks) {
-                c.onFailure(sc, t);
+                try {
+                    c.onFailure(sc, t);
+                } catch (Exception e) {
+                    t.addSuppressed(e);
+                    sc.onFailure(t);
+                }
             }
             return Next.terminate(null);
         }
@@ -368,7 +371,11 @@ class CpsBodyExecution extends BodyExecution {
             setOutcome(new Outcome(o,null));
             StepContext sc = new CpsBodySubContext(context, en);
             for (BodyExecutionCallback c : callbacks) {
-                c.onSuccess(sc, o);
+                try {
+                    c.onSuccess(sc, o);
+                } catch (Exception e) {
+                    sc.onFailure(e);
+                }
             }
             return Next.terminate(null);
         }

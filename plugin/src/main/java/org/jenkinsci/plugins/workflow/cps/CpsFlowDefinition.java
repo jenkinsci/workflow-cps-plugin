@@ -47,7 +47,6 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 
 import net.sf.json.JSON;
