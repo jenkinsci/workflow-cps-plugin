@@ -58,8 +58,7 @@
             <dependency>
               <groupId>org.jenkins-ci.plugins</groupId>
               <artifactId>support-core</artifactId>
-              <!-- TODO https://github.com/jenkinsci/support-core-plugin/pull/496 -->
-              <version>1363.v5ecb_d9d85117</version>
+              <version>1366.v9d076592655d</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
