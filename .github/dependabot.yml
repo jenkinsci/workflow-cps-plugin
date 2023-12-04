@@ -1,10 +1,21 @@
+# https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
 version: 2
 updates:
   # Intentionally not adding automatic NPM updates because I do
   # not trust the plugin's tests to catch issues caused by updates.
+  # TODO or enable, but avoid merging without first doing a local interactive test?
   - package-ecosystem: "maven"
     directory: "/"
-    reviewers:
-      - "dwnusbaum"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+    ignore:
+    - dependency-name: org.codehaus.groovy:groovy
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/plugin"
+    schedule:
+      interval: "weekly"
