@@ -54,6 +54,7 @@ $(function() {
                         setTheme(editor);
 
                         if (window.isSystemRespectingTheme) {
+                            // eslint-disable-next-line no-unused-vars
                             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
                                 setTheme(editor)
                             });
