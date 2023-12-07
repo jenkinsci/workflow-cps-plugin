@@ -102,6 +102,10 @@ public final class CpsThreadDumpAction implements Action {
             return "Thread dumps of running Pipeline builds";
         }
 
+        @Override public ComponentCategory getCategory() {
+            return ComponentCategory.BUILDS;
+        }
+
         @Override public void addContents(Container container) {
             container.add(new Content("nodes/master/pipeline-thread-dump.txt") {
                 @Override public void writeTo(OutputStream outputStream) throws IOException {
