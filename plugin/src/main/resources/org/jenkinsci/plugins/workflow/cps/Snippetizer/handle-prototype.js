@@ -7,20 +7,26 @@ function handlePrototype(url, crumb) {
         return; // just a separator
     }
 
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", url, true);
-    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    xhr.setRequestHeader("Jenkins-Crumb", crumb);
+    const headers = new Headers();
+    headers.append("Content-Type", "application/x-www-form-urlencoded");
+    headers.append("Jenkins-Crumb", crumb);
 
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState === XMLHttpRequest.DONE) {
-            if (xhr.status === 200) {
-                document.getElementById('prototypeText').value = xhr.responseText;
+    fetch(url, {
+        method: "POST",
+        headers: headers,
+        body: "json=" + encodeURIComponent(json),
+
+    })
+        .then(response => {
+            if (response.ok) {
+                response.text().then((responseText) => {
+                    document.getElementById('prototypeText').value = responseText;
+                });
             }
-        }
-    };
-
-    xhr.send("json=" + encodeURIComponent(json));
+        })
+        .catch(error => {
+            console.error('Fetch error:', error);
+        });
 }
 
 
