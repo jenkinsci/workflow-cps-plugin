@@ -73,6 +73,7 @@ THE SOFTWARE.
                            data-url="${rootURL}/${it.GENERATE_URL}"
                            data-crumb="${h.getCrumb(request)}"/>
                     <f:textarea id="prototypeText" readonly="true" style="margin-top: 10px"/>
+                    <l:copyButton text="" clazz="jenkins-hidden jenkins-!-margin-top-1"/>
                     <st:adjunct includes="org.jenkinsci.plugins.workflow.cps.Snippetizer.handle-prototype"/>
                 </f:block>
                 <f:section title="${%Global Variables}"/>

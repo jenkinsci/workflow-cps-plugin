@@ -21,6 +21,9 @@ function handlePrototype(url, crumb) {
             if (response.ok) {
                 response.text().then((responseText) => {
                     document.getElementById('prototypeText').value = responseText;
+                    copybutton = document.querySelector('.jenkins-copy-button');
+                    copybutton.setAttribute("text", responseText);
+                    copybutton.classList.remove('jenkins-hidden');
                 });
             }
         })
