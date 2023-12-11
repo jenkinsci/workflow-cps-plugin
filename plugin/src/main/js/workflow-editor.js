@@ -54,7 +54,7 @@ $(function() {
                         setTheme(editor);
 
                         if (window.isSystemRespectingTheme) {
-                            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
                                 setTheme(editor)
                             });
                         }

@@ -2024,6 +2024,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             return "Timing data about recently completed Pipeline builds";
         }
 
+        @Override public ComponentCategory getCategory() {
+            return ComponentCategory.BUILDS;
+        }
+
         @Override public void addContents(Container container) {
             container.add(new Content("nodes/master/pipeline-timings.txt") {
                 @Override public void writeTo(OutputStream outputStream) throws IOException {
@@ -2069,6 +2073,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
         @Override public String getDisplayName() {
             return "List of internal API calls made by Pipeline builds (typically from trusted libraries)";
+        }
+
+        @Override public ComponentCategory getCategory() {
+            return ComponentCategory.BUILDS;
         }
 
         @Override public void addContents(Container container) {
