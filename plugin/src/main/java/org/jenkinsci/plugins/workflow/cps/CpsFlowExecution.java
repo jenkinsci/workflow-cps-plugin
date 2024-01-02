@@ -1276,6 +1276,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     public void saveActions(FlowNode node, List<Action> actions) throws IOException {
         if (storage == null) {
             throw new IOException("storage not yet loaded");
+        } else if (isComplete()) {
+            throw new IOException("Cannot save actions for " + node + " on completed execution " + this + ": " + actions);
         }
         storage.saveActions(node, actions);
     }
