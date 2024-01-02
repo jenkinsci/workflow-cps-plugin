@@ -25,7 +25,6 @@
 package org.jenkinsci.plugins.workflow.cps.replay;
 
 import com.cloudbees.diff.Diff;
-import com.google.common.collect.ImmutableList;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.ExtensionList;
@@ -156,7 +155,7 @@ public class ReplayAction implements Action {
 
         CpsFlowExecution exec = getExecutionLazy();
         if (exec != null) {
-            return exec.isSandbox() || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS); // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-controller code
+            return exec.isSandbox() || Jenkins.get().hasPermission(Jenkins.ADMINISTER); // We have to check for ADMINISTER because un-sandboxed code can execute arbitrary on-controller code
         } else {
             // If the execution hasn't been lazy-loaded then we will wait to do deeper checks until someone tries to lazy load
             // OR until isReplayableSandboxTest is invoked b/c they actually try to replay the build
@@ -169,8 +168,8 @@ public class ReplayAction implements Action {
         CpsFlowExecution exec = getExecutionBlocking();
         if (exec != null) {
             if (!exec.isSandbox()) {
-                // We have to check for ADMIN because un-sandboxed code can execute arbitrary on-controller code
-                return Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS);
+                // We have to check for ADMINISTER because un-sandboxed code can execute arbitrary on-controller code
+                return Jenkins.get().hasPermission(Jenkins.ADMINISTER);
             }
             return true;
         }
@@ -233,7 +232,7 @@ public class ReplayAction implements Action {
         rsp.sendRedirect("../.."); // back to WorkflowJob; new build might not start instantly so cannot redirect to it
     }
 
-    private static final Iterable<Class<? extends Action>> COPIED_ACTIONS = ImmutableList.of(
+    private static final Iterable<Class<? extends Action>> COPIED_ACTIONS = List.of(
         ParametersAction.class,
         SCMRevisionAction.class
     );

@@ -190,7 +190,7 @@ public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
 
         private static void loadDefaultAllowlist(List<String> allowlist) throws IOException {
             try (InputStream is = GroovySourceFileAllowlist.class.getResourceAsStream("GroovySourceFileAllowlist/default-allowlist");
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     line = line.trim();

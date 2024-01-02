@@ -85,7 +85,7 @@ public class CpsBodyExecutionTest {
                 nodes.add(s);
             }
 
-            assertEquals(Arrays.asList(
+            assertEquals(List.of(
                 "FlowEndNode",
                 "StepEndNode:synchronousExceptionInBody",   // this for the end of invoking a body
                 "StepStartNode:synchronousExceptionInBody", // this for invoking a body
@@ -147,7 +147,7 @@ public class CpsBodyExecutionTest {
         SemaphoreStep.waitForStart("b/1", b);
         SemaphoreStep.waitForStart("c/1", b);
         final RetainsBodyStep.Execution[] execs = new RetainsBodyStep.Execution[3];
-        StepExecution.applyAll(RetainsBodyStep.Execution.class, new Function<RetainsBodyStep.Execution, Void>() {
+        StepExecution.applyAll(RetainsBodyStep.Execution.class, new Function<>() {
             @Override public Void apply(RetainsBodyStep.Execution exec) {
                 execs[exec.count] = exec;
                 return null;
@@ -157,7 +157,7 @@ public class CpsBodyExecutionTest {
         assertNotNull(execs[1]);
         assertNotNull(execs[2]);
         final Set<SemaphoreStep.Execution> semaphores = new HashSet<>();
-        StepExecution.applyAll(SemaphoreStep.Execution.class, new Function<SemaphoreStep.Execution, Void>() {
+        StepExecution.applyAll(SemaphoreStep.Execution.class, new Function<>() {
             @Override public Void apply(SemaphoreStep.Execution exec) {
                 if (exec.getStatus().matches("waiting on [ab]/1")) {
                     semaphores.add(exec);

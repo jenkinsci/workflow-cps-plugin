@@ -198,7 +198,6 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      *      This method returns null if the step descriptor used is not recoverable in the current VM session,
      *      such as when the plugin that implements this was removed. So the caller should defend against null.
      */
-    @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")
     public @CheckForNull StepDescriptor getStepDescriptor() {
         Jenkins j = Jenkins.getInstanceOrNull();
         if (j == null) {
@@ -379,7 +378,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                 }
             }
 
-            flow.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+            flow.runInCpsVmThread(new FutureCallback<>() {
                 @CpsVmThreadOnly
                 @Override
                 public void onSuccess(CpsThreadGroup g) {
@@ -544,7 +543,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                 return f;
             }
 
-            exec.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+            exec.runInCpsVmThread(new FutureCallback<>() {
                 @Override public void onSuccess(CpsThreadGroup result) {
                     try {
                         // TODO keep track of whether the program was saved anyway after saveState was called but before now, and do not bother resaving it in that case

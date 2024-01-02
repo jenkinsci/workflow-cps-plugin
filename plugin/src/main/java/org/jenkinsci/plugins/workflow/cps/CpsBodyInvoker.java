@@ -151,7 +151,7 @@ public final class CpsBodyInvoker extends BodyInvoker {
             // when this method is called asynchronously, the body is scheduled to run in the same thread
             // that started run.
             try {
-                owner.getExecution().runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+                owner.getExecution().runInCpsVmThread(new FutureCallback<>() {
                     @Override
                     public void onSuccess(CpsThreadGroup g) {
                         CpsThread thread = owner.getThread(g);

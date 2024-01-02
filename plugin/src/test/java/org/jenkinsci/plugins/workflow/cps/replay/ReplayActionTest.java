@@ -24,10 +24,10 @@
 
 package org.jenkinsci.plugins.workflow.cps.replay;
 
-import com.gargoylesoftware.htmlunit.WebAssert;
-import com.gargoylesoftware.htmlunit.html.HtmlForm;
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.gargoylesoftware.htmlunit.html.HtmlTextArea;
+import org.htmlunit.WebAssert;
+import org.htmlunit.html.HtmlForm;
+import org.htmlunit.html.HtmlPage;
+import org.htmlunit.html.HtmlTextArea;
 import hudson.FilePath;
 import hudson.XmlFile;
 import hudson.cli.CLICommandInvoker;
@@ -228,7 +228,7 @@ public class ReplayActionTest {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("", /* whole-script approval */ false));
                 WorkflowRun b1 = p.scheduleBuild2(0).get();
-                // Jenkins admins can of course do as they please. But developers without RUN_SCRIPTS are out of luck.
+                // Jenkins admins can of course do as they please. But developers without ADMINISTER are out of luck.
                 assertTrue(canReplay(b1, "admin"));
                 assertFalse("not sandboxed, so only safe for admins", canReplay(b1, "dev1"));
                 assertFalse(canReplay(b1, "dev2"));
@@ -290,7 +290,7 @@ public class ReplayActionTest {
                 SemaphoreStep.success("wait/2", null);
                 WorkflowRun b2 = (WorkflowRun) b1.getAction(ReplayAction.class).run(
                     "echo 'trying edits'\nnode {load 'f1.groovy'}; semaphore 'wait'; node {load 'f2.groovy'}",
-                    Collections.singletonMap("Script2", "echo 'new second part'")).get();
+                    Map.of("Script2", "echo 'new second part'")).get();
                 story.j.assertBuildStatusSuccess(b2);
                 story.j.assertLogContains("trying edits", b2);
                 story.j.assertLogContains("original first part", b2);
@@ -307,12 +307,10 @@ public class ReplayActionTest {
                 assertThat(diff, not(containsString("first part")));
                 System.out.println(diff);
                 // Now replay #2, editing all scripts, and restarting in the middle.
-                Map<String,String> replayMap = new HashMap<>();
-                replayMap.put("Script1", "echo 'new first part'");
-                replayMap.put("Script2", "echo 'newer second part'");
+                Map<String,String> replayMap = Map.of("Script1", "echo 'new first part'", "Script2", "echo 'newer second part'");
                 WorkflowRun b3 = (WorkflowRun) b2.getAction(ReplayAction.class).run(
                     "node {load 'f1.groovy'}; semaphore 'wait'; node {load 'f2.groovy'}",
-                    Collections.unmodifiableMap(replayMap)).waitForStart();
+                    replayMap).waitForStart();
                 SemaphoreStep.waitForStart("wait/3", b3);
             }
         });

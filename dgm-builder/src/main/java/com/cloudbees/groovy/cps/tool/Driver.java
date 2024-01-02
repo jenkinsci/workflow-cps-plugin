@@ -13,13 +13,10 @@ import javax.tools.ToolProvider;
 import java.io.File;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-
-import static java.util.Arrays.*;
+import java.util.Set;
 
 public class Driver {
     public static void main(String[] args) throws Exception {
@@ -32,18 +29,18 @@ public class Driver {
 
         try (StandardJavaFileManager fileManager = javac.getStandardFileManager(errorListener, Locale.getDefault(), Charset.defaultCharset())) {
             fileManager.setLocation(StandardLocation.CLASS_PATH,
-                    Collections.singleton(Which.jarFile(GroovyShell.class)));
+                    Set.of(Which.jarFile(GroovyShell.class)));
 
             File groovySrcJar = Which.jarFile(Driver.class.getClassLoader().getResource("groovy/lang/GroovyShell.java"));
 
             // classes to translate
             // TODO include other classes mentioned in DefaultGroovyMethods.DGM_LIKE_CLASSES if they have any applicable methods
-            List<String> fileNames = asList("DefaultGroovyMethods",
+            List<String> fileNames = List.of("DefaultGroovyMethods",
                     "DefaultGroovyStaticMethods",
                     "StringGroovyMethods");
 
             List<JavaFileObject> src = new ArrayList<>();
-            for (JavaFileObject jfo : fileManager.list(StandardLocation.CLASS_PATH, "org.codehaus.groovy.runtime", Collections.singleton(JavaFileObject.Kind.SOURCE), true)) {
+            for (JavaFileObject jfo : fileManager.list(StandardLocation.CLASS_PATH, "org.codehaus.groovy.runtime", Set.of(JavaFileObject.Kind.SOURCE), true)) {
                 for (String name : fileNames) {
                     if (jfo.toUri().toString().endsWith("/org/codehaus/groovy/runtime/" + name + ".java")) {
                         src.add(jfo);
@@ -57,7 +54,7 @@ public class Driver {
             // Tree symbols created by the original JavacTask.parse() call to be thrown away,
             // which breaks later processing.
             // So for now, don't perform annotation processing
-            List<String> options = asList("-proc:none");
+            List<String> options = List.of("-proc:none");
 
             Translator t = new Translator(javac.getTask(null, fileManager, errorListener, options, null, src));
 

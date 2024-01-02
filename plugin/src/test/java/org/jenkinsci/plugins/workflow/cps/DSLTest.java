@@ -462,7 +462,7 @@ public class DSLTest {
         assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
         assertThat(stepWarning.getStepName(), is(shellStep));
-        assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+        assertThat(stepWarning.getInterpolatedVariables(), is(List.of("PASSWORD")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
@@ -492,7 +492,7 @@ public class DSLTest {
         assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
         assertThat(stepWarning.getStepName(), is("archiveArtifacts"));
-        assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+        assertThat(stepWarning.getInterpolatedVariables(), is(List.of("PASSWORD")));
     }
 
     @Test public void multipleSensitiveVariables() throws Exception {
@@ -518,7 +518,7 @@ public class DSLTest {
         assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
         assertThat(stepWarning.getStepName(), is(shellStep));
-        assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD", "USERNAME")));
+        assertThat(stepWarning.getInterpolatedVariables(), is(List.of("PASSWORD", "USERNAME")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
@@ -549,7 +549,7 @@ public class DSLTest {
         assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
         assertThat(stepWarning.getStepName(), is("monomorphWithSymbolStep"));
-        assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+        assertThat(stepWarning.getInterpolatedVariables(), is(List.of("PASSWORD")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate("monomorphWithSymbolStep"));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);
@@ -584,10 +584,10 @@ public class DSLTest {
         assertThat(warnings.size(), is(2));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
         assertThat(stepWarning.getStepName(), is("monomorphWithSymbolStep"));
-        assertThat(stepWarning.getInterpolatedVariables(), equalTo(Arrays.asList("PASSWORD", "USERNAME")));
+        assertThat(stepWarning.getInterpolatedVariables(), equalTo(List.of("PASSWORD", "USERNAME")));
         InterpolatedSecretsAction.InterpolatedWarnings listStepWarning = warnings.get(1);
         assertThat(listStepWarning.getStepName(), is("monomorphListSymbolStep"));
-        assertThat(listStepWarning.getInterpolatedVariables(), equalTo(Arrays.asList("PASSWORD", "USERNAME")));
+        assertThat(listStepWarning.getInterpolatedVariables(), equalTo(List.of("PASSWORD", "USERNAME")));
     }
 
     @Test public void noBodyError() throws Exception {
@@ -600,7 +600,10 @@ public class DSLTest {
         p.setDefinition(new CpsFlowDefinition(
                 "stage(name: 'A');\n" +
                         "echo('done')", true));
-        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+        WorkflowRun b = r.waitForCompletion(p.scheduleBuild2(0).waitForStart());
+        r.assertLogContains(org.jenkinsci.plugins.workflow.support.steps.stage.Messages.StageStepExecution_non_block_mode_deprecated(), b);
+        // Special case in DSL.invokeStep:
+        r.assertLogNotContains("stage step must be called with a body", b);
     }
 
     @Test public void standardStage() throws Exception {
@@ -632,7 +635,7 @@ public class DSLTest {
         assertThat(warnings.size(), is(1));
         InterpolatedSecretsAction.InterpolatedWarnings stepWarning = warnings.get(0);
         assertThat(stepWarning.getStepName(), is(shellStep));
-        assertThat(stepWarning.getInterpolatedVariables(), is(Arrays.asList("PASSWORD")));
+        assertThat(stepWarning.getInterpolatedVariables(), is(List.of("PASSWORD")));
         LinearScanner scan = new LinearScanner();
         FlowNode node = scan.findFirstMatch(run.getExecution().getCurrentHeads().get(0), new NodeStepTypePredicate(shellStep));
         ArgumentsAction argAction = node.getPersistentAction(ArgumentsAction.class);

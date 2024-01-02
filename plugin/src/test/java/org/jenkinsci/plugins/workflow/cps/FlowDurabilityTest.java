@@ -9,7 +9,6 @@ import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Item;
 import hudson.model.Result;
-import hudson.util.CopyOnWriteList;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.TestDurabilityHintProvider;
@@ -22,7 +21,6 @@ import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
-import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.graph.FlowEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
@@ -206,17 +204,12 @@ public class FlowDurabilityTest {
     }
 
     private static void verifyExecutionRemoved(WorkflowRun run) throws Exception{
-        // Verify we've removed all FlowExcecutionList entries
         FlowExecutionList list = FlowExecutionList.get();
         for (FlowExecution fe : list) {
             if (fe == run.getExecution()) {
                 Assert.fail("Run still has an execution in the list and should be removed!");
             }
         }
-        Field f = list.getClass().getDeclaredField("runningTasks");
-        f.setAccessible(true);
-        CopyOnWriteList<FlowExecutionOwner> runningTasks = (CopyOnWriteList<FlowExecutionOwner>)(f.get(list));
-        Assert.assertFalse(runningTasks.contains(run.asFlowExecutionOwner()));
     }
 
     static void verifySucceededCleanly(Jenkins j, WorkflowRun run) throws Exception {
@@ -301,7 +294,7 @@ public class FlowDurabilityTest {
             if (TimeUnit.SECONDS.convert(currentTime-nanoStartTime, TimeUnit.NANOSECONDS) > 10) {
                 StringBuilder builder = new StringBuilder();
                 builder.append("Run result: "+run.getResult());
-                builder.append(" and execution != null:"+run.getExecution() != null+" ");
+                builder.append(" and execution != null:"+(run.getExecution() != null));
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
                     CpsFlowExecution cpsFlow = (CpsFlowExecution)exec;

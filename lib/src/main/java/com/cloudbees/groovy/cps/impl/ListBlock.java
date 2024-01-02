@@ -15,7 +15,7 @@ public class ListBlock extends CollectionLiteralBlock {
 
     @Override
     protected Object toCollection(Object[] result) {
-        return InvokerHelper.createList(result);
+        return InvokerHelper.createList(SpreadBlock.despreadList(result));
     }
 
     private static final long serialVersionUID = 1L;

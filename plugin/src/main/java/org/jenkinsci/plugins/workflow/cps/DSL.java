@@ -223,6 +223,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * When {@link #invokeMethod(String, Object)} is calling a {@link StepDescriptor}
      * @deprecated Prefer {@link #invokeStep(StepDescriptor, String, Object)}
      */
+    @Deprecated
     protected Object invokeStep(StepDescriptor d, Object args) {
         return invokeStep(d, d.getFunctionName(), args);
     }
@@ -798,6 +799,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
          * @deprecated
          *      Unused as of 1.2. Left here for serialization compatibility.
          */
+        @Deprecated
         private static class HeadCollector extends BodyExecutionCallback {
             private final CpsStepContext context;
             private final FlowHead head;

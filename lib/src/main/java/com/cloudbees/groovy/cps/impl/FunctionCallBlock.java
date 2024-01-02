@@ -92,14 +92,15 @@ public class FunctionCallBlock extends CallSiteBlockSupport {
             if (args.length>idx)
                 return then(argExps[idx],e,fixArg);
             else {
+                Object[] expandedArgs = SpreadBlock.despreadList(args);
                 if (name.equals("<init>")) {
                     // constructor call
                     Object v;
                     try {
-                        v = e.getInvoker().contextualize(FunctionCallBlock.this).constructorCall((Class)lhs,args);
+                        v = e.getInvoker().contextualize(FunctionCallBlock.this).constructorCall((Class)lhs, expandedArgs);
                     } catch (Throwable t) {
                         if (t instanceof CpsCallableInvocation) {
-                            ((CpsCallableInvocation) t).checkMismatch(lhs, Collections.singletonList(name));
+                            ((CpsCallableInvocation) t).checkMismatch(lhs, List.of(name));
                         }
                         return throwException(e, t, loc, new ReferenceStackTrace());
                     }
@@ -112,7 +113,7 @@ public class FunctionCallBlock extends CallSiteBlockSupport {
                     if (safe && lhs == null) {
                         return k.receive(null);
                     } else {
-                        return methodCall(e, loc, k, FunctionCallBlock.this, lhs, name, args);
+                        return methodCall(e, loc, k, FunctionCallBlock.this, lhs, name, expandedArgs);
                     }
                 }
             }
@@ -125,11 +126,11 @@ public class FunctionCallBlock extends CallSiteBlockSupport {
      * Insert the logical CPS stack trace in front of the actual stack trace.
      */
     private void fillInStackTrace(Env e, Throwable t) {
-        List<StackTraceElement> stack = new ArrayList<StackTraceElement>();
+        List<StackTraceElement> stack = new ArrayList<>();
         stack.add((loc!=null ? loc : UNKNOWN).toStackTrace());
         e.buildStackTraceElements(stack,Integer.MAX_VALUE);
         stack.add(Continuable.SEPARATOR_STACK_ELEMENT);
-        stack.addAll(Arrays.asList(t.getStackTrace()));
+        stack.addAll(List.of(t.getStackTrace()));
         t.setStackTrace(stack.toArray(new StackTraceElement[stack.size()]));
     }
 

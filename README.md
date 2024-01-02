@@ -78,3 +78,8 @@ The executor widget only displays an entry for the “flyweight” executor on t
 * [Continuation, Next, and Env](doc/cps-model.md) and how we interpret Groovy program
 * [How interpreted program is represented](doc/block-tree.md)
 * [CPS + Sandbox](doc/sandbox.md)
+
+## Development
+
+When developing the editor, edit `plugin/package.json` to set `mvnbuild` to `yarn dev` instead of `yarn prod`.
+This will allow you to do in situ debugging of JavaScript in your browser.

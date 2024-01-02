@@ -46,9 +46,7 @@ public class LogicalOpBlock implements Block {
         }
 
         public Next castRhs(Object rhs) {
-            return castToBoolean(rhs, e, v -> {
-                return k.receive(v);
-            });
+            return castToBoolean(rhs, e, k::receive);
         }
 
         private static final long serialVersionUID = 1L;

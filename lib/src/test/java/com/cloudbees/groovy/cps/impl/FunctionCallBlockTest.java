@@ -47,7 +47,7 @@ public class FunctionCallBlockTest extends AbstractGroovyCpsTest {
 
     @Test
     public void stackTraceFixup() throws Throwable {
-        List<StackTraceElement> elements = Arrays.asList((StackTraceElement[]) evalCPSonly(
+        List<StackTraceElement> elements = List.of((StackTraceElement[]) evalCPSonly(
             "\n" +
             "\n" +
             "def x() {\n" +

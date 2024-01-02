@@ -32,6 +32,8 @@ import com.cloudbees.groovy.cps.impl.PropertyAccessBlock;
 import com.cloudbees.groovy.cps.impl.ReturnBlock;
 import com.cloudbees.groovy.cps.impl.SequenceBlock;
 import com.cloudbees.groovy.cps.impl.SourceLocation;
+import com.cloudbees.groovy.cps.impl.SpreadBlock;
+import com.cloudbees.groovy.cps.impl.SpreadMapBlock;
 import com.cloudbees.groovy.cps.impl.StaticFieldBlock;
 import com.cloudbees.groovy.cps.impl.SuperBlock;
 import com.cloudbees.groovy.cps.impl.SwitchBlock;
@@ -49,7 +51,6 @@ import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import java.util.*;
 
 import static com.cloudbees.groovy.cps.Block.*;
-import static java.util.Arrays.*;
 
 /**
  * Builder pattern for constructing {@link Block}s into a tree.
@@ -77,7 +78,7 @@ public class Builder {
     private Collection<CallSiteTag> combine(Collection<CallSiteTag> a, Collection<CallSiteTag> b) {
         if (a.isEmpty())    return b;
         if (b.isEmpty())    return a;
-        Collection<CallSiteTag> all = new ArrayList<CallSiteTag>(a);
+        Collection<CallSiteTag> all = new ArrayList<>(a);
         all.addAll(b);
         return all;
     }
@@ -98,7 +99,7 @@ public class Builder {
      * @see Invoker#contextualize(CallSiteBlock)
      */
     public Builder contextualize(CallSiteTag... tags) {
-        return new Builder(this,Arrays.asList(tags));
+        return new Builder(this,List.of(tags));
     }
 
     /**
@@ -287,7 +288,7 @@ public class Builder {
     }
 
     public Block tryCatch(Block body, Block finally_, CatchExpression... catches) {
-        return tryCatch(body, asList(catches), finally_);
+        return tryCatch(body, List.of(catches), finally_);
     }
 
 
@@ -587,7 +588,7 @@ public class Builder {
      *      be used in all other cases, such as Java-syntax casts and implicit casts inserted by the Groovy runtime.
      */
     public Block cast(int line, Block block, Class type, boolean coerce) {
-        return new CastBlock(loc(line), block, type, false, coerce, false);
+        return new CastBlock(loc(line), tags, block, type, false, coerce, false);
     }
 
     /**
@@ -721,7 +722,7 @@ public class Builder {
      * @see #case_(int, Block, Block)
      */
     public Block switch_(String label, Block switchExp, Block defaultStmt, CaseExpression... caseExps) {
-        return new SwitchBlock(label, switchExp, defaultStmt, Arrays.asList(caseExps));
+        return new SwitchBlock(label, switchExp, defaultStmt, List.of(caseExps));
     }
 
     public CaseExpression case_(int line, Block matcher, Block body) {
@@ -730,6 +731,14 @@ public class Builder {
 
     public Block yield(Object o) {
         return new YieldBlock(o);
+    }
+
+    public Block spread(int line, Block list) {
+        return new SpreadBlock(loc(line), list);
+    }
+
+    public Block spreadMap(int line, Block map) {
+        return new SpreadMapBlock(loc(line), map);
     }
 
     private SourceLocation loc(int line) {

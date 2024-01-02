@@ -165,7 +165,7 @@ public class ParallelStep extends Step {
                 // all done
                 List<Throwable> toAttach = new ArrayList<>(handler.failures);
                 if (!handler.failFast) {
-                    Collections.sort(toAttach, new ThrowableComparator(new ArrayList<>(handler.failures)));
+                    toAttach.sort(new ThrowableComparator(new ArrayList<>(handler.failures)));
                 }
                 if (!toAttach.isEmpty()) {
                     Throwable head = toAttach.get(0);

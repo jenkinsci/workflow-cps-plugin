@@ -6,7 +6,7 @@ import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 
-import java.util.Arrays;
+import java.util.List;
 
 /**
  * Gets a value from local variable and removes it.
@@ -30,5 +30,5 @@ public class SuspendBlock implements Block {
     /**
      * CPS Definition of the {@link Continuable#suspend(Object)} method.
      */
-    public static final CpsFunction SUSPEND = new CpsFunction(Arrays.asList("suspendValue"),new SuspendBlock());
+    public static final CpsFunction SUSPEND = new CpsFunction(List.of("suspendValue"),new SuspendBlock());
 }

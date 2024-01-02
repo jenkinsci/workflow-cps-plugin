@@ -11,8 +11,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
+import hudson.model.TaskListener;
 import jenkins.model.Jenkins;
 import jenkins.util.InterceptingExecutorService;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 /**
  * {@link ExecutorService} for running CPS VM.
@@ -53,13 +56,40 @@ class CpsVmExecutorService extends InterceptingExecutorService {
      * That makes it worth reporting.
      */
     private void reportProblem(Throwable t) {
+        if (cpsThreadGroup.getExecution().isComplete()) {
+            // We probably already got here once with the actual root cause, and in all likelihood the interesting part
+            // of the stack trace has been lost to the async boundary and the error is just a side effect of the
+            // execution being complete.
+            LOGGER.log(Level.FINE, t, () -> "Unexpected exception in CPS VM thread and execution is already complete: " + cpsThreadGroup.getExecution());
+            return;
+        }
         LOGGER.log(Level.WARNING, "Unexpected exception in CPS VM thread: " + cpsThreadGroup.getExecution(), t);
+        // Give steps a chance to clean up.
+        for (CpsThread thread : cpsThreadGroup.getThreads()) {
+            StepExecution se = thread.getStep();
+            if (se != null) {
+                try {
+                    se.stop(t);
+                    TaskListener listener = se.getContext().get(TaskListener.class);
+                    FlowNode node = se.getContext().get(FlowNode.class);
+                    if (listener != null && node != null) {
+                        listener.getLogger().println("Terminating " + node.getDisplayFunctionName() + " (id: " + node.getId() + ")");
+                    }
+                } catch (Throwable e) {
+                    t.addSuppressed(e);
+                }
+            }
+        }
         cpsThreadGroup.getExecution().croak(t);
+        // cpsThreadGroup.run() must not execute again. We shut this executor service down after stopping steps and completing the build rather than before
+        // to avoid RejectedExecutionExceptions inside of StepExecution.stop above as the steps try to call
+        // StepContext.onFailure which eventually submits a task to this executor service to trigger CpsThreadGroup.run.
+        shutdown();
     }
 
     @Override
     protected <V> Callable<V> wrap(final Callable<V> r) {
-        return new Callable<V>() {
+        return new Callable<>() {
             @Override
             public V call() throws Exception {
                 ThreadContext context = setUp();

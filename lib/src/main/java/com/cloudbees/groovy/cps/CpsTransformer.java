@@ -227,12 +227,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         final AtomicReference<Expression> body = new AtomicReference<>();
 
         // transform the body
-        parent = new ParentClosure() {
-            @Override
-            public void call(Expression e) {
-                body.set(e);
-            }
-        };
+        parent = body::set;
         visitWithSafepoint(m.getCode());
 
         ListExpression params = new ListExpression();
@@ -442,12 +437,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         final List<Expression> argExps = new ArrayList<>();
         ParentClosure old = parent;
         try {
-            parent = new ParentClosure() {
-                @Override
-                public void call(Expression e) {
-                    argExps.add(e);
-                }
-            };
+            parent = argExps::add;
             body.run(); // evaluate arguments
             return new TupleExpression(argExps);
         } finally {
@@ -942,8 +932,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                     params = new ListExpression(Collections.<Expression>singletonList(new ConstantExpression("it")));
                 } else {
                     Parameter[] paramArray = exp.getParameters();
-                    List<Expression> typesList = new ArrayList<Expression>(paramArray.length);
-                    List<Expression> paramsList = new ArrayList<Expression>(paramArray.length);
+                    List<Expression> typesList = new ArrayList<>(paramArray.length);
+                    List<Expression> paramsList = new ArrayList<>(paramArray.length);
                     // Note: This code currently ignores initial expressions for closure parameters.
                     // Be careful that any refactoring either maintains the status quo, or transforms these
                     // initial expressions in such a way that they are correctly intercepted by the sandbox.
@@ -1277,14 +1267,24 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void visitSpreadExpression(SpreadExpression expression) {
-        sourceUnit.addError(new SyntaxException("spread not yet supported for CPS transformation",
-                expression.getLineNumber(), expression.getColumnNumber()));
+        makeNode("spread", new Runnable() {
+            @Override
+            public void run() {
+                loc(expression);
+                visit(expression.getExpression());
+            }
+        });
     }
 
     @Override
     public void visitSpreadMapExpression(SpreadMapExpression expression) {
-        sourceUnit.addError(new SyntaxException("spread map not yet supported for CPS transformation",
-                expression.getLineNumber(), expression.getColumnNumber()));
+        makeNode("spreadMap", new Runnable() {
+            @Override
+            public void run() {
+                loc(expression);
+                visit(expression.getExpression());
+            }
+        });
     }
 
     @Override

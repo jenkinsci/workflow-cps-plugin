@@ -1,19 +1,27 @@
 import $ from 'jquery';
-import jenkinsJSModules from 'jenkins-js-modules';
-// Polyfill for window.requestAnimationFrame
-import 'raf/polyfill';
 // Import the resizable module to allow the textarea to be expanded
 import 'jquery-ui/ui/widgets/resizable';
 import { addSamplesWidget } from './samples';
 
+// Import ACE
+import ace from "ace-builds/src-noconflict/ace";
+import "ace-builds/src-noconflict/ext-language_tools";
+import "ace-builds/src-noconflict/mode-groovy";
+import "ace-builds/src-noconflict/snippets/javascript";
+import "ace-builds/src-noconflict/theme-tomorrow";
+import "ace-builds/src-noconflict/theme-tomorrow_night";
+
+// Import custom snippets
+import "./snippets/workflow";
+
 var editorIdCounter = 0;
 
-// The Jenkins 'ace-editor:ace-editor-122' plugin doesn't support a synchronous
-// require option. This is because of how the ACE editor is written. So, we need
-// to use lower level jenkins-js-modules async 'import' to get a handle on a
-// specific version of ACE, from which we create an editor instance for workflow.
-jenkinsJSModules.import('ace-editor:ace-editor-122')
-    .onFulfilled(function (acePack) {
+function setTheme(editor) {
+    const theme = window.getThemeManagerProperty('ace-editor', 'theme') || 'tomorrow'
+    editor.setTheme("ace/theme/" + theme);
+}
+
+$(function() {
         $('.workflow-editor-wrapper').each(function() {
             initEditor($(this));
         });
@@ -30,26 +38,28 @@ jenkinsJSModules.import('ace-editor:ace-editor-122')
             var editorId = 'workflow-editor-' + editorIdCounter;
             aceContainer.attr('id', editorId);
 
-            // The 'ace-editor:ace-editor-122' plugin supplies an "ACEPack" object.
-            // ACEPack understands the hardwired async nature of the ACE impl and so
-            // provides some async ACE script loading functions.
-
-            acePack.edit(editorId, function() {
-                var ace = acePack.ace;
-                var editor = this.editor;
+                var editor = ace.edit(editorId);
 
                 // Attach the ACE editor instance to the element. Useful for testing.
                 var $wfEditor = $('#' + editorId);
                 $wfEditor.get(0).aceEditor = editor;
 
-                acePack.addPackOverride('snippets/groovy.js', '../workflow-cps/snippets/workflow.js');
-
-                acePack.addScript('ext-language_tools.js', function() {
-                    ace.require("ace/ext/language_tools");
-
-                    editor.$blockScrolling = Infinity;
+                // https://stackoverflow.com/a/66923593
+                var snippetManager = ace.require('ace/snippets').snippetManager;
+                var snippetContent = ace.require('ace/snippets/groovy').snippetText;
+                var snippets = snippetManager.parseSnippetFile(snippetContent);
+                snippetManager.register(snippets, 'groovy');
                     editor.session.setMode("ace/mode/groovy");
-                    editor.setTheme("ace/theme/tomorrow");
+                    if (window.getThemeManagerProperty) {
+                        setTheme(editor);
+
+                        if (window.isSystemRespectingTheme) {
+                            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                                setTheme(editor)
+                            });
+                        }
+
+                    }
                     editor.setAutoScrollEditorIntoView(true);
                     editor.setOption("minLines", 20);
                     // enable autocompletion and snippets
@@ -60,7 +70,8 @@ jenkinsJSModules.import('ace-editor:ace-editor-122')
                     });
 
                     editor.setValue(textarea.val(), 1);
-                    editor.getSession().on('change', function() {
+                    // eslint-disable-next-line no-unused-vars
+                    editor.getSession().on('change', function(delta) {
                         textarea.val(editor.getValue());
                         showSamplesWidget();
                     });
@@ -70,31 +81,35 @@ jenkinsJSModules.import('ace-editor:ace-editor-122')
                         var url = textarea.attr("checkUrl") + 'Compile';
 
 
-                        // eslint-disable-next-line no-undef
-                        new Ajax.Request(url, { // jshint ignore:line
+                        fetch(url, {
                             method: textarea.attr('checkMethod') || 'POST',
-                            parameters: {
-                                value: editor.getValue()
-                            },
-                            onSuccess : function(data) {
-                                var json = data.responseJSON;
-                                var annotations = [];
-                                if (json.status && json.status === 'success') {
-                                    // Fire script approval check - only if the script is syntactically correct
-                                    textarea.trigger('change');
-                                    return;
-                                } else {
-                                    // Syntax errors
-                                    $.each(json, function(i, value) {
-                                        annotations.push({
-                                            row: value.line - 1,
-                                            column: value.column,
-                                            text: value.message,
-                                            type: 'error'
+                            headers: crumb.wrap({  // eslint-disable-line no-undef
+                                "Content-Type": "application/x-www-form-urlencoded",
+                            }),
+                            body: new URLSearchParams({
+                                value: editor.getValue(),
+                            }),
+                        }).then((rsp) => {
+                            if (rsp.ok) {
+                                rsp.json().then((json) => {
+                                    var annotations = [];
+                                    if (json.status && json.status === 'success') {
+                                        // Fire script approval check - only if the script is syntactically correct
+                                        textarea.trigger('change');
+                                        return;
+                                    } else {
+                                        // Syntax errors
+                                        $.each(json, function(i, value) {
+                                            annotations.push({
+                                                row: value.line - 1,
+                                                column: value.column,
+                                                text: value.message,
+                                                type: 'error'
+                                            });
                                         });
-                                    });
-                                }
-                                editor.getSession().setAnnotations(annotations);
+                                    }
+                                    editor.getSession().setAnnotations(annotations);
+                                });
                             }
                         });
                     });
@@ -108,7 +123,6 @@ jenkinsJSModules.import('ace-editor:ace-editor-122')
                         }
                     }
                     showSamplesWidget();
-                });
 
                 // Make the editor resizable using jQuery UI resizable (http://api.jqueryui.com/resizable).
                 // ACE Editor doesn't have this as a config option.
@@ -129,9 +143,8 @@ jenkinsJSModules.import('ace-editor:ace-editor-122')
                         })
                     },
                 });
-            });
 
             wrapper.show();
             textarea.hide();
         }
-    });
+});

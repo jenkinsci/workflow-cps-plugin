@@ -46,6 +46,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import jenkins.model.Jenkins;
 import jenkins.scm.api.SCMFileSystem;
@@ -85,6 +86,11 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         return scm;
     }
 
+    @Override
+    public Collection<? extends SCM> getSCMs() {
+       return Collections.singletonList(scm);
+    }
+
     public String getScriptPath() {
         return scriptPath;
     }
@@ -99,7 +105,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
 
     @SuppressFBWarnings(
             value = {"NP_LOAD_OF_KNOWN_NULL_VALUE", "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE",
-                    "RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE", "RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE"},
+                    "RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE"},
             justification = "false positives for try-resource in java 11"
     )
     @Override public CpsFlowExecution create(FlowExecutionOwner owner, TaskListener listener, List<? extends Action> actions) throws Exception {
@@ -115,7 +121,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         Run<?,?> build = (Run<?,?>) _build;
         String expandedScriptPath = build.getEnvironment(listener).expand(scriptPath);
         if (isLightweight()) {
-            try (SCMFileSystem fs = SCMFileSystem.of(build.getParent(), scm)) {
+            try (SCMFileSystem fs = SCMFileSystem.of(build.getParent(), scm, null, build)) {
                 if (fs != null) {
                     try {
                         String script = fs.child(expandedScriptPath).contentAsString();

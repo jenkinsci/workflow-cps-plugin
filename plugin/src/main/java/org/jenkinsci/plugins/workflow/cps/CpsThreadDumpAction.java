@@ -60,14 +60,14 @@ public final class CpsThreadDumpAction implements Action {
         return execution.getThreadDump();
     }
 
-    public String getThreadDump() {
-        return execution.getThreadDump().toString();
+    public CpsThreadDump getThreadDump() {
+        return execution.getThreadDump();
     }
 
     @WebMethod(name = "program.xml") public void doProgramDotXml(StaplerRequest req, StaplerResponse rsp) throws Exception {
-        Jenkins.get().checkPermission(Jenkins.RUN_SCRIPTS);
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         CompletableFuture<String> f = new CompletableFuture<>();
-        execution.runInCpsVmThread(new FutureCallback<CpsThreadGroup>() {
+        execution.runInCpsVmThread(new FutureCallback<>() {
             @Override public void onSuccess(CpsThreadGroup g) {
                 try {
                     f.complete(g.asXml());
@@ -95,11 +95,15 @@ public final class CpsThreadDumpAction implements Action {
     @Extension(optional=true) public static class PipelineThreadDump extends Component {
 
         @Override public Set<Permission> getRequiredPermissions() {
-            return Collections.singleton(Jenkins.ADMINISTER);
+            return Set.of(Jenkins.ADMINISTER);
         }
 
         @Override public String getDisplayName() {
             return "Thread dumps of running Pipeline builds";
+        }
+
+        @Override public ComponentCategory getCategory() {
+            return ComponentCategory.BUILDS;
         }
 
         @Override public void addContents(Container container) {

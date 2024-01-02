@@ -44,9 +44,7 @@ public class NotBlock implements Block {
         }
 
         public Next cast(Object o) {
-            return castToBoolean(o, e, b -> {
-                return k.receive(!b);
-            });
+            return castToBoolean(o, e, b -> k.receive(!b));
         }
 
         private static final long serialVersionUID = 1L;

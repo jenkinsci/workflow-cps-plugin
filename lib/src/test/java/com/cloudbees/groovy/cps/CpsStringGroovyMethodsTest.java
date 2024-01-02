@@ -1,6 +1,7 @@
 package com.cloudbees.groovy.cps;
 
 import java.util.Arrays;
+import java.util.List;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -27,9 +28,9 @@ public class CpsStringGroovyMethodsTest extends AbstractGroovyCpsTest {
 
     @Test
     public void findAll() throws Throwable {
-        assertEvaluate(Arrays.asList("oof", "oof", "oof"),
+        assertEvaluate(List.of("oof", "oof", "oof"),
                 "'foobarfoobarfoo'.findAll('foo') { it.reverse() }");
-        assertEvaluate(Arrays.asList("oof", "oof", "oof"),
+        assertEvaluate(List.of("oof", "oof", "oof"),
                 "'foobarfoobarfoo'.findAll(~/foo/) { it.reverse() }");
     }
 

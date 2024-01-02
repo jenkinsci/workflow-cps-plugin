@@ -57,11 +57,11 @@ public final class Next implements Serializable, Continuation {
 
     /** for testing only */
     public Outcome run(final int max) {
-        return GroovyCategorySupport.use(Continuable.categories, new Closure<Outcome>(null) {
+        return GroovyCategorySupport.use(Continuable.categories, new Closure<>(null) {
             @Override
             public Outcome call() {
                 int remaining = max;
-                List<String> functions = new ArrayList<String>();
+                List<String> functions = new ArrayList<>();
                 Next n = Next.this;
                 while(n.yield==null) {
                     functions.add(n.f.getClass().getCanonicalName());

@@ -1,9 +1,9 @@
 package org.jenkinsci.plugins.workflow.cps;
 
-import com.gargoylesoftware.htmlunit.HttpMethod;
-import com.gargoylesoftware.htmlunit.WebRequest;
-import com.gargoylesoftware.htmlunit.WebResponse;
-import com.gargoylesoftware.htmlunit.util.NameValuePair;
+import org.htmlunit.HttpMethod;
+import org.htmlunit.WebRequest;
+import org.htmlunit.WebResponse;
+import org.htmlunit.util.NameValuePair;
 import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
 import hudson.model.Describable;

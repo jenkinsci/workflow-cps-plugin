@@ -42,18 +42,23 @@
     </licenses>
     <properties>
         <no-test-jar>false</no-test-jar>
-        <node.version>16.17.0</node.version>
-        <npm.version>8.18.0</npm.version>
+        <node.version>18.15.0</node.version>
         <yarn.version>1.22.19</yarn.version>
     </properties>
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.346.x</artifactId>
-                <version>1654.vcb_69d035fa_20</version>
+                <artifactId>bom-2.387.x</artifactId>
+                <version>2378.v3e03930028f2</version>
                 <scope>import</scope>
                 <type>pom</type>
+            </dependency>
+            <!-- TODO until in BOM: -->
+            <dependency>
+              <groupId>org.jenkins-ci.plugins</groupId>
+              <artifactId>support-core</artifactId>
+              <version>1366.v9d076592655d</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -98,6 +103,10 @@
                 <exclusion>
                     <groupId>com.github.stephenc.findbugs</groupId>
                     <artifactId>findbugs-annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.jenkins.lib</groupId>
+                    <artifactId>support-log-formatter</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -166,16 +175,6 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.jenkins-ci.ui</groupId>
-            <artifactId>ace-editor</artifactId>
-            <exclusions>
-                <exclusion> <!-- TODO remove when ace-editor is refreshed -->
-                    <groupId>javax.servlet</groupId>
-                    <artifactId>servlet-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
             <groupId>com.cloudbees</groupId>
             <artifactId>diff4j</artifactId>
             <version>1.3</version>
@@ -240,6 +239,16 @@
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>subversion</artifactId>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.sshd</groupId>
+                    <artifactId>sshd-common</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.sshd</groupId>
+                    <artifactId>sshd-core</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -250,7 +259,7 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.17.5</version>
+            <version>1.19.3</version>
             <scope>test</scope>
             <exclusions>
                 <!-- Provided by Jenkins core -->
@@ -267,7 +276,7 @@
         <dependency>
             <groupId>org.tmatesoft.svnkit</groupId>
             <artifactId>svnkit-cli</artifactId>
-            <version>1.10.8</version>
+            <version>1.10.10</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

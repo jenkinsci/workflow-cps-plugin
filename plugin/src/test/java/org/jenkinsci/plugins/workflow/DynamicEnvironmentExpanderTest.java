@@ -24,7 +24,6 @@
 
 package org.jenkinsci.plugins.workflow;
 
-import com.google.common.collect.ImmutableSet;
 import hudson.EnvVars;
 import hudson.model.EnvironmentContributor;
 import hudson.model.Run;
@@ -204,7 +203,7 @@ public class DynamicEnvironmentExpanderTest {
 
         @TestExtension("perStepEnvironment") public static class DescriptorImpl extends StepDescriptor {
             @Override public String getFunctionName() { return "printEnv"; }
-            @Override public Set<? extends Class<?>> getRequiredContext() { return ImmutableSet.of(EnvVars.class, TaskListener.class); }
+            @Override public Set<? extends Class<?>> getRequiredContext() { return Set.of(EnvVars.class, TaskListener.class); }
         }
     }
 

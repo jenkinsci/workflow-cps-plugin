@@ -175,7 +175,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             this.isUnmodifiedBySanitization = false;
             return NotStoredReason.OVERSIZE_VALUE;
         }
-        List inputList = Arrays.asList(objects);
+        List<Object> inputList = Arrays.asList(objects);
         Object sanitized = sanitizeListAndRecordMutation(inputList, variables);
         if (sanitized == inputList) { // Works because if not mutated, we return original input instance
             return objects;

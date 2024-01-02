@@ -57,7 +57,7 @@ steps.each { StepDescriptor step, DescribableModel model ->
 
     boolean requiresNode = step.requiredContext.contains(FilePath)
     boolean takesClosure = step.takesImplicitBlockArgument()
-    def sanitizedDisplayName = StringEscapeUtils.escapeJavaScript(step.displayName)
+    def sanitizedDisplayName = StringEscapeUtils.escapeJava(step.displayName).replace('\'', '\\\'')
     String description = sanitizedDisplayName
     if (step.isAdvanced()) {
         description = "Advanced/Deprecated " + description

@@ -21,7 +21,7 @@ public interface Block extends Serializable {
     /**
      * A function that does nothing.
      */
-    final static Block NOOP = new Noop();
+    Block NOOP = new Noop();
 
     final class Noop implements Block {
         private Noop() {}

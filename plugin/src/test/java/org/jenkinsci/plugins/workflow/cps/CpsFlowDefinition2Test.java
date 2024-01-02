@@ -950,7 +950,7 @@ public class CpsFlowDefinition2Test {
         }
     }
 
-    public static interface UnsafeDescribable extends Describable<UnsafeDescribable> {
+    public interface UnsafeDescribable extends Describable<UnsafeDescribable> {
         void doSomething();
     }
 }

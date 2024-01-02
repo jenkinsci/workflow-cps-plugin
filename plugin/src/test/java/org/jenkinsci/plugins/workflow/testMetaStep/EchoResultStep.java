@@ -40,7 +40,7 @@ public class EchoResultStep extends Step implements Serializable {
 
         @Override
         public Set<? extends Class<?>> getRequiredContext() {
-            return Collections.singleton(TaskListener.class);
+            return Set.of(TaskListener.class);
         }
     }
 

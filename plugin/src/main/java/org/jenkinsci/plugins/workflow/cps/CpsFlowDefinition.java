@@ -47,7 +47,6 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 
 import net.sf.json.JSON;
@@ -105,7 +104,7 @@ public class CpsFlowDefinition extends FlowDefinition {
 
     // Used only from Groovy tests.
     public CpsFlowExecution create(FlowExecutionOwner handle, Action... actions) throws IOException {
-        return create(handle, StreamTaskListener.fromStderr(), Arrays.asList(actions));
+        return create(handle, StreamTaskListener.fromStderr(), List.of(actions));
     }
 
     @Override

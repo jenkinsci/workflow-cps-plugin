@@ -43,10 +43,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.logging.Level;
+
 import jenkins.model.Jenkins;
+import jenkins.plugins.git.GitSCMFileSystem;
 import jenkins.plugins.git.GitSampleRepoRule;
 import jenkins.plugins.git.GitStep;
 import jenkins.scm.impl.subversion.SubversionSampleRepoRule;
@@ -59,6 +63,8 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -70,6 +76,7 @@ import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.SingleFileSCM;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -195,6 +202,26 @@ public class CpsScmFlowDefinitionTest {
         r.assertLogContains("version one", b);
     }
 
+    @Issue("JENKINS-42971")
+    @Test
+    public void lightweight_branch_parametrised() throws Exception {
+        sampleRepo.init();
+        sampleRepo.git("checkout", "-b", "master2");
+        sampleRepo.write("flow.groovy", "echo 'version one'");
+        sampleRepo.git("add", "flow.groovy");
+        sampleRepo.git("commit", "--message=init");
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("BRANCH", "")));
+        GitSCM scm = new GitSCM(GitSCM.createRepoList(sampleRepo.toString(), null),
+                Collections.singletonList(new BranchSpec("${BRANCH}")), null, null, Collections.emptyList());
+
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(scm, "flow.groovy");
+        def.setLightweight(true);
+        p.setDefinition(def);
+
+        r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("BRANCH", "master2"))));
+    }
+
     @Issue("JENKINS-59425")
     @Test public void missingFile() throws Exception {
         sampleRepo.init();
@@ -233,8 +260,8 @@ public class CpsScmFlowDefinitionTest {
         sampleRepo.write("flow.groovy", "echo 'version two'");
         sampleRepo.git("commit", "--all", "--message=two");
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        CpsScmFlowDefinition def = new CpsScmFlowDefinition(new GitSCM(Collections.singletonList(new UserRemoteConfig(sampleRepo.fileUrl(), null, null, null)),
-            Collections.singletonList(new BranchSpec("${VERSION}")),
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(new GitSCM(List.of(new UserRemoteConfig(sampleRepo.fileUrl(), null, null, null)),
+            List.of(new BranchSpec("${VERSION}")),
             false, Collections.<SubmoduleConfig>emptyList(), null, null, Collections.<GitSCMExtension>emptyList()), "flow.groovy");
         def.setLightweight(false); // TODO SCMFileSystem.of cannot pick up build parameters
         p.setDefinition(def);
@@ -252,8 +279,8 @@ public class CpsScmFlowDefinitionTest {
         sampleRepo.git("add", "otherFlow.groovy");
         sampleRepo.git("commit", "--all", "--message=commits");
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        CpsScmFlowDefinition def = new CpsScmFlowDefinition(new GitSCM(Collections.singletonList(new UserRemoteConfig(sampleRepo.fileUrl(), null, null, null)),
-                Collections.singletonList(new BranchSpec("master")),
+        CpsScmFlowDefinition def = new CpsScmFlowDefinition(new GitSCM(List.of(new UserRemoteConfig(sampleRepo.fileUrl(), null, null, null)),
+                List.of(new BranchSpec("master")),
                 false, Collections.<SubmoduleConfig>emptyList(), null, null, Collections.<GitSCMExtension>emptyList()), "${SCRIPT_PATH}");
 
         p.setDefinition(def);
