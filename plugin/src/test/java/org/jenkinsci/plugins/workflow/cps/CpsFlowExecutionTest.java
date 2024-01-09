@@ -33,6 +33,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -49,6 +50,7 @@ import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.TaskListener;
 import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
@@ -911,6 +913,17 @@ public class CpsFlowExecutionTest {
             List<FlowNode> nodes = new DepthFirstScanner().allNodes(b.getExecution());
             assertThat(nodes.stream().map(FlowNode::getDisplayFunctionName).collect(Collectors.toList()), equalTo(
                     List.of("End of Pipeline", "echo", "semaphore", "echo", "Start of Pipeline")));
+        });
+    }
+
+    @Test public void flowNodesCantBeSavedAfterExecutionCompletes() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("echo 'Hello, world!'", true));
+            WorkflowRun b = r.buildAndAssertSuccess(p);
+            FlowNode echoStep = b.getExecution().getNode("3");
+            IOException e = assertThrows(IOException.class, echoStep::save);
+            assertThat(e.getMessage(), containsString("Cannot save actions for " + echoStep + " for completed execution " + b.getExecution()));
         });
     }
 
