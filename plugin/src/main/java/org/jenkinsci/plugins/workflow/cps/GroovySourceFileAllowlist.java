@@ -29,6 +29,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
+import hudson.Main;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,6 +37,7 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
@@ -186,6 +188,15 @@ public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
                 }
             }
             loadDefaultAllowlist(ALLOWED_SOURCE_FILES);
+            // Some plugins use test-specific Groovy DSLs.
+            if (Main.isUnitTest) {
+                ALLOWED_SOURCE_FILES.addAll(List.of(
+                        // pipeline-model-definition
+                        "/org/jenkinsci/plugins/pipeline/modeldefinition/agent/impl/LabelAndOtherFieldAgentScript.groovy",
+                        "/org/jenkinsci/plugins/pipeline/modeldefinition/parser/GlobalStageNameTestConditionalScript.groovy",
+                        "/org/jenkinsci/plugins/pipeline/modeldefinition/parser/GlobalStepCountTestConditionalScript.groovy"
+                ));
+            }
         }
 
         private static void loadDefaultAllowlist(List<String> allowlist) throws IOException {
