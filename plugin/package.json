@@ -30,7 +30,7 @@
     "eslint-plugin-only-warn": "^1.1.0",
     "less": "^3.12.2",
     "less-loader": "^7.0.2",
-    "mini-css-extract-plugin": "^1.2.1",
+    "mini-css-extract-plugin": "^2.7.7",
     "postcss": "^8.2.13",
     "postcss-less": "^4.0.0",
     "postcss-loader": "^4.0.4",
