@@ -267,7 +267,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      *
      * @see #runInCpsVmThread(FutureCallback)
      */
-    @SuppressFBWarnings(value = "PA_PUBLIC_PRIMITIVE_ATTRIBUTE", justification = "Preserve API compatibility.")
+    @SuppressFBWarnings(value = "PA_PUBLIC_PRIMITIVE_ATTRIBUTE", justification = "TODO clean up")
     public transient volatile ListenableFuture<CpsThreadGroup> programPromise;
     private transient volatile Collection<ListenableFuture<?>> pickleFutures;
 
