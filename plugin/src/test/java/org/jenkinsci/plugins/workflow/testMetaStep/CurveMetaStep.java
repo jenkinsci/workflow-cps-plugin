@@ -24,17 +24,17 @@
 
 package org.jenkinsci.plugins.workflow.testMetaStep;
 
-import com.google.inject.Inject;
 import hudson.Extension;
 import hudson.model.TaskListener;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
-import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
-import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
+import java.util.Set;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.steps.StepExecutions;
 import org.kohsuke.stapler.DataBoundConstructor;
 
-public class CurveMetaStep extends AbstractStepImpl {
+public class CurveMetaStep extends Step {
 
     public final Curve curve;
 
@@ -42,26 +42,11 @@ public class CurveMetaStep extends AbstractStepImpl {
         this.curve = curve;
     }
 
-    public static final class Execution extends AbstractStepExecutionImpl {
-
-        private static final long serialVersionUID = 1L;
-
-        @Inject private transient CurveMetaStep step;
-        @StepContextParameter private transient TaskListener listener;
-
-        @Override public boolean start() throws Exception {
-            listener.getLogger().println("wrapping in a " + step.curve.getDescription());
-            getContext().newBodyInvoker().withCallback(BodyExecutionCallback.wrap(getContext())).start();
-            return false;
-        }
-
+    @Override public StepExecution start(StepContext context) throws Exception {
+        return StepExecutions.block(context, (c, invoker) -> c.get(TaskListener.class).getLogger().println("wrapping in a " + curve.getDescription()));
     }
 
-    @Extension public static class DescriptorImpl extends AbstractStepDescriptorImpl {
-
-        public DescriptorImpl() {
-            super(Execution.class);
-        }
+    @Extension public static class DescriptorImpl extends StepDescriptor {
 
         @Override public String getFunctionName() {
             return "wrapInCurve";
@@ -73,6 +58,10 @@ public class CurveMetaStep extends AbstractStepImpl {
 
         @Override public boolean isMetaStep() {
             return true;
+        }
+
+        @Override public Set<? extends Class<?>> getRequiredContext() {
+            return Set.of(TaskListener.class);
         }
 
     }
