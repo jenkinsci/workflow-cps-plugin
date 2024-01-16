@@ -1,7 +1,7 @@
 package org.jenkinsci.plugins.workflow.cps.steps;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import groovy.lang.GroovyShell;
 import hudson.FilePath;
 import hudson.model.Result;
