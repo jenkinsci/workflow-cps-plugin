@@ -149,18 +149,23 @@ public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
     }
 
     @Extension
+    @SuppressFBWarnings(value = "NP_BOOLEAN_RETURN_NULL", justification = "intentionally not caching negative results")
     public static class AllowedGroovyResourcesCache {
         private final Map<String, Boolean> cache = new ConcurrentHashMap<>();
 
         public boolean isAllowed(String groovySourceFileUrl) {
-            return cache.computeIfAbsent(groovySourceFileUrl, url -> {
+            Boolean cachedResult = cache.computeIfAbsent(groovySourceFileUrl, url -> {
                 for (GroovySourceFileAllowlist allowlist : GroovySourceFileAllowlist.all()) {
                     if (allowlist.isAllowed(url)) {
                         return true;
                     }
                 }
-                return false;
+                // In practice we should only get here with files that are allowed, so we don't cache negative
+                // results in case it would cause problems with unusual Pipelines that reference Groovy source
+                // files directly in combination with dynamically installed plugins.
+                return null;
             });
+            return Boolean.TRUE.equals(cachedResult);
         }
     }
 
