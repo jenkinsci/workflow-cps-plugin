@@ -700,7 +700,7 @@ public class ArgumentsActionImplTest {
         public NopStep(Object value) {}
         @Override
         public StepExecution start(StepContext context) throws Exception {
-            return StepExecutions.synchronous(context, unused -> null);
+            return StepExecutions.synchronousVoid(context, c -> {});
         }
         @TestExtension
         public static class DescriptorImpl extends StepDescriptor {

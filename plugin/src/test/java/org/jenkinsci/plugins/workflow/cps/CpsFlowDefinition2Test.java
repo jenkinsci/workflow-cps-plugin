@@ -30,7 +30,6 @@ import hudson.model.Computer;
 import hudson.model.Describable;
 import hudson.model.Executor;
 import hudson.model.Result;
-import java.io.Serializable;
 import java.util.Collections;
 import java.util.Set;
 import java.util.logging.Level;
@@ -927,17 +926,14 @@ public class CpsFlowDefinition2Test {
         jenkins.assertLogContains("Scripts not permitted to use field Test metaClass", b);
     }
 
-    public static class UnsafeParameterStep extends Step implements Serializable {
+    public static class UnsafeParameterStep extends Step {
         private final UnsafeDescribable val;
         @DataBoundConstructor
         public UnsafeParameterStep(UnsafeDescribable val) {
             this.val = val;
         }
-        public StepExecution start(StepContext context) throws Exception {
-            return StepExecutions.synchronousNonBlocking(context, c -> {
-                val.doSomething();
-                return null;
-            });
+        @Override public StepExecution start(StepContext context) throws Exception {
+            return StepExecutions.synchronousNonBlockingVoid(context, c -> val.doSomething());
         }
         @TestExtension
         public static class DescriptorImpl extends StepDescriptor {

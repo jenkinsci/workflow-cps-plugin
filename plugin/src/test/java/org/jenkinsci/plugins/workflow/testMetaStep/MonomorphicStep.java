@@ -27,10 +27,7 @@ public class MonomorphicStep extends Step {
     }
 
     @Override public StepExecution start(StepContext context) throws Exception {
-        return StepExecutions.synchronousNonBlocking(context, c -> {
-            c.get(TaskListener.class).getLogger().println(data.getArgs());
-            return null;
-        });
+        return StepExecutions.synchronousNonBlockingVoid(context, c -> c.get(TaskListener.class).getLogger().println(data.getArgs()));
     }
 
     @Extension

@@ -27,11 +27,10 @@ public class MonomorphicListStep extends Step {
     }
 
     @Override public StepExecution start(StepContext context) throws Exception {
-        return StepExecutions.synchronousNonBlocking(context, c -> {
+        return StepExecutions.synchronousNonBlockingVoid(context, c -> {
             for (MonomorphicData d : data) {
                 c.get(TaskListener.class).getLogger().println(d.getArgs());
             }
-            return null;
         });
     }
 

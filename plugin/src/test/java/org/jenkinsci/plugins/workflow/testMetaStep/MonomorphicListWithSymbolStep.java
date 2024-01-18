@@ -27,11 +27,10 @@ public class MonomorphicListWithSymbolStep extends Step {
     }
 
     @Override public StepExecution start(StepContext context) throws Exception {
-        return StepExecutions.synchronousNonBlocking(context, c -> {
+        return StepExecutions.synchronousNonBlockingVoid(context, c -> {
             for (MonomorphicDataWithSymbol d : data) {
                 c.get(TaskListener.class).getLogger().println(d.getArgs());
             }
-            return null;
         });
     }
 

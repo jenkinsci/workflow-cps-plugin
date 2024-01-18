@@ -39,13 +39,12 @@ public class StateMetaStep extends Step {
     }
 
     @Override public StepExecution start(StepContext context) throws Exception {
-        return StepExecutions.synchronousNonBlocking(context, c -> {
+        return StepExecutions.synchronousNonBlockingVoid(context, c -> {
             TaskListener listener = c.get(TaskListener.class);
             if (moderate) {
                 listener.getLogger().println("Introducing " + SymbolLookup.getSymbolValue(state).iterator().next());
             }
             state.sayHello(listener);
-            return null;
         });
     }
 
