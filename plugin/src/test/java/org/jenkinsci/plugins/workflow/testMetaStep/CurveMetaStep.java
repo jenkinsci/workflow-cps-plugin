@@ -43,8 +43,7 @@ public class CurveMetaStep extends Step {
     }
 
     @Override public StepExecution start(StepContext context) throws Exception {
-        String description = curve.getDescription();
-        return StepExecutions.block(context, (c, invoker) -> c.get(TaskListener.class).getLogger().println("wrapping in a " + description));
+        return StepExecutions.block(context, (c, invoker) -> c.get(TaskListener.class).getLogger().println("wrapping in a " + curve.getDescription()));
     }
 
     @Extension public static class DescriptorImpl extends StepDescriptor {
