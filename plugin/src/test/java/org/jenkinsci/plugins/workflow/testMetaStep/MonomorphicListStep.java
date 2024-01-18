@@ -1,22 +1,23 @@
 package org.jenkinsci.plugins.workflow.testMetaStep;
 
-import com.google.inject.Inject;
 import hudson.Extension;
 import hudson.model.TaskListener;
 import org.jenkinsci.plugins.workflow.cps.DSLTest;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousNonBlockingStepExecution;
-import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.util.List;
+import java.util.Set;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.steps.StepExecutions;
 
 /**
  * @author Andrew Bayer
  * @see DSLTest
  */
-public class MonomorphicListStep extends AbstractStepImpl {
+public class MonomorphicListStep extends Step {
 
     public final List<MonomorphicData> data;
 
@@ -25,28 +26,16 @@ public class MonomorphicListStep extends AbstractStepImpl {
         this.data = data;
     }
 
-    private static final class Execution extends AbstractSynchronousNonBlockingStepExecution<Void> {
-        @Inject
-        private transient MonomorphicListStep step;
-        @StepContextParameter
-        private transient TaskListener listener;
-
-        @Override protected Void run() throws Exception {
-            for (MonomorphicData d : step.data) {
-                listener.getLogger().println(d.getArgs());
+    @Override public StepExecution start(StepContext context) throws Exception {
+        return StepExecutions.synchronousNonBlockingVoid(context, c -> {
+            for (MonomorphicData d : data) {
+                c.get(TaskListener.class).getLogger().println(d.getArgs());
             }
-            return null;
-        }
-
-        private static final long serialVersionUID = 1L;
-
+        });
     }
 
     @Extension
-    public static final class DescriptorImpl extends AbstractStepDescriptorImpl {
-        public DescriptorImpl() {
-            super(Execution.class);
-        }
+    public static final class DescriptorImpl extends StepDescriptor {
 
         @Override public String getFunctionName() {
             return "monomorphListStep";
@@ -55,7 +44,11 @@ public class MonomorphicListStep extends AbstractStepImpl {
         @Override public String getDisplayName() {
             return "Testing monomorphic list single parameter.";
         }
-    }
 
+        @Override public Set<? extends Class<?>> getRequiredContext() {
+            return Set.of(TaskListener.class);
+        }
+
+    }
 
 }
