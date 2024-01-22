@@ -29,7 +29,7 @@
     "eslint": "^8.41.0",
     "eslint-plugin-only-warn": "^1.1.0",
     "less": "^3.12.2",
-    "less-loader": "^7.0.2",
+    "less-loader": "^12.1.0",
     "mini-css-extract-plugin": "^1.2.1",
     "postcss": "^8.2.13",
     "postcss-less": "^4.0.0",

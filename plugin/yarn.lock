@@ -1999,13 +1999,10 @@ klona@^2.0.4:
   version "2.0.5"
   resolved "https://registry.yarnpkg.com/klona/-/klona-2.0.5.tgz#d166574d90076395d9963aa7a928fabb8d76afbc"
 
-less-loader@^7.0.2:
-  version "7.3.0"
-  resolved "https://registry.yarnpkg.com/less-loader/-/less-loader-7.3.0.tgz#f9d6d36d18739d642067a05fb5bd70c8c61317e5"
-  dependencies:
-    klona "^2.0.4"
-    loader-utils "^2.0.0"
-    schema-utils "^3.0.0"
+less-loader@^12.1.0:
+  version "12.1.0"
+  resolved "https://registry.yarnpkg.com/less-loader/-/less-loader-12.1.0.tgz#d13878ed094c0fef87f12bb616c760eb5b366fca"
+  integrity sha512-N/MRZA9iILOW+TQ9xoDptsSPbtBJDWshOj3LNqL+UJAYDhtoraLECiBa93DeLJUfR4m/VE6bWuxaVs40+wBXYw==
 
 less@^3.12.2:
   version "3.13.1"
