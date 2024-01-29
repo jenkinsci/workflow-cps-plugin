@@ -39,6 +39,7 @@
         </pluginRepository>
     </pluginRepositories>
     <properties>
+        <jenkins-test-harness.version>2155.v07a_24a_eb_0e8b_</jenkins-test-harness.version>
         <changelist>999999-SNAPSHOT</changelist>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
         <jenkins.version>2.414.3</jenkins.version>
