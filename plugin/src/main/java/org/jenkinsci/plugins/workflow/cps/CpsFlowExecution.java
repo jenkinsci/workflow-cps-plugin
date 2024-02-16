@@ -912,7 +912,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /** Report a fatal error in the VM. */
     void croak(Throwable t) {
         setResult(Result.FAILURE);
-        if (startNodes == null || startNodes.isEmpty()) {
+        boolean noStartNodes;
+        synchronized (this) {
+            noStartNodes = startNodes == null || startNodes.isEmpty();
+        }
+        if (noStartNodes) {
             try {
                 createPlaceholderNodes(t);
             } catch (Exception x) {
