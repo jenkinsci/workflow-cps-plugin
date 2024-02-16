@@ -70,6 +70,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -564,6 +565,14 @@ public class ArgumentsActionImplTest {
         SemaphoreStep.success("wait/1", null);
         r.waitForCompletion(run);
         testDeserialize(run.getExecution());
+    }
+
+    @Test
+    public void nul() throws Exception {
+        var job = r.createProject(WorkflowJob.class);
+        job.setDefinition(new CpsFlowDefinition("echo 'one\\0two'; echo 'this part is fine'", true));
+        var store = r.buildAndAssertSuccess(job).getRootDir().toPath().resolve("workflow-completed/flowNodeStore.xml");
+        assertThat(store + " was written", Files.readString(store), containsString("this part is fine"));
     }
 
     @Test

@@ -31,7 +31,6 @@ import hudson.model.Describable;
 import hudson.model.Result;
 import java.util.Collection;
 import jenkins.model.Jenkins;
-import org.apache.commons.io.output.NullOutputStream;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
@@ -41,6 +40,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import java.io.OutputStream;
 import java.lang.reflect.Type;
 import java.net.URL;
 import java.util.ArrayList;
@@ -240,6 +240,9 @@ public class ArgumentsActionImpl extends ArgumentsAction {
                 this.isUnmodifiedBySanitization = true;
                 return NotStoredReason.UNSERIALIZABLE;
             }
+        } else if (modded instanceof String && ((String) modded).contains("\0")) {
+            this.isUnmodifiedBySanitization = false;
+            return "<contains ASCII NUL>";
         } else if (modded instanceof String && vars != null && !vars.isEmpty()) {
             String replaced = replaceSensitiveVariables((String)modded, vars, sensitiveVariables);
             if (!replaced.equals(modded)) {
@@ -282,7 +285,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             try {
                 if (val != null && !(val instanceof String) && !(val instanceof Boolean) && !(val instanceof Number) && !(val instanceof NotStoredReason) && !(val instanceof TimeUnit)) {
                     // We only need to check serialization for nontrivial types
-                    Jenkins.XSTREAM2.toXMLUTF8(entry.getValue(), NullOutputStream.NULL_OUTPUT_STREAM);  // Hacky but can't find a better way
+                    Jenkins.XSTREAM2.toXMLUTF8(entry.getValue(), OutputStream.nullOutputStream());  // Hacky but can't find a better way
                 }
                 out.put(entry.getKey(), entry.getValue());
             } catch (Exception ex) {
