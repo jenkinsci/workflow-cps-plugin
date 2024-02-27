@@ -70,8 +70,7 @@ THE SOFTWARE.
                 <f:block>
                     <input type="button" id="generatePipelineScript" value="${%Generate Pipeline Script}"
                            class="submit-button primary"
-                           data-url="${rootURL}/${it.GENERATE_URL}"
-                           data-crumb="${h.getCrumb(request)}"/>
+                           data-url="${rootURL}/${it.GENERATE_URL}"/>
                     <f:textarea id="prototypeText" readonly="true" style="margin-top: 10px"/>
                     <l:copyButton text="" clazz="jenkins-hidden jenkins-!-margin-top-1"/>
                     <st:adjunct includes="org.jenkinsci.plugins.workflow.cps.Snippetizer.handle-prototype"/>
