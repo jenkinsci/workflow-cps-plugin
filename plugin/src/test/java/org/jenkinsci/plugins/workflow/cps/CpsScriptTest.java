@@ -117,22 +117,22 @@ public class CpsScriptTest {
         // * Up to 255 stages allowed
         // FIXME? Tune the value per platform and/or dynamically
         //  based on stack overflow mention in build log?
-        int i, max = 200;
+        int i, maxStagesMethods = 250, maxTryCatch = 127;
 
-        for (i = 0; i < max; i++) {
+        for (i = 0; i < maxStagesMethods; i++) {
             sbStages.append("stage('Stage " + i + "') { steps { method" + i + "(); } }\n");
         }
 
-        for (i = 0; i < max; i++) {
+        for (i = 0; i < maxStagesMethods; i++) {
             sbMethods.append("def method" + i + "() { echo 'i = " + i + "'; }\n");
         }
 
         sbMethods.append("def method() {\n");
-        for (i = 0; i < max; i++) {
+        for (i = 0; i < maxTryCatch; i++) {
             sbMethods.append("try { // " + i + "\n");
         }
         sbMethods.append("  Integer x = 'zzz'; // incur conversion exception\n");
-        for (i = 0; i < max; i++) {
+        for (i = 0; i < maxTryCatch; i++) {
             sbMethods.append("} catch (Throwable t) { // " + i + "\n  method" + i + "(); throw t; }\n");
         }
         sbMethods.append("}\n");
