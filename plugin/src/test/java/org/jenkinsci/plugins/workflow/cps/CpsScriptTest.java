@@ -147,9 +147,9 @@ public class CpsScriptTest {
                 sbStages.toString() +
                 "    }\n" +
                 "}\n" +
-                "//echo 'BEGINNING TEST OUT OF PIPELINE';\n" +
-                "//method();\n" +
-                "//echo 'ENDED TEST OUT OF PIPELINE';\n"
+                "echo 'BEGINNING TEST OUT OF PIPELINE';\n" +
+                "method();\n" +
+                "echo 'ENDED TEST OUT OF PIPELINE';\n"
                 , true));
 
         WorkflowRun b = p.scheduleBuild2(0).get();
@@ -157,6 +157,9 @@ public class CpsScriptTest {
         // DEV-TEST // System.out.println(b.getLog());
 
         r.assertLogContains("MethodTooLargeException", b);
+
+        // "Prettier" explanation added by CpsFlowExecution.parseScript():
+        r.assertLogContains("FAILED to parse WorkflowScript (the pipeline script) due to MethodTooLargeException:", b);
 
 /*
     // Report as of release 3880.vb_ef4b_5cfd270 (Feb 2024)

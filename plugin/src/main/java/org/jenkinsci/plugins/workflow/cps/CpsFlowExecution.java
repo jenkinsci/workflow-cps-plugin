@@ -52,6 +52,9 @@ import hudson.model.Result;
 import hudson.util.Iterators;
 import jenkins.model.CauseOfInterruption;
 import jenkins.model.Jenkins;
+import org.codehaus.groovy.control.ErrorCollector;
+import org.codehaus.groovy.control.MultipleCompilationErrorsException;
+import org.codehaus.groovy.control.messages.Message;
 import org.jboss.marshalling.Unmarshaller;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
@@ -639,10 +642,60 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             for (Entry<String, String> e : loadedScripts.entrySet()) {
                 shell.reparse(e.getKey(), e.getValue());
             }
-        } catch (MethodTooLargeException x) {
-            LOGGER.log(Level.SEVERE, "FAILED to parse WorkflowScript (the pipeline script) due to MethodTooLargeException: " + x.toString());
+        } catch (MethodTooLargeException | MultipleCompilationErrorsException x) {
+            MethodTooLargeException mtlEx = null;
+            int ecCount = 0;
+
             closeShells();
-            throw x;
+
+            if (x instanceof MethodTooLargeException) {
+                mtlEx = (MethodTooLargeException)x;
+                ecCount = 1;
+            } else if (x instanceof MultipleCompilationErrorsException) {
+                ErrorCollector ec = ((MultipleCompilationErrorsException)x).getErrorCollector();
+                ecCount = ec.getErrorCount();
+
+                for (int i = 0; i < ecCount; i++) {
+                    Exception ex = ec.getException(i);
+                    if (ex == null)
+                        continue;
+
+                    LOGGER.log(Level.FINE, "Collected Exception #" + i + ": " + ex.toString());
+                    if (ex instanceof MethodTooLargeException) {
+                        mtlEx = (MethodTooLargeException) ex;
+                        break;
+                    }
+                }
+            }
+
+            if (mtlEx == null) {
+                // Some other exception type, or collection did not include MTL, rethrow as-is
+                throw x;
+            }
+
+            String msg = "FAILED to parse WorkflowScript (the pipeline script) due to MethodTooLargeException";
+            if (ecCount > 1) {
+                msg += " (and other issues)";
+            }
+            // Short message suffices, not much that a pipeline developer
+            // can do with the stack trace into the guts of groovy
+            msg += ": " + mtlEx.getMessage();
+
+            // Make a note in server log
+            LOGGER.log(Level.SEVERE, msg);
+
+            if (ecCount > 1) {
+                // Not squashing with explicit MethodTooLargeException
+                // re-thrown below, in this codepath we have other errors.
+                throw new RuntimeException(msg, x);
+            } else {
+                // Do not confuse pipeline devs by a wall of text in the
+                // build console, but let the full context be found in
+                // server log with some dedication.
+                LOGGER.log(Level.FINE, mtlEx.getMessage());
+                //throw new RuntimeException(msg, mtlEx);
+                throw new RuntimeException(msg);
+            }
         } catch (RuntimeException | Error x) {
             closeShells();
             throw x;
