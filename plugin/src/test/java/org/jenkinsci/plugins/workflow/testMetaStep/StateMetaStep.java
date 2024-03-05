@@ -1,14 +1,15 @@
 package org.jenkinsci.plugins.workflow.testMetaStep;
 
-import com.google.inject.Inject;
 import hudson.Extension;
 import hudson.model.TaskListener;
+import java.util.Set;
 import org.jenkinsci.plugins.structs.SymbolLookup;
 import org.jenkinsci.plugins.workflow.cps.DSLTest;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousNonBlockingStepExecution;
-import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.steps.StepExecutions;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
@@ -18,7 +19,7 @@ import org.kohsuke.stapler.DataBoundSetter;
  * @author Kohsuke Kawaguchi
  * @see DSLTest
  */
-public class StateMetaStep extends AbstractStepImpl {
+public class StateMetaStep extends Step {
 
     public final State state;
     private boolean moderate;
@@ -37,29 +38,18 @@ public class StateMetaStep extends AbstractStepImpl {
         this.moderate = m;
     }
 
-    private static final class Execution extends AbstractSynchronousNonBlockingStepExecution<Void> {
-        @Inject
-        private transient StateMetaStep step;
-        @StepContextParameter
-        private transient TaskListener listener;
-
-        @Override protected Void run() throws Exception {
-            if (step.moderate) {
-                listener.getLogger().println("Introducing "+ SymbolLookup.getSymbolValue(step.state).iterator().next());
+    @Override public StepExecution start(StepContext context) throws Exception {
+        return StepExecutions.synchronousNonBlockingVoid(context, c -> {
+            TaskListener listener = c.get(TaskListener.class);
+            if (moderate) {
+                listener.getLogger().println("Introducing " + SymbolLookup.getSymbolValue(state).iterator().next());
             }
-            step.state.sayHello(listener);
-            return null;
-        }
-
-        private static final long serialVersionUID = 1L;
-
+            state.sayHello(listener);
+        });
     }
 
     @Extension
-    public static final class DescriptorImpl extends AbstractStepDescriptorImpl {
-        public DescriptorImpl() {
-            super(Execution.class);
-        }
+    public static final class DescriptorImpl extends StepDescriptor {
 
         @Override public String getFunctionName() {
             return "state";
@@ -73,5 +63,10 @@ public class StateMetaStep extends AbstractStepImpl {
         @Override public String getDisplayName() {
             return "Greeting from a state";
         }
+
+        @Override public Set<? extends Class<?>> getRequiredContext() {
+            return Set.of(TaskListener.class);
+        }
+
     }
 }

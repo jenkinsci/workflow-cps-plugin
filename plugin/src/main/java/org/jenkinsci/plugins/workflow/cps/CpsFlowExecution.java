@@ -267,6 +267,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      *
      * @see #runInCpsVmThread(FutureCallback)
      */
+    @SuppressFBWarnings(value = "PA_PUBLIC_PRIMITIVE_ATTRIBUTE", justification = "TODO clean up")
     public transient volatile ListenableFuture<CpsThreadGroup> programPromise;
     private transient volatile Collection<ListenableFuture<?>> pickleFutures;
 
@@ -915,7 +916,19 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /** Report a fatal error in the VM. */
     void croak(Throwable t) {
         setResult(Result.FAILURE);
-        onProgramEnd(new Outcome(null, t));
+        boolean noStartNodes;
+        synchronized (this) {
+            noStartNodes = startNodes == null || startNodes.isEmpty();
+        }
+        if (noStartNodes) {
+            try {
+                createPlaceholderNodes(t);
+            } catch (Exception x) {
+                LOGGER.log(Level.WARNING, "Failed to create placeholder nodes in " + owner, x);
+            }
+        } else {
+            onProgramEnd(new Outcome(null, t));
+        }
         cleanUpHeap();
         try {
             saveOwner();
@@ -1280,6 +1293,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     public void saveActions(FlowNode node, List<Action> actions) throws IOException {
         if (storage == null) {
             throw new IOException("storage not yet loaded");
+        } else if (isComplete()) {
+            throw new IOException("Cannot save actions for " + node + " for completed execution " + this + ": " + actions);
         }
         storage.saveActions(node, actions);
     }

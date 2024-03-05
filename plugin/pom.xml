@@ -49,16 +49,10 @@
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.387.x</artifactId>
-                <version>2378.v3e03930028f2</version>
+                <artifactId>bom-2.414.x</artifactId>
+                <version>2746.vb_79a_1d3e7b_c8</version>
                 <scope>import</scope>
                 <type>pom</type>
-            </dependency>
-            <!-- TODO until in BOM: -->
-            <dependency>
-              <groupId>org.jenkins-ci.plugins</groupId>
-              <artifactId>support-core</artifactId>
-              <version>1366.v9d076592655d</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -109,12 +103,6 @@
                     <artifactId>support-log-formatter</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.plugins.workflow</groupId>
-            <artifactId>workflow-step-api</artifactId>
-            <classifier>tests</classifier>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -259,7 +247,7 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.19.3</version>
+            <version>1.19.6</version>
             <scope>test</scope>
             <exclusions>
                 <!-- Provided by Jenkins core -->
