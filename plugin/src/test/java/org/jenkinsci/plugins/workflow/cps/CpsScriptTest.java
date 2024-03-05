@@ -110,10 +110,14 @@ public class CpsScriptTest {
         WorkflowJob p = r.createProject(WorkflowJob.class);
         StringBuffer sbMethods = new StringBuffer();
         StringBuffer sbStages = new StringBuffer();
-        int i, max = 255;
 
-        for (i = 0; i < 250; i++) {
-            // Up to 255 stages allowed
+        // Limits to the "max":
+        // * java.lang.StackOverflowError varies per JDK platform
+        //   (CI on Linux was unhappy with 255, on Windows with 1023)
+        // * Up to 255 stages allowed
+        int i, max = 200;
+
+        for (i = 0; i < max; i++) {
             sbStages.append("stage('Stage " + i + "') { steps { method" + i + "(); } }\n");
         }
 
