@@ -685,7 +685,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
             // Short message suffices, not much that a pipeline developer
             // can do with the stack trace into the guts of groovy
-            msg += ": " + mtlEx.getMessage();
+            msg += "; please refactor to simplify code structure and/or move logic to a Jenkins Shared Library: ";
+            msg += mtlEx.getMessage();
 
             // Make a note in server log
             LOGGER.log(Level.SEVERE, msg);
