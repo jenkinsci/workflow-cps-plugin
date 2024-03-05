@@ -44,7 +44,6 @@ import com.thoughtworks.xstream.converters.reflection.ReflectionProvider;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 import com.thoughtworks.xstream.mapper.Mapper;
-import groovyjarjarasm.asm.MethodTooLargeException;
 import groovy.lang.GroovyShell;
 import hudson.ExtensionList;
 import hudson.model.Action;
@@ -54,7 +53,6 @@ import jenkins.model.CauseOfInterruption;
 import jenkins.model.Jenkins;
 import org.codehaus.groovy.control.ErrorCollector;
 import org.codehaus.groovy.control.MultipleCompilationErrorsException;
-import org.codehaus.groovy.control.messages.Message;
 import org.jboss.marshalling.Unmarshaller;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
@@ -642,17 +640,25 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             for (Entry<String, String> e : loadedScripts.entrySet()) {
                 shell.reparse(e.getKey(), e.getValue());
             }
-        } catch (MethodTooLargeException | MultipleCompilationErrorsException x) {
-            MethodTooLargeException mtlEx = null;
+        } catch (Exception x) {
+            // Suspected groovyjarjarasm.asm.MethodTooLargeException or a
+            // org.codehaus.groovy.control.MultipleCompilationErrorsException
+            // whose collection of errors refers to MethodTooLargeException.
+            // Per review comments, we do not want to statically compile a
+            // dependency on the groovyjarjarasm.asm.MethodTooLargeException
+            // internals, so gauge hitting it via String name comparisons.
+            // Other cases may be (subclasses of) RuntimeException or Error.
+            Exception mtlEx = null;
             int ecCount = 0;
 
+            // Clean up first
             closeShells();
 
-            if (x instanceof MethodTooLargeException) {
-                mtlEx = (MethodTooLargeException)x;
+            if (x.getClass().getSimpleName().equals("MethodTooLargeException")) {
+                mtlEx = x;
                 ecCount = 1;
             } else if (x instanceof MultipleCompilationErrorsException) {
-                ErrorCollector ec = ((MultipleCompilationErrorsException)x).getErrorCollector();
+                ErrorCollector ec = ((MultipleCompilationErrorsException) x).getErrorCollector();
                 ecCount = ec.getErrorCount();
 
                 for (int i = 0; i < ecCount; i++) {
@@ -661,14 +667,14 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         continue;
 
                     LOGGER.log(Level.FINE, "Collected Exception #" + i + ": " + ex.toString());
-                    if (ex instanceof MethodTooLargeException) {
-                        mtlEx = (MethodTooLargeException) ex;
+                    if (ex.getClass().getSimpleName().equals("MethodTooLargeException")) {
+                        mtlEx = ex;
                         break;
                     }
                 }
             }
 
-            if (mtlEx == null) {
+            if (mtlEx == null || ecCount < 1) {
                 // Some other exception type, or collection did not include MTL, rethrow as-is
                 throw x;
             }
@@ -696,9 +702,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 //throw new RuntimeException(msg, mtlEx);
                 throw new RuntimeException(msg);
             }
-        } catch (RuntimeException | Error x) {
-            closeShells();
-            throw x;
         }
 
         s.execution = this;
