@@ -44,6 +44,7 @@ import com.thoughtworks.xstream.converters.reflection.ReflectionProvider;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 import com.thoughtworks.xstream.mapper.Mapper;
+import groovyjarjarasm.asm.MethodTooLargeException;
 import groovy.lang.GroovyShell;
 import hudson.ExtensionList;
 import hudson.model.Action;
@@ -638,7 +639,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             for (Entry<String, String> e : loadedScripts.entrySet()) {
                 shell.reparse(e.getKey(), e.getValue());
             }
-        } catch (groovyjarjarasm.asm.MethodTooLargeException x) {
+        } catch (MethodTooLargeException x) {
             LOGGER.log(Level.SEVERE, "FAILED to parse WorkflowScript (the pipeline script) due to MethodTooLargeException: " + x.toString());
             closeShells();
             throw x;
