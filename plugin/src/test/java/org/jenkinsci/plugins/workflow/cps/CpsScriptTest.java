@@ -115,6 +115,8 @@ public class CpsScriptTest {
         // * java.lang.StackOverflowError varies per JDK platform
         //   (CI on Linux was unhappy with 255, on Windows with 1023)
         // * Up to 255 stages allowed
+        // FIXME? Tune the value per platform and/or dynamically
+        //  based on stack overflow mention in build log?
         int i, max = 200;
 
         for (i = 0; i < max; i++) {
@@ -160,10 +162,13 @@ public class CpsScriptTest {
 
         // DEV-TEST // System.out.println(b.getLog());
 
+        // Do we have the expected error at all?
+        // (Maybe also stack overflow on some platforms,
+        // possibly success on others)
         r.assertLogContains("MethodTooLargeException", b);
 
         // "Prettier" explanation added by CpsFlowExecution.parseScript():
-        r.assertLogContains("FAILED to parse WorkflowScript (the pipeline script) due to MethodTooLargeException:", b);
+        r.assertLogContains("FAILED to parse WorkflowScript (the pipeline script) due to MethodTooLargeException", b);
 
 /*
     // Report as of release 3880.vb_ef4b_5cfd270 (Feb 2024)
