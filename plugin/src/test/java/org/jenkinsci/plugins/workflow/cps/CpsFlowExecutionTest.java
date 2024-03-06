@@ -416,23 +416,25 @@ public class CpsFlowExecutionTest {
         logger.record(CpsFlowExecution.class, Level.FINE).record(CpsThreadGroup.class, Level.FINE);
         sessions.then(r -> {
             WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; sleep 5", true));
+            p.setDefinition(new CpsFlowDefinition("parallel a: {semaphore 'a'}, b: {semaphore 'b'}", true));
             WorkflowRun b = p.scheduleBuild2(0).waitForStart();
-            SemaphoreStep.waitForStart("wait/1", b);
+            SemaphoreStep.waitForStart("a/1", b);
+            SemaphoreStep.waitForStart("b/1", b);
             shouldResumeStepDuringShutdown = true;
         });
         sessions.then(r -> {
             WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
             WorkflowRun b = p.getLastBuild();
-            SemaphoreStep.success("wait/1", null);
-            r.assertLogContains("Sleeping for 5 sec", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
+            SemaphoreStep.success("a/1", null);
+            SemaphoreStep.success("b/1", null);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
         });
     }
     private static boolean shouldResumeStepDuringShutdown;
     @Terminator(requires = FlowExecutionList.EXECUTIONS_SUSPENDED)
     public static void resumeStepDuringShutdown() {
         if (shouldResumeStepDuringShutdown) {
-            SemaphoreStep.success("wait/1", null);
+            SemaphoreStep.success("a/1", null);
             shouldResumeStepDuringShutdown = false;
         }
     }
