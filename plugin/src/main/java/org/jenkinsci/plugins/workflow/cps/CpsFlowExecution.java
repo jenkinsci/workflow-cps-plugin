@@ -82,7 +82,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -254,7 +253,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * Any additional scripts {@linkplain CpsGroovyShell#parse(GroovyCodeSource) parsed} afterward, keyed by
      * their FQCN.
      */
-    /*package*/ /*final*/ Map<String,String> loadedScripts = new HashMap<>();
+    /*package*/ /*final*/ Map<String,String> loadedScripts = new LinkedHashMap<>();
 
     private final boolean sandbox;
     private transient /*almost final*/ FlowExecutionOwner owner;
@@ -644,12 +643,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         s.execution = this;
-        if (false) {
-            System.out.println("scriptName="+s.getClass().getName());
-            System.out.println(List.of(s.getClass().getInterfaces()));
-            System.out.println(List.of(s.getClass().getDeclaredFields()));
-            System.out.println(List.of(s.getClass().getDeclaredMethods()));
-        }
         return s;
     }
 
@@ -1877,7 +1870,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     }
 
                     if (result.loadedScripts == null) {
-                        result.loadedScripts = new HashMap<>();   // field added later
+                        result.loadedScripts = new LinkedHashMap<>(); // field added later
                     }
                     result.liveTimings = result.timings == null ?
                         new ConcurrentHashMap<>() :
