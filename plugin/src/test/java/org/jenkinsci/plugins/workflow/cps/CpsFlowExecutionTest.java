@@ -709,6 +709,7 @@ public class CpsFlowExecutionTest {
         sessions.then(r -> {
             WorkflowJob p = r.createProject(WorkflowJob.class, "p");
             p.setDefinition(new CpsFlowDefinition(
+                "evaluate('true')\n" + // just force this to be Script1
                 "def x = evaluate('class X {X() {}; def m1() {/OK/}}; new X()')\n" +
                 "def y = evaluate('class Y {X x; def m2() {/really ${x.m1()}/}}; new Y()')\n" +
                 "semaphore('wait')\n" +
