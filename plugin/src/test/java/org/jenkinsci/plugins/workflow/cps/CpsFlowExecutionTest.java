@@ -720,6 +720,7 @@ public class CpsFlowExecutionTest {
         sessions.then(r -> {
             WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
             WorkflowRun b = p.getLastBuild();
+            FileUtils.copyFile(new File(b.getRootDir(), "build.xml"), System.out);
             SemaphoreStep.success("wait/1", null);
             r.assertLogContains("received really OK", r.assertBuildStatus(Result.SUCCESS, r.waitForCompletion(b)));
         });
