@@ -64,6 +64,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
@@ -409,6 +410,31 @@ public class CpsFlowExecutionTest {
             r.waitForMessage("Resuming (Shutdown was canceled)", b);
             r.assertLogContains("I am done", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
         });
+    }
+
+    @Test public void shutdownWithoutQuietDown() throws Throwable {
+        logger.record(CpsFlowExecution.class, Level.FINE).record(CpsThreadGroup.class, Level.FINE);
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; sleep 5", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            shouldResumeStepDuringShutdown = true;
+        });
+        sessions.then(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getLastBuild();
+            SemaphoreStep.success("wait/1", null);
+            r.assertLogContains("Sleeping for 5 sec", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
+        });
+    }
+    private static boolean shouldResumeStepDuringShutdown;
+    @Terminator(requires = FlowExecutionList.EXECUTIONS_SUSPENDED)
+    public static void resumeStepDuringShutdown() {
+        if (shouldResumeStepDuringShutdown) {
+            SemaphoreStep.success("wait/1", null);
+            shouldResumeStepDuringShutdown = false;
+        }
     }
 
     @Issue("JENKINS-59743")
