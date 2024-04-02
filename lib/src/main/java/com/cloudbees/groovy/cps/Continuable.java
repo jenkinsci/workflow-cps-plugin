@@ -23,6 +23,9 @@ import org.codehaus.groovy.runtime.GroovyCategorySupport;
  */
 public class Continuable implements Serializable {
 
+    /**
+     * Users of this library must pass (at least) these to {@link GroovyCategorySupport#use(List, Closure)} during all operations.
+     */
     @SuppressWarnings("rawtypes")
     public static final List<Class> categories = List.of(
         CpsDefaultGroovyMethods.class,
@@ -133,31 +136,21 @@ public class Continuable implements Serializable {
         return run0(new Outcome(null,arg)).wrapReplay();
     }
 
-    @Deprecated
-    public Outcome run0(final Outcome cn) {
-        return run0(cn, categories);
-    }
-
     /**
      * Resumes this program by either returning the value from {@link Continuable#suspend(Object)} or
      * throwing an exception
      */
-    public Outcome run0(final Outcome cn, List<Class> categories) {
-        return GroovyCategorySupport.use(categories, new Closure<>(null) {
-            @Override
-            public Outcome call() {
-                Next n = cn.resumeFrom(e,k);
+    public Outcome run0(final Outcome cn) {
+        Next n = cn.resumeFrom(e,k);
 
-                while(n.yield==null) {
-                    n = n.step();
-                }
+        while(n.yield==null) {
+            n = n.step();
+        }
 
-                e = n.e;
-                k = n.k;
+        e = n.e;
+        k = n.k;
 
-                return n.yield;
-            }
-        });
+        return n.yield;
     }
 
     /**

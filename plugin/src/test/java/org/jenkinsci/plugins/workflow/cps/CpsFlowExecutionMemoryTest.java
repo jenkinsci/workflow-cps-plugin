@@ -25,6 +25,7 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import groovy.lang.MetaClass;
+import hudson.model.Computer;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -67,6 +68,7 @@ public class CpsFlowExecutionMemoryTest {
     }
 
     @Test public void loaderReleased() throws Exception {
+        Computer.threadPoolForRemoting.submit(() -> {}).get(); // do not let it be initialized inside the CpsVmExecutorService thread group
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         r.jenkins.getWorkspaceFor(p).child("lib.groovy").write(CpsFlowExecutionMemoryTest.class.getName() + ".register(this)", null);
         p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionMemoryTest.class.getName() + ".register(this); node {load 'lib.groovy'; evaluate(readFile('lib.groovy'))}", false));

@@ -334,8 +334,6 @@ public class CpsDefaultGroovyMethodsTest extends AbstractGroovyCpsTest {
             asList("uniqueSet", "([1, 2, -2, 3] as HashSet).unique { i -> i * i }.collect { it.abs() } as HashSet", asList(1, 2, 3) as HashSet),
             */
 
-            // TODO: use?
-
             // TODO: with?
 
             // .withDefault
