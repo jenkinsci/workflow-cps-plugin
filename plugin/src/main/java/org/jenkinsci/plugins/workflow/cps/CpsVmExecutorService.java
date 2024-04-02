@@ -1,8 +1,9 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
+import com.google.common.collect.ImmutableList;
 import hudson.Main;
-import hudson.model.Computer;
 import hudson.remoting.SingleLaneExecutorService;
 import hudson.security.ACL;
 import java.io.IOException;
@@ -11,8 +12,19 @@ import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
+import groovy.lang.Closure;
+import hudson.util.DaemonThreadFactory;
+import hudson.util.ExceptionCatchingThreadFactory;
+import hudson.util.NamingThreadFactory;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import jenkins.model.Jenkins;
+import jenkins.security.ImpersonatingExecutorService;
+import jenkins.util.ContextResettingExecutorService;
 import jenkins.util.InterceptingExecutorService;
+import org.codehaus.groovy.runtime.GroovyCategorySupport;
+import org.jenkinsci.plugins.workflow.cps.persistence.IteratorHack;
 
 /**
  * {@link ExecutorService} for running CPS VM.
@@ -21,27 +33,55 @@ import jenkins.util.InterceptingExecutorService;
  * @see CpsVmThreadOnly
  */
 class CpsVmExecutorService extends InterceptingExecutorService {
+
+    @SuppressWarnings("rawtypes")
+    private static final List<Class> CATEGORIES = ImmutableList.<Class>builder()
+        .addAll(Continuable.categories)
+        .add(IteratorHack.class)
+        .build();
+
+    private static ThreadFactory categoryThreadFactory(ThreadFactory core) {
+        return r -> core.newThread(() -> {
+            LOGGER.fine("spawning new thread");
+            GroovyCategorySupport.use(CATEGORIES, new Closure<Void>(null) {
+                @Override
+                public Void call() {
+                    r.run();
+                    return null;
+                }
+            });
+        });
+    }
+
+    private static final ExecutorService threadPool = new ContextResettingExecutorService(
+        new ImpersonatingExecutorService(
+            new ErrorLoggingExecutorService(
+                Executors.newCachedThreadPool(
+                    categoryThreadFactory(
+                        new ExceptionCatchingThreadFactory(
+                            new NamingThreadFactory(
+                                new DaemonThreadFactory(),
+                                "CpsVmExecutorService"))))),
+            ACL.SYSTEM2));
+
     private CpsThreadGroup cpsThreadGroup;
 
-    public CpsVmExecutorService(CpsThreadGroup cpsThreadGroup) {
-        super(new SingleLaneExecutorService(Computer.threadPoolForRemoting));
+    CpsVmExecutorService(CpsThreadGroup cpsThreadGroup) {
+        super(new SingleLaneExecutorService(threadPool));
         this.cpsThreadGroup = cpsThreadGroup;
     }
 
     @Override
     protected Runnable wrap(final Runnable r) {
-        return new Runnable() {
-            @Override
-            public void run() {
-                ThreadContext context = setUp();
-                try {
-                    r.run();
-                } catch (final Throwable t) {
-                    reportProblem(t);
-                    throw t;
-                } finally {
-                    tearDown(context);
-                }
+        return () -> {
+            ThreadContext context = setUp();
+            try {
+                r.run();
+            } catch (final Throwable t) {
+                reportProblem(t);
+                throw t;
+            } finally {
+                tearDown(context);
             }
         };
     }
@@ -59,18 +99,15 @@ class CpsVmExecutorService extends InterceptingExecutorService {
 
     @Override
     protected <V> Callable<V> wrap(final Callable<V> r) {
-        return new Callable<>() {
-            @Override
-            public V call() throws Exception {
-                ThreadContext context = setUp();
-                try {
-                    return r.call();
-                } catch (final Throwable t) {
-                    reportProblem(t);
-                    throw t;
-                } finally {
-                    tearDown(context);
-                }
+        return () -> {
+            ThreadContext context = setUp();
+            try {
+                return r.call();
+            } catch (final Throwable t) {
+                reportProblem(t);
+                throw t;
+            } finally {
+                tearDown(context);
             }
         };
     }
@@ -177,4 +214,32 @@ class CpsVmExecutorService extends InterceptingExecutorService {
     static ThreadLocal<ClassLoader> ORIGINAL_CONTEXT_CLASS_LOADER = new ThreadLocal<>();
 
     private static final Logger LOGGER = Logger.getLogger(CpsVmExecutorService.class.getName());
+
+    // NOTE: Copied from Jenkins core when backporting d0f0248b to avoid having to update dependencies.
+    private static class ErrorLoggingExecutorService extends InterceptingExecutorService {
+
+        private static final Logger LOGGER = Logger.getLogger(ErrorLoggingExecutorService.class.getName());
+
+        public ErrorLoggingExecutorService(ExecutorService base) {
+            super(base);
+        }
+
+        @Override
+        protected Runnable wrap(Runnable r) {
+            return () -> {
+                try {
+                    r.run();
+                } catch (Throwable x) {
+                    LOGGER.log(Level.WARNING, null, x);
+                    throw x;
+                }
+            };
+        }
+
+        @Override
+        protected <V> Callable<V> wrap(Callable<V> r) {
+            return r;
+        }
+
+    }
 }
