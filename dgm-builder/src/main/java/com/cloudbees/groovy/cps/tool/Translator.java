@@ -169,7 +169,7 @@ public class Translator {
      */
     public void translate(String fqcn, String outfqcn, String sourceJarName) throws JClassAlreadyExistsException {
         final JDefinedClass $output = codeModel._class(outfqcn);
-        $output.annotate(Generated.class).param("value", Translator.class.getName()).param("date", new Date().toString()).param("comments", "based on " + sourceJarName);
+        $output.annotate(Generated.class).param("value", Translator.class.getName()).param("comments", "based on " + sourceJarName);
         $output.annotate(SuppressWarnings.class).param("value", "rawtypes");
         $output.constructor(JMod.PRIVATE);
 
