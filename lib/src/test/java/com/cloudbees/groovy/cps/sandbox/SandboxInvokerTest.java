@@ -89,9 +89,16 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
         // TODO: Refactor things so we can check evalCps as well.
     }
 
-    public void assertIntercept(String script, Object expectedResult, String... expectedInterceptions) throws Throwable {
+    public void assertIntercept(String script, Object expectedResult, String... expectedCalls) throws Throwable {
         assertEvaluate(expectedResult, script);
-        ec.checkThat(cr.toString().split("\n"), equalTo(expectedInterceptions));
+        String[] updatedExpectedCalls = expectedCalls;
+        // Insert SerializableScript constructor call automatically to avoid having to update all tests.
+        if (expectedCalls.length == 0 || (expectedCalls.length > 0 && !expectedCalls[0].equals("new SerializableScript()"))) {
+            updatedExpectedCalls = new String[expectedCalls.length + 1];
+            updatedExpectedCalls[0] = "new SerializableScript()";
+            System.arraycopy(expectedCalls, 0, updatedExpectedCalls, 1, expectedCalls.length);
+        }
+        ec.checkThat(cr.toString().split("\n"), equalTo(updatedExpectedCalls));
     }
 
     /**
@@ -566,7 +573,8 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
                 null,
                 "Script1.super(Script1).setBinding(Binding)",
                 "new Test()",
-                "System:getProperties()");
+                "System:getProperties()",
+                "new Test(Properties)");
     }
 
     @Ignore("Initial expressions for parameters in CPS-transformed closures are currently ignored")
@@ -636,6 +644,7 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
                 "Script3.super(Script3).setBinding(Binding)",
                 "new Test()",
                 "new File(String)",
+                "new Test(File)",
                 "Test.x");
     }
 
