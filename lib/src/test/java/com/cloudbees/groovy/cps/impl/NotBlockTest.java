@@ -7,7 +7,6 @@ import com.cloudbees.groovy.cps.Outcome;
 import groovy.lang.Script;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
-import java.util.Collections;
 import org.junit.Test;
 
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -38,6 +37,6 @@ public class NotBlockTest extends AbstractGroovyCpsTest {
             c = (Continuable)ois.readObject();
         }
         assertTrue(c.isResumable());
-        assertThat(c.run0(new Outcome(false, null), Collections.emptyList()).replay(), equalTo(true));
+        assertThat(c.run0(new Outcome(false, null)).replay(), equalTo(true));
     }
 }

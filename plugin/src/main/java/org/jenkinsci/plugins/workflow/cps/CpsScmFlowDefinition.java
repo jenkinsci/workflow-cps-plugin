@@ -48,6 +48,8 @@ import java.io.InterruptedIOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+
 import jenkins.model.Jenkins;
 import jenkins.scm.api.SCMFileSystem;
 import jenkins.security.HMACConfidentialKey;
@@ -218,7 +220,8 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         public Collection<? extends SCMDescriptor<?>> getApplicableDescriptors() {
             StaplerRequest req = Stapler.getCurrentRequest();
             Job<?,?> job = req != null ? req.findAncestorObject(Job.class) : null;
-            return SCM._for(job);
+            return SCM._for(job).stream().filter(d -> !"org.jenkinsci.plugins.multiplescms.MultiSCM".equals(d.getId())).collect(Collectors.toList());
+
         }
 
         // TODO doCheckLightweight impossible to write even though we have SCMFileSystem.supports(SCM), because form validation cannot pass the SCM object

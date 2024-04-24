@@ -574,10 +574,9 @@ import org.kohsuke.stapler.StaplerRequest;
             return Messages.Pipeline_Syntax();
         }
 
-        public String getIconClassName() {
-            return "icon-help";
+        @Override public String getIconFileName() {
+            return "symbol-help-circle";
         }
-
     }
 
     private static final Logger LOGGER = Logger.getLogger(Snippetizer.class.getName());
