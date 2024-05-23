@@ -17,6 +17,8 @@ import hudson.model.TaskListener;
 import hudson.util.DaemonThreadFactory;
 import hudson.util.ExceptionCatchingThreadFactory;
 import hudson.util.NamingThreadFactory;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -77,9 +79,18 @@ class CpsVmExecutorService extends InterceptingExecutorService {
 
     @Override
     protected Runnable wrap(final Runnable r) {
+        Instant submitted = Instant.now();
         return () -> {
             ThreadContext context = setUp();
             try {
+                Duration sinceSubmission = Duration.between(submitted, Instant.now());
+                // TODO: It would be nice to have access to the size of SingleLaneExecutorService.tasks to be able to
+                // report it and use it to adjust the trigger, but that would require API changes in remoting.
+                // We could also try using Timeout to hard-kill tasks that take too long and then call
+                // CpsFlowExecution.croak, but that seems pretty severe and would need to be tested carefully.
+                if (sinceSubmission.toMinutes() > 5) {
+                    LOGGER.log(Level.WARNING, () -> "CPS VM thread for " + cpsThreadGroup.getExecution() + " took " + sinceSubmission + " to start executing a task after it was submitted");
+                }
                 r.run();
             } catch (final Throwable t) {
                 reportProblem(t);
