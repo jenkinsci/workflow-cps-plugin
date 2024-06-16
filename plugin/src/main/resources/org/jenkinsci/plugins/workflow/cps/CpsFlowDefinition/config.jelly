@@ -30,9 +30,10 @@
     ${%desc1} <a href="pipeline-syntax" target="_blank">${%Pipeline Syntax}</a> ${%desc2}
   </j:set>
 
-  <f:entry title="${%Script}" field="script" help="${null}" description="${description}">
+  <f:entry title="${%Script}" field="script" description="${description}">
     <wfe:workflow-editor />
   </f:entry>
+
   <f:entry field="sandbox">
     <f:checkbox title="${%Use Groovy Sandbox}" default="true"/>
   </f:entry>

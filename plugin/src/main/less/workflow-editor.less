@@ -33,8 +33,9 @@
 }
 
 .ace_editor .ace_print-margin {
-  width: 1px;
-  background: #25282c
+  //width: 1px;
+  //background: #25282c
+  background: transparent;
 }
 
 .ace_editor {
@@ -46,7 +47,7 @@
   font-weight: 400 !important;
   line-height: 1.66 !important;
   box-shadow: var(--form-input-glow);
-  transition:
+  transition: border var(--standard-transition), box-shadow
           var(--standard-transition),
           height 0s;
   color: var(--text-color);
@@ -106,7 +107,8 @@
 }
 
 .ace_editor .ace_keyword.ace_operator {
-  color: #8ABEB7
+  //color: #8ABEB7
+  color: color-mix(in srgb, var(--green), transparent);
 }
 
 .ace_editor .ace_constant.ace_character,
@@ -167,11 +169,17 @@
 }
 
 .ace_editor .ace_indent-guide {
-  background: red;
+  //background: red;
+  background: transparent;
 }
 
 .ace_editor .ace_indent-guide-active {
-  background: blue;
+  //background: blue;
+  background: transparent;
+}
+
+a {
+  font-weight: normal !important;
 }
 
 /*# sourceURL=ace/css/ace_editor */
