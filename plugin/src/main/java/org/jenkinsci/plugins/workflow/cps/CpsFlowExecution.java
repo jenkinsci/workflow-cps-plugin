@@ -730,14 +730,58 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 throw x;
             }
 
-            String msg = "FAILED to parse WorkflowScript (the pipeline script) due to MethodTooLargeException";
+            // Collect the relevant part of stack trace through groovy (JSL),
+            // if any, which the pipeline developer can impact and fix.
+            // Some real-life sample patterns are posted in
+            // https://github.com/jenkinsci/workflow-cps-plugin/pull/817
+            String overflowedClassName = null;
+            List<String> overflowedClassNameMentionsList = new ArrayList<String>();
+            // groovyjarjarasm.asm.MethodTooLargeException: Method too large: cloudBranch.___cps___586328 ()Lcom/cloudbees/groovy/cps/impl/CpsFunction;
+            final Pattern MTLE_CLASSNAME_PATTERN = Pattern.compile("^.*MethodTooLargeException.*: ([^\\s.]+)\\.___cps___\\d+.*$");
+            Pattern CLASSNAME_MENTIONS_PATTERN = Pattern.compile("^\\s+at .*(WorkflowScript.*|\\.groovy):\\d+\\).*$");
+            for (String l : xLines) {
+                if (!(l.isBlank())) {
+                    if (overflowedClassName == null) {
+                        Matcher matcher = MTLE_CLASSNAME_PATTERN.matcher(l);
+                        if (matcher.find()) {
+                            try {
+                                overflowedClassName = matcher.group(1);
+                                if (!(mtlEx.getMessage().contains(overflowedClassName)))
+                                    overflowedClassNameMentionsList.add(l);
+
+                                // Update the matching pattern in case we manage
+                                // to spot our problematic source in the stack trace
+                                CLASSNAME_MENTIONS_PATTERN = Pattern.compile("^\\s+at .*(WorkflowScript.*|" + overflowedClassName + ".*|\\.groovy):\\d+\\).*$");
+                                continue;
+                            } catch (Throwable ignored) {
+                            }
+                        }
+                    }
+
+                    Matcher matcher = CLASSNAME_MENTIONS_PATTERN.matcher(l);
+                    if (matcher.find()) {
+                        overflowedClassNameMentionsList.add(l);
+                    }
+                }
+            }
+
+            if (overflowedClassName == null)
+                overflowedClassName = "WorkflowScript (the pipeline script) or one of its constituents";
+
+            String msg = "FAILED to parse " + overflowedClassName + " due to MethodTooLargeException";
             if (ecCount > 1) {
                 msg += " (and other issues)";
             }
             // Short message suffices, not much that a pipeline developer
             // can do with the stack trace into the guts of groovy
-            msg += "; please refactor to simplify code structure and/or move logic to a Jenkins Shared Library: ";
-            msg += mtlEx.getMessage();
+            msg += "; please refactor to simplify code structure";
+            if (overflowedClassName.contains("WorkflowScript"))
+                msg += " and/or move logic to a Jenkins Shared Library";
+            msg += ": " + mtlEx.getMessage();
+            if (!(overflowedClassNameMentionsList.isEmpty())) {
+                msg += "\nGroovy code trail (mentions of pipeline WorkflowScript and/or your JSL in larger stack trace):\n"
+                        + String.join("\n", overflowedClassNameMentionsList);
+            }
 
             // Make a full note in server log
             LOGGER.log(Level.FINER, xStr);

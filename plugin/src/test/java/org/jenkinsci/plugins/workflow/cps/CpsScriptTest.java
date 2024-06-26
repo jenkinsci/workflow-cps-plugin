@@ -168,7 +168,7 @@ public class CpsScriptTest {
         r.assertLogContains("MethodTooLargeException", b);
 
         // "Prettier" explanation added by CpsFlowExecution.parseScript():
-        r.assertLogContains("FAILED to parse WorkflowScript (the pipeline script) due to MethodTooLargeException", b);
+        r.assertLogContains("FAILED to parse WorkflowScript due to MethodTooLargeException", b);
 
 /*
     // Report as of release 3880.vb_ef4b_5cfd270 (Feb 2024)
