@@ -698,6 +698,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 // re-thrown below, in this codepath we have other errors.
                 throw new RuntimeException(msg, x);
             } else {
+                // ecCount == 1 exactly, this is the only problem we saw.
                 // Do not confuse pipeline devs by a wall of text in the
                 // build console, but let the full context be found in
                 // server log with some dedication.
