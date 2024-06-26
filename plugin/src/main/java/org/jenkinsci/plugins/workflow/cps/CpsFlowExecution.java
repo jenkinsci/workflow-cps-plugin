@@ -138,6 +138,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -647,11 +649,14 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             // dependency on the groovyjarjarasm.asm.MethodTooLargeException
             // internals, so gauge hitting it via String name comparisons.
             // Other cases may be (subclasses of) RuntimeException or Error.
-            // Note that both MultipleCompilationErrorsException and
-            // MethodTooLargeException are descended from RuntimeException.
+            // Note that all of MultipleCompilationErrorsException, and
+            // MethodTooLargeException and CpsCompilationErrorsException
+            // are descended from RuntimeException.
             Throwable mtlEx = null;
             int ecCount = 0;
             String xStr = x.getMessage() + "\n" + Functions.printThrowable(x);
+            final Pattern LINE_SEP_PATTERN = Pattern.compile("\\R");
+            String[] xLines = LINE_SEP_PATTERN.split(xStr);
 
             // Clean up first
             closeShells();
@@ -672,6 +677,50 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     if (ex.getClass().getSimpleName().equals("MethodTooLargeException")) {
                         mtlEx = ex;
                         break;
+                    }
+                }
+            } else if (x instanceof CpsCompilationErrorsException) {
+                // Defined in this plugin, to clone a message and stack trace
+                // from a MultipleCompilationErrorsException and be serializable.
+                // Grep it as text for "MethodTooLargeException" and "1 error"
+                // (as a complete line, surrounded by blank lines, with no other
+                // similar lines in text) to be sure we've got it as the only
+                // problem. Note the code overflow may be not in "WorkflowScript"
+                // of the pipeline, but in a JSL step (global variable) or even
+                // class with an actual huge method that should be refactored.
+                if (xStr.contains("MethodTooLargeException")) {
+                    final Pattern NUM_ERROR_PATTERN = Pattern.compile("^\\d+ error$");
+                    boolean blankBefore = false, patternMatchedAfterBlank = false;
+
+                    for (String l : xLines) {
+                        if (l.isBlank()) {
+                            // Is this the blank before or after the pattern we seek?
+                            // Rule out several blank lines before the match, too...
+                            if (!blankBefore && !patternMatchedAfterBlank) {
+                                blankBefore = true;
+                            } else if (patternMatchedAfterBlank) {
+                                // Got a blank line after a pattern match
+                                patternMatchedAfterBlank = false;
+                                blankBefore = false;
+                                ecCount++;
+                            }
+                        } else if (blankBefore) {
+                            // Ignore pattern when no blank line was before it
+                            Matcher matcher = NUM_ERROR_PATTERN.matcher(l);
+                            if (matcher.find()) {
+                                patternMatchedAfterBlank = true;
+                            } else {
+                                // red herring
+                                blankBefore = false;
+                            }
+                        } else {
+                            // part of wall of text
+                            patternMatchedAfterBlank = false;
+                        }
+                    }
+
+                    if (ecCount > 0) {
+                        mtlEx = x;
                     }
                 }
             }
