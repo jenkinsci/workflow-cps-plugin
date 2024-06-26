@@ -639,7 +639,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             for (Entry<String, String> e : loadedScripts.entrySet()) {
                 shell.reparse(e.getKey(), e.getValue());
             }
-        } catch (Exception x) {
+        } catch (RuntimeException | Error x) {
             // Suspected groovyjarjarasm.asm.MethodTooLargeException or a
             // org.codehaus.groovy.control.MultipleCompilationErrorsException
             // whose collection of errors refers to MethodTooLargeException.
@@ -647,7 +647,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             // dependency on the groovyjarjarasm.asm.MethodTooLargeException
             // internals, so gauge hitting it via String name comparisons.
             // Other cases may be (subclasses of) RuntimeException or Error.
-            Exception mtlEx = null;
+            // Note that both MultipleCompilationErrorsException and
+            // MethodTooLargeException are descended from RuntimeException.
+            Throwable mtlEx = null;
             int ecCount = 0;
 
             // Clean up first
