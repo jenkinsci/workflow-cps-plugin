@@ -689,6 +689,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             msg += "; please refactor to simplify code structure and/or move logic to a Jenkins Shared Library: ";
             msg += mtlEx.getMessage();
 
+            // Make a note in server log
+            LOGGER.log(Level.SEVERE, msg);
+
             if (ecCount > 1) {
                 // Not squashing with explicit MethodTooLargeException
                 // re-thrown below, in this codepath we have other errors.
