@@ -651,6 +651,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             // MethodTooLargeException are descended from RuntimeException.
             Throwable mtlEx = null;
             int ecCount = 0;
+            String xStr = x.getMessage() + "\n" + Functions.printThrowable(x);
 
             // Clean up first
             closeShells();
@@ -689,8 +690,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             msg += "; please refactor to simplify code structure and/or move logic to a Jenkins Shared Library: ";
             msg += mtlEx.getMessage();
 
-            // Make a note in server log
-            LOGGER.log(Level.SEVERE, msg);
+            // Make a full note in server log
+            LOGGER.log(Level.FINER, xStr);
 
             if (ecCount > 1) {
                 // Not squashing with explicit MethodTooLargeException
@@ -702,7 +703,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 // server log with some dedication.
                 LOGGER.log(Level.FINE, mtlEx.getMessage());
                 //throw new RuntimeException(msg, mtlEx);
-                throw new RuntimeException(msg);
+                throw new RuntimeException(msg +
+                        "\nComplete details can be seen in server log at FINE/FINER level " +
+                        "(Jenkins admin access is required)");
             }
         }
 
