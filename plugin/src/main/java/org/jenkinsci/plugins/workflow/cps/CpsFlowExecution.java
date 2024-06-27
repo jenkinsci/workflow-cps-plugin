@@ -453,6 +453,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     static final Logger TIMING_LOGGER = Logger.getLogger(CpsFlowExecution.class.getName() + ".timing");
 
+    static final Logger METHOD_TOO_LARGE_LOGGER = Logger.getLogger(CpsFlowExecution.class.getName() + ".MethodTooLargeLogging");
+
     void logTimings() {
         if (TIMING_LOGGER.isLoggable(Level.FINE)) {
             Map<String, String> formatted = new TreeMap<>();
@@ -673,7 +675,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     if (ex == null)
                         continue;
 
-                    LOGGER.log(Level.FINE, "Collected Exception #" + i + ": " + ex.toString());
+                    METHOD_TOO_LARGE_LOGGER.log(Level.FINE, "Collected Exception #" + i + ": " + ex.toString());
                     if (ex.getClass().getSimpleName().equals("MethodTooLargeException")) {
                         mtlEx = ex;
                         break;
@@ -784,7 +786,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
 
             // Make a full note in server log
-            LOGGER.log(Level.FINER, xStr);
+            METHOD_TOO_LARGE_LOGGER.log(Level.FINER, xStr);
 
             if (ecCount > 1) {
                 // Not squashing with explicit MethodTooLargeException
@@ -795,11 +797,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 // Do not confuse pipeline devs by a wall of text in the
                 // build console, but let the full context be found in
                 // server log with some dedication.
-                LOGGER.log(Level.FINE, mtlEx.getMessage());
+                METHOD_TOO_LARGE_LOGGER.log(Level.FINE, mtlEx.getMessage());
                 //throw new RuntimeException(msg, mtlEx);
                 throw new RuntimeException(msg +
                         "\nComplete details can be seen in server log at FINE/FINER level " +
-                        "(Jenkins admin access is required)");
+                        "(Jenkins admin access for " + METHOD_TOO_LARGE_LOGGER.getName() + " is required)");
             }
         }
 
