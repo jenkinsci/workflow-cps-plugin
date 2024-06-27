@@ -675,7 +675,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     if (ex == null)
                         continue;
 
-                    METHOD_TOO_LARGE_LOGGER.log(Level.FINE, "Collected Exception #" + i + ": " + ex.toString());
+                    METHOD_TOO_LARGE_LOGGER.log(Level.FINE,
+                            "CpsFlowExecution.reportSuspectedMethodTooLarge: " +
+                            "Collected Exception #" + i + ": " + ex.toString());
                     if (ex.getClass().getSimpleName().equals("MethodTooLargeException")) {
                         mtlEx = ex;
                         break;
@@ -786,7 +788,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
 
             // Make a full note in server log
-            METHOD_TOO_LARGE_LOGGER.log(Level.FINER, xStr);
+            METHOD_TOO_LARGE_LOGGER.log(Level.FINER, "CpsFlowExecution.reportSuspectedMethodTooLarge: full original Throwable message:\n" + xStr);
 
             if (ecCount > 1) {
                 // Not squashing with explicit MethodTooLargeException
@@ -796,8 +798,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 // ecCount == 1 exactly, this is the only problem we saw.
                 // Do not confuse pipeline devs by a wall of text in the
                 // build console, but let the full context be found in
-                // server log with some dedication.
-                METHOD_TOO_LARGE_LOGGER.log(Level.FINE, mtlEx.getMessage());
+                // server log with some dedication. Note it is seen at
+                // a different logging verbosity level.
+                METHOD_TOO_LARGE_LOGGER.log(Level.FINE, "CpsFlowExecution.reportSuspectedMethodTooLarge: detected details of MethodTooLargeException:\n" + mtlEx.getMessage());
+
                 //throw new RuntimeException(msg, mtlEx);
                 throw new RuntimeException(msg +
                         "\nComplete details can be seen in server log at FINE/FINER level " +
