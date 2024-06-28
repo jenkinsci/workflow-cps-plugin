@@ -810,7 +810,22 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             // Clean up first
             closeShells();
 
-            throw CpsFlowExecution.reportSuspectedMethodTooLarge(x);
+            // This method ends up throwing something (original
+            // or changed exception, depending on situation).
+            // Here we anticipate a MethodTooLargeException
+            // (or traces of its message stack), possibly
+            // wrapped into further exception, for actionable
+            // logging in the job.
+            Throwable t = CpsFlowExecution.reportSuspectedMethodTooLarge(x);
+            if (t instanceof RuntimeException)
+                throw (RuntimeException)t;
+            if (t instanceof Error)
+                throw (Error)t;
+
+            // NOTE: In practice we should not get here, due
+            // to practical type of "x" and what of it is
+            // returned by reportSuspectedMethodTooLarge().
+            throw new RuntimeException(t);
         }
 
         s.execution = this;
