@@ -727,15 +727,37 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         List<String> overflowedClassNameMentionsList = new ArrayList<String>();
         // groovyjarjarasm.asm.MethodTooLargeException: Method too large: cloudBranch.___cps___586328 ()Lcom/cloudbees/groovy/cps/impl/CpsFunction;
         final Pattern MTLE_CLASSNAME_PATTERN = Pattern.compile("^.*MethodTooLargeException.*: ([^\\s.]+)\\.___cps___\\d+.*$");
+
+        // Collect text of just the start of original exception
+        // (at least CpsCompilationErrorsException carries the
+        // whole original stack trace there)
+        final Pattern SAW_AT_PATTERN = Pattern.compile("^\\s+at .*:\\d+\\)$");
+        StringBuilder xMsgStart = new StringBuilder();
+        boolean sawAt = false;
+
         Pattern CLASSNAME_MENTIONS_PATTERN = Pattern.compile("^\\s+at .*(WorkflowScript.*|\\.groovy):\\d+\\).*$");
+
         for (String l : xLines) {
             if (!(l.isBlank())) {
+                if (!sawAt) {
+                    Matcher matcher = SAW_AT_PATTERN.matcher(l);
+                    if (matcher.find()) {
+                        sawAt = true;
+                    } else {
+                        xMsgStart.append(l).append("\n");
+                    }
+                }
+
                 if (overflowedClassName == null) {
                     Matcher matcher = MTLE_CLASSNAME_PATTERN.matcher(l);
                     if (matcher.find()) {
                         try {
                             overflowedClassName = matcher.group(1);
-                            if (!(mtlEx.getMessage().contains(overflowedClassName)))
+
+                            // Only report it in potential bread-crumb log if we
+                            // did not have a reference to this script/step/class
+                            // from the start of x.getMessage() effectively.
+                            if (!(xMsgStart.toString().contains(overflowedClassName)))
                                 overflowedClassNameMentionsList.add(l);
 
                             // Update the matching pattern in case we manage
@@ -766,7 +788,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         msg += "; please refactor to simplify code structure";
         if (overflowedClassName.contains("WorkflowScript"))
             msg += " and/or move logic to a Jenkins Shared Library";
-        msg += ": " + mtlEx.getMessage();
+        if (xMsgStart.length() > 0) {
+            msg += ": " + xMsgStart.toString();
+        }
         if (!(overflowedClassNameMentionsList.isEmpty())) {
             msg += "\nGroovy code trail (mentions of pipeline WorkflowScript and/or your JSL in larger stack trace):\n"
                     + String.join("\n", overflowedClassNameMentionsList);
