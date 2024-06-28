@@ -898,7 +898,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 .append(" is required)");
 
         //return new RuntimeException(actionableMsg.toString(), mtlEx);
-        mtlEx = new RuntimeException(actionableMsg.toString(), null);
+        RuntimeException rtex = new RuntimeException(actionableMsg.toString(), null);
 
         // Avoid having a huge stack trace leading to this pretty log-printer
         // in the build log.
@@ -907,9 +907,14 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         // async call parts, or skips the hassle if the two stack trace
         // lists have different "roots" (as non-trivially defined in
         // ContinuationGroup.hasSameRoots() method).
-        StackTraceElement[] emptyStack = new StackTraceElement[0];
-        mtlEx.setStackTrace(emptyStack);
-        return mtlEx;
+        StackTraceElement[] shortStack = new StackTraceElement[0];
+        rtex.setStackTrace(shortStack);
+
+        // Considered passing original context,
+        // but it is shown by ultimate job log :(
+        //rtex.addSuppressed(mtlEx);
+
+        return rtex;
     }
 
     private CpsScript parseScript() throws IOException {
