@@ -776,18 +776,20 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         try {
                             overflowedClassName = matcher.group(1);
 
-                            // Only report it in potential bread-crumb log if we
-                            // did not have a reference to this script/step/class
-                            // from the start of x.getMessage() effectively.
-                            if (!(xMsgStart.toString().contains(overflowedClassName)))
-                                overflowedClassNameBreadcrumbs.append(l).append("\n");
-
                             String[] overflowedClassNameSplit = overflowedClassName.split("/");
                             if (overflowedClassNameSplit.length > 1) {
                                 overflowedClassNameShort = overflowedClassNameSplit[overflowedClassNameSplit.length - 1];
                             } else {
                                 overflowedClassNameShort = overflowedClassName;
                             }
+
+                            // Only report it in potential bread-crumb log if we
+                            // did not have a reference to this script/step/class
+                            // from the start of x.getMessage() effectively.
+                            // Note this is not a log line where we have a source
+                            // line number.
+                            if (!(xMsgStart.toString().contains(overflowedClassNameShort)))
+                                overflowedClassNameBreadcrumbs.append(l).append("\n");
 
                             // Update the matching pattern in case we manage
                             // to spot our problematic source in the stack trace
