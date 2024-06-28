@@ -820,33 +820,42 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             overflowedClassNameReport = "presumed JSL step '" + overflowedClassName + "'";
         }
 
-        String msg = "FAILED to parse " + overflowedClassNameReport + " due to MethodTooLargeException";
-        if (ecCount > 1) {
-            msg += " (and other issues)";
-        }
         // Short message suffices, not much that a pipeline developer
         // can do with the stack trace into the guts of groovy
-        msg += "; please refactor to simplify code structure";
+        StringBuilder actionableMsg = new StringBuilder();
+        actionableMsg
+                .append("FAILED to parse ")
+                .append(overflowedClassNameReport)
+                .append(" due to MethodTooLargeException");
+        if (ecCount > 1) {
+            actionableMsg.append(" (and other issues)");
+        }
+        actionableMsg.append("; please refactor to simplify code structure");
         if (overflowedClassNameReport.contains("WorkflowScript") || CLASSNAME_SCRIPTNUM_PATTERN.matcher(overflowedClassName).find())
-            msg += " and/or move logic to a Jenkins Shared Library";
+            actionableMsg.append(" and/or move logic to a Jenkins Shared Library");
         if (xMsgStart.length() > 0) {
-            msg += ":\n-----\n" + xMsgStart.toString();
+            actionableMsg
+                    .append(":\n-----\n")
+                    .append(xMsgStart.toString());
         }
         if (!(overflowedClassNameMentionsList.isEmpty())) {
-            msg += "\nGroovy code trail (mentions of pipeline WorkflowScript and/or your JSL in larger stack trace):\n"
-                    + String.join("\n", overflowedClassNameMentionsList);
+            actionableMsg
+                    .append("\nGroovy code trail (mentions of pipeline WorkflowScript and/or your JSL in larger stack trace):\n")
+                    .append(String.join("\n", overflowedClassNameMentionsList));
         }
         if (xMsgStart.length() > 0) {
-            msg += "\n-----\n";
+            actionableMsg.append("\n-----\n");
         }
 
         // Make a full note in server log
-        METHOD_TOO_LARGE_LOGGER.log(Level.FINER, "CpsFlowExecution.reportSuspectedMethodTooLarge: full original Throwable message:\n" + xStr);
+        METHOD_TOO_LARGE_LOGGER.log(Level.FINER,
+                "CpsFlowExecution.reportSuspectedMethodTooLarge: full original Throwable message:\n"
+                        + xStr);
 
         if (ecCount > 1) {
             // Not squashing with explicit MethodTooLargeException
             // re-thrown below, in this codepath we have other errors.
-            return new RuntimeException(msg, x);
+            return new RuntimeException(actionableMsg.toString(), x);
         }
 
         // ecCount == 1 exactly, this is the only problem we saw.
@@ -854,13 +863,18 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         // build console, but let the full context be found in
         // server log with some dedication. Note it is seen at
         // a different logging verbosity level.
-        METHOD_TOO_LARGE_LOGGER.log(Level.FINE, "CpsFlowExecution.reportSuspectedMethodTooLarge: detected details of MethodTooLargeException:\n" + mtlEx.getMessage());
+        METHOD_TOO_LARGE_LOGGER.log(Level.FINE,
+                "CpsFlowExecution.reportSuspectedMethodTooLarge: detected details of MethodTooLargeException:\n"
+                        + mtlEx.getMessage());
 
-        //return new RuntimeException(msg, mtlEx);
-        mtlEx = new RuntimeException(msg +
-                "\nComplete details can be seen in server log at FINE/FINER level " +
-                "(Jenkins admin access for " + METHOD_TOO_LARGE_LOGGER.getName() + " is required)",
-                null);
+        actionableMsg
+                .append("\nComplete details can be seen in server log at FINE/FINER level ")
+                .append("(Jenkins admin access for ")
+                .append(METHOD_TOO_LARGE_LOGGER.getName())
+                .append(" is required)");
+
+        //return new RuntimeException(actionableMsg.toString(), mtlEx);
+        mtlEx = new RuntimeException(actionableMsg.toString(), null);
 
         // Avoid having a stack trace leading to this pretty log-printer in the build log
         StackTraceElement[] emptyStack = new StackTraceElement[0];
