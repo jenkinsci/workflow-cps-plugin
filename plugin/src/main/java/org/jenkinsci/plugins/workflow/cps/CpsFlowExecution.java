@@ -632,166 +632,166 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     protected static Throwable reportSuspectedMethodTooLarge(Throwable x) {
-            // Suspected groovyjarjarasm.asm.MethodTooLargeException or a
-            // org.codehaus.groovy.control.MultipleCompilationErrorsException
-            // whose collection of errors refers to MethodTooLargeException.
-            // Per review comments, we do not want to statically compile a
-            // dependency on the groovyjarjarasm.asm.MethodTooLargeException
-            // internals, so gauge hitting it via String name comparisons.
-            // Other cases may be (subclasses of) RuntimeException or Error.
-            // Note that all of MultipleCompilationErrorsException, and
-            // MethodTooLargeException and CpsCompilationErrorsException
-            // are descended from RuntimeException.
-            Throwable mtlEx = null;
-            int ecCount = 0;
-            String xStr = x.getMessage() + "\n" + Functions.printThrowable(x);
-            final Pattern LINE_SEP_PATTERN = Pattern.compile("\\R");
-            String[] xLines = LINE_SEP_PATTERN.split(xStr);
+        // Suspected groovyjarjarasm.asm.MethodTooLargeException or a
+        // org.codehaus.groovy.control.MultipleCompilationErrorsException
+        // whose collection of errors refers to MethodTooLargeException.
+        // Per review comments, we do not want to statically compile a
+        // dependency on the groovyjarjarasm.asm.MethodTooLargeException
+        // internals, so gauge hitting it via String name comparisons.
+        // Other cases may be (subclasses of) RuntimeException or Error.
+        // Note that all of MultipleCompilationErrorsException, and
+        // MethodTooLargeException and CpsCompilationErrorsException
+        // are descended from RuntimeException.
+        Throwable mtlEx = null;
+        int ecCount = 0;
+        String xStr = x.getMessage() + "\n" + Functions.printThrowable(x);
+        final Pattern LINE_SEP_PATTERN = Pattern.compile("\\R");
+        String[] xLines = LINE_SEP_PATTERN.split(xStr);
 
-            if (x.getClass().getSimpleName().equals("MethodTooLargeException")) {
-                mtlEx = x;
-                ecCount = 1;
-            } else if (x instanceof MultipleCompilationErrorsException) {
-                ErrorCollector ec = ((MultipleCompilationErrorsException) x).getErrorCollector();
-                ecCount = ec.getErrorCount();
+        if (x.getClass().getSimpleName().equals("MethodTooLargeException")) {
+            mtlEx = x;
+            ecCount = 1;
+        } else if (x instanceof MultipleCompilationErrorsException) {
+            ErrorCollector ec = ((MultipleCompilationErrorsException) x).getErrorCollector();
+            ecCount = ec.getErrorCount();
 
-                for (int i = 0; i < ecCount; i++) {
-                    Exception ex = ec.getException(i);
-                    if (ex == null)
-                        continue;
+            for (int i = 0; i < ecCount; i++) {
+                Exception ex = ec.getException(i);
+                if (ex == null)
+                    continue;
 
-                    METHOD_TOO_LARGE_LOGGER.log(Level.FINE,
-                            "CpsFlowExecution.reportSuspectedMethodTooLarge: " +
-                            "Collected Exception #" + i + ": " + ex.toString());
-                    if (ex.getClass().getSimpleName().equals("MethodTooLargeException")) {
-                        mtlEx = ex;
-                        break;
-                    }
+                METHOD_TOO_LARGE_LOGGER.log(Level.FINE,
+                        "CpsFlowExecution.reportSuspectedMethodTooLarge: " +
+                        "Collected Exception #" + i + ": " + ex.toString());
+                if (ex.getClass().getSimpleName().equals("MethodTooLargeException")) {
+                    mtlEx = ex;
+                    break;
                 }
-            } else if (x instanceof CpsCompilationErrorsException) {
-                // Defined in this plugin, to clone a message and stack trace
-                // from a MultipleCompilationErrorsException and be serializable.
-                // Grep it as text for "MethodTooLargeException" and "1 error"
-                // (as a complete line, surrounded by blank lines, with no other
-                // similar lines in text) to be sure we've got it as the only
-                // problem. Note the code overflow may be not in "WorkflowScript"
-                // of the pipeline, but in a JSL step (global variable) or even
-                // class with an actual huge method that should be refactored.
-                if (xStr.contains("MethodTooLargeException")) {
-                    final Pattern NUM_ERROR_PATTERN = Pattern.compile("^\\d+ error$");
-                    boolean blankBefore = false, patternMatchedAfterBlank = false;
+            }
+        } else if (x instanceof CpsCompilationErrorsException) {
+            // Defined in this plugin, to clone a message and stack trace
+            // from a MultipleCompilationErrorsException and be serializable.
+            // Grep it as text for "MethodTooLargeException" and "1 error"
+            // (as a complete line, surrounded by blank lines, with no other
+            // similar lines in text) to be sure we've got it as the only
+            // problem. Note the code overflow may be not in "WorkflowScript"
+            // of the pipeline, but in a JSL step (global variable) or even
+            // class with an actual huge method that should be refactored.
+            if (xStr.contains("MethodTooLargeException")) {
+                final Pattern NUM_ERROR_PATTERN = Pattern.compile("^\\d+ error$");
+                boolean blankBefore = false, patternMatchedAfterBlank = false;
 
-                    for (String l : xLines) {
-                        if (l.isBlank()) {
-                            // Is this the blank before or after the pattern we seek?
-                            // Rule out several blank lines before the match, too...
-                            if (!blankBefore && !patternMatchedAfterBlank) {
-                                blankBefore = true;
-                            } else if (patternMatchedAfterBlank) {
-                                // Got a blank line after a pattern match
-                                patternMatchedAfterBlank = false;
-                                blankBefore = false;
-                                ecCount++;
-                            }
-                        } else if (blankBefore) {
-                            // Ignore pattern when no blank line was before it
-                            Matcher matcher = NUM_ERROR_PATTERN.matcher(l);
-                            if (matcher.find()) {
-                                patternMatchedAfterBlank = true;
-                            } else {
-                                // red herring
-                                blankBefore = false;
-                            }
-                        } else {
-                            // part of wall of text
+                for (String l : xLines) {
+                    if (l.isBlank()) {
+                        // Is this the blank before or after the pattern we seek?
+                        // Rule out several blank lines before the match, too...
+                        if (!blankBefore && !patternMatchedAfterBlank) {
+                            blankBefore = true;
+                        } else if (patternMatchedAfterBlank) {
+                            // Got a blank line after a pattern match
                             patternMatchedAfterBlank = false;
+                            blankBefore = false;
+                            ecCount++;
                         }
-                    }
-
-                    if (ecCount > 0) {
-                        mtlEx = x;
-                    }
-                }
-            }
-
-            if (mtlEx == null || ecCount < 1) {
-                // Some other exception type, or collection did not include MTL, rethrow as-is
-                return x;
-            }
-
-            // Collect the relevant part of stack trace through groovy (JSL),
-            // if any, which the pipeline developer can impact and fix.
-            // Some real-life sample patterns are posted in
-            // https://github.com/jenkinsci/workflow-cps-plugin/pull/817
-            String overflowedClassName = null;
-            List<String> overflowedClassNameMentionsList = new ArrayList<String>();
-            // groovyjarjarasm.asm.MethodTooLargeException: Method too large: cloudBranch.___cps___586328 ()Lcom/cloudbees/groovy/cps/impl/CpsFunction;
-            final Pattern MTLE_CLASSNAME_PATTERN = Pattern.compile("^.*MethodTooLargeException.*: ([^\\s.]+)\\.___cps___\\d+.*$");
-            Pattern CLASSNAME_MENTIONS_PATTERN = Pattern.compile("^\\s+at .*(WorkflowScript.*|\\.groovy):\\d+\\).*$");
-            for (String l : xLines) {
-                if (!(l.isBlank())) {
-                    if (overflowedClassName == null) {
-                        Matcher matcher = MTLE_CLASSNAME_PATTERN.matcher(l);
+                    } else if (blankBefore) {
+                        // Ignore pattern when no blank line was before it
+                        Matcher matcher = NUM_ERROR_PATTERN.matcher(l);
                         if (matcher.find()) {
-                            try {
-                                overflowedClassName = matcher.group(1);
-                                if (!(mtlEx.getMessage().contains(overflowedClassName)))
-                                    overflowedClassNameMentionsList.add(l);
-
-                                // Update the matching pattern in case we manage
-                                // to spot our problematic source in the stack trace
-                                CLASSNAME_MENTIONS_PATTERN = Pattern.compile("^\\s+at .*(WorkflowScript.*|" + overflowedClassName + ".*|\\.groovy):\\d+\\).*$");
-                                continue;
-                            } catch (Throwable ignored) {
-                            }
+                            patternMatchedAfterBlank = true;
+                        } else {
+                            // red herring
+                            blankBefore = false;
                         }
-                    }
-
-                    Matcher matcher = CLASSNAME_MENTIONS_PATTERN.matcher(l);
-                    if (matcher.find()) {
-                        overflowedClassNameMentionsList.add(l);
+                    } else {
+                        // part of wall of text
+                        patternMatchedAfterBlank = false;
                     }
                 }
+
+                if (ecCount > 0) {
+                    mtlEx = x;
+                }
             }
+        }
 
-            if (overflowedClassName == null)
-                overflowedClassName = "WorkflowScript (the pipeline script) or one of its constituents";
+        if (mtlEx == null || ecCount < 1) {
+            // Some other exception type, or collection did not include MTL, rethrow as-is
+            return x;
+        }
 
-            String msg = "FAILED to parse " + overflowedClassName + " due to MethodTooLargeException";
-            if (ecCount > 1) {
-                msg += " (and other issues)";
+        // Collect the relevant part of stack trace through groovy (JSL),
+        // if any, which the pipeline developer can impact and fix.
+        // Some real-life sample patterns are posted in
+        // https://github.com/jenkinsci/workflow-cps-plugin/pull/817
+        String overflowedClassName = null;
+        List<String> overflowedClassNameMentionsList = new ArrayList<String>();
+        // groovyjarjarasm.asm.MethodTooLargeException: Method too large: cloudBranch.___cps___586328 ()Lcom/cloudbees/groovy/cps/impl/CpsFunction;
+        final Pattern MTLE_CLASSNAME_PATTERN = Pattern.compile("^.*MethodTooLargeException.*: ([^\\s.]+)\\.___cps___\\d+.*$");
+        Pattern CLASSNAME_MENTIONS_PATTERN = Pattern.compile("^\\s+at .*(WorkflowScript.*|\\.groovy):\\d+\\).*$");
+        for (String l : xLines) {
+            if (!(l.isBlank())) {
+                if (overflowedClassName == null) {
+                    Matcher matcher = MTLE_CLASSNAME_PATTERN.matcher(l);
+                    if (matcher.find()) {
+                        try {
+                            overflowedClassName = matcher.group(1);
+                            if (!(mtlEx.getMessage().contains(overflowedClassName)))
+                                overflowedClassNameMentionsList.add(l);
+
+                            // Update the matching pattern in case we manage
+                            // to spot our problematic source in the stack trace
+                            CLASSNAME_MENTIONS_PATTERN = Pattern.compile("^\\s+at .*(WorkflowScript.*|" + overflowedClassName + ".*|\\.groovy):\\d+\\).*$");
+                            continue;
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }
+
+                Matcher matcher = CLASSNAME_MENTIONS_PATTERN.matcher(l);
+                if (matcher.find()) {
+                    overflowedClassNameMentionsList.add(l);
+                }
             }
-            // Short message suffices, not much that a pipeline developer
-            // can do with the stack trace into the guts of groovy
-            msg += "; please refactor to simplify code structure";
-            if (overflowedClassName.contains("WorkflowScript"))
-                msg += " and/or move logic to a Jenkins Shared Library";
-            msg += ": " + mtlEx.getMessage();
-            if (!(overflowedClassNameMentionsList.isEmpty())) {
-                msg += "\nGroovy code trail (mentions of pipeline WorkflowScript and/or your JSL in larger stack trace):\n"
-                        + String.join("\n", overflowedClassNameMentionsList);
-            }
+        }
 
-            // Make a full note in server log
-            METHOD_TOO_LARGE_LOGGER.log(Level.FINER, "CpsFlowExecution.reportSuspectedMethodTooLarge: full original Throwable message:\n" + xStr);
+        if (overflowedClassName == null)
+            overflowedClassName = "WorkflowScript (the pipeline script) or one of its constituents";
 
-            if (ecCount > 1) {
-                // Not squashing with explicit MethodTooLargeException
-                // re-thrown below, in this codepath we have other errors.
-                return new RuntimeException(msg, x);
-            } else {
-                // ecCount == 1 exactly, this is the only problem we saw.
-                // Do not confuse pipeline devs by a wall of text in the
-                // build console, but let the full context be found in
-                // server log with some dedication. Note it is seen at
-                // a different logging verbosity level.
-                METHOD_TOO_LARGE_LOGGER.log(Level.FINE, "CpsFlowExecution.reportSuspectedMethodTooLarge: detected details of MethodTooLargeException:\n" + mtlEx.getMessage());
+        String msg = "FAILED to parse " + overflowedClassName + " due to MethodTooLargeException";
+        if (ecCount > 1) {
+            msg += " (and other issues)";
+        }
+        // Short message suffices, not much that a pipeline developer
+        // can do with the stack trace into the guts of groovy
+        msg += "; please refactor to simplify code structure";
+        if (overflowedClassName.contains("WorkflowScript"))
+            msg += " and/or move logic to a Jenkins Shared Library";
+        msg += ": " + mtlEx.getMessage();
+        if (!(overflowedClassNameMentionsList.isEmpty())) {
+            msg += "\nGroovy code trail (mentions of pipeline WorkflowScript and/or your JSL in larger stack trace):\n"
+                    + String.join("\n", overflowedClassNameMentionsList);
+        }
 
-                //return new RuntimeException(msg, mtlEx);
-                return new RuntimeException(msg +
-                        "\nComplete details can be seen in server log at FINE/FINER level " +
-                        "(Jenkins admin access for " + METHOD_TOO_LARGE_LOGGER.getName() + " is required)");
-            }
+        // Make a full note in server log
+        METHOD_TOO_LARGE_LOGGER.log(Level.FINER, "CpsFlowExecution.reportSuspectedMethodTooLarge: full original Throwable message:\n" + xStr);
+
+        if (ecCount > 1) {
+            // Not squashing with explicit MethodTooLargeException
+            // re-thrown below, in this codepath we have other errors.
+            return new RuntimeException(msg, x);
+        }
+
+        // ecCount == 1 exactly, this is the only problem we saw.
+        // Do not confuse pipeline devs by a wall of text in the
+        // build console, but let the full context be found in
+        // server log with some dedication. Note it is seen at
+        // a different logging verbosity level.
+        METHOD_TOO_LARGE_LOGGER.log(Level.FINE, "CpsFlowExecution.reportSuspectedMethodTooLarge: detected details of MethodTooLargeException:\n" + mtlEx.getMessage());
+
+        //return new RuntimeException(msg, mtlEx);
+        return new RuntimeException(msg +
+                "\nComplete details can be seen in server log at FINE/FINER level " +
+                "(Jenkins admin access for " + METHOD_TOO_LARGE_LOGGER.getName() + " is required)");
     }
 
     private CpsScript parseScript() throws IOException {
