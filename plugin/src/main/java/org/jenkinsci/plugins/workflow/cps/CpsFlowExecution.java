@@ -729,6 +729,26 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         String overflowedClassNameShort = null;
         StringBuilder overflowedClassNameBreadcrumbs = new StringBuilder();
 
+        // FIXME: After initial development and testing it was found that
+        //  the part of the stack trace originally reported in the build
+        //  log, with "bread-crumbs" through the WorkflowScript and maybe
+        //  *.groovy files, with a "at ___cps.transform___(Native Method)"
+        //  (synthesized entry via Continuable.SEPARATOR_STACK_ELEMENT)
+        //  was constructed by ContinuationGroup.fixupStackTrace() as
+        //  called from PropertyishBlock.ContinuationImpl.get() in the
+        //  groovy-cps library (see sources nearby in this project).
+        //  Such patched-up Throwable combines the "real" exception
+        //  call stack of broken code with that of the asynchronous
+        //  CPS caller, and is then injected into the particular env's
+        //  "ExceptionHandler" to eventually end up in the build log.
+        //  This here log trimmer/parser should probably be refactored
+        //  into a method or even class (PrettyMethodTooLargeException)
+        //  in *that* library to directly impact the "get()" exception
+        //  behavior for global variables, ultimately, and so to benefit
+        //  slightly from this bit of tracing at that point (two methods
+        //  which call it now should not anymore, to pass all needed
+        //  stack info for mangling to that new decision point).
+
         // For this matcher, caught patterns of interest include:
         // * alphanumeric-only token: step (global variable) from a Jenkins shared library
         //   groovyjarjarasm.asm.MethodTooLargeException: Method too large: cloudBranch.___cps___586328 ()Lcom/cloudbees/groovy/cps/impl/CpsFunction;
@@ -880,7 +900,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         //return new RuntimeException(actionableMsg.toString(), mtlEx);
         mtlEx = new RuntimeException(actionableMsg.toString(), null);
 
-        // Avoid having a stack trace leading to this pretty log-printer in the build log
+        // Avoid having a huge stack trace leading to this pretty log-printer
+        // in the build log.
+        // Technically, ContinuationGroup.fixupStackTrace() uses common
+        // parts of the "real" and CPS-caller stack traces to inject the
+        // async call parts, or skips the hassle if the two stack trace
+        // lists have different "roots" (as non-trivially defined in
+        // ContinuationGroup.hasSameRoots() method).
         StackTraceElement[] emptyStack = new StackTraceElement[0];
         mtlEx.setStackTrace(emptyStack);
         return mtlEx;
