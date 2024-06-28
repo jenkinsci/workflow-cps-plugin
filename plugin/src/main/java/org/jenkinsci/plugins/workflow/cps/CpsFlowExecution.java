@@ -830,11 +830,14 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         if (overflowedClassNameReport.contains("WorkflowScript") || CLASSNAME_SCRIPTNUM_PATTERN.matcher(overflowedClassName).find())
             msg += " and/or move logic to a Jenkins Shared Library";
         if (xMsgStart.length() > 0) {
-            msg += ": " + xMsgStart.toString();
+            msg += ":\n-----\n" + xMsgStart.toString();
         }
         if (!(overflowedClassNameMentionsList.isEmpty())) {
             msg += "\nGroovy code trail (mentions of pipeline WorkflowScript and/or your JSL in larger stack trace):\n"
                     + String.join("\n", overflowedClassNameMentionsList);
+        }
+        if (xMsgStart.length() > 0) {
+            msg += "\n-----\n";
         }
 
         // Make a full note in server log
