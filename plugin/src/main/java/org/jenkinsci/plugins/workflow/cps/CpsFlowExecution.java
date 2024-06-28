@@ -776,17 +776,25 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
         }
 
-        if (overflowedClassName == null)
-            overflowedClassName = "WorkflowScript (the pipeline script) or one of its constituents";
+        String overflowedClassNameReport;
+        if (overflowedClassName == null) {
+            overflowedClassNameReport = "WorkflowScript (the pipeline script) or one of its constituents";
+        } else if (overflowedClassName.equals("WorkflowScript")) {
+            overflowedClassNameReport = "WorkflowScript (the pipeline script)";
+        } else {
+            // quote the step/class name pretty:
+            //   FAILED to parse 'stepName' due to...
+            overflowedClassNameReport = "'" + overflowedClassName + "'";
+        }
 
-        String msg = "FAILED to parse " + overflowedClassName + " due to MethodTooLargeException";
+        String msg = "FAILED to parse " + overflowedClassNameReport + " due to MethodTooLargeException";
         if (ecCount > 1) {
             msg += " (and other issues)";
         }
         // Short message suffices, not much that a pipeline developer
         // can do with the stack trace into the guts of groovy
         msg += "; please refactor to simplify code structure";
-        if (overflowedClassName.contains("WorkflowScript"))
+        if (overflowedClassNameReport.contains("WorkflowScript"))
             msg += " and/or move logic to a Jenkins Shared Library";
         if (xMsgStart.length() > 0) {
             msg += ": " + xMsgStart.toString();
