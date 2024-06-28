@@ -846,7 +846,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     .append(overflowedClassNameBreadcrumbs);
         }
         if (xMsgStart.length() > 0) {
-            actionableMsg.append("\n-----\n");
+            if (!(actionableMsg.substring(actionableMsg.length() - 1).equals("\n")))
+                actionableMsg.append("\n");
+            actionableMsg.append("-----\n");
         }
 
         // Make a full note in server log
