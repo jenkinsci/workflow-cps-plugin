@@ -631,19 +631,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         return LoggingInvoker.create(isSandbox());
     }
 
-    private CpsScript parseScript() throws IOException {
-        // classloader hierarchy. See doc/classloader.md
-        CpsScript s;
-        try {
-            trusted = new CpsGroovyShellFactory(this).forTrusted().build();
-            shell = new CpsGroovyShellFactory(this).withParent(trusted).build();
-
-            s = (CpsScript) shell.reparse("WorkflowScript", script);
-
-            for (Entry<String, String> e : loadedScripts.entrySet()) {
-                shell.reparse(e.getKey(), e.getValue());
-            }
-        } catch (RuntimeException | Error x) {
+    protected static Throwable reportSuspectedMethodTooLarge(Throwable x) {
             // Suspected groovyjarjarasm.asm.MethodTooLargeException or a
             // org.codehaus.groovy.control.MultipleCompilationErrorsException
             // whose collection of errors refers to MethodTooLargeException.
@@ -659,9 +647,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             String xStr = x.getMessage() + "\n" + Functions.printThrowable(x);
             final Pattern LINE_SEP_PATTERN = Pattern.compile("\\R");
             String[] xLines = LINE_SEP_PATTERN.split(xStr);
-
-            // Clean up first
-            closeShells();
 
             if (x.getClass().getSimpleName().equals("MethodTooLargeException")) {
                 mtlEx = x;
@@ -731,7 +716,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
             if (mtlEx == null || ecCount < 1) {
                 // Some other exception type, or collection did not include MTL, rethrow as-is
-                throw x;
+                return x;
             }
 
             // Collect the relevant part of stack trace through groovy (JSL),
@@ -793,7 +778,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             if (ecCount > 1) {
                 // Not squashing with explicit MethodTooLargeException
                 // re-thrown below, in this codepath we have other errors.
-                throw new RuntimeException(msg, x);
+                return new RuntimeException(msg, x);
             } else {
                 // ecCount == 1 exactly, this is the only problem we saw.
                 // Do not confuse pipeline devs by a wall of text in the
@@ -802,11 +787,30 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 // a different logging verbosity level.
                 METHOD_TOO_LARGE_LOGGER.log(Level.FINE, "CpsFlowExecution.reportSuspectedMethodTooLarge: detected details of MethodTooLargeException:\n" + mtlEx.getMessage());
 
-                //throw new RuntimeException(msg, mtlEx);
-                throw new RuntimeException(msg +
+                //return new RuntimeException(msg, mtlEx);
+                return new RuntimeException(msg +
                         "\nComplete details can be seen in server log at FINE/FINER level " +
                         "(Jenkins admin access for " + METHOD_TOO_LARGE_LOGGER.getName() + " is required)");
             }
+    }
+
+    private CpsScript parseScript() throws IOException {
+        // classloader hierarchy. See doc/classloader.md
+        CpsScript s;
+        try {
+            trusted = new CpsGroovyShellFactory(this).forTrusted().build();
+            shell = new CpsGroovyShellFactory(this).withParent(trusted).build();
+
+            s = (CpsScript) shell.reparse("WorkflowScript", script);
+
+            for (Entry<String, String> e : loadedScripts.entrySet()) {
+                shell.reparse(e.getKey(), e.getValue());
+            }
+        } catch (RuntimeException | Error x) {
+            // Clean up first
+            closeShells();
+
+            throw CpsFlowExecution.reportSuspectedMethodTooLarge(x);
         }
 
         s.execution = this;
