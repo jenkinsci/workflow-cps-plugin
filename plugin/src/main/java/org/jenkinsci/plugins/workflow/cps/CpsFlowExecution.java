@@ -789,9 +789,15 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         METHOD_TOO_LARGE_LOGGER.log(Level.FINE, "CpsFlowExecution.reportSuspectedMethodTooLarge: detected details of MethodTooLargeException:\n" + mtlEx.getMessage());
 
         //return new RuntimeException(msg, mtlEx);
-        return new RuntimeException(msg +
+        mtlEx = new RuntimeException(msg +
                 "\nComplete details can be seen in server log at FINE/FINER level " +
-                "(Jenkins admin access for " + METHOD_TOO_LARGE_LOGGER.getName() + " is required)");
+                "(Jenkins admin access for " + METHOD_TOO_LARGE_LOGGER.getName() + " is required)",
+                null);
+
+        // Avoid having a stack trace leading to this pretty log-printer in the build log
+        StackTraceElement[] emptyStack = new StackTraceElement[0];
+        mtlEx.setStackTrace(emptyStack);
+        return mtlEx;
     }
 
     private CpsScript parseScript() throws IOException {
