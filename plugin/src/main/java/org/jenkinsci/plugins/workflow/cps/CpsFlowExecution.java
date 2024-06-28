@@ -727,7 +727,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         // Use the short "base name" string of the detected class name
         // for subsequent matching of bread-crumbs:
         String overflowedClassNameShort = null;
-        List<String> overflowedClassNameMentionsList = new ArrayList<String>();
+        StringBuilder overflowedClassNameBreadcrumbs = new StringBuilder();
 
         // For this matcher, caught patterns of interest include:
         // * alphanumeric-only token: step (global variable) from a Jenkins shared library
@@ -780,7 +780,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             // did not have a reference to this script/step/class
                             // from the start of x.getMessage() effectively.
                             if (!(xMsgStart.toString().contains(overflowedClassName)))
-                                overflowedClassNameMentionsList.add(l);
+                                overflowedClassNameBreadcrumbs.append(l).append("\n");
 
                             String[] overflowedClassNameSplit = overflowedClassName.split("/");
                             if (overflowedClassNameSplit.length > 1) {
@@ -800,7 +800,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
                 Matcher matcher = CLASSNAME_MENTIONS_PATTERN.matcher(l);
                 if (matcher.find()) {
-                    overflowedClassNameMentionsList.add(l);
+                    overflowedClassNameBreadcrumbs.append(l).append("\n");
                 }
             }
         }
@@ -838,10 +838,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     .append(":\n-----\n")
                     .append(xMsgStart.toString());
         }
-        if (!(overflowedClassNameMentionsList.isEmpty())) {
+        if (overflowedClassNameBreadcrumbs.length() > 0) {
             actionableMsg
                     .append("\nGroovy code trail (mentions of pipeline WorkflowScript and/or your JSL in larger stack trace):\n")
-                    .append(String.join("\n", overflowedClassNameMentionsList));
+                    .append(overflowedClassNameBreadcrumbs);
         }
         if (xMsgStart.length() > 0) {
             actionableMsg.append("\n-----\n");
