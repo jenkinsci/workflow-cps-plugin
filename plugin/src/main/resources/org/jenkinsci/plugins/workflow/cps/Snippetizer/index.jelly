@@ -29,7 +29,7 @@ THE SOFTWARE.
         <st:include page="sidepanel"/>
         <l:main-panel>
             <f:form name="config">
-                <f:section title="${%Overview}"/>
+                <h1>${%Overview}</h1>
                 <f:block>
                     This <b>Snippet Generator</b> will help you learn the Pipeline Script code which can be used to
                     define various steps. Pick a step you are interested in from the list, configure it,
@@ -68,9 +68,11 @@ THE SOFTWARE.
                     <local:listSteps quasiDescriptors="${it.getQuasiDescriptors(true)}"/>
                 </f:dropdownList>
                 <f:block>
-                    <input type="button" id="generatePipelineScript" value="${%Generate Pipeline Script}"
-                           class="submit-button primary"
-                           data-url="${rootURL}/${it.GENERATE_URL}"/>
+                    <button type="button" id="generatePipelineScript"
+                           class="jenkins-button jenkins-button--primary"
+                           data-url="${rootURL}/${it.GENERATE_URL}">
+                        ${%Generate Pipeline Script}
+                    </button>
                     <f:textarea id="prototypeText" readonly="true" style="margin-top: 10px"/>
                     <l:copyButton text="" clazz="jenkins-hidden jenkins-!-margin-top-1"/>
                     <st:adjunct includes="org.jenkinsci.plugins.workflow.cps.Snippetizer.handle-prototype"/>
