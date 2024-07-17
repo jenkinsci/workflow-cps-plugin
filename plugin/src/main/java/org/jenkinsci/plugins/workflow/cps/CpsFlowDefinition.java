@@ -34,8 +34,10 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.util.FormValidation;
 import hudson.util.StreamTaskListener;
+import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.plugins.workflow.cps.config.CPSConfiguration;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.flow.DurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
@@ -43,6 +45,8 @@ import org.jenkinsci.plugins.workflow.flow.FlowDefinitionDescriptor;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.flow.GlobalDefaultFlowDurabilityLevel;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 
@@ -100,6 +104,12 @@ public class CpsFlowDefinition extends FlowDefinition {
 
     public boolean isSandbox() {
         return sandbox;
+    }
+
+    @Restricted(NoExternalUse.class) // stapler
+    public boolean shouldHideSandbox() {
+        // sandbox checkbox is shown to admins even if the global configuration says otherwise
+        return CPSConfiguration.get().isHideSandbox() && !Jenkins.get().hasPermission(Jenkins.ADMINISTER);
     }
 
     // Used only from Groovy tests.

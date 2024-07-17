@@ -28,8 +28,8 @@
   <f:entry title="${%Script}" field="script">
     <wfe:workflow-editor />
   </f:entry>
-  <f:entry field="sandbox">
-    <f:checkbox title="${%Use Groovy Sandbox}" default="true"/>
+  <f:entry field="sandbox" class="${instance.shouldHideSandbox() ? 'jenkins-hidden' : ''}">
+    <f:checkbox title="${%Use Groovy Sandbox}" default="true" />
   </f:entry>
     <f:block>
         <a href="pipeline-syntax" target="_blank">${%Pipeline Syntax}</a>
