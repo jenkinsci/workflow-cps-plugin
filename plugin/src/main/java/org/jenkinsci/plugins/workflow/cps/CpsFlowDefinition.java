@@ -25,8 +25,10 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.AbortException;
 import hudson.Extension;
 import hudson.model.Action;
+import hudson.model.Failure;
 import hudson.model.Item;
 import hudson.model.Job;
 import hudson.model.Queue;
@@ -109,7 +111,8 @@ public class CpsFlowDefinition extends FlowDefinition {
     @Restricted(NoExternalUse.class) // stapler
     public boolean shouldHideSandbox() {
         // sandbox checkbox is shown to admins even if the global configuration says otherwise
-        return CPSConfiguration.get().isHideSandbox() && !Jenkins.get().hasPermission(Jenkins.ADMINISTER);
+        // it's also shown when sandbox == false, so regular users can enable it
+        return CPSConfiguration.get().isHideSandbox() && !Jenkins.get().hasPermission(Jenkins.ADMINISTER) && sandbox;
     }
 
     // Used only from Groovy tests.

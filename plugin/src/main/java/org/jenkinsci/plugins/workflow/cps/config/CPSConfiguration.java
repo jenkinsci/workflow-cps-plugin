@@ -29,12 +29,12 @@ import hudson.ExtensionList;
 import jenkins.model.GlobalConfiguration;
 import org.jenkinsci.Symbol;
 
-@Extension
 @Symbol("cpsGlobalConfiguration")
+@Extension
 public class CPSConfiguration extends GlobalConfiguration {
 
     /**
-     * Whether to show the sandbox checkbox in jobs to users without {@link jenkins.model.Jenkins.ADMINISTER}
+     * Whether to show the sandbox checkbox in jobs to users without Jenkins.ADMINISTER
      */
     private boolean hideSandbox;
 

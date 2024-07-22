@@ -298,36 +298,40 @@ public class CpsFlowDefinitionTest {
         mockStrategy.grant(Jenkins.ADMINISTER).everywhere().to("admin");
         jenkins.jenkins.setAuthorizationStrategy(mockStrategy);
 
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition("echo 'Hello'", true));
+
         JenkinsRule.WebClient wcDevel = jenkins.createWebClient();
 
-        // non-admins can see the sandbox checkbox by default
+        // non-admins can see the sandbox checkbox in jobs by default
         wcDevel.login("devel");
-
-        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
-        p.setDefinition(new CpsFlowDefinition("", true));
-
         {
             HtmlForm config = wcDevel.getPage(p, "configure").getFormByName("config");
             assertThat(config.getVisibleText(), containsStringIgnoringCase("Use Groovy Sandbox"));
         }
 
+        // non-admins cannot see the sandbox checkbox in jobs if hideSandbox is On globally
         CPSConfiguration.get().setHideSandbox(true);
-
         {
             HtmlForm config = wcDevel.getPage(p, "configure").getFormByName("config");
             assertThat(config.getVisibleText(), not(containsStringIgnoringCase("Use Groovy Sandbox")));
+
+            // but, when the sandbox is disabled the checkbox is shown so users can enable it
+            p.setDefinition(new CpsFlowDefinition("echo 'Hello'", false));
+            config = wcDevel.getPage(p, "configure").getFormByName("config");
+            assertThat(config.getVisibleText(), containsStringIgnoringCase("Use Groovy Sandbox"));
         }
 
+        // admins can always see the sandbox checkbox
         CPSConfiguration.get().setHideSandbox(false);
         wcDevel.login("admin");
-
         {
             HtmlForm config = wcDevel.getPage(p, "configure").getFormByName("config");
             assertThat(config.getVisibleText(), containsStringIgnoringCase("Use Groovy Sandbox"));
         }
 
+        // even when set to hide globally
         CPSConfiguration.get().setHideSandbox(true);
-
         {
             HtmlForm config = wcDevel.getPage(p, "configure").getFormByName("config");
             assertThat(config.getVisibleText(), containsStringIgnoringCase("Use Groovy Sandbox"));
