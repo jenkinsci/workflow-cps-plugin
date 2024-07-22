@@ -24,9 +24,11 @@
 
 package org.jenkinsci.plugins.workflow.cps.config;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.ExtensionList;
 import jenkins.model.GlobalConfiguration;
+import jenkins.model.GlobalConfigurationCategory;
 import org.jenkinsci.Symbol;
 
 @Symbol("cpsGlobalConfiguration")
@@ -49,6 +51,12 @@ public class CPSConfiguration extends GlobalConfiguration {
     public void setHideSandbox(boolean hideSandbox) {
         this.hideSandbox = hideSandbox;
         save();
+    }
+
+    @NonNull
+    @Override
+    public GlobalConfigurationCategory getCategory() {
+        return GlobalConfigurationCategory.get(GlobalConfigurationCategory.Security.class);
     }
 
     public static CPSConfiguration get() {
