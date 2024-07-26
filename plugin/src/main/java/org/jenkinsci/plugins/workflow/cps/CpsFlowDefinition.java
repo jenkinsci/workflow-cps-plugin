@@ -28,6 +28,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.model.Action;
+import hudson.model.Descriptor;
 import hudson.model.Failure;
 import hudson.model.Item;
 import hudson.model.Job;
@@ -81,16 +82,21 @@ public class CpsFlowDefinition extends FlowDefinition {
      * @deprecated use {@link #CpsFlowDefinition(String, boolean)} instead
      */
     @Deprecated
-    public CpsFlowDefinition(String script) {
+    public CpsFlowDefinition(String script) throws Descriptor.FormException {
         this(script, false);
     }
 
     @DataBoundConstructor
-    public CpsFlowDefinition(String script, boolean sandbox) {
+    public CpsFlowDefinition(String script, boolean sandbox) throws Descriptor.FormException {
+        if (CPSConfiguration.get().isHideSandbox() && !sandbox && !Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+            throw new Descriptor.FormException("Sandbox cannot be disabled. This Jenkins instance has been configured to not " +
+                    "allow regular users to disable the sandbox in pipelines", "sandbox");
+        }
         StaplerRequest req = Stapler.getCurrentRequest();
         this.script = sandbox ? script : ScriptApproval.get().configuring(script, GroovyLanguage.get(),
                 ApprovalContext.create().withCurrentUser().withItemAsKey(req != null ? req.findAncestorObject(Item.class) : null), req == null);
         this.sandbox = sandbox;
+
     }
 
     private Object readResolve() {
