@@ -89,6 +89,7 @@ public class CpsFlowDefinition extends FlowDefinition {
     @DataBoundConstructor
     public CpsFlowDefinition(String script, boolean sandbox) throws Descriptor.FormException {
         if (CPSConfiguration.get().isHideSandbox() && !sandbox && !Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+            // this will end up in the /oops page until https://github.com/jenkinsci/jenkins/pull/9495 is picked up
             throw new Descriptor.FormException("Sandbox cannot be disabled. This Jenkins instance has been configured to not " +
                     "allow regular users to disable the sandbox in pipelines", "sandbox");
         }
