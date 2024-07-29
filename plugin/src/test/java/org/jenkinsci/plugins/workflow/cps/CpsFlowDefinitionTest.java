@@ -354,7 +354,7 @@ public class CpsFlowDefinitionTest {
             assertFalse("Sandbox is disabled", sandbox.isChecked());
             VersionNumber jenkinsVersion = new VersionNumber(Jenkins.VERSION);
             int expectedStatus = 500;
-            if (jenkinsVersion.isNewerThanOrEqualTo(new VersionNumber("2.470"))) { // including https://github.com/jenkinsci/jenkins/pull/9495
+            if (jenkinsVersion.isNewerThanOrEqualTo(new VersionNumber("2.470"))) { // TODO pending https://github.com/jenkinsci/jenkins/pull/9495 in baseline
                 expectedStatus = 400;
             }
             try {
