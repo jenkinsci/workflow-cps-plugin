@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import hudson.util.VersionNumber;
 import org.htmlunit.FailingHttpStatusCodeException;
 import org.htmlunit.HttpMethod;
 import org.htmlunit.WebRequest;
@@ -351,14 +352,20 @@ public class CpsFlowDefinitionTest {
             // Get the last one, because previous ones might be from Lockable Resources during PCT.
             HtmlCheckBoxInput sandbox = (HtmlCheckBoxInput) sandboxes.get(sandboxes.size() - 1);
             assertFalse("Sandbox is disabled", sandbox.isChecked());
+            VersionNumber jenkinsVersion = new VersionNumber(Jenkins.VERSION);
+            int expectedStatus = 500;
+            if (jenkinsVersion.isNewerThanOrEqualTo(new VersionNumber("2.470"))) { // including https://github.com/jenkinsci/jenkins/pull/9495
+                expectedStatus = 400;
+            }
             try {
                 jenkins.submit(config);
-                fail("Expected HTTP 500"); // should be 400 when https://github.com/jenkinsci/jenkins/pull/9495
+                fail("Expected HTTP " + expectedStatus);
             } catch (FailingHttpStatusCodeException e) {
                 // good, expected
-                assertThat(e.getStatusCode(), equalTo(500)); // should be 400 when https://github.com/jenkinsci/jenkins/pull/9495
-                // uncomment when should be 400 when https://github.com/jenkinsci/jenkins/pull/9495
-                //assertThat(e.getResponse().getContentAsString(StandardCharsets.UTF_8), containsStringIgnoringCase("Sandbox cannot be disabled"));
+                assertThat(e.getStatusCode(), equalTo(expectedStatus));
+                if (expectedStatus == 400) {
+                    assertThat(e.getResponse().getContentAsString(StandardCharsets.UTF_8), containsStringIgnoringCase("Sandbox cannot be disabled"));
+                }
             }
 
         }
