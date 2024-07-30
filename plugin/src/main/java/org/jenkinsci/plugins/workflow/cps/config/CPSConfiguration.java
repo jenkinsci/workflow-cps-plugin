@@ -31,7 +31,7 @@ import jenkins.model.GlobalConfiguration;
 import jenkins.model.GlobalConfigurationCategory;
 import org.jenkinsci.Symbol;
 
-@Symbol("cpsGlobalConfiguration")
+@Symbol("cps")
 @Extension
 public class CPSConfiguration extends GlobalConfiguration {
 
