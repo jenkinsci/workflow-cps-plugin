@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.AbortException;
 import hudson.Extension;
@@ -115,13 +116,6 @@ public class CpsFlowDefinition extends FlowDefinition {
         return sandbox;
     }
 
-    @Restricted(NoExternalUse.class) // stapler
-    public boolean shouldHideSandbox() {
-        // sandbox checkbox is shown to admins even if the global configuration says otherwise
-        // it's also shown when sandbox == false, so regular users can enable it
-        return CPSConfiguration.get().isHideSandbox() && !Jenkins.get().hasPermission(Jenkins.ADMINISTER) && sandbox;
-    }
-
     // Used only from Groovy tests.
     public CpsFlowExecution create(FlowExecutionOwner handle, Action... actions) throws IOException {
         return create(handle, StreamTaskListener.fromStderr(), List.of(actions));
@@ -196,6 +190,14 @@ public class CpsFlowDefinition extends FlowDefinition {
             }
             return CpsFlowDefinitionValidator.CheckStatus.SUCCESS.asJSON();
             // Approval requirements are managed by regular stapler form validation (via doCheckScript)
+        }
+
+        @Restricted(NoExternalUse.class) // stapler
+        public boolean shouldHideSandbox(@CheckForNull CpsFlowDefinition instance) {
+            // sandbox checkbox is shown to admins even if the global configuration says otherwise
+            // it's also shown when sandbox == false, so regular users can enable it
+            return CPSConfiguration.get().isHideSandbox() && !Jenkins.get().hasPermission(Jenkins.ADMINISTER)
+                    && (instance == null || instance.sandbox);
         }
 
     }
