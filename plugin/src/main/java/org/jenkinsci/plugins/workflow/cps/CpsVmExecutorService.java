@@ -40,7 +40,7 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 class CpsVmExecutorService extends InterceptingExecutorService {
 
     private static final String QUEUE_SIZE_METRIC = "jenkins.job.pipeline.cps-vm-thread.queue.size";
-    private static final String EXECUTION_DURATION_METRIC = "jenkins.job.pipeline.cps-vm-thread.queue.size";
+    private static final String EXECUTION_DURATION_METRIC = "jenkins.job.pipeline.cps-vm-thread.execution.duration";
 
     @SuppressWarnings("rawtypes")
     private static final List<Class> CATEGORIES = ImmutableList.<Class>builder()
