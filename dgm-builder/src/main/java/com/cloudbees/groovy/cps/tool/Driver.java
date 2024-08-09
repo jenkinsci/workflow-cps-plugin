@@ -9,13 +9,13 @@ import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
+import javax.tools.ToolProvider;
 import java.io.File;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.ServiceLoader;
 import java.util.Set;
 
 public class Driver {
@@ -24,7 +24,7 @@ public class Driver {
     }
 
     public void run(File dir) throws Exception {
-        JavaCompiler javac = getSystemJavaCompiler();
+        JavaCompiler javac = ToolProvider.getSystemJavaCompiler();
         DiagnosticListener<JavaFileObject> errorListener = createErrorListener();
 
         try (StandardJavaFileManager fileManager = javac.getStandardFileManager(errorListener, Locale.getDefault(), Charset.defaultCharset())) {
@@ -73,20 +73,6 @@ public class Driver {
 
     private DiagnosticListener<JavaFileObject> createErrorListener() {
         return System.out::println;
-    }
-
-    private static JavaCompiler getSystemJavaCompiler() {
-        for (var compiler : ServiceLoader.load(JavaCompiler.class, ClassLoader.getSystemClassLoader())) {
-            if (compiler.getClass().getName().equals("com.semmle.extractor.java.interceptors.JavacToolInterceptor")) {
-                // CodeQL injects a custom JavaCompiler that does not currently support Java 17+, see https://github.com/jenkinsci/workflow-cps-plugin/pull/901#discussion_r1709926730
-                // We don't actually want to scan the generated CPS-DGM classes anyway, so we ignore it and use the regular implementation.
-                System.out.println("Skipping CodeQL JavaCompiler implementation: " + compiler.getClass().getName());
-            } else {
-                System.out.println("Selected JavaCompiler implementation: " + compiler.getClass().getName());
-                return compiler;
-            }
-        }
-        throw new IllegalStateException("Unable to find a valid JavaCompiler implementation");
     }
 
 }
