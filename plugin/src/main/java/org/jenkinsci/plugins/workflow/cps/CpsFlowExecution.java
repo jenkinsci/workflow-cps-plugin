@@ -406,7 +406,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     transient @NonNull Map<String, LongAdder> liveTimings = new ConcurrentHashMap<>();
     /** instances of {@link Timing} which have not yet completed for reporting counts and durations in support bundles. Never persisted. */
     transient @NonNull Set<Timing> liveIncompleteTimings = ConcurrentHashMap.newKeySet();
-    /** *  XStream simplified form of {@link #liveTimings} */
+    /** XStream simplified form of {@link #liveTimings} */
     private Map<String, Long> timings;
 
     private @NonNull Set<String> internalCalls = ConcurrentHashMap.newKeySet();
