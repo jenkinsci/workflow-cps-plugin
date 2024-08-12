@@ -387,6 +387,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
          */
         run,
         /**
+         * Time spent waiting in the queue for {@link CpsVmExecutorService}.
+         */
+        runQueue,
+        /**
          * Saving the program state.
          * @see CpsThreadGroup#saveProgram(File)
          */
@@ -400,7 +404,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     /** accumulated time in ns of a given {@link TimingKind#name}; {@link String} key for pretty XStream form */
     transient @NonNull Map<String, LongAdder> liveTimings = new ConcurrentHashMap<>();
-    /** XStream simplified form of {@link #liveTimings} */
+    /** Number of operations of a given {@link TimingKind#name} which are currently in progress. Never persisted. */
+    transient @NonNull Map<String, LongAdder> liveCounts = new ConcurrentHashMap<>();
+    /** *  XStream simplified form of {@link #liveTimings} */
     private Map<String, Long> timings;
 
     private @NonNull Set<String> internalCalls = ConcurrentHashMap.newKeySet();
@@ -431,9 +437,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         private Timing(TimingKind kind) {
             this.kind = kind;
             start = System.nanoTime();
+            liveCounts.computeIfAbsent(kind.name(), k -> new LongAdder()).increment();
         }
 
         @Override public void close() {
+            liveCounts.computeIfAbsent(kind.name(), k -> new LongAdder()).decrement();
             liveTimings.computeIfAbsent(kind.name(), k -> new LongAdder()).add(System.nanoTime() - start);
         }
     }
@@ -1879,6 +1887,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             la.add(kv.getValue());
                             return la;
                         }));
+                    result.liveCounts = new ConcurrentHashMap<>();
                     return result;
                 } catch (Exception ex) {
                     LOGGER.log(Level.SEVERE, "Failed to even load the FlowExecution", ex);

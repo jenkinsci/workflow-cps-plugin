@@ -20,7 +20,6 @@ import hudson.util.NamingThreadFactory;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
-import jenkins.metrics.api.Metrics;
 import jenkins.model.Jenkins;
 import jenkins.security.ImpersonatingExecutorService;
 import jenkins.util.ContextResettingExecutorService;
@@ -38,9 +37,6 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
  * @see CpsVmThreadOnly
  */
 class CpsVmExecutorService extends InterceptingExecutorService {
-
-    private static final String QUEUE_SIZE_METRIC = "jenkins.job.pipeline.cps-vm-thread.queue.size";
-    private static final String EXECUTION_DURATION_METRIC = "jenkins.job.pipeline.cps-vm-thread.queue.size";
 
     @SuppressWarnings("rawtypes")
     private static final List<Class> CATEGORIES = ImmutableList.<Class>builder()
@@ -81,11 +77,11 @@ class CpsVmExecutorService extends InterceptingExecutorService {
 
     @Override
     protected Runnable wrap(final Runnable r) {
-        Metrics.metricRegistry().counter(QUEUE_SIZE_METRIC).inc();
+        var timing = cpsThreadGroup.getExecution().time(CpsFlowExecution.TimingKind.runQueue);
         return () -> {
-            Metrics.metricRegistry().counter(QUEUE_SIZE_METRIC).dec();
+            timing.close();
             ThreadContext context = setUp();
-            try (var timer = Metrics.metricRegistry().timer(EXECUTION_DURATION_METRIC).time()) {
+            try {
                 r.run();
             } catch (final Throwable t) {
                 reportProblem(t);
@@ -136,11 +132,11 @@ class CpsVmExecutorService extends InterceptingExecutorService {
 
     @Override
     protected <V> Callable<V> wrap(final Callable<V> r) {
-        Metrics.metricRegistry().counter(QUEUE_SIZE_METRIC).inc();
+        var timing = cpsThreadGroup.getExecution().time(CpsFlowExecution.TimingKind.runQueue);
         return () -> {
-            Metrics.metricRegistry().counter(QUEUE_SIZE_METRIC).dec();
+            timing.close();
             ThreadContext context = setUp();
-            try (var timer = Metrics.metricRegistry().timer(EXECUTION_DURATION_METRIC).time()) {
+            try {
                 return r.call();
             } catch (final Throwable t) {
                 reportProblem(t);

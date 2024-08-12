@@ -5,19 +5,26 @@ import com.cloudbees.jenkins.support.api.Container;
 import com.cloudbees.jenkins.support.api.Content;
 import com.google.common.util.concurrent.FutureCallback;
 import hudson.Extension;
+import hudson.Functions;
 import hudson.model.Action;
+import hudson.model.Queue;
+import hudson.model.Run;
 import hudson.security.Permission;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import jenkins.model.Jenkins;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.atomic.LongAdder;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.kohsuke.stapler.HttpResponses;
@@ -108,13 +115,40 @@ public final class CpsThreadDumpAction implements Action {
 
         @Override public void addContents(Container container) {
             container.add(new Content("nodes/master/pipeline-thread-dump.txt") {
-                @Override public void writeTo(OutputStream outputStream) throws IOException {
+                @Override public void writeTo(OutputStream outputStream) {
                     PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
                     for (FlowExecution flow : FlowExecutionList.get()) {
                         if (flow instanceof CpsFlowExecution) {
-                            pw.println("Build: " + flow.getOwner().getExecutable());
-                            ((CpsFlowExecution) flow).getThreadDump().print(pw);
+                            Queue.Executable ownerExec;
+                            try {
+                                ownerExec = flow.getOwner().getExecutable();
+                            } catch (IOException e) {
+                                pw.println("No data available for " + flow);
+                                Functions.printStackTrace(e, pw);
+                                pw.println();
+                                continue;
+                            }
+                            pw.println("Build: " + ownerExec);
+                            if (ownerExec instanceof Run<?, ?>) {
+                                var run = (Run<?, ?>) ownerExec;
+                                var started = Instant.ofEpochMilli(run.getStartTimeInMillis());
+                                pw.println("Started: " + started);
+                                var duration = Duration.between(started, Instant.now());
+                                pw.print("Duration: " + duration);
+                                if (duration.toDays() > 3) {
+                                    pw.println(" (Running for more than 3 days!)");
+                                } else {
+                                    pw.println();
+                                }
+                            }
+                            Map<String, LongAdder> sortedTimings = new TreeMap<>(((CpsFlowExecution) flow).liveTimings);
+                            pw.println("Timings:");
+                            sortedTimings.forEach((k, v) -> pw.println("  " + k + "\t" + v.longValue() / 1000 / 1000 + "ms"));
+                            Map<String, LongAdder> sortedCounts = new TreeMap<>(((CpsFlowExecution) flow).liveCounts);
+                            pw.println("Active operations:");
+                            sortedCounts.forEach((k, v) -> pw.println("  " + k + "\t" + v.longValue()));
                             pw.println("Approximate graph size: " + ((CpsFlowExecution) flow).approximateNodeCount());
+                            ((CpsFlowExecution) flow).getThreadDump().print(pw);
                             pw.println();
                         }
                     }
