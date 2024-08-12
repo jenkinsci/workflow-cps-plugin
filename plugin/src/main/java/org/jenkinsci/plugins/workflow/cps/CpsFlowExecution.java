@@ -437,7 +437,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         private Timing(TimingKind kind) {
             this.kind = kind;
             start = System.nanoTime();
-            liveIncompleteTimings.add(this);
         }
 
         TimingKind getKind() {
@@ -460,7 +459,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * @return something to {@link Timing#close} when finished
      */
     Timing time(TimingKind kind) {
-        return new Timing(kind);
+        var timing = new Timing(kind);
+        liveIncompleteTimings.add(timing);
+        return timing;
     }
 
     static final Logger TIMING_LOGGER = Logger.getLogger(CpsFlowExecution.class.getName() + ".timing");
