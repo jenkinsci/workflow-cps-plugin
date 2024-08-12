@@ -22,9 +22,12 @@ import jenkins.model.Jenkins;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.stream.Collectors;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.kohsuke.stapler.HttpResponses;
@@ -141,20 +144,40 @@ public final class CpsThreadDumpAction implements Action {
                                     pw.println();
                                 }
                             }
-                            Map<String, LongAdder> sortedTimings = new TreeMap<>(((CpsFlowExecution) flow).liveTimings);
+                            var cpsFlow = (CpsFlowExecution) flow;
+                            Map<String, LongAdder> sortedTimings = new TreeMap<>(cpsFlow.liveTimings);
                             pw.println("Timings:");
                             sortedTimings.forEach((k, v) -> pw.println("  " + k + "\t" + v.longValue() / 1000 / 1000 + "ms"));
-                            Map<String, LongAdder> sortedCounts = new TreeMap<>(((CpsFlowExecution) flow).liveCounts);
                             pw.println("Active operations:");
-                            sortedCounts.forEach((k, v) -> pw.println("  " + k + "\t" + v.longValue()));
-                            pw.println("Approximate graph size: " + ((CpsFlowExecution) flow).approximateNodeCount());
-                            ((CpsFlowExecution) flow).getThreadDump().print(pw);
+                            long nanos = System.nanoTime();
+                            Map<String, Optional<CountAndDuration>> sortedIncompleteTimings = new HashSet<>(cpsFlow.liveIncompleteTimings).stream()
+                                    .collect(Collectors.groupingBy(t -> t.getKind().name(), TreeMap::new,
+                                            Collectors.mapping(t -> new CountAndDuration(nanos - t.getStartNanos()),
+                                                    Collectors.reducing(CountAndDuration::new))));
+                            sortedIncompleteTimings.forEach((k, optional) ->
+                                    optional.ifPresent(cd ->
+                                            pw.println("  " + k + "\t" + cd.count + "\t" + cd.duration / 1000 / 1000 + "ms")));
+                            pw.println("Approximate graph size: " + cpsFlow.approximateNodeCount());
+                            cpsFlow.getThreadDump().print(pw);
                             pw.println();
                         }
                     }
                     pw.flush();
                 }
             });
+        }
+
+        private static class CountAndDuration {
+            private final int count;
+            private final long duration;
+            CountAndDuration(long duration) {
+                this.count = 1;
+                this.duration = duration;
+            }
+            CountAndDuration(CountAndDuration a, CountAndDuration b) {
+                this.count = a.count + b.count;
+                this.duration = a.duration + b.duration;
+            }
         }
 
     }

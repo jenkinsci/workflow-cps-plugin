@@ -404,8 +404,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     /** accumulated time in ns of a given {@link TimingKind#name}; {@link String} key for pretty XStream form */
     transient @NonNull Map<String, LongAdder> liveTimings = new ConcurrentHashMap<>();
-    /** Number of operations of a given {@link TimingKind#name} which are currently in progress. Never persisted. */
-    transient @NonNull Map<String, LongAdder> liveCounts = new ConcurrentHashMap<>();
+    /** instances of {@link Timing} which have not yet completed for reporting counts and durations in support bundles. Never persisted. */
+    transient @NonNull Set<Timing> liveIncompleteTimings = ConcurrentHashMap.newKeySet();
     /** *  XStream simplified form of {@link #liveTimings} */
     private Map<String, Long> timings;
 
@@ -437,11 +437,19 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         private Timing(TimingKind kind) {
             this.kind = kind;
             start = System.nanoTime();
-            liveCounts.computeIfAbsent(kind.name(), k -> new LongAdder()).increment();
+            liveIncompleteTimings.add(this);
+        }
+
+        TimingKind getKind() {
+            return kind;
+        }
+
+        long getStartNanos() {
+            return start;
         }
 
         @Override public void close() {
-            liveCounts.computeIfAbsent(kind.name(), k -> new LongAdder()).decrement();
+            liveIncompleteTimings.remove(this);
             liveTimings.computeIfAbsent(kind.name(), k -> new LongAdder()).add(System.nanoTime() - start);
         }
     }
@@ -1887,7 +1895,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             la.add(kv.getValue());
                             return la;
                         }));
-                    result.liveCounts = new ConcurrentHashMap<>();
+                    result.liveIncompleteTimings = ConcurrentHashMap.newKeySet();
                     return result;
                 } catch (Exception ex) {
                     LOGGER.log(Level.SEVERE, "Failed to even load the FlowExecution", ex);
