@@ -2043,7 +2043,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override public String getDisplayName() {
-            return "Timing data about recently completed Pipeline builds";
+            return "Recently completed Pipeline builds";
         }
 
         @Override public ComponentCategory getCategory() {
@@ -2051,7 +2051,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override public void addContents(Container container) {
-            container.add(new Content("nodes/master/pipeline-timings.txt") {
+            container.add(new Content("nodes/master/pipeline-recent-builds.txt") {
                 @Override public void writeTo(OutputStream outputStream) throws IOException {
                     PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
                     for (Job<?, ?> job : Jenkins.get().getAllItems(Job.class)) {

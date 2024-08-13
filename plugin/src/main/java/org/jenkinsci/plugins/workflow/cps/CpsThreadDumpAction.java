@@ -109,7 +109,7 @@ public final class CpsThreadDumpAction implements Action {
         }
 
         @Override public String getDisplayName() {
-            return "Thread dumps of running Pipeline builds";
+            return "Running Pipeline builds";
         }
 
         @Override public ComponentCategory getCategory() {
@@ -117,7 +117,7 @@ public final class CpsThreadDumpAction implements Action {
         }
 
         @Override public void addContents(Container container) {
-            container.add(new Content("nodes/master/pipeline-thread-dump.txt") {
+            container.add(new Content("nodes/master/pipeline-running-builds.txt") {
                 @Override public void writeTo(OutputStream outputStream) {
                     PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
                     for (FlowExecution flow : FlowExecutionList.get()) {
