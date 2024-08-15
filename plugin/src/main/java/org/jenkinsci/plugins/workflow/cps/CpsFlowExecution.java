@@ -387,6 +387,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
          */
         run,
         /**
+         * Time spent waiting in the queue for {@link CpsVmExecutorService}.
+         */
+        runQueue,
+        /**
          * Saving the program state.
          * @see CpsThreadGroup#saveProgram(File)
          */
@@ -400,6 +404,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     /** accumulated time in ns of a given {@link TimingKind#name}; {@link String} key for pretty XStream form */
     transient @NonNull Map<String, LongAdder> liveTimings = new ConcurrentHashMap<>();
+    /** instances of {@link Timing} which have not yet completed for reporting counts and durations in support bundles. Never persisted. */
+    transient @NonNull Set<Timing> liveIncompleteTimings = ConcurrentHashMap.newKeySet();
     /** XStream simplified form of {@link #liveTimings} */
     private Map<String, Long> timings;
 
@@ -433,7 +439,16 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             start = System.nanoTime();
         }
 
+        TimingKind getKind() {
+            return kind;
+        }
+
+        long getStartNanos() {
+            return start;
+        }
+
         @Override public void close() {
+            liveIncompleteTimings.remove(this);
             liveTimings.computeIfAbsent(kind.name(), k -> new LongAdder()).add(System.nanoTime() - start);
         }
     }
@@ -444,7 +459,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * @return something to {@link Timing#close} when finished
      */
     Timing time(TimingKind kind) {
-        return new Timing(kind);
+        var timing = new Timing(kind);
+        liveIncompleteTimings.add(timing);
+        return timing;
     }
 
     static final Logger TIMING_LOGGER = Logger.getLogger(CpsFlowExecution.class.getName() + ".timing");
@@ -1879,6 +1896,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             la.add(kv.getValue());
                             return la;
                         }));
+                    result.liveIncompleteTimings = ConcurrentHashMap.newKeySet();
                     return result;
                 } catch (Exception ex) {
                     LOGGER.log(Level.SEVERE, "Failed to even load the FlowExecution", ex);
@@ -2025,7 +2043,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override public String getDisplayName() {
-            return "Timing data about recently completed Pipeline builds";
+            return "Recently completed Pipeline builds";
         }
 
         @Override public ComponentCategory getCategory() {
@@ -2033,7 +2051,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override public void addContents(Container container) {
-            container.add(new Content("nodes/master/pipeline-timings.txt") {
+            container.add(new Content("nodes/master/pipeline-recent-builds.txt") {
                 @Override public void writeTo(OutputStream outputStream) throws IOException {
                     PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
                     for (Job<?, ?> job : Jenkins.get().getAllItems(Job.class)) {
