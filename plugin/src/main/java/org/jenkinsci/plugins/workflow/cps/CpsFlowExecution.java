@@ -1697,7 +1697,17 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     CpsFlowExecution cpsExec = (CpsFlowExecution) execution;
                     try {
                         cpsExec.checkAndAbortNonresumableBuild();
-
+                        if (cpsExec.owner != null) {
+                            try {
+                                Queue.Executable exec = cpsExec.owner.getExecutable();
+                                if (exec instanceof Saveable) {
+                                    LOGGER.fine(() -> "saving " + exec);
+                                    ((Saveable) exec).save();
+                                }
+                            } catch (IOException x) {
+                                LOGGER.log(Level.WARNING, "failed to save " + cpsExec, x);
+                            }
+                        }
                         LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
                         // Like waitForSuspension but with a timeout:
                         if (cpsExec.programPromise != null) {
