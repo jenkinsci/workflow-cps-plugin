@@ -512,15 +512,13 @@ public class CpsFlowExecutionTest {
                 "<string>org.jenkinsci.plugins.workflow.job.WorkflowRun.description</string>"));
             CpsFlowExecution exec = (CpsFlowExecution) b.getExecution();
             assertThat(exec.getInternalCalls(), contains(
-                "org.jenkinsci.plugins.workflow.job.WorkflowRun.description",
-                "org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper.rawBuild"));
+                "org.jenkinsci.plugins.workflow.job.WorkflowRun.description"));
             SemaphoreStep.success("wait/1", null);
             r.assertBuildStatusSuccess(r.waitForCompletion(b));
             assertThat(exec.getInternalCalls(), contains(
                 "hudson.model.Hudson.systemMessage",
                 "jenkins.model.Jenkins.instance",
-                "org.jenkinsci.plugins.workflow.job.WorkflowRun.description",
-                "org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper.rawBuild"));
+                "org.jenkinsci.plugins.workflow.job.WorkflowRun.description"));
         });
     }
 
