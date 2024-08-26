@@ -31,18 +31,19 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.junit.ClassRule;
+import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
 
 public class LoggingInvokerTest {
 
     @ClassRule public static JenkinsRule r = new JenkinsRule();
+    @ClassRule public static final BuildWatcher bw = new BuildWatcher();
 
     @Test public void smokes() throws Exception {
         assertInternalCalls("currentBuild.rawBuild.description = 'XXX'; Jenkins.instance.systemMessage = 'XXX'", false,
             "hudson.model.Hudson.systemMessage",
             "jenkins.model.Jenkins.instance",
-            "org.jenkinsci.plugins.workflow.job.WorkflowRun.description",
-            "org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper.rawBuild");
+            "org.jenkinsci.plugins.workflow.job.WorkflowRun.description");
     }
 
     @Test public void groovyCalls() throws Exception {
@@ -58,6 +59,20 @@ public class LoggingInvokerTest {
             "jenkins.model.InterruptedBuildAction.<init>");
         // TODO all of the receivers are of X from GroovyClassLoader so not recorded here:
         assertInternalCalls("class X extends hudson.lifecycle.Lifecycle {void onReady() {super.onReady()}}; new X().getHudsonWar(); new X().onReady()", false);
+    }
+
+    @Test public void envAction() throws Exception {
+        assertInternalCalls("env.XXX = 'yyy'; echo XXX", true);
+    }
+
+    @Test public void runWrapper() throws Exception {
+        assertInternalCalls("echo currentBuild.displayName", true);
+    }
+
+    @Test public void iteratorHack() throws Exception {
+        // TODO cannot reproduce accesses to IteratorHack$Itr.hasNext/next seen in field bundles
+        // (Itr methods are called, but via ForInLoopBlock$ContinuationImpl)
+        assertInternalCalls("for (def elt : ['one', 'two']) {echo elt}", true);
     }
 
     private void assertInternalCalls(String script, boolean sandbox, String... calls) throws Exception {
