@@ -24,6 +24,8 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import com.cloudbees.jenkins.support.api.Container;
+import com.cloudbees.jenkins.support.api.Content;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -49,6 +51,7 @@ import hudson.model.Executor;
 import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.TaskListener;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -72,10 +75,14 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.FileUtils;
+import static org.hamcrest.MatcherAssert.assertThat;
 import org.hamcrest.Matchers;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInRelativeOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.not;
 import org.htmlunit.ElementNotFoundException;
 import org.htmlunit.FailingHttpStatusCodeException;
 import org.htmlunit.HttpMethod;
@@ -519,6 +526,36 @@ public class CpsFlowExecutionTest {
                 "hudson.model.Hudson.systemMessage",
                 "jenkins.model.Jenkins.instance",
                 "org.jenkinsci.plugins.workflow.job.WorkflowRun.description"));
+        });
+    }
+
+    @Test public void internalCallsUniquified() throws Throwable {
+        sessions.then(r -> {
+            var p1 = r.jenkins.createProject(WorkflowJob.class, "project-1");
+            p1.setDefinition(new CpsFlowDefinition("currentBuild.rawBuild.description = 'XXX'; Jenkins.instance.systemMessage = 'XXX'", false));
+            r.buildAndAssertSuccess(p1);
+            var p2 = r.jenkins.createProject(WorkflowJob.class, "project-2");
+            p2.setDefinition(new CpsFlowDefinition("Jenkins.instance.systemMessage = 'XXX'", false));
+            r.buildAndAssertSuccess(p2);
+            var p3 = r.jenkins.createProject(WorkflowJob.class, "project-3");
+            p3.setDefinition(new CpsFlowDefinition("echo 'clean'", false));
+            r.buildAndAssertSuccess(p3);
+            var baos = new ByteArrayOutputStream();
+            new CpsFlowExecution.PipelineInternalCalls().addContents(new Container() {
+                @Override public void add(Content content) {
+                    try {
+                        content.writeTo(baos);
+                    } catch (IOException x) {
+                        assert false : x;
+                    }
+                }
+            });
+        assertThat(baos.toString(), allOf(
+            containsString("hudson.model.Hudson.systemMessage"),
+            containsString("org.jenkinsci.plugins.workflow.job.WorkflowRun.description"),
+            containsString("project-1"),
+            not(containsString("project-2")),
+            not(containsString("project-3"))));
         });
     }
 
