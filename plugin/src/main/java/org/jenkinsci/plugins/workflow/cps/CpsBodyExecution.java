@@ -357,6 +357,9 @@ class CpsBodyExecution extends BodyExecution {
                     sc.onFailure(t);
                 }
             }
+            synchronized (CpsBodyExecution.this) {
+                thread = null;
+            }
             return Next.terminate(null);
         }
 
@@ -376,6 +379,9 @@ class CpsBodyExecution extends BodyExecution {
                 } catch (Exception e) {
                     sc.onFailure(e);
                 }
+            }
+            synchronized (CpsBodyExecution.this) {
+                thread = null;
             }
             return Next.terminate(null);
         }
