@@ -69,12 +69,6 @@ public class LoggingInvokerTest {
         assertInternalCalls("echo currentBuild.displayName", true);
     }
 
-    @Test public void iteratorHack() throws Exception {
-        // TODO cannot reproduce accesses to IteratorHack$Itr.hasNext/next seen in field bundles
-        // (Itr methods are called, but via ForInLoopBlock$ContinuationImpl)
-        assertInternalCalls("for (def elt : ['one', 'two']) {echo elt}", true);
-    }
-
     private void assertInternalCalls(String script, boolean sandbox, String... calls) throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(script, sandbox));

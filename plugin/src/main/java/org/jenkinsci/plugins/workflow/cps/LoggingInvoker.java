@@ -31,6 +31,7 @@ import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import groovy.lang.GroovyClassLoader;
+import hudson.ExtensionList;
 import java.util.Set;
 import java.util.function.Supplier;
 import jenkins.util.SystemProperties;
@@ -74,6 +75,9 @@ final class LoggingInvoker implements Invoker {
 
     private static boolean isInternal(Class<?> clazz) {
         if (IGNORED.contains(clazz)) {
+            return false;
+        }
+        if (ExtensionList.lookup(IgnoredInternalClasses.class).stream().anyMatch(iic -> iic.ignore(clazz))) {
             return false;
         }
         if (clazz.getClassLoader() instanceof GroovyClassLoader) { // similar to GroovyClassLoaderWhitelist
