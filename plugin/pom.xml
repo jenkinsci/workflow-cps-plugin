@@ -50,7 +50,7 @@
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-2.426.x</artifactId>
-                <version>2982.vdce2153031a_0</version>
+                <version>3023.v02a_987a_b_3ff9</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -80,7 +80,6 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1336.vf33a_a_9863911</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
