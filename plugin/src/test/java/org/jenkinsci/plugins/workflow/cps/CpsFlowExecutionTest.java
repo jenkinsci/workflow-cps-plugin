@@ -26,8 +26,6 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.jenkins.support.api.Container;
 import com.cloudbees.jenkins.support.api.Content;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
@@ -76,9 +74,9 @@ import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.FileUtils;
 import static org.hamcrest.MatcherAssert.assertThat;
-import org.hamcrest.Matchers;
-import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.arrayContaining;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsInRelativeOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
@@ -500,7 +498,7 @@ public class CpsFlowExecutionTest {
                     Thread.sleep(100); // apparently a race condition between CpsVmExecutorService.tearDown and WorkflowRun.finish
                 }
                 // TODO https://github.com/jenkinsci/workflow-cps-plugin/pull/570#issuecomment-1192679404 message can be duplicated
-                assertThat(logger.getRecords(), Matchers.not(Matchers.empty()));
+                assertThat(logger.getRecords(), not(empty()));
                 assertEquals(CpsFlowExecution.TimingKind.values().length, ((CpsFlowExecution) b.getExecution()).liveTimings.keySet().size());
         });
     }
@@ -518,11 +516,11 @@ public class CpsFlowExecutionTest {
             assertThat(new XmlFile(new File(b.getRootDir(), "build.xml")).asString(), containsString(
                 "<string>org.jenkinsci.plugins.workflow.job.WorkflowRun.description</string>"));
             CpsFlowExecution exec = (CpsFlowExecution) b.getExecution();
-            assertThat(exec.getInternalCalls(), contains(
+            assertThat(exec.getInternalCalls(), containsInAnyOrder(
                 "org.jenkinsci.plugins.workflow.job.WorkflowRun.description"));
             SemaphoreStep.success("wait/1", null);
             r.assertBuildStatusSuccess(r.waitForCompletion(b));
-            assertThat(exec.getInternalCalls(), contains(
+            assertThat(exec.getInternalCalls(), containsInAnyOrder(
                 "hudson.model.Hudson.systemMessage",
                 "jenkins.model.Jenkins.instance",
                 "org.jenkinsci.plugins.workflow.job.WorkflowRun.description"));
@@ -535,7 +533,7 @@ public class CpsFlowExecutionTest {
             p1.setDefinition(new CpsFlowDefinition("currentBuild.rawBuild.description = 'XXX'; Jenkins.instance.systemMessage = 'XXX'", false));
             r.buildAndAssertSuccess(p1);
             var p2 = r.jenkins.createProject(WorkflowJob.class, "project-2");
-            p2.setDefinition(new CpsFlowDefinition("Jenkins.instance.systemMessage = 'XXX'", false));
+            p2.setDefinition(new CpsFlowDefinition("Jenkins.instance.systemMessage = Jenkins.VERSION", false));
             r.buildAndAssertSuccess(p2);
             var p3 = r.jenkins.createProject(WorkflowJob.class, "project-3");
             p3.setDefinition(new CpsFlowDefinition("echo 'clean'", false));
@@ -550,12 +548,11 @@ public class CpsFlowExecutionTest {
                     }
                 }
             });
-        assertThat(baos.toString(), allOf(
-            containsString("hudson.model.Hudson.systemMessage"),
-            containsString("org.jenkinsci.plugins.workflow.job.WorkflowRun.description"),
-            containsString("project-1"),
-            not(containsString("project-2")),
-            not(containsString("project-3"))));
+            assertThat(baos.toString().replaceFirst(".+\n", "").split("\n"), arrayContaining(
+                "hudson.model.Hudson.systemMessage (project-1 #1)",
+                "jenkins.model.Jenkins.VERSION (project-2 #1)",
+                "jenkins.model.Jenkins.instance (project-1 #1)",
+                "org.jenkinsci.plugins.workflow.job.WorkflowRun.description (project-1 #1)"));
         });
     }
 

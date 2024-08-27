@@ -24,15 +24,14 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import java.util.Arrays;
-import java.util.TreeSet;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.junit.Test;
-import static org.junit.Assert.*;
 import org.junit.ClassRule;
+import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 
 public class LoggingInvokerTest {
 
@@ -74,7 +73,7 @@ public class LoggingInvokerTest {
         p.setDefinition(new CpsFlowDefinition(script, sandbox));
         WorkflowRun b = r.buildAndAssertSuccess(p);
         CpsFlowExecution exec = (CpsFlowExecution) b.getExecution();
-        assertEquals(new TreeSet<>(Arrays.asList(calls)).toString(), exec.getInternalCalls().toString());
+        assertThat(exec.getInternalCalls(), containsInAnyOrder(calls));
     }
 
 }

@@ -483,7 +483,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     @NonNull Set<String> getInternalCalls() {
-        return new TreeSet<>(internalCalls);
+        return internalCalls;
     }
 
     /**
@@ -2105,7 +2105,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             container.add(new Content("nodes/master/pipeline-internal-calls.txt") {
                 @Override public void writeTo(OutputStream outputStream) throws IOException {
                     PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
-                    Set<String> observed = new HashSet<>();
+                    pw.println("Internal Jenkins API calls from the last build of any job (plus one example of such a build):");
+                    Map<String, String> internalCallsToExample = new TreeMap<>();
                     for (Job<?, ?> job : Jenkins.get().getAllItems(Job.class)) {
                         // TODO as above
                         if (job instanceof Queue.FlyweightTask) {
@@ -2115,18 +2116,16 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                 if (owner != null) {
                                     FlowExecution exec = owner.getOrNull();
                                     if (exec instanceof CpsFlowExecution) {
-                                        List<String> calls = ((CpsFlowExecution) exec).getInternalCalls().stream().filter(observed::add).collect(Collectors.toList());
-                                        if (!calls.isEmpty()) {
-                                            pw.println("Internal calls for " + run + " not previously noted:");
-                                            for (String call : calls) {
-                                                pw.println("  " + call);
-                                            }
-                                            pw.println();
+                                        for (var call : ((CpsFlowExecution) exec).getInternalCalls()) {
+                                            internalCallsToExample.putIfAbsent(call, run.toString());
                                         }
                                     }
                                 }
                             }
                         }
+                    }
+                    for (var entry : internalCallsToExample.entrySet()) {
+                        pw.println(entry.getKey() + " (" + entry.getValue() + ")");
                     }
                     pw.flush();
                 }
