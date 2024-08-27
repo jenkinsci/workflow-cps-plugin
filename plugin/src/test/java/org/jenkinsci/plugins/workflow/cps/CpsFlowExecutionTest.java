@@ -548,7 +548,7 @@ public class CpsFlowExecutionTest {
                     }
                 }
             });
-            assertThat(baos.toString().replaceFirst(".+\n", "").split("\n"), arrayContaining(
+            assertThat(baos.toString().replaceFirst(".+\r?\n", "").split("\r?\n"), arrayContaining(
                 "hudson.model.Hudson.systemMessage (project-1 #1)",
                 "jenkins.model.Jenkins.VERSION (project-2 #1)",
                 "jenkins.model.Jenkins.instance (project-1 #1)",
