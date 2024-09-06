@@ -24,35 +24,6 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import com.cloudbees.groovy.cps.Continuable;
-import com.cloudbees.groovy.cps.Outcome;
-import com.google.common.util.concurrent.Futures;
-import com.thoughtworks.xstream.XStream;
-import com.thoughtworks.xstream.converters.Converter;
-import com.thoughtworks.xstream.converters.MarshallingContext;
-import com.thoughtworks.xstream.converters.UnmarshallingContext;
-import com.thoughtworks.xstream.io.HierarchicalStreamReader;
-import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import groovy.lang.Closure;
-import groovy.lang.GroovyShell;
-import groovy.lang.Script;
-import hudson.ExtensionList;
-import hudson.Functions;
-import hudson.Main;
-import hudson.Util;
-import hudson.model.Result;
-import hudson.util.XStream2;
-import jenkins.model.Jenkins;
-import jenkins.util.Timer;
-import org.jenkinsci.plugins.workflow.actions.ErrorAction;
-import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-import org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext;
-import org.jenkinsci.plugins.workflow.graph.FlowNode;
-import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
-import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverWriter;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -60,7 +31,6 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,12 +46,45 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import edu.umd.cs.findbugs.annotations.CheckForNull;
+import org.jenkinsci.plugins.workflow.actions.ErrorAction;
+import org.jenkinsci.plugins.workflow.cps.config.CPSConfiguration;
+import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.pickles.Pickle;
 import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.support.concurrent.WithThreadName;
 import org.jenkinsci.plugins.workflow.support.pickles.SingleTypedPickleFactory;
+import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverWriter;
 import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
+
+import com.cloudbees.groovy.cps.Continuable;
+import com.cloudbees.groovy.cps.Outcome;
+import com.google.common.util.concurrent.Futures;
+import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.converters.Converter;
+import com.thoughtworks.xstream.converters.MarshallingContext;
+import com.thoughtworks.xstream.converters.UnmarshallingContext;
+import com.thoughtworks.xstream.io.HierarchicalStreamReader;
+import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
+
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import groovy.lang.Closure;
+import groovy.lang.GroovyShell;
+import groovy.lang.Script;
+import hudson.ExtensionList;
+import hudson.Functions;
+import hudson.Main;
+import hudson.Util;
+import hudson.model.Result;
+import hudson.util.XStream2;
+import jenkins.model.CauseOfInterruption;
+import jenkins.model.Jenkins;
+import jenkins.model.CauseOfInterruption.UserInterruption;
+import jenkins.util.Timer;
 
 /**
  * List of {@link CpsThread}s that form a single {@link CpsFlowExecution}.
@@ -303,10 +306,14 @@ public final class CpsThreadGroup implements Serializable {
                             LOGGER.log(Level.WARNING, null, e);
                         }
                     }
-                    if (paused.get() || j == null || (execution != null && j.isQuietingDown())) {
+                    LOGGER.log(Level.INFO, "Config - CPSConfiguration.get().isPipelinesPausingWhenQueitingDown(): " + CPSConfiguration.get().isPipelinesPausingWhenQueitingDown());
+                    if (CPSConfiguration.get().isPipelinesPausingWhenQueitingDown() && (paused.get() || j == null || (execution != null && j.isQuietingDown()))) {
+                    	LOGGER.log(Level.INFO, "Config - pausedByQuietMode: " + pausedByQuietMode);
+                    	
                         if (j != null && j.isQuietingDown() && execution != null && pausedByQuietMode.compareAndSet(false, true)) {
                             try {
                                 execution.getOwner().getListener().getLogger().println("Pausing (Preparing for shutdown)");
+                                //runner.awaitTermination(10, TimeUnit.SECONDS);
                             } catch (IOException e) {
                                LOGGER.log(Level.WARNING, null, e);
                             }
@@ -326,6 +333,34 @@ public final class CpsThreadGroup implements Serializable {
                         saveProgramIfPossible(true);
                         f.complete(null);
                         return null;
+                    } else {
+                    	// Do not pause build during quieting down period
+                    	
+                    	// Should we start a timer?
+                    	if (CPSConfiguration.get().isForcefullyStopBuldsAfterTimeout() ) {
+                    		
+                    		// Should likely not start multiple threads
+                    		Timer.get().schedule(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (j.isQuietingDown()) {
+                                        // still quieting down, let's stop this build
+                                    	try {
+                                    		execution.interrupt(Result.ABORTED, new ShutdownInterruption()); 
+                                    	} catch (IOException e) {
+                                    		LOGGER.log(Level.WARNING, null, e);
+                                    	} catch (InterruptedException interruptException) {
+											interruptException.printStackTrace();
+											LOGGER.log(Level.WARNING, null, interruptException);
+										}
+                                    } else {
+                                        scheduleRun();
+                                    }
+                                }
+                            }, Main.isUnitTest ? 1 : 10, TimeUnit.SECONDS);
+                    		
+                    	}
+                    		
                     }
 
                     boolean stillRunnable = run();
