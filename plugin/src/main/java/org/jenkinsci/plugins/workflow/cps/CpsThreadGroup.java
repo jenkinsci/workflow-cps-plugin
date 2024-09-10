@@ -306,10 +306,7 @@ public final class CpsThreadGroup implements Serializable {
                             LOGGER.log(Level.WARNING, null, e);
                         }
                     }
-                    LOGGER.log(Level.INFO, "Config - CPSConfiguration.get().isPipelinesPausingWhenQueitingDown(): " + CPSConfiguration.get().isPipelinesPausingWhenQueitingDown());
-                    if (CPSConfiguration.get().isPipelinesPausingWhenQueitingDown() && (paused.get() || j == null || (execution != null && j.isQuietingDown()))) {
-                    	LOGGER.log(Level.INFO, "Config - pausedByQuietMode: " + pausedByQuietMode);
-                    	
+                    if (CPSConfiguration.get().isPipelinesPausingWhenQueitingDown() && (paused.get() || j == null || (execution != null && j.isQuietingDown()))) {                    	
                         if (j != null && j.isQuietingDown() && execution != null && pausedByQuietMode.compareAndSet(false, true)) {
                             try {
                                 execution.getOwner().getListener().getLogger().println("Pausing (Preparing for shutdown)");
@@ -346,7 +343,7 @@ public final class CpsThreadGroup implements Serializable {
                                     if (j.isQuietingDown()) {
                                         // still quieting down, let's stop this build
                                     	try {
-                                    		execution.interrupt(Result.ABORTED, new ShutdownInterruption()); 
+                                    		execution.interrupt(Result.ABORTED, new ShutdownInterruption());
                                     	} catch (IOException e) {
                                     		LOGGER.log(Level.WARNING, null, e);
                                     	} catch (InterruptedException interruptException) {
@@ -357,7 +354,8 @@ public final class CpsThreadGroup implements Serializable {
                                         scheduleRun();
                                     }
                                 }
-                            }, Main.isUnitTest ? 1 : 10, TimeUnit.SECONDS);
+                            }, Main.isUnitTest ? 1 : CPSConfiguration.get().getBuildTerminationTimeoutMinutes() * 60,
+                            		TimeUnit.SECONDS);
                     		
                     	}
                     		
