@@ -38,6 +38,9 @@ THE SOFTWARE.
 	    <f:entry title="${%Force stopping bulid after timeout}" description="${%Should Jenkins stop any builds still running after the specified timeout ignored when pausing is enabled?}">
 	      <f:checkbox name="forcefullyStopBuldsAfterTimeout" checked="${instance.isForcefullyStopBuldsAfterTimeout()}"/>
 	    </f:entry>
+	     <f:entry title="${%Build termination delay}" description="${%The time in minutes to wait for buidls to finish, before they are forcefully stopped, when Jenkins is in quiet mode.}">
+	        <f:textbox name="buildTerminationTimeoutMinutes" default="${instance.getBuildTerminationTimeoutMinutes()}"/>
+	    </f:entry>
     </f:section>
     
 </j:jelly>

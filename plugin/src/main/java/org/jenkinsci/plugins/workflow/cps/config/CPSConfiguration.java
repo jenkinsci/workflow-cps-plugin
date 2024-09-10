@@ -40,8 +40,9 @@ public class CPSConfiguration extends GlobalConfiguration {
      * Whether to show the sandbox checkbox in jobs to users without Jenkins.ADMINISTER
      */
     private boolean hideSandbox;
-	private boolean pipelinesPausingWhenQueitingDown;
-	private boolean forcefullyStopBuldsAfterTimeout;
+	private boolean pipelinesPausingWhenQueitingDown = true;
+	private boolean forcefullyStopBuldsAfterTimeout = false;
+	private int buildTerminationTimeoutMinutes;
 	
     public CPSConfiguration() {
         load();
@@ -71,6 +72,15 @@ public class CPSConfiguration extends GlobalConfiguration {
 	
 	public void setForcefullyStopBuldsAfterTimeout(boolean stop) {
 		this.forcefullyStopBuldsAfterTimeout = stop;
+		save();
+	}
+	
+	public int getBuildTerminationTimeoutMinutes() {
+		return buildTerminationTimeoutMinutes;
+	}
+	
+	public void setBuildTerminationTimeoutMinutes(int delay) {
+		this.buildTerminationTimeoutMinutes = delay;
 		save();
 	}
 
