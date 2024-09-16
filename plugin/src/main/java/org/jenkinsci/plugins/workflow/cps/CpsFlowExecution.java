@@ -1468,8 +1468,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             Field classRefF = classInfoC.getDeclaredField("classRef"); // 2.4.8+
             classRefF.setAccessible(true);
             for (Object entry : entries) {
-                Object value = getValueM.invoke(entry);
-                toRemove.add(((WeakReference<Class<?>>) classRefF.get(value)).get());
+                Object classInfo = getValueM.invoke(entry);
+                if (classInfo != null) {
+                    Class<?> clazz = ((WeakReference<Class<?>>) classRefF.get(classInfo)).get();
+                    if (clazz != null) {
+                        toRemove.add(clazz);
+                    }
+                }
             }
         } catch (NoSuchFieldException x) {
             Field klazzF = classInfoC.getDeclaredField("klazz"); // 2.4.7-
