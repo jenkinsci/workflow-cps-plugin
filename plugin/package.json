@@ -10,8 +10,9 @@
     "prod": "webpack --config webpack.prod.js",
     "start": "yarn dev --watch",
     "lint:js": "eslint src/main/js --ext js",
+    "lint:js-ci": "eslint src/main/js -f checkstyle -o target/eslint-warnings.xml --ext js",
     "mvnbuild": "yarn prod",
-    "mvntest": "yarn lint:js"
+    "mvntest": "npx if-env CI=true && yarn lint:js-ci || yarn lint:js"
   },
   "repository": {
     "type": "git",
@@ -27,6 +28,7 @@
     "clean-webpack-plugin": "^4.0.0",
     "css-loader": "^5.0.0",
     "eslint": "^8.41.0",
+    "eslint-formatter-checkstyle": "^8.40.0",
     "eslint-plugin-only-warn": "^1.1.0",
     "less": "^3.12.2",
     "less-loader": "^7.0.2",
@@ -49,5 +51,5 @@
     "defaults",
     "not IE 11"
   ],
-  "packageManager": "yarn@v1.22.22"
+  "packageManager": "yarn@1.22.22"
 }
