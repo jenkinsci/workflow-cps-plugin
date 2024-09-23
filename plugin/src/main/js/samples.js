@@ -5,10 +5,11 @@ export function addSamplesWidget(editor, editorId, samplesUrl) {
 
     if ($('#workflow-editor-wrapper .samples').length) {
         // Already there.
-        return;
+        return
     }
+    var blah = ""
 
-    var $aceEditor = $('#' + editorId);
+    var $aceEditor = $("#" + editorId);
     var sampleSelect = $('<select></select>');
 
     sampleSelect.append('<option >try sample Pipeline...</option>');
