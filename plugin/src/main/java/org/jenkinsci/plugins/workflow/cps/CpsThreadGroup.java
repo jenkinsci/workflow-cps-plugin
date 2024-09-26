@@ -439,7 +439,7 @@ public final class CpsThreadGroup implements Serializable {
                         var msg = error.getMessage();
                         if (msg != null && msg.contains("Illegal type in constant pool")) {
                             try {
-                                execution.getOwner().getListener().getLogger().println("May be JENKINS-73031: static interface methods not yet supported in Groovy");
+                                execution.getOwner().getListener().getLogger().println("May be JENKINS-73031: calling static interface methods from Groovy is not currently supported by Jenkins");
                             } catch (IOException x) {
                                 LOGGER.log(Level.WARNING, null, x);
                             }
