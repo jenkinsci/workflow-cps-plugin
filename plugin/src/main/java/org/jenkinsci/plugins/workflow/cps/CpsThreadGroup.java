@@ -44,6 +44,7 @@ import hudson.Util;
 import hudson.model.Result;
 import hudson.util.XStream2;
 import jenkins.model.Jenkins;
+import jenkins.util.SystemProperties;
 import jenkins.util.Timer;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
@@ -94,6 +95,11 @@ import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
 @PersistIn(PersistenceContext.PROGRAM)
 @SuppressFBWarnings("SE_BAD_FIELD") // bogus warning about closures
 public final class CpsThreadGroup implements Serializable {
+    /**
+     * Whether to keep pipelines running when preparing for shutdown. Defaults to false (pipelines are paused).
+     */
+    private static boolean keepPipelinesRunningWhenQuietingDown = SystemProperties.getBoolean(CpsThreadGroup.class.getName() + ".keepPipelinesRunningWhenQuietingDown");
+
     /**
      * {@link CpsThreadGroup} always belong to the same {@link CpsFlowExecution}.
      *
@@ -303,8 +309,8 @@ public final class CpsThreadGroup implements Serializable {
                             LOGGER.log(Level.WARNING, null, e);
                         }
                     }
-                    if (paused.get() || j == null || (execution != null && j.isQuietingDown())) {
-                        if (j != null && j.isQuietingDown() && execution != null && pausedByQuietMode.compareAndSet(false, true)) {
+                    if (paused.get() || j == null || (execution != null && j.isQuietingDown() && !keepPipelinesRunningWhenQuietingDown)) {
+                        if (j != null && j.isQuietingDown() && execution != null && !keepPipelinesRunningWhenQuietingDown && pausedByQuietMode.compareAndSet(false, true)) {
                             try {
                                 execution.getOwner().getListener().getLogger().println("Pausing (Preparing for shutdown)");
                             } catch (IOException e) {
