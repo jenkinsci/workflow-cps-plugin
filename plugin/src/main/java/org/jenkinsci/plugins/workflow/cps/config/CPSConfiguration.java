@@ -24,12 +24,13 @@
 
 package org.jenkinsci.plugins.workflow.cps.config;
 
+import org.jenkinsci.Symbol;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.ExtensionList;
 import jenkins.model.GlobalConfiguration;
 import jenkins.model.GlobalConfigurationCategory;
-import org.jenkinsci.Symbol;
 
 @Symbol("cps")
 @Extension
@@ -39,7 +40,10 @@ public class CPSConfiguration extends GlobalConfiguration {
      * Whether to show the sandbox checkbox in jobs to users without Jenkins.ADMINISTER
      */
     private boolean hideSandbox;
-
+	private boolean pipelinesPausingWhenQueitingDown = true;
+	private boolean forcefullyStopBuldsAfterTimeout = false;
+	private int buildTerminationTimeoutMinutes;
+	
     public CPSConfiguration() {
         load();
     }
@@ -52,6 +56,33 @@ public class CPSConfiguration extends GlobalConfiguration {
         this.hideSandbox = hideSandbox;
         save();
     }
+    
+    public boolean isPipelinesPausingWhenQueitingDown() {
+		return pipelinesPausingWhenQueitingDown;
+	}
+	
+	public void setPipelinesPausingWhenQueitingDown(boolean enabled) {
+		this.pipelinesPausingWhenQueitingDown = enabled;
+		save();
+	}
+	
+	public boolean isForcefullyStopBuldsAfterTimeout() {
+		return forcefullyStopBuldsAfterTimeout;
+	}
+	
+	public void setForcefullyStopBuldsAfterTimeout(boolean stop) {
+		this.forcefullyStopBuldsAfterTimeout = stop;
+		save();
+	}
+	
+	public int getBuildTerminationTimeoutMinutes() {
+		return buildTerminationTimeoutMinutes;
+	}
+	
+	public void setBuildTerminationTimeoutMinutes(int delay) {
+		this.buildTerminationTimeoutMinutes = delay;
+		save();
+	}
 
     @NonNull
     @Override
@@ -62,4 +93,5 @@ public class CPSConfiguration extends GlobalConfiguration {
     public static CPSConfiguration get() {
         return ExtensionList.lookupSingleton(CPSConfiguration.class);
     }
+    
 }
