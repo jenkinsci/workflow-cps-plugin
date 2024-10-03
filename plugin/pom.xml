@@ -47,7 +47,7 @@
 
         <!-- Opt in to Jenkins handling eslint results -->
         <maven.test.failure.ignore>false</maven.test.failure.ignore>
-        <testFailureIgnore>${maven.test.failure.ignore}</testFailureIgnore>
+        <frontend.testFailureIgnore>${maven.test.failure.ignore}</frontend.testFailureIgnore>
     </properties>
     <dependencyManagement>
         <dependencies>
