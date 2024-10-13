@@ -249,6 +249,9 @@ class CpsBodyExecution extends BodyExecution {
             t.getExecution().runInCpsVmThread(new FutureCallback<>() {
                 @Override
                 public void onSuccess(CpsThreadGroup g) {
+                    if (thread == null) {
+                        return;
+                    }
                     // Similar to getCurrentExecutions but we want the raw CpsThread, not a StepExecution; cf. CpsFlowExecution.interrupt
                     Map<FlowHead, CpsThread> m = new LinkedHashMap<>();
                     for (CpsThread t : thread.group.getThreads()) {
@@ -357,6 +360,9 @@ class CpsBodyExecution extends BodyExecution {
                     sc.onFailure(t);
                 }
             }
+            synchronized (CpsBodyExecution.this) {
+                thread = null;
+            }
             return Next.terminate(null);
         }
 
@@ -376,6 +382,9 @@ class CpsBodyExecution extends BodyExecution {
                 } catch (Exception e) {
                     sc.onFailure(e);
                 }
+            }
+            synchronized (CpsBodyExecution.this) {
+                thread = null;
             }
             return Next.terminate(null);
         }

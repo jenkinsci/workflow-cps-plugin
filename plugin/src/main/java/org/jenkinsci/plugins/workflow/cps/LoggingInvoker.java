@@ -31,8 +31,11 @@ import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import groovy.lang.GroovyClassLoader;
+import hudson.ExtensionList;
+import java.util.Set;
 import java.util.function.Supplier;
 import jenkins.util.SystemProperties;
+import org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper;
 
 /**
  * Captures CPS-transformed events.
@@ -64,8 +67,17 @@ final class LoggingInvoker implements Invoker {
         execution.recordInternalCall(call);
     }
 
+    private static final Set<Class<?>> IGNORED = Set.of(
+        Safepoint.class,
+        CpsClosure2.class,
+        EnvActionImpl.class,
+        RunWrapper.class);
+
     private static boolean isInternal(Class<?> clazz) {
-        if (clazz == Safepoint.class || clazz == CpsClosure2.class) {
+        if (IGNORED.contains(clazz)) {
+            return false;
+        }
+        if (ExtensionList.lookup(IgnoredInternalClasses.class).stream().anyMatch(iic -> iic.ignore(clazz))) {
             return false;
         }
         if (clazz.getClassLoader() instanceof GroovyClassLoader) { // similar to GroovyClassLoaderWhitelist
@@ -75,7 +87,7 @@ final class LoggingInvoker implements Invoker {
         // (simply checking whether the class loader can “see”, say, jenkins/model/Jenkins.class
         // would falsely mark third-party libs bundled in Jenkins plugins)
         String name = clazz.getName();
-        if (name.startsWith("com.cloudbees.groovy.cps.")) {
+        if (name.startsWith("com.cloudbees.groovy.cps.") || name.startsWith("org.jenkinsci.plugins.workflow.cps.persistence.IteratorHack$")) {
             // Likely synthetic call, as to CpsDefaultGroovyMethods.
             return false;
         }
