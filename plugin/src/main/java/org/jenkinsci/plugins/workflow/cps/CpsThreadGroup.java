@@ -60,7 +60,6 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -454,7 +453,7 @@ public final class CpsThreadGroup implements Serializable {
                     runtimeThreads.remove(t.id);
                     t.cleanUp();
                     if (runtimeThreads.isEmpty()) {
-                        execution.onProgramEnd(o);
+                        execution.onProgramEnd(o, false);
                         try {
                             this.execution.saveOwner();
                         } catch (Exception ex) {
