@@ -933,7 +933,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 LOGGER.log(Level.WARNING, "Failed to create placeholder nodes in " + owner, x);
             }
         } else {
-            onProgramEnd(new Outcome(null, t));
+            onProgramEnd(new Outcome(null, t), true);
         }
         cleanUpHeap();
         try {
@@ -1346,7 +1346,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * Record the end of the build.  Note: we should always follow this with a call to {@link #saveOwner()} to persist the result.
      * @param outcome success; or a normal failure (uncaught exception); or a fatal error in VM machinery
      */
-    synchronized void onProgramEnd(Outcome outcome) {
+    synchronized void onProgramEnd(Outcome outcome, boolean asynchNotifications) {
         FlowNode head = new FlowEndNode(this, iotaStr(), (FlowStartNode)startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
         if (outcome.isFailure()) {
             head.addAction(new ErrorAction(outcome.getAbnormal()));
@@ -1356,7 +1356,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         try {
             FlowHead first = getFirstHead();
             if (first != null) {
-                first.setNewHead(head);
+                first.setNewHead(head, asynchNotifications);
                 done = true;  // After setting the final head
                 heads.clear();
                 heads.put(first.getId(), first);
