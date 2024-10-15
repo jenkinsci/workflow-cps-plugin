@@ -73,6 +73,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.FileUtils;
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayContaining;
 import static org.hamcrest.Matchers.contains;
@@ -207,6 +208,7 @@ public class CpsFlowExecutionTest {
 
     @Test public void iterateAfterSuspend() throws Throwable {
         sessions.then(r -> {
+            logger.record(CpsFlowExecution.class, Level.FINE);
             WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "iterateAfterSuspend");
             p.setDefinition(new CpsFlowDefinition("semaphore 'wait'", true));
             SemaphoreStep.waitForStart("wait/1", p.scheduleBuild2(0).waitForStart());
@@ -226,7 +228,7 @@ public class CpsFlowExecutionTest {
             return; // different test
         }
         try {
-            assertThat(p.getLastBuild().getExecution().getCurrentExecutions(false).get(), empty());
+            await().until(() -> p.getLastBuild().getExecution().getCurrentExecutions(false).get(), empty());
         } catch (Throwable t) {
             iterateAfterSuspendError.set(t);
         }

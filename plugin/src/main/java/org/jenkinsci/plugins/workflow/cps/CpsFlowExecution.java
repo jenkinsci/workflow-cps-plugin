@@ -1676,7 +1676,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         if (cpsExec.programPromise != null) {
                             cpsExec.runInCpsVmThread(new FutureCallback<>() {
                                 @Override public void onSuccess(CpsThreadGroup g) {
-                                    LOGGER.fine(() -> "shutting down CPS VM threadin for " + cpsExec);
+                                    LOGGER.fine(() -> "shutting down CPS VM for " + cpsExec);
                                     g.shutdown();
                                 }
                                 @Override public void onFailure(Throwable t) {
