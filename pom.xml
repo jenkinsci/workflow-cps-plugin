@@ -41,7 +41,7 @@
     <properties>
         <changelist>999999-SNAPSHOT</changelist>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
-        <jenkins.version>2.463-SNAPSHOT</jenkins.version>
+        <jenkins.version>2.426.3</jenkins.version>
         <groovy.version>2.4.21</groovy.version> <!-- TODO: Add org.codehaus.groovy:groovy and org.codehaus.groovy:groovy:sources to Jenkins core BOM so this can be deleted? (currently it only specifies groovy-all) -->
     </properties>
     <modules>
