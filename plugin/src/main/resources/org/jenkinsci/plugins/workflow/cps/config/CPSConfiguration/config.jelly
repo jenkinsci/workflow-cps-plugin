@@ -24,10 +24,23 @@ THE SOFTWARE.
 -->
 
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" >
     <f:section title="${%Pipeline Sandbox}">
         <f:entry field="hideSandbox" title="${%Hide Sandbox checkbox in pipeline jobs}">
             <f:checkbox/>
         </f:entry>
     </f:section>
+    
+    <f:section title="${%Pipeline Pausing}">
+        <f:entry title="${%Pause pipelines in quiet mode}" description="${%Control pipeline behaviour when Jenkins is entering quiet mode}">
+	      <f:checkbox name="pipelinesPausingWhenQueitingDown" checked="${instance.isPipelinesPausingWhenQueitingDown()}"/>
+	    </f:entry>
+	    <f:entry title="${%Force stopping bulid after timeout}" description="${%Should Jenkins stop any builds still running after the specified timeout ignored when pausing is enabled?}">
+	      <f:checkbox name="forcefullyStopBuldsAfterTimeout" checked="${instance.isForcefullyStopBuldsAfterTimeout()}"/>
+	    </f:entry>
+	     <f:entry title="${%Build termination delay}" description="${%The time in minutes to wait for buidls to finish, before they are forcefully stopped, when Jenkins is in quiet mode.}">
+	        <f:textbox name="buildTerminationTimeoutMinutes" default="${instance.getBuildTerminationTimeoutMinutes()}"/>
+	    </f:entry>
+    </f:section>
+    
 </j:jelly>

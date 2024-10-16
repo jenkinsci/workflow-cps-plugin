@@ -90,6 +90,7 @@ import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.TimingFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DefaultAllowlist;
+import org.jenkinsci.plugins.workflow.cps.config.CPSConfiguration;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
@@ -442,6 +443,37 @@ public class CpsFlowExecutionTest {
             r.assertBuildStatusSuccess(r.waitForCompletion(b));
         });
     }
+    
+    @Test public void doNotPauseBuildsDuringQuietDown() throws Throwable {
+    	sessions.then(r -> {
+    		CPSConfiguration.get().setPipelinesPausingWhenQueitingDown(false);
+    		WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            r.jenkins.doQuietDown(true, 0, "Jenkins config change", false);
+            r.assertLogNotContains("Pausing (Preparing for shutdown)", b);
+            SemaphoreStep.success("wait/1", null);
+            r.waitForMessage("I am done", b);
+        });
+    }
+    
+    @Test public void abortRunningBuildsDuringQuietDown() throws Throwable {
+    	sessions.then(r -> {
+    		CPSConfiguration.get().setPipelinesPausingWhenQueitingDown(false);
+    		CPSConfiguration.get().setForcefullyStopBuldsAfterTimeout(true);
+    		CPSConfiguration.get().setBuildTerminationTimeoutMinutes(1); // code overwrite this to 1 second
+    		WorkflowJob p = r.createProject(WorkflowJob.class);
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'; echo 'I am done'", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            r.jenkins.doQuietDown(true, 0, "Jenkins config change", false);
+            r.assertLogNotContains("Pausing (Preparing for shutdown)", b);
+            SemaphoreStep.success("wait/1", null);
+            r.waitForMessage("Jenkins needs to terminate the execusion of this builds", b);
+        });
+    }
+    
     public static final class SlowToResume extends Step {
         @DataBoundConstructor public SlowToResume() {}
         @Override public StepExecution start(StepContext context) throws Exception {
