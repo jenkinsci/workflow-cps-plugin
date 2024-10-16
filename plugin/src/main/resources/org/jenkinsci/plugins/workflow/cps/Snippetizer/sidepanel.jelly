@@ -37,7 +37,6 @@ THE SOFTWARE.
                     </div>
                 </d:tag>
             </d:taglib>
-            <l:task href=".." icon="icon-up icon-md" title="${%Back}"/>
             <j:forEach var="link" items="${it.snippetizerLinks}">
                 <j:choose>
                     <j:when test="${link.inNewWindow}">
