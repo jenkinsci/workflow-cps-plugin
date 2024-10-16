@@ -24,6 +24,8 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import hudson.util.VersionNumber;
+import org.htmlunit.FailingHttpStatusCodeException;
 import org.htmlunit.HttpMethod;
 import org.htmlunit.WebRequest;
 import org.htmlunit.html.HtmlCheckBoxInput;
@@ -41,6 +43,7 @@ import jenkins.model.Jenkins;
 import org.apache.tools.ant.filters.StringInputStream;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
+import org.jenkinsci.plugins.workflow.cps.config.CPSConfiguration;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,13 +51,20 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsStringIgnoringCase;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class CpsFlowDefinitionTest {
 
@@ -279,5 +289,85 @@ public class CpsFlowDefinitionTest {
         assertEquals(configuredViaRestByNonAdmin, ((CpsFlowDefinition)p.getDefinition()).getScript());
         assertFalse(ScriptApproval.get().isScriptApproved(configuredViaRestByNonAdmin, GroovyLanguage.get()));
         wc.close();
+    }
+
+    @Test
+    public void cpsScriptSandboxHide() throws Exception {
+        jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
+
+        MockAuthorizationStrategy mockStrategy = new MockAuthorizationStrategy();
+        mockStrategy.grant(Jenkins.READ).everywhere().to("devel");
+        for (Permission p : Item.PERMISSIONS.getPermissions()) {
+            mockStrategy.grant(p).everywhere().to("devel");
+        }
+        mockStrategy.grant(Jenkins.ADMINISTER).everywhere().to("admin");
+        jenkins.jenkins.setAuthorizationStrategy(mockStrategy);
+
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition("echo 'Hello'", true));
+
+        JenkinsRule.WebClient wcDevel = jenkins.createWebClient();
+
+        // non-admins can see the sandbox checkbox in jobs by default
+        wcDevel.login("devel");
+        {
+            HtmlForm config = wcDevel.getPage(p, "configure").getFormByName("config");
+            assertThat(config.getVisibleText(), containsStringIgnoringCase("Use Groovy Sandbox"));
+        }
+
+        // non-admins cannot see the sandbox checkbox in jobs if hideSandbox is On globally
+        CPSConfiguration.get().setHideSandbox(true);
+        {
+            HtmlForm config = wcDevel.getPage(p, "configure").getFormByName("config");
+            assertThat(config.getVisibleText(), not(containsStringIgnoringCase("Use Groovy Sandbox")));
+
+            // but, when the sandbox is disabled the checkbox is shown so users can enable it
+            p.setDefinition(new CpsFlowDefinition("echo 'Hello'", false));
+            config = wcDevel.getPage(p, "configure").getFormByName("config");
+            assertThat(config.getVisibleText(), containsStringIgnoringCase("Use Groovy Sandbox"));
+        }
+
+        // admins can always see the sandbox checkbox
+        CPSConfiguration.get().setHideSandbox(false);
+        wcDevel.login("admin");
+        {
+            HtmlForm config = wcDevel.getPage(p, "configure").getFormByName("config");
+            assertThat(config.getVisibleText(), containsStringIgnoringCase("Use Groovy Sandbox"));
+        }
+
+        // even when set to hide globally
+        CPSConfiguration.get().setHideSandbox(true);
+        {
+            HtmlForm config = wcDevel.getPage(p, "configure").getFormByName("config");
+            assertThat(config.getVisibleText(), containsStringIgnoringCase("Use Groovy Sandbox"));
+        }
+
+        // regular users cannot save jobs if the sandbox is disabled
+        p.setDefinition(new CpsFlowDefinition("echo 'Hello'", false));
+        wcDevel.login("devel");
+        {
+            HtmlForm config = wcDevel.getPage(p, "configure").getFormByName("config");
+            assertThat(config.getVisibleText(), containsStringIgnoringCase("Use Groovy Sandbox"));
+            List<HtmlInput> sandboxes = config.getInputsByName("_.sandbox");
+            // Get the last one, because previous ones might be from Lockable Resources during PCT.
+            HtmlCheckBoxInput sandbox = (HtmlCheckBoxInput) sandboxes.get(sandboxes.size() - 1);
+            assertFalse("Sandbox is disabled", sandbox.isChecked());
+            VersionNumber jenkinsVersion = new VersionNumber(Jenkins.VERSION);
+            int expectedStatus = 500;
+            if (jenkinsVersion.isNewerThanOrEqualTo(new VersionNumber("2.470"))) { // TODO pending https://github.com/jenkinsci/jenkins/pull/9495 in baseline
+                expectedStatus = 400;
+            }
+            try {
+                jenkins.submit(config);
+                fail("Expected HTTP " + expectedStatus);
+            } catch (FailingHttpStatusCodeException e) {
+                // good, expected
+                assertThat(e.getStatusCode(), equalTo(expectedStatus));
+                if (expectedStatus == 400) {
+                    assertThat(e.getResponse().getContentAsString(StandardCharsets.UTF_8), containsStringIgnoringCase("Sandbox cannot be disabled"));
+                }
+            }
+
+        }
     }
 }

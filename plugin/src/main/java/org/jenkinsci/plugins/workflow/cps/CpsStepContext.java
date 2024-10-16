@@ -435,7 +435,9 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                 }
             });
         } catch (IOException x) {
-            LOGGER.log(Level.FINE, null, x);
+            // TODO: If the problem is with the FlowNode and not the CpsFlowExecution, should we try to call
+            // CpsVmExecutorService.reportProblem or CpsFlowExecution.croak to kill the build right away?
+            LOGGER.log(Level.WARNING, "Unable to load FlowNode or CpsFlowExecution when completing " + this + ", which is likely to cause its execution to hang indefinitely", x);
         }
     }
 

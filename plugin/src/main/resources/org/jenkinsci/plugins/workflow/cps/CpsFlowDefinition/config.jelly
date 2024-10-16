@@ -34,7 +34,7 @@
     <wfe:workflow-editor />
   </f:entry>
 
-  <f:entry field="sandbox">
+  <f:entry field="sandbox" class="${descriptor.shouldHideSandbox(instance) ? 'jenkins-hidden' : ''}">
     <f:checkbox title="${%Use Groovy Sandbox}" default="true"/>
   </f:entry>
 </j:jelly>

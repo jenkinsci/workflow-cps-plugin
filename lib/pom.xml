@@ -50,7 +50,7 @@
         <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
-            <version>3.2.0</version>
+            <version>3.4.1</version>
             <executions>
                 <execution>
                     <phase>generate-sources</phase>
@@ -61,6 +61,8 @@
                         <sourceRoot>${project.build.directory}/generated-sources/dgm</sourceRoot>
                         <executable>java</executable>
                         <arguments>
+                            <!-- Workaround for CodeQL support on JDK17+, see https://github.com/jenkinsci/workflow-cps-plugin/pull/901. -->
+                            <argument>--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</argument>
                             <argument>-jar</argument>
                             <argument>${project.build.directory}/groovy-cps-dgm-builder-${project.version}-jar-with-dependencies.jar</argument>
                             <argument>${project.build.directory}/generated-sources/dgm</argument>

@@ -60,7 +60,6 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -435,6 +434,16 @@ public final class CpsThreadGroup implements Serializable {
                     if (fn != null) {
                         t.head.get().addAction(new ErrorAction(error));
                     }
+                    if (error instanceof VerifyError) {
+                        var msg = error.getMessage();
+                        if (msg != null && msg.contains("Illegal type in constant pool")) {
+                            try {
+                                execution.getOwner().getListener().getLogger().println("May be JENKINS-73031: calling static interface methods from Groovy is not currently supported by Jenkins");
+                            } catch (IOException x) {
+                                LOGGER.log(Level.WARNING, null, x);
+                            }
+                        }
+                    }
                 }
 
                 if (!t.isAlive()) {
@@ -444,7 +453,7 @@ public final class CpsThreadGroup implements Serializable {
                     runtimeThreads.remove(t.id);
                     t.cleanUp();
                     if (runtimeThreads.isEmpty()) {
-                        execution.onProgramEnd(o);
+                        execution.onProgramEnd(o, false);
                         try {
                             this.execution.saveOwner();
                         } catch (Exception ex) {
