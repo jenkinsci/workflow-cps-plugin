@@ -26,11 +26,7 @@
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:st="jelly:stapler" xmlns:wfe="/org/jenkinsci/plugins/workflow/editor">
   <input type="hidden" name="oldScript" value="${instance.script}"/>
 
-  <j:set var="description">
-    ${%desc1} <a href="pipeline-syntax" target="_blank">${%Pipeline Syntax}</a> ${%desc2}
-  </j:set>
-
-  <f:entry title="${%Script}" field="script" description="${description}">
+  <f:entry title="${%Script}" field="script">
     <wfe:workflow-editor />
   </f:entry>
 
