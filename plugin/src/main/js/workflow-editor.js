@@ -14,11 +14,6 @@ import "./snippets/workflow";
 
 var editorIdCounter = 0;
 
-// function setTheme(editor) {
-//     // const theme = window.getThemeManagerProperty('ace-editor', 'theme') || 'tomorrow'
-//     // editor.setTheme("ace/theme/" + 'tomorrow_night');
-// }
-
 $(function() {
         $('.workflow-editor-wrapper').each(function() {
             initEditor($(this));
@@ -48,17 +43,6 @@ $(function() {
                 var snippets = snippetManager.parseSnippetFile(snippetContent);
                 snippetManager.register(snippets, 'groovy');
                     editor.session.setMode("ace/mode/groovy");
-                    // setTheme(editor)
-                    // if (window.getThemeManagerProperty) {
-                    //     setTheme(editor);
-                    //
-                    //     // if (window.isSystemRespectingTheme) {
-                    //     //     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-                    //     //         setTheme(editor)
-                    //     //     });
-                    //     // }
-                    //
-                    // }
                     editor.setAutoScrollEditorIntoView(true);
                     editor.setOption("minLines", 20);
                     // enable autocompletion and snippets
