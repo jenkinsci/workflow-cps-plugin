@@ -25,11 +25,9 @@
 
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:st="jelly:stapler" xmlns:wfe="/org/jenkinsci/plugins/workflow/editor">
   <input type="hidden" name="oldScript" value="${instance.script}"/>
-
   <f:entry title="${%Script}" field="script">
     <wfe:workflow-editor />
   </f:entry>
-
   <f:entry field="sandbox" class="${descriptor.shouldHideSandbox(instance) ? 'jenkins-hidden' : ''}">
     <f:checkbox title="${%Use Groovy Sandbox}" default="true"/>
   </f:entry>
