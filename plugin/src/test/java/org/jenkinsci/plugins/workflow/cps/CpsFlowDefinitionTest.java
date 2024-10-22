@@ -52,6 +52,7 @@ import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
+import org.jvnet.hudson.test.recipes.LocalData;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -397,5 +398,35 @@ public class CpsFlowDefinitionTest {
         b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0).get());
         jenkins.assertLogContains("Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance. "
                                   + "Script signature is not in the default whitelist.", b);
+    }
+
+    @Test
+    @LocalData
+    public void cpsLoadConfiguration() throws Exception {
+        //CPSConfiguration file containing <hideSandbox>true</hideSandbox>
+        // should be promoted to ScriptApproval.get().isForceSandbox()
+        assertTrue(ScriptApproval.get().isForceSandbox());
+    }
+
+    @Test
+    public void cpsRoundTrip() throws Exception {
+        jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
+
+        MockAuthorizationStrategy mockStrategy = new MockAuthorizationStrategy();
+        mockStrategy.grant(Jenkins.READ).everywhere().to("dev");
+        for (Permission p : Item.PERMISSIONS.getPermissions()) {
+            mockStrategy.grant(p).everywhere().to("dev");
+        }
+
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition("echo 'Hello'", true));
+
+        WorkflowJob roundTrip =  jenkins.configRoundtrip(p);
+
+        assertEquals(((CpsFlowDefinition)p.getDefinition()).isSandbox(),
+                     ((CpsFlowDefinition)roundTrip.getDefinition()).isSandbox());
+
+        assertEquals(((CpsFlowDefinition)p.getDefinition()).getScript(),
+                     ((CpsFlowDefinition)roundTrip.getDefinition()).getScript());
     }
 }
