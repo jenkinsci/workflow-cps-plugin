@@ -41,7 +41,6 @@ import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang.StringUtils;
-import org.jenkinsci.plugins.workflow.cps.config.CPSConfiguration;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.flow.DurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
@@ -89,7 +88,7 @@ public class CpsFlowDefinition extends FlowDefinition {
 
     @DataBoundConstructor
     public CpsFlowDefinition(String script, boolean sandbox) throws Descriptor.FormException {
-        if (CPSConfiguration.get().isHideSandbox() && !sandbox && !Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+        if (!sandbox && ScriptApproval.get().forceSandboxForCurrentUser()) {
             // this will end up in the /oops page until https://github.com/jenkinsci/jenkins/pull/9495 is picked up
             throw new Descriptor.FormException("Sandbox cannot be disabled. This Jenkins instance has been configured to not " +
                     "allow regular users to disable the sandbox in pipelines", "sandbox");
@@ -98,7 +97,6 @@ public class CpsFlowDefinition extends FlowDefinition {
         this.script = sandbox ? script : ScriptApproval.get().configuring(script, GroovyLanguage.get(),
                 ApprovalContext.create().withCurrentUser().withItemAsKey(req != null ? req.findAncestorObject(Item.class) : null), req == null);
         this.sandbox = sandbox;
-
     }
 
     private Object readResolve() {
@@ -196,7 +194,7 @@ public class CpsFlowDefinition extends FlowDefinition {
         public boolean shouldHideSandbox(@CheckForNull CpsFlowDefinition instance) {
             // sandbox checkbox is shown to admins even if the global configuration says otherwise
             // it's also shown when sandbox == false, so regular users can enable it
-            return CPSConfiguration.get().isHideSandbox() && !Jenkins.get().hasPermission(Jenkins.ADMINISTER)
+            return ScriptApproval.get().forceSandboxForCurrentUser()
                     && (instance == null || instance.sandbox);
         }
 

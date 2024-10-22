@@ -29,27 +29,43 @@ import hudson.Extension;
 import hudson.ExtensionList;
 import jenkins.model.GlobalConfiguration;
 import jenkins.model.GlobalConfigurationCategory;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.Symbol;
 
+/**
+* @deprecated
+ * This class hs been deprecated and we don't recommend to use it.
+ * In order to force using the system sandbox for pipelines, please use the flag
+ * org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval.get().isForceSandbox
+ * or
+ * org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval.get().forceSandboxForCurrentUser
+ **/
 @Symbol("cps")
 @Extension
+@Deprecated
 public class CPSConfiguration extends GlobalConfiguration {
 
     /**
      * Whether to show the sandbox checkbox in jobs to users without Jenkins.ADMINISTER
      */
-    private boolean hideSandbox;
+    private transient boolean hideSandbox;
 
     public CPSConfiguration() {
+
         load();
+        if (hideSandbox) {
+            ScriptApproval.get().setForceSandbox(hideSandbox);
+        }
+
     }
 
     public boolean isHideSandbox() {
-        return hideSandbox;
+        return ScriptApproval.get().isForceSandbox();
     }
 
     public void setHideSandbox(boolean hideSandbox) {
         this.hideSandbox = hideSandbox;
+        ScriptApproval.get().setForceSandbox(hideSandbox);
         save();
     }
 
