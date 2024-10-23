@@ -54,6 +54,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.recipes.LocalData;
 
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -406,6 +407,11 @@ public class CpsFlowDefinitionTest {
         //CPSConfiguration file containing <hideSandbox>true</hideSandbox>
         // should be promoted to ScriptApproval.get().isForceSandbox()
         assertTrue(ScriptApproval.get().isForceSandbox());
+
+        //Once the info is promoted, we are removing the config file, so should no longer exist.
+        //We are checking the injected localData is removed
+        assertFalse(new File(jenkins.jenkins.getRootDir(),
+                             "org.jenkinsci.plugins.workflow.cps.config.CPSConfiguration.xml").exists());
     }
 
     @Test

@@ -24,6 +24,9 @@
 
 package org.jenkinsci.plugins.workflow.cps.config;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.ExtensionList;
@@ -57,6 +60,13 @@ public class CPSConfiguration extends GlobalConfiguration {
             ScriptApproval.get().setForceSandbox(hideSandbox);
         }
 
+        //Data migration from this configuration to ScriptApproval should be done only once,
+        //so removing the config file after the previous migration
+        try {
+            this.getConfigFile().delete();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     public boolean isHideSandbox() {
