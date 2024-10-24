@@ -41,7 +41,7 @@ import org.jenkinsci.Symbol;
  * In order to force using the system sandbox for pipelines, please use the flag
  * org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval.get().isForceSandbox
  * or
- * org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval.get().forceSandboxForCurrentUser
+ * org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval.get().isForceSandboxForCurrentUser
  **/
 @Symbol("cps")
 @Extension
