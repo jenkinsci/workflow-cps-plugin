@@ -36,8 +36,8 @@ import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.Symbol;
 
 /**
-* @deprecated
- * This class hs been deprecated and we don't recommend to use it.
+ * @deprecated
+ * This class has been deprecated and its only configuration value is ignored. Do not rely on it or use it in any way.
  * In order to force using the system sandbox for pipelines, please use the flag
  * org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval.get().isForceSandbox
  * or
@@ -60,8 +60,8 @@ public class CPSConfiguration extends GlobalConfiguration {
             ScriptApproval.get().setForceSandbox(hideSandbox);
         }
 
-        //Data migration from this configuration to ScriptApproval should be done only once,
-        //so removing the config file after the previous migration
+        // Data migration from this configuration to ScriptApproval should be done only once,
+        // so removing the config file after the previous migration
         try {
             this.getConfigFile().delete();
         } catch (IOException e) {
