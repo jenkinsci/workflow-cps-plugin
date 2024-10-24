@@ -69,16 +69,6 @@ public class CPSConfiguration extends GlobalConfiguration {
         }
     }
 
-    public boolean isHideSandbox() {
-        return ScriptApproval.get().isForceSandbox();
-    }
-
-    public void setHideSandbox(boolean hideSandbox) {
-        this.hideSandbox = hideSandbox;
-        ScriptApproval.get().setForceSandbox(hideSandbox);
-        save();
-    }
-
     @NonNull
     @Override
     public GlobalConfigurationCategory getCategory() {

@@ -374,18 +374,6 @@ public class CpsFlowDefinitionTest {
     }
 
     @Test
-    public void cpsConfigurationSandboxToScriptApprovalSandbox() throws Exception{
-        //Deprecated CPSConfiguration should update ScriptApproval forceSandbox logic to keep casc compatibility
-        ScriptApproval.get().setForceSandbox(false);
-
-        CPSConfiguration.get().setHideSandbox(true);
-        assertTrue(ScriptApproval.get().isForceSandbox());
-
-        ScriptApproval.get().setForceSandbox(false);
-        assertFalse(CPSConfiguration.get().isHideSandbox());
-    }
-
-    @Test
     public void cpsScriptSignatureException() throws Exception {
         ScriptApproval.get().setForceSandbox(false);
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
