@@ -38,10 +38,7 @@ import org.jenkinsci.Symbol;
 /**
  * @deprecated
  * This class has been deprecated and its only configuration value is ignored. Do not rely on it or use it in any way.
- * In order to force using the system sandbox for pipelines, please use the flag
- * org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval.get().isForceSandbox
- * or
- * org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval.get().isForceSandboxForCurrentUser
+ * In order to force using the system sandbox for pipelines, please use {@link ScriptApproval#isForceSandbox} or {@link ScriptApproval#isForceSandboxForCurrentUser}
  **/
 @Symbol("cps")
 @Extension
