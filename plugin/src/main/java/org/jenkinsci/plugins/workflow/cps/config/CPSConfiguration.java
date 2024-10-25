@@ -73,7 +73,6 @@ public class CPSConfiguration extends GlobalConfiguration {
     public void setHideSandbox(boolean hideSandbox) {
         this.hideSandbox = hideSandbox;
         ScriptApproval.get().setForceSandbox(hideSandbox);
-        save();
     }
 
     @NonNull
