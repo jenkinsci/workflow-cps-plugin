@@ -57,7 +57,7 @@
             <dependency>
                 <groupId>org.jenkins-ci.plugins</groupId>
                 <artifactId>script-security</artifactId>
-                <version>1392.v64f458436d13</version> <!-- https://github.com/jenkinsci/script-security-plugin/pull/584 -->
+                <version>1366.vd44b_49a_5c85c</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
