@@ -28,7 +28,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins.workflow</groupId>
         <artifactId>workflow-cps-parent</artifactId>
-        <version>${changelist}</version>
+        <version>3975.${changelist}</version>
     </parent>
     <artifactId>workflow-cps</artifactId>
     <packaging>hpi</packaging>
@@ -154,7 +154,7 @@
         <dependency>
             <groupId>com.cloudbees</groupId>
             <artifactId>groovy-cps</artifactId>
-            <version>${changelist}</version>
+            <version>3975.${changelist}</version>
             <exclusions>
                 <exclusion> <!-- we pick this up from jenkins-core -->
                     <groupId>com.google.guava</groupId>
@@ -208,7 +208,7 @@
         <dependency>
             <groupId>com.cloudbees</groupId>
             <artifactId>groovy-cps</artifactId>
-            <version>${changelist}</version>
+            <version>3975.${changelist}</version>
             <classifier>tests</classifier>
             <scope>test</scope>
             <exclusions>
