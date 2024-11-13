@@ -68,12 +68,17 @@ import jenkins.scm.api.SCMRevisionAction;
 import net.sf.json.JSON;
 import net.sf.json.JSONObject;
 import org.acegisecurity.AccessDeniedException;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ApprovalContext;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
+import org.jenkinsci.plugins.scriptsecurity.scripts.UnapprovedUsageException;
+import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -119,7 +124,8 @@ public class ReplayAction implements Action {
     }
 
     /** Fetches execution, blocking if needed while we wait for some of the loading process. */
-    private @CheckForNull CpsFlowExecution getExecutionBlocking() {
+    @Restricted(NoExternalUse.class)
+    public @CheckForNull CpsFlowExecution getExecutionBlocking() {
         FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
         if (owner == null) {
             return null;
@@ -161,6 +167,14 @@ public class ReplayAction implements Action {
             // OR until isReplayableSandboxTest is invoked b/c they actually try to replay the build
             return true;
         }
+    }
+
+    private boolean isSandboxed() {
+        CpsFlowExecution exec = getExecutionLazy();
+        if (exec != null) {
+            return exec.isSandbox();
+        }
+        return false;
     }
 
     /** Runs the extra tests for replayability beyond {@link #isEnabled()} that require a blocking load of the execution. */
@@ -261,6 +275,16 @@ public class ReplayAction implements Action {
         if (execution == null) {
             return null;
         }
+
+        if (!execution.isSandbox()) {
+            ScriptApproval.get().configuring(replacementMainScript,GroovyLanguage.get(), ApprovalContext.create(), true);
+            try {
+                ScriptApproval.get().using(replacementMainScript, GroovyLanguage.get());
+            } catch (UnapprovedUsageException e) {
+                throw new Failure("The script is not approved.");
+            }
+        }
+
         actions.add(new ReplayFlowFactoryAction(replacementMainScript, replacementLoadedScripts, execution.isSandbox()));
         actions.add(new CauseAction(new Cause.UserIdCause(), new ReplayCause(run)));
 
@@ -357,10 +381,24 @@ public class ReplayAction implements Action {
         return hunks.isEmpty() ? "" : hunks.toUnifiedDiff("old/" + script, "new/" + script, new StringReader(oldText), new StringReader(nueText), 3);
     }
 
-    // Stub, we do not need to do anything here.
+    /**
+     * Loaded scripts do not need to be approved.
+     */
     @RequirePOST
-    public FormValidation doCheckScript() {
+    public FormValidation doCheckLoadedScript() {
         return FormValidation.ok();
+    }
+
+    /**
+     * Form validation for the main script
+     * Jelly only
+     * @param value the script being checked
+     * @return a message indicating that the script needs to be approved; nothing if the script is empty;
+     *          a corresponding message if the script is approved
+     */
+    @RequirePOST
+    public FormValidation doCheckScript(@QueryParameter String value) {
+        return Jenkins.get().getDescriptorByType(CpsFlowDefinition.DescriptorImpl.class).doCheckScript(value, "", isSandboxed());
     }
 
     @RequirePOST

@@ -17,7 +17,7 @@
                             </f:entry>
                             <j:forEach var="loadedScript" items="${it.originalLoadedScripts.entrySet()}">
                                 <f:entry field="${loadedScript.key.replace('.', '_')}" title="${loadedScript.key}">
-                                    <wfe:workflow-editor script="${loadedScript.value}" theme="${it.theme}" checkUrl="${rootURL}/${it.owner.url}${it.urlName}/checkScript" checkDependsOn=""/>
+                                    <wfe:workflow-editor script="${loadedScript.value}" theme="${it.theme}" checkUrl="${rootURL}/${it.owner.url}${it.urlName}/checkLoadedScript" checkDependsOn=""/>
                                 </f:entry>
                             </j:forEach>
                             <f:block>

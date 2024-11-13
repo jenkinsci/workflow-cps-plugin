@@ -32,7 +32,11 @@ import hudson.model.Job;
 import hudson.model.Run;
 import java.util.HashMap;
 import java.util.Map;
+import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
+import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.replay.Messages;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineParser;
@@ -50,6 +54,9 @@ import org.kohsuke.args4j.spi.Setter;
 
     @Option(name="-s", aliases="--script", metaVar="SCRIPT", usage="Name of script to edit, such as Script3, if not the main Jenkinsfile.")
     public String script;
+
+    @Option(name = "-a",  aliases="--approve", metaVar="APPROVE", usage ="Approve the main Jenkinsfile if the build is unsandboxed.")
+    public boolean approve = false;
 
     @Override public String getShortDescription() {
         return Messages.ReplayCommand_shortDescription();
@@ -77,11 +84,29 @@ import org.kohsuke.args4j.spi.Setter;
                 throw new AbortException("Unrecognized script name among " + replacementLoadedScripts.keySet());
             }
             replacementLoadedScripts.put(script, text);
+            if (approve) {
+                approveScript(action.getOriginalScript(), action);
+            }
             action.run(action.getOriginalScript(), replacementLoadedScripts);
         } else {
+            approveScript(text, action);
             action.run(text, action.getOriginalLoadedScripts());
         }
         return 0;
+    }
+
+    public void approveScript(String script, ReplayAction action) {
+        CpsFlowExecution exec = action.getExecutionBlocking();
+        if (exec == null) {
+            return;
+        }
+        if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER) || exec.isSandbox()) {
+            return;
+        }
+        if (!ScriptApproval.get().isScriptApproved(script, GroovyLanguage.get())) {
+            ScriptApproval.get().preapprove(script, GroovyLanguage.get());
+            ScriptApproval.get().save();
+        }
     }
 
     @SuppressWarnings("rawtypes")
