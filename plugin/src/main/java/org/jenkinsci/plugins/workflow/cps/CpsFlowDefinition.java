@@ -88,11 +88,7 @@ public class CpsFlowDefinition extends FlowDefinition {
 
     @DataBoundConstructor
     public CpsFlowDefinition(String script, boolean sandbox) throws Descriptor.FormException {
-        if (!sandbox && ScriptApproval.get().isForceSandboxForCurrentUser()) {
-            // this will end up in the /oops page until https://github.com/jenkinsci/jenkins/pull/9495 is picked up
-            throw new Descriptor.FormException("Sandbox cannot be disabled. This Jenkins instance has been configured to not " +
-                    "allow regular users to disable the sandbox in pipelines", "sandbox");
-        }
+        ScriptApproval.validateSandbox(sandbox);
         StaplerRequest req = Stapler.getCurrentRequest();
         this.script = sandbox ? script : ScriptApproval.get().configuring(script, GroovyLanguage.get(),
                 ApprovalContext.create().withCurrentUser().withItemAsKey(req != null ? req.findAncestorObject(Item.class) : null), req == null);
@@ -192,10 +188,7 @@ public class CpsFlowDefinition extends FlowDefinition {
 
         @Restricted(NoExternalUse.class) // stapler
         public boolean shouldHideSandbox(@CheckForNull CpsFlowDefinition instance) {
-            // sandbox checkbox is shown to admins even if the global configuration says otherwise
-            // it's also shown when sandbox == false, so regular users can enable it
-            return ScriptApproval.get().isForceSandboxForCurrentUser()
-                    && (instance == null || instance.sandbox);
+            return ScriptApproval.shouldHideSandbox(instance, CpsFlowDefinition::isSandbox);
         }
 
     }
