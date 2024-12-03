@@ -8,18 +8,11 @@ import ace from "ace-builds/src-noconflict/ace";
 import "ace-builds/src-noconflict/ext-language_tools";
 import "ace-builds/src-noconflict/mode-groovy";
 import "ace-builds/src-noconflict/snippets/javascript";
-import "ace-builds/src-noconflict/theme-tomorrow";
-import "ace-builds/src-noconflict/theme-tomorrow_night";
 
 // Import custom snippets
 import "./snippets/workflow";
 
 var editorIdCounter = 0;
-
-function setTheme(editor) {
-    const theme = window.getThemeManagerProperty('ace-editor', 'theme') || 'tomorrow'
-    editor.setTheme("ace/theme/" + theme);
-}
 
 $(function() {
         $('.workflow-editor-wrapper').each(function() {
@@ -50,16 +43,6 @@ $(function() {
                 var snippets = snippetManager.parseSnippetFile(snippetContent);
                 snippetManager.register(snippets, 'groovy');
                     editor.session.setMode("ace/mode/groovy");
-                    if (window.getThemeManagerProperty) {
-                        setTheme(editor);
-
-                        if (window.isSystemRespectingTheme) {
-                            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-                                setTheme(editor)
-                            });
-                        }
-
-                    }
                     editor.setAutoScrollEditorIntoView(true);
                     editor.setOption("minLines", 20);
                     // enable autocompletion and snippets
