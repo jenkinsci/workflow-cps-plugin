@@ -49,15 +49,10 @@
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.426.x</artifactId>
-                <version>3023.v02a_987a_b_3ff9</version>
+                <artifactId>bom-2.452.x</artifactId>
+                <version>3696.vb_b_4e2d1a_0542</version>
                 <scope>import</scope>
                 <type>pom</type>
-            </dependency>
-            <dependency>
-                <groupId>org.jenkins-ci.plugins</groupId>
-                <artifactId>script-security</artifactId>
-                <version>1369.v9b_98a_4e95b_2d</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -235,10 +230,6 @@
             <scope>test</scope>
             <exclusions>
                 <!-- Provided by Jenkins core -->
-                <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-compress</artifactId>
-                </exclusion>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>slf4j-api</artifactId>
