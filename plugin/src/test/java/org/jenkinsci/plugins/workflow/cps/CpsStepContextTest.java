@@ -87,7 +87,7 @@ public class CpsStepContextTest {
     public void executionWithBodyRunningSyncNotLeakClosures() throws Exception {
         logger.record(CpsThreadGroup.class, Level.WARNING).capture(10);
         WorkflowJob job = r.createProject(WorkflowJob.class, "p");
-        job.setDefinition(new CpsFlowDefinition("echo passthrough {}\n", true));
+        job.setDefinition(new CpsFlowDefinition("def r = passthrough {}; echo r", true));
 
         WorkflowRun build = r.buildAndAssertSuccess(job);
         r.assertLogContains("hooray", build);
