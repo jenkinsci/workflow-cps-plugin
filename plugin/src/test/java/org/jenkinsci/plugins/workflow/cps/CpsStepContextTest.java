@@ -101,19 +101,9 @@ public class CpsStepContextTest {
 
         @Override
         public StepExecution start(StepContext context) throws Exception {
-            return new Execution(context);
-        }
-
-        public static class Execution extends StepExecution {
-
-            public Execution(StepContext context) {
-                super(context);
-            }
-
-            @Override
-            public boolean start() throws Exception {
-                throw new RuntimeException("oops");
-            }
+        return StepExecutions.synchronous(context, ctx -> {
+            throw new AbortException("oops");
+        });
         }
 
         @TestExtension
