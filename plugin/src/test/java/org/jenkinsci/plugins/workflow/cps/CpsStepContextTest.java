@@ -106,7 +106,7 @@ public class CpsStepContextTest {
         });
         }
 
-        @TestExtension
+        @TestExtension("executionStartExceptionNotLeakClosures")
         public static class DescriptorImpl extends StepDescriptor {
 
             @Override
