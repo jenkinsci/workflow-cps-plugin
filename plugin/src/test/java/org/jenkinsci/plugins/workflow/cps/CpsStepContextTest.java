@@ -74,7 +74,7 @@ public class CpsStepContextTest {
     public void executionStartExceptionNotLeakClosures() throws Exception {
         logger.record(CpsThreadGroup.class, Level.WARNING).capture(10);
         WorkflowJob job = r.createProject(WorkflowJob.class, "p");
-        job.setDefinition(new CpsFlowDefinition("badBlock {}\n", true));
+        job.setDefinition(new CpsFlowDefinition("badBlock {}", true));
 
         WorkflowRun build = r.buildAndAssertStatus(Result.FAILURE, job);
         r.assertLogContains("oops", build);
