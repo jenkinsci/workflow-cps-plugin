@@ -359,8 +359,9 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      */
     private void scheduleNextRun() {
         if (syncMode) {
-            // probably rare for a legit sync step to have a body, but it's possible for a (typically) async step
-            // to be *treated* as sync due to having an outcome set prematurely (e.g. from a StepListener)
+            // probably rare for a legit sync step to have a body (unless short-circuiting execution of the body, as
+            // running a body in sync mode is not allowed), but it's possible for a (typically) async step to be
+            // *treated* as sync due to having an outcome set prematurely (e.g. from a StepListener)
             if (threadGroup != null && body != null) {
                 threadGroup.unexport(body);
                 body = null;
