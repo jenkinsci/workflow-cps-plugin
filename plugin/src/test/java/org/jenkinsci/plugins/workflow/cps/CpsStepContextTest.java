@@ -52,7 +52,7 @@ public class CpsStepContextTest {
         // being first, and our being later).
         logger.record(CpsThreadGroup.class, Level.WARNING).capture(10);
         WorkflowJob job = r.createProject(WorkflowJob.class, "p");
-        job.setDefinition(new CpsFlowDefinition("node {}\n", true));
+        job.setDefinition(new CpsFlowDefinition("node {}", true));
 
         WorkflowRun build = r.buildAndAssertStatus(Result.FAILURE, job);
         r.assertLogContains("oops", build);
