@@ -42,18 +42,14 @@ import org.jenkinsci.plugins.workflow.support.steps.input.InputStepExecution;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.RealJenkinsRule;
+import org.jvnet.hudson.test.JenkinsSessionRule;
 
 /**
  * Tests of pipelines that involve restarting Jenkins in the middle.
  */
 public class Workflow2Test {
     @Rule
-    public RealJenkinsRule story = new RealJenkinsRule();
-
-    public WorkflowJob p;
-    public WorkflowRun b;
-    public CpsFlowExecution e;
+    public JenkinsSessionRule story = new JenkinsSessionRule();
 
     @Test
     public void restartAReplayedBuild() throws Throwable {
