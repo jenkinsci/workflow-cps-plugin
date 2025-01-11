@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import hudson.model.Result;
 import hudson.util.VersionNumber;
 import org.htmlunit.FailingHttpStatusCodeException;
 import org.htmlunit.HttpMethod;
@@ -45,12 +46,15 @@ import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
 import org.jenkinsci.plugins.workflow.cps.config.CPSConfiguration;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
+import org.jvnet.hudson.test.recipes.LocalData;
 
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -59,8 +63,6 @@ import static org.hamcrest.Matchers.containsStringIgnoringCase;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -316,7 +318,7 @@ public class CpsFlowDefinitionTest {
         }
 
         // non-admins cannot see the sandbox checkbox in jobs if hideSandbox is On globally
-        CPSConfiguration.get().setHideSandbox(true);
+        ScriptApproval.get().setForceSandbox(true);
         {
             HtmlForm config = wcDevel.getPage(p, "configure").getFormByName("config");
             assertThat(config.getVisibleText(), not(containsStringIgnoringCase("Use Groovy Sandbox")));
@@ -328,7 +330,7 @@ public class CpsFlowDefinitionTest {
         }
 
         // admins can always see the sandbox checkbox
-        CPSConfiguration.get().setHideSandbox(false);
+        ScriptApproval.get().setForceSandbox(false);
         wcDevel.login("admin");
         {
             HtmlForm config = wcDevel.getPage(p, "configure").getFormByName("config");
@@ -336,7 +338,7 @@ public class CpsFlowDefinitionTest {
         }
 
         // even when set to hide globally
-        CPSConfiguration.get().setHideSandbox(true);
+        ScriptApproval.get().setForceSandbox(true);
         {
             HtmlForm config = wcDevel.getPage(p, "configure").getFormByName("config");
             assertThat(config.getVisibleText(), containsStringIgnoringCase("Use Groovy Sandbox"));
@@ -369,5 +371,68 @@ public class CpsFlowDefinitionTest {
             }
 
         }
+    }
+
+    @Test
+    public void cpsConfigurationSandboxToScriptApprovalSandbox() throws Exception{
+        //Deprecated CPSConfiguration should update ScriptApproval forceSandbox logic to keep casc compatibility
+        ScriptApproval.get().setForceSandbox(false);
+
+        CPSConfiguration.get().setHideSandbox(true);
+        assertTrue(ScriptApproval.get().isForceSandbox());
+
+        ScriptApproval.get().setForceSandbox(false);
+        assertFalse(CPSConfiguration.get().isHideSandbox());
+    }
+
+    @Test
+    public void cpsScriptSignatureException() throws Exception {
+        ScriptApproval.get().setForceSandbox(false);
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        String script = "jenkins.model.Jenkins.instance";
+        p.setDefinition(new CpsFlowDefinition(script, true));
+        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0).get());
+        jenkins.assertLogContains("Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance. "
+                                  + "Administrators can decide whether to approve or reject this signature.", b);
+
+        ScriptApproval.get().setForceSandbox(true);
+        b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0).get());
+        jenkins.assertLogContains("Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance. "
+                                  + "Script signature is not in the default whitelist.", b);
+    }
+
+    @Test
+    @LocalData
+    public void cpsLoadConfiguration() throws Exception {
+        //CPSConfiguration file containing <hideSandbox>true</hideSandbox>
+        // should be promoted to ScriptApproval.get().isForceSandbox()
+        assertTrue(ScriptApproval.get().isForceSandbox());
+
+        //Once the info is promoted, we are removing the config file, so should no longer exist.
+        //We are checking the injected localData is removed
+        assertFalse(new File(jenkins.jenkins.getRootDir(),
+                             "org.jenkinsci.plugins.workflow.cps.config.CPSConfiguration.xml").exists());
+    }
+
+    @Test
+    public void cpsRoundTrip() throws Exception {
+        jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
+
+        MockAuthorizationStrategy mockStrategy = new MockAuthorizationStrategy();
+        mockStrategy.grant(Jenkins.READ).everywhere().to("dev");
+        for (Permission p : Item.PERMISSIONS.getPermissions()) {
+            mockStrategy.grant(p).everywhere().to("dev");
+        }
+
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition("echo 'Hello'", true));
+
+        WorkflowJob roundTrip =  jenkins.configRoundtrip(p);
+
+        assertEquals(((CpsFlowDefinition)p.getDefinition()).isSandbox(),
+                     ((CpsFlowDefinition)roundTrip.getDefinition()).isSandbox());
+
+        assertEquals(((CpsFlowDefinition)p.getDefinition()).getScript(),
+                     ((CpsFlowDefinition)roundTrip.getDefinition()).getScript());
     }
 }

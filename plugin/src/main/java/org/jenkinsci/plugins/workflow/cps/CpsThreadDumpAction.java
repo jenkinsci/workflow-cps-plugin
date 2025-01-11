@@ -6,7 +6,6 @@ import com.cloudbees.jenkins.support.api.Content;
 import com.google.common.util.concurrent.FutureCallback;
 import hudson.Extension;
 import hudson.Functions;
-import hudson.model.Action;
 import hudson.model.Queue;
 import hudson.model.Run;
 import hudson.security.Permission;
@@ -38,7 +37,7 @@ import org.kohsuke.stapler.WebMethod;
 /**
  * Shows thread dump for {@link CpsFlowExecution}.
  */
-public final class CpsThreadDumpAction implements Action {
+public final class CpsThreadDumpAction extends RunningFlowAction {
 
     private final CpsFlowExecution execution;
 
