@@ -32,4 +32,7 @@ THE SOFTWARE.
     <f:entry field="lightweight" title="${%Lightweight checkout}">
         <f:checkbox default="true"/>
     </f:entry>
+    <f:block>
+        <a href="pipeline-syntax" target="_blank">${%Pipeline Syntax}</a>
+    </f:block>
 </j:jelly>
