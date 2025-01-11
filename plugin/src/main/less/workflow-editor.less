@@ -94,11 +94,11 @@
 
 .ace_editor {
   background: var(--input-color);
-  border: 2px solid var(--input-border);
+  border: var(--input-border-width, 2px) solid var(--input-border);
   border-radius: var(--form-input-border-radius);
   font-family: var(--font-family-mono) !important;
   font-size: var(--font-size-monospace);
-  font-weight: 400 !important;
+  font-weight: normal !important;
   line-height: 1.66 !important;
   box-shadow: var(--form-input-glow);
   transition: border var(--standard-transition), box-shadow
