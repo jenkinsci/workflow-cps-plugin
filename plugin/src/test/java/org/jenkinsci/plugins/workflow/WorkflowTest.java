@@ -100,6 +100,7 @@ public class WorkflowTest extends SingleJobTestBase {
                 for (int i = 0; i < 600 && !Queue.getInstance().isEmpty(); i++) {
                     Thread.sleep(100);
                 }
+                story.j.waitForMessage("Ready to run", b);
                 liveness();
                 SemaphoreStep.success("wait/1", null);
                 story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
