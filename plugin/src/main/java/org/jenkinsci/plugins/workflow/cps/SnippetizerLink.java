@@ -29,7 +29,7 @@ import hudson.ExtensionPoint;
 import hudson.model.Item;
 import hudson.model.Job;
 import org.kohsuke.stapler.Stapler;
-import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerRequest2;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -73,7 +73,7 @@ public abstract class SnippetizerLink implements ExtensionPoint {
             return "";
         }
 
-        StaplerRequest req = Stapler.getCurrentRequest();
+        StaplerRequest2 req = Stapler.getCurrentRequest2();
         if (req == null) {
             return u;
         }
