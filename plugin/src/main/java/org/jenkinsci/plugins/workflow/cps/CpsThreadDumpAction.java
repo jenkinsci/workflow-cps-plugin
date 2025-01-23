@@ -30,8 +30,8 @@ import java.util.stream.Collectors;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.kohsuke.stapler.HttpResponses;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.StaplerRequest2;
+import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.WebMethod;
 
 /**
@@ -73,7 +73,7 @@ public final class CpsThreadDumpAction extends RunningFlowAction {
         return execution.getThreadDump();
     }
 
-    @WebMethod(name = "program.xml") public void doProgramDotXml(StaplerRequest req, StaplerResponse rsp) throws Exception {
+    @WebMethod(name = "program.xml") public void doProgramDotXml(StaplerRequest2 req, StaplerResponse2 rsp) throws Exception {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         CompletableFuture<String> f = new CompletableFuture<>();
         execution.runInCpsVmThread(new FutureCallback<>() {

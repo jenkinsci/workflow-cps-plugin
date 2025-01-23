@@ -58,7 +58,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import javax.servlet.ServletException;
+import jakarta.servlet.ServletException;
 
 import hudson.util.HttpResponses;
 import jenkins.model.Jenkins;
@@ -81,11 +81,11 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.StaplerRequest2;
+import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
-import static javax.servlet.http.HttpServletResponse.SC_CONFLICT;
+import static jakarta.servlet.http.HttpServletResponse.SC_CONFLICT;
 
 /**
  * Attached to a {@link Run} when it could be replayed with script edits.
@@ -215,7 +215,7 @@ public class ReplayAction implements Action {
 
     @Restricted(DoNotUse.class)
     @RequirePOST
-    public void doRun(StaplerRequest req, StaplerResponse rsp) throws ServletException, IOException {
+    public void doRun(StaplerRequest2 req, StaplerResponse2 rsp) throws ServletException, IOException {
         if (!isEnabled() || !(isReplayableSandboxTest())) {
             throw new AccessDeniedException("not allowed to replay"); // AccessDeniedException2 requires us to look up the specific Permission
         }
@@ -235,7 +235,7 @@ public class ReplayAction implements Action {
 
     @Restricted(DoNotUse.class)
     @RequirePOST
-    public void doRebuild(StaplerRequest req, StaplerResponse rsp) throws ServletException, IOException {
+    public void doRebuild(StaplerRequest2 req, StaplerResponse2 rsp) throws ServletException, IOException {
         if (!isRebuildEnabled()) {
             throw new AccessDeniedException("not allowed to replay"); // AccessDeniedException2 requires us to look up the specific Permission
         }
