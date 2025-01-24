@@ -54,6 +54,12 @@
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
+            <!-- TODO until in BOM: -->
+            <dependency>
+                <groupId>org.jenkins-ci.plugins.workflow</groupId>
+                <artifactId>workflow-step-api</artifactId>
+                <version>686.v603d058a_e148</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>

@@ -24,7 +24,6 @@
 
 package org.jenkinsci.plugins.workflow;
 
-import com.google.common.base.Function;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.EnvVars;
@@ -214,17 +213,14 @@ public class WorkflowTest extends SingleJobTestBase {
             }
         }
         public static void finish(final boolean terminate) {
-            StepExecution.applyAll(Execution.class, new Function<>() {
-                @Override public Void apply(Execution input) {
-                    try {
-                        input.listener.getLogger().println((terminate ? "finally" : "still") + " running as " + input.flow.getAuthentication().getName() + " from " + Thread.currentThread().getName());
-                        if (terminate) {
-                            input.getContext().onSuccess(null);
-                        }
-                    } catch (Exception x) {
-                        input.getContext().onFailure(x);
+            StepExecution.acceptAll(Execution.class, input -> {
+                try {
+                    input.listener.getLogger().println((terminate ? "finally" : "still") + " running as " + input.flow.getAuthentication().getName() + " from " + Thread.currentThread().getName());
+                    if (terminate) {
+                        input.getContext().onSuccess(null);
                     }
-                    return null;
+                } catch (Exception x) {
+                    input.getContext().onFailure(x);
                 }
             });
         }
