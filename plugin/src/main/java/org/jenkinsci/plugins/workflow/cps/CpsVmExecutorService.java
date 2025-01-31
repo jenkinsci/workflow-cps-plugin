@@ -77,7 +77,9 @@ class CpsVmExecutorService extends InterceptingExecutorService {
 
     @Override
     protected Runnable wrap(final Runnable r) {
+        var timing = cpsThreadGroup.getExecution().time(CpsFlowExecution.TimingKind.runQueue);
         return () -> {
+            timing.close();
             ThreadContext context = setUp();
             try {
                 r.run();
@@ -130,7 +132,9 @@ class CpsVmExecutorService extends InterceptingExecutorService {
 
     @Override
     protected <V> Callable<V> wrap(final Callable<V> r) {
+        var timing = cpsThreadGroup.getExecution().time(CpsFlowExecution.TimingKind.runQueue);
         return () -> {
+            timing.close();
             ThreadContext context = setUp();
             try {
                 return r.call();

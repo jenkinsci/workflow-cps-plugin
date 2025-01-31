@@ -176,6 +176,7 @@ public class ParallelStep extends Step {
                 } else {
                     handler.context.onSuccess(success);
                 }
+                // TODO should this also bodies.clear()?
             }
             
             private static final long serialVersionUID = 1L;

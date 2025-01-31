@@ -75,6 +75,14 @@ public class CpsScriptTest {
         r.assertLogContains("Scripts not permitted to use new java.io.File java.lang.String", b);
     }
 
+    @Issue("JENKINS-73031")
+    @Test public void staticInterfaceMethod() throws Exception {
+        var p = r.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition("def x = List.of(1, 2, 3); echo(/x=$x/)", false));
+        var b = r.buildAndAssertStatus(Result.FAILURE, p);
+        r.assertLogContains("JENKINS-73031", b);
+    }
+
     @Test public void blockRun() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("run(null, ['test'] as String[])\n", true));

@@ -58,7 +58,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import javax.servlet.ServletException;
+import jakarta.servlet.ServletException;
 
 import hudson.util.HttpResponses;
 import jenkins.model.Jenkins;
@@ -68,19 +68,24 @@ import jenkins.scm.api.SCMRevisionAction;
 import net.sf.json.JSON;
 import net.sf.json.JSONObject;
 import org.acegisecurity.AccessDeniedException;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ApprovalContext;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
+import org.jenkinsci.plugins.scriptsecurity.scripts.UnapprovedUsageException;
+import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.StaplerRequest2;
+import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
-import static javax.servlet.http.HttpServletResponse.SC_CONFLICT;
+import static jakarta.servlet.http.HttpServletResponse.SC_CONFLICT;
 
 /**
  * Attached to a {@link Run} when it could be replayed with script edits.
@@ -119,7 +124,8 @@ public class ReplayAction implements Action {
     }
 
     /** Fetches execution, blocking if needed while we wait for some of the loading process. */
-    private @CheckForNull CpsFlowExecution getExecutionBlocking() {
+    @Restricted(NoExternalUse.class)
+    public @CheckForNull CpsFlowExecution getExecutionBlocking() {
         FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) run).asFlowExecutionOwner();
         if (owner == null) {
             return null;
@@ -163,6 +169,14 @@ public class ReplayAction implements Action {
         }
     }
 
+    private boolean isSandboxed() {
+        CpsFlowExecution exec = getExecutionLazy();
+        if (exec != null) {
+            return exec.isSandbox();
+        }
+        return false;
+    }
+
     /** Runs the extra tests for replayability beyond {@link #isEnabled()} that require a blocking load of the execution. */
     /* accessible to Jelly */ public boolean isReplayableSandboxTest() {
         CpsFlowExecution exec = getExecutionBlocking();
@@ -201,7 +215,7 @@ public class ReplayAction implements Action {
 
     @Restricted(DoNotUse.class)
     @RequirePOST
-    public void doRun(StaplerRequest req, StaplerResponse rsp) throws ServletException, IOException {
+    public void doRun(StaplerRequest2 req, StaplerResponse2 rsp) throws ServletException, IOException {
         if (!isEnabled() || !(isReplayableSandboxTest())) {
             throw new AccessDeniedException("not allowed to replay"); // AccessDeniedException2 requires us to look up the specific Permission
         }
@@ -221,7 +235,7 @@ public class ReplayAction implements Action {
 
     @Restricted(DoNotUse.class)
     @RequirePOST
-    public void doRebuild(StaplerRequest req, StaplerResponse rsp) throws ServletException, IOException {
+    public void doRebuild(StaplerRequest2 req, StaplerResponse2 rsp) throws ServletException, IOException {
         if (!isRebuildEnabled()) {
             throw new AccessDeniedException("not allowed to replay"); // AccessDeniedException2 requires us to look up the specific Permission
         }
@@ -261,6 +275,16 @@ public class ReplayAction implements Action {
         if (execution == null) {
             return null;
         }
+
+        if (!execution.isSandbox()) {
+            ScriptApproval.get().configuring(replacementMainScript,GroovyLanguage.get(), ApprovalContext.create(), true);
+            try {
+                ScriptApproval.get().using(replacementMainScript, GroovyLanguage.get());
+            } catch (UnapprovedUsageException e) {
+                throw new Failure("The script is not approved.");
+            }
+        }
+
         actions.add(new ReplayFlowFactoryAction(replacementMainScript, replacementLoadedScripts, execution.isSandbox()));
         actions.add(new CauseAction(new Cause.UserIdCause(), new ReplayCause(run)));
 
@@ -357,10 +381,24 @@ public class ReplayAction implements Action {
         return hunks.isEmpty() ? "" : hunks.toUnifiedDiff("old/" + script, "new/" + script, new StringReader(oldText), new StringReader(nueText), 3);
     }
 
-    // Stub, we do not need to do anything here.
+    /**
+     * Loaded scripts do not need to be approved.
+     */
     @RequirePOST
-    public FormValidation doCheckScript() {
+    public FormValidation doCheckLoadedScript() {
         return FormValidation.ok();
+    }
+
+    /**
+     * Form validation for the main script
+     * Jelly only
+     * @param value the script being checked
+     * @return a message indicating that the script needs to be approved; nothing if the script is empty;
+     *          a corresponding message if the script is approved
+     */
+    @RequirePOST
+    public FormValidation doCheckScript(@QueryParameter String value) {
+        return Jenkins.get().getDescriptorByType(CpsFlowDefinition.DescriptorImpl.class).doCheckScript(value, "", isSandboxed());
     }
 
     @RequirePOST

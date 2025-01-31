@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2016 CloudBees, Inc.
+ * Copyright 2024 CloudBees, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,37 +24,16 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import java.io.IOException;
-import org.kohsuke.stapler.interceptor.RequirePOST;
+import hudson.ExtensionPoint;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.Beta;
 
 /**
- * Allows a running flow to be paused or unpaused.
+ * Allows selected classes to be ignored for purposes of {@link LoggingInvoker#isInternal}.
  */
-public class PauseUnpauseAction extends RunningFlowAction {
+@Restricted(value = Beta.class)
+public interface IgnoredInternalClasses extends ExtensionPoint {
 
-    static final String URL = "pause";
-
-    private final CpsFlowExecution execution;
-
-    PauseUnpauseAction(CpsFlowExecution execution) {
-        this.execution = execution;
-    }
-
-    @Override public String getUrlName() {
-        return URL;
-    }
-
-    @Override public String getIconFileName() {
-        return null; // special presentation
-    }
-
-    @Override public String getDisplayName() {
-        return null; // special presentation
-    }
-
-    @RequirePOST
-    public void doToggle() throws IOException {
-        execution.pause(!execution.isPaused());
-    }
+    boolean ignore(Class<?> clazz);
 
 }

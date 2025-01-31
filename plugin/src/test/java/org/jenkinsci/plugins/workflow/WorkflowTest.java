@@ -24,7 +24,8 @@
 
 package org.jenkinsci.plugins.workflow;
 
-import com.google.common.base.Function;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.EnvVars;
 import hudson.Functions;
 import hudson.model.Computer;
@@ -40,14 +41,12 @@ import hudson.slaves.SlaveComputer;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import jenkins.model.Jenkins;
 import jenkins.security.QueueItemAuthenticatorConfiguration;
+import org.hamcrest.MatcherAssert;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
@@ -71,6 +70,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockQueueItemAuthenticator;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
+import static org.hamcrest.Matchers.containsString;
 
 /**
  * Tests of workflows that involve restarting Jenkins in the middle.
@@ -99,6 +99,7 @@ public class WorkflowTest extends SingleJobTestBase {
                 for (int i = 0; i < 600 && !Queue.getInstance().isEmpty(); i++) {
                     Thread.sleep(100);
                 }
+                story.j.waitForMessage("Ready to run", b);
                 liveness();
                 SemaphoreStep.success("wait/1", null);
                 story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
@@ -212,17 +213,14 @@ public class WorkflowTest extends SingleJobTestBase {
             }
         }
         public static void finish(final boolean terminate) {
-            StepExecution.applyAll(Execution.class, new Function<>() {
-                @Override public Void apply(Execution input) {
-                    try {
-                        input.listener.getLogger().println((terminate ? "finally" : "still") + " running as " + input.flow.getAuthentication().getName() + " from " + Thread.currentThread().getName());
-                        if (terminate) {
-                            input.getContext().onSuccess(null);
-                        }
-                    } catch (Exception x) {
-                        input.getContext().onFailure(x);
+            StepExecution.acceptAll(Execution.class, input -> {
+                try {
+                    input.listener.getLogger().println((terminate ? "finally" : "still") + " running as " + input.flow.getAuthentication().getName() + " from " + Thread.currentThread().getName());
+                    if (terminate) {
+                        input.getContext().onSuccess(null);
                     }
-                    return null;
+                } catch (Exception x) {
+                    input.getContext().onFailure(x);
                 }
             });
         }
@@ -330,6 +328,8 @@ public class WorkflowTest extends SingleJobTestBase {
                 assertEquals("custom2", a.getEnvironment().get("BUILD_TAG"));
                 assertEquals("more", a.getEnvironment().get("STUFF"));
                 assertNotNull(a.getEnvironment().get("PATH"));
+                // TODO use https://www.javadoc.io/doc/com.jayway.jsonpath/json-path-assert/2.4.0/com/jayway/jsonpath/matchers/JsonPathMatchers.html#hasJsonPath-java.lang.String-org.hamcrest.Matcher- to clarify that /actions/[_class="org.jenkinsci.plugins.workflow.cps.EnvActionImpl"].environment.STUFF ⇒ "more"
+                MatcherAssert.assertThat(story.j.createWebClient().getJSON(b.getUrl() + "api/json?tree=actions[environment]").getJSONObject().toString(), containsString("\"STUFF\":\"more\""));
                 // Show that EnvActionImpl binding is a fallback only for things which would otherwise have been undefined:
                 p.setDefinition(new CpsFlowDefinition(
                     "env.env = 'env.env'\n" +

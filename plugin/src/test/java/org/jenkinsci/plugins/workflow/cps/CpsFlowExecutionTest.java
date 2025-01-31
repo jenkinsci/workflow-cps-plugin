@@ -24,8 +24,8 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
+import com.cloudbees.jenkins.support.api.Container;
+import com.cloudbees.jenkins.support.api.Content;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
@@ -49,6 +49,7 @@ import hudson.model.Executor;
 import hudson.model.Item;
 import hudson.model.Result;
 import hudson.model.TaskListener;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -72,10 +73,15 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.FileUtils;
-import org.hamcrest.Matchers;
+import static org.awaitility.Awaitility.await;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.arrayContaining;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsInRelativeOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.not;
 import org.htmlunit.ElementNotFoundException;
 import org.htmlunit.FailingHttpStatusCodeException;
 import org.htmlunit.HttpMethod;
@@ -202,6 +208,7 @@ public class CpsFlowExecutionTest {
 
     @Test public void iterateAfterSuspend() throws Throwable {
         sessions.then(r -> {
+            logger.record(CpsFlowExecution.class, Level.FINE);
             WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "iterateAfterSuspend");
             p.setDefinition(new CpsFlowDefinition("semaphore 'wait'", true));
             SemaphoreStep.waitForStart("wait/1", p.scheduleBuild2(0).waitForStart());
@@ -221,7 +228,7 @@ public class CpsFlowExecutionTest {
             return; // different test
         }
         try {
-            assertThat(p.getLastBuild().getExecution().getCurrentExecutions(false).get(), empty());
+            await().until(() -> p.getLastBuild().getExecution().getCurrentExecutions(false).get(), empty());
         } catch (Throwable t) {
             iterateAfterSuspendError.set(t);
         }
@@ -493,7 +500,7 @@ public class CpsFlowExecutionTest {
                     Thread.sleep(100); // apparently a race condition between CpsVmExecutorService.tearDown and WorkflowRun.finish
                 }
                 // TODO https://github.com/jenkinsci/workflow-cps-plugin/pull/570#issuecomment-1192679404 message can be duplicated
-                assertThat(logger.getRecords(), Matchers.not(Matchers.empty()));
+                assertThat(logger.getRecords(), not(empty()));
                 assertEquals(CpsFlowExecution.TimingKind.values().length, ((CpsFlowExecution) b.getExecution()).liveTimings.keySet().size());
         });
     }
@@ -511,16 +518,43 @@ public class CpsFlowExecutionTest {
             assertThat(new XmlFile(new File(b.getRootDir(), "build.xml")).asString(), containsString(
                 "<string>org.jenkinsci.plugins.workflow.job.WorkflowRun.description</string>"));
             CpsFlowExecution exec = (CpsFlowExecution) b.getExecution();
-            assertThat(exec.getInternalCalls(), contains(
-                "org.jenkinsci.plugins.workflow.job.WorkflowRun.description",
-                "org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper.rawBuild"));
+            assertThat(exec.getInternalCalls(), containsInAnyOrder(
+                "org.jenkinsci.plugins.workflow.job.WorkflowRun.description"));
             SemaphoreStep.success("wait/1", null);
             r.assertBuildStatusSuccess(r.waitForCompletion(b));
-            assertThat(exec.getInternalCalls(), contains(
+            assertThat(exec.getInternalCalls(), containsInAnyOrder(
                 "hudson.model.Hudson.systemMessage",
                 "jenkins.model.Jenkins.instance",
-                "org.jenkinsci.plugins.workflow.job.WorkflowRun.description",
-                "org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper.rawBuild"));
+                "org.jenkinsci.plugins.workflow.job.WorkflowRun.description"));
+        });
+    }
+
+    @Test public void internalCallsUniquified() throws Throwable {
+        sessions.then(r -> {
+            var p1 = r.jenkins.createProject(WorkflowJob.class, "project-1");
+            p1.setDefinition(new CpsFlowDefinition("currentBuild.rawBuild.description = 'XXX'; Jenkins.instance.systemMessage = 'XXX'", false));
+            r.buildAndAssertSuccess(p1);
+            var p2 = r.jenkins.createProject(WorkflowJob.class, "project-2");
+            p2.setDefinition(new CpsFlowDefinition("Jenkins.instance.systemMessage = Jenkins.VERSION", false));
+            r.buildAndAssertSuccess(p2);
+            var p3 = r.jenkins.createProject(WorkflowJob.class, "project-3");
+            p3.setDefinition(new CpsFlowDefinition("echo 'clean'", false));
+            r.buildAndAssertSuccess(p3);
+            var baos = new ByteArrayOutputStream();
+            new CpsFlowExecution.PipelineInternalCalls().addContents(new Container() {
+                @Override public void add(Content content) {
+                    try {
+                        content.writeTo(baos);
+                    } catch (IOException x) {
+                        assert false : x;
+                    }
+                }
+            });
+            assertThat(baos.toString().replaceFirst(".+\r?\n", "").split("\r?\n"), arrayContaining(
+                "hudson.model.Hudson.systemMessage (project-1 #1)",
+                "jenkins.model.Jenkins.VERSION (project-2 #1)",
+                "jenkins.model.Jenkins.instance (project-1 #1)",
+                "org.jenkinsci.plugins.workflow.job.WorkflowRun.description (project-1 #1)"));
         });
     }
 

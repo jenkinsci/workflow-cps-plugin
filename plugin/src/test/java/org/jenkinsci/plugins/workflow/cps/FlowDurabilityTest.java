@@ -63,7 +63,9 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
 import org.junit.Assume;
+import org.jvnet.hudson.test.LoggerRule;
 
 /**
  * Tests implementations designed to verify handling of the flow durability levels and persistence of pipeline state.
@@ -86,6 +88,9 @@ public class FlowDurabilityTest {
 
     @Rule
     public TimedRepeatRule repeater = new TimedRepeatRule();
+
+    @Rule
+    public LoggerRule logging = new LoggerRule().record(WorkflowRun.class, Level.FINE);
 
     // Used in Race-condition/persistence fuzzing where we need to run repeatedly
     static class TimedRepeatRule implements TestRule {
