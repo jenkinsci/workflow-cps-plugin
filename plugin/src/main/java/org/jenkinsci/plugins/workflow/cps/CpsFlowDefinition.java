@@ -28,6 +28,7 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.AbortException;
 import hudson.Extension;
+import hudson.Util;
 import hudson.model.Action;
 import hudson.model.Descriptor;
 import hudson.model.Failure;
@@ -68,6 +69,7 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
@@ -89,7 +91,7 @@ public class CpsFlowDefinition extends FlowDefinition {
     @DataBoundConstructor
     public CpsFlowDefinition(String script, boolean sandbox) throws Descriptor.FormException {
         ScriptApproval.validateSandbox(sandbox);
-        StaplerRequest req = Stapler.getCurrentRequest();
+        StaplerRequest2 req = Stapler.getCurrentRequest2();
         this.script = sandbox ? script : ScriptApproval.get().configuring(script, GroovyLanguage.get(),
                 ApprovalContext.create().withCurrentUser().withItemAsKey(req != null ? req.findAncestorObject(Item.class) : null), req == null);
         this.sandbox = sandbox;
@@ -146,8 +148,26 @@ public class CpsFlowDefinition extends FlowDefinition {
          * @DataBoundSetters have been invoked (rather than in the @DataBoundConstructor), which is why we use Descriptor.newInstance.
          */
         @Override
+        public FlowDefinition newInstance(@NonNull StaplerRequest2 req, @NonNull JSONObject formData) throws FormException {
+            if (Util.isOverridden(FlowDefinitionDescriptor.class, getClass(), "newInstance", StaplerRequest.class, JSONObject.class)) {
+                return newInstance(StaplerRequest.fromStaplerRequest2(req), formData);
+            } else {
+                CpsFlowDefinition cpsFlowDefinition = (CpsFlowDefinition) super.newInstance(req, formData);
+                return newInstanceImpl(cpsFlowDefinition, req, formData);
+            }
+        }
+
+        /**
+         * @deprecated use {@link #newInstance(StaplerRequest2, JSONObject)}
+         */
+        @Deprecated
+        @Override
         public FlowDefinition newInstance(@NonNull StaplerRequest req, @NonNull JSONObject formData) throws FormException {
             CpsFlowDefinition cpsFlowDefinition = (CpsFlowDefinition) super.newInstance(req, formData);
+            return newInstanceImpl(cpsFlowDefinition, StaplerRequest.toStaplerRequest2(req), formData);
+        }
+
+        private FlowDefinition newInstanceImpl(CpsFlowDefinition cpsFlowDefinition, @NonNull StaplerRequest2 req, @NonNull JSONObject formData) {
             if (!cpsFlowDefinition.sandbox && formData.get("oldScript") != null) {
                 String oldScript = formData.getString("oldScript");
                 boolean approveIfAdmin = !StringUtils.equals(oldScript, cpsFlowDefinition.script);
