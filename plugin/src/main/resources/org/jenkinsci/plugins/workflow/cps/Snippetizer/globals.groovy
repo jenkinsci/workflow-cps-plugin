@@ -30,7 +30,7 @@ l.layout(title:_("Pipeline Syntax: Global Variable Reference"), norefresh: true)
                 }
               }
               dd{
-                def rd = request.getView(v, "help");
+                def rd = request2.getView(v, "help");
                 div(class:"help", style:"display: block") {
                   if (rd != null) {
                     st.include(page: "help", it: v)
