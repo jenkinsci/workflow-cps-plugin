@@ -41,6 +41,8 @@
         </license>
     </licenses>
     <properties>
+        <!-- TODO https://github.com/jenkinsci/jenkins-test-harness/pull/921 -->
+        <jenkins-test-harness.version>2398.vd015803ca_4d3</jenkins-test-harness.version>
         <no-test-jar>false</no-test-jar>
         <node.version>18.15.0</node.version>
         <yarn.version>1.22.19</yarn.version>
