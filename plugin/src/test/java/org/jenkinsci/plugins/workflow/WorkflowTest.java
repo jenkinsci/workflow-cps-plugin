@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import jenkins.security.QueueItemAuthenticatorConfiguration;
 import org.hamcrest.MatcherAssert;
@@ -76,6 +77,8 @@ import static org.hamcrest.Matchers.containsString;
  * Tests of workflows that involve restarting Jenkins in the middle.
  */
 public class WorkflowTest extends SingleJobTestBase {
+
+    private static final Logger LOGGER = Logger.getLogger(WorkflowTest.class.getName());
 
     /**
      * Restart Jenkins while workflow is executing to make sure it suspends all right
@@ -343,6 +346,9 @@ public class WorkflowTest extends SingleJobTestBase {
                     "  echo \"${var} vs. ${echo} vs. ${circle} vs. ${global}\"\n" +
                     "}", true));
                 story.j.assertLogContains("value vs. env.echo vs. env.circle vs. global", story.j.buildAndAssertSuccess(p));
+                var agent = Jenkins.get().getNode("agent");
+                LOGGER.info("stopping agent");
+                agent.toComputer().disconnect(null).get();
             }
         });
     }
