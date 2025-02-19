@@ -340,9 +340,6 @@ public class WorkflowTest {
                   echo "${var} vs. ${echo} vs. ${circle} vs. ${global}"
                 }""", true));
             r.assertLogContains("value vs. env.echo vs. env.circle vs. global", r.buildAndAssertSuccess(p));
-            var agent = r.jenkins.getNode("agent");
-            LOGGER.info("stopping agent");
-            agent.toComputer().disconnect(null).get();
         });
     }
 
