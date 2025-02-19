@@ -42,7 +42,7 @@
     </licenses>
     <properties>
         <!-- TODO https://github.com/jenkinsci/jenkins-test-harness/pull/922 -->
-        <jenkins-test-harness.version>2397.v7a_7075012def</jenkins-test-harness.version>
+        <jenkins-test-harness.version>2400.v86a_2b_c9d99d6</jenkins-test-harness.version>
         <no-test-jar>false</no-test-jar>
         <node.version>18.15.0</node.version>
         <yarn.version>1.22.19</yarn.version>
