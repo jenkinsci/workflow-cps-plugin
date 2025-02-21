@@ -210,7 +210,8 @@ final class FlowHead implements Serializable {
             // See if parallel loading?
             FlowHead myHead = execution.getFlowHead(id);
             if (myHead == null) {
-                throw new IllegalStateException("FlowHead loading problem at deserialize: Null FlowHead with id "+id+" in execution "+execution);
+                LOGGER.warning(() -> "Missing FlowHead with id " + id + " in execution " + execution);
+                return this;
             }
             return myHead;
         } else {
