@@ -132,4 +132,10 @@ import java.util.Map;
     public int getDepth() {
         return depth;
     }
+
+    @Override
+    public String toString() {
+        return callSiteLoc != null ? super.toString() + " @" + callSiteLoc : super.toString();
+    }
+
 }
