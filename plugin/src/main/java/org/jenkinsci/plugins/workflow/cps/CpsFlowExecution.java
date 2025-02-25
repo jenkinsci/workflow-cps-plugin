@@ -135,6 +135,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
@@ -876,7 +877,21 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             CpsFlowExecution old = PROGRAM_STATE_SERIALIZATION.get();
                             PROGRAM_STATE_SERIALIZATION.set(CpsFlowExecution.this);
                             try {
-                                CpsThreadGroup g = (CpsThreadGroup) u.readObject();
+                                AtomicReference<CpsThreadGroup> _g = new AtomicReference<>();
+                                AtomicReference<Throwable> error = new AtomicReference<>();
+                                var thread = new Thread(null, () -> {
+                                    try {
+                                        _g.set((CpsThreadGroup) u.readObject());
+                                    } catch (Throwable t) {
+                                        error.set(t);
+                                    }
+                                }, "loading " + programDataFile, 999_999_999);
+                                thread.start();
+                                thread.join();
+                                if (error.get() != null) {
+                                    throw error.get();
+                                }
+                                var g = _g.get();
                                 result.set(g);
                                 pausedWhenLoaded = g.isPaused();
                                 g.pause(false);
