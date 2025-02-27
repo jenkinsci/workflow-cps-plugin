@@ -138,14 +138,16 @@ final class LoggingInvoker implements Invoker {
         Class<?> clazz = classOf(lhs);
         maybeRecord(clazz, () -> clazz.getName() + "." + name);
         delegate.setProperty(lhs, name, value);
-        if (value != null) {
-            var owner = findOwner(lhs);
-            if (owner instanceof CpsScript) {
-                var g = CpsThreadGroup.current();
-                if (g != null) {
-                    var e = g.getExecution();
-                    if (e != null) {
-                        e.getOwner().getListener().getLogger().println(Messages.LoggingInvoker_field_set(owner.getClass().getSimpleName(), name, value.getClass().getSimpleName()));
+        if (SystemProperties.getBoolean(LoggingInvoker.class.getName() + ".fieldSetWarning", true)) {
+            if (value != null) {
+                var owner = findOwner(lhs);
+                if (owner instanceof CpsScript) {
+                    var g = CpsThreadGroup.current();
+                    if (g != null) {
+                        var e = g.getExecution();
+                        if (e != null) {
+                            e.getOwner().getListener().getLogger().println(Messages.LoggingInvoker_field_set(owner.getClass().getSimpleName(), name, value.getClass().getSimpleName()));
+                        }
                     }
                 }
             }
