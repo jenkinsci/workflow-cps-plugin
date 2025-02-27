@@ -54,6 +54,7 @@ public class  ReplayPipelineCommandTest {
         WorkflowJob p = j.jenkins.createProject(WorkflowJob.class, "SECURITY-3362");
         j.jenkins.getWorkspaceFor(p).child("a.groovy").write("echo 'Hello LoadedWorld'", null);
         String script =
+                "def a\n" +
                 "node() {\n" +
                 "    a = load('a.groovy')\n" +
                 "}\n";
