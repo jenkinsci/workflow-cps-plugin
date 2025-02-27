@@ -495,7 +495,7 @@ public class CpsFlowDefinition2Test {
     @Test
     public void multipleAssignmentFunctionCalledOnce() throws Exception {
         WorkflowJob job = jenkins.createProject(WorkflowJob.class);
-        job.setDefinition(new CpsFlowDefinition("alreadyRun = false\n" +
+        job.setDefinition(new CpsFlowDefinition("def alreadyRun = false\n" +
                 "def getAandB() {\n" +
                 "  if (!alreadyRun) {\n" +
                 "    alreadyRun = true\n" +
