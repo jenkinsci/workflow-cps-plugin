@@ -142,11 +142,16 @@ final class LoggingInvoker implements Invoker {
             if (value != null) {
                 var owner = findOwner(lhs);
                 if (owner instanceof CpsScript) {
-                    var g = CpsThreadGroup.current();
-                    if (g != null) {
-                        var e = g.getExecution();
-                        if (e != null) {
-                            e.getOwner().getListener().getLogger().println(Messages.LoggingInvoker_field_set(owner.getClass().getSimpleName(), name, value.getClass().getSimpleName()));
+                    try {
+                        owner.getClass().getDeclaredField(name);
+                        // OK, @Field, ignore
+                    } catch (NoSuchFieldException x) {
+                        var g = CpsThreadGroup.current();
+                        if (g != null) {
+                            var e = g.getExecution();
+                            if (e != null) {
+                                e.getOwner().getListener().getLogger().println(Messages.LoggingInvoker_field_set(owner.getClass().getSimpleName(), name, value.getClass().getSimpleName()));
+                            }
                         }
                     }
                 }
