@@ -30,6 +30,7 @@ import com.cloudbees.groovy.cps.sandbox.Invoker;
 import com.cloudbees.groovy.cps.sandbox.SandboxInvoker;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import groovy.lang.Closure;
 import groovy.lang.GroovyClassLoader;
 import hudson.ExtensionList;
 import java.util.Set;
@@ -137,6 +138,18 @@ final class LoggingInvoker implements Invoker {
         Class<?> clazz = classOf(lhs);
         maybeRecord(clazz, () -> clazz.getName() + "." + name);
         delegate.setProperty(lhs, name, value);
+        var g = CpsThreadGroup.current();
+        if (g != null) {
+            var e = g.getExecution();
+            if (e != null) {
+                e.getOwner().getListener().getLogger().println(Messages.LoggingInvoker_field_set(findOwner(lhs).getClass().getName(), name, value.getClass().getName()));
+                assert false : "TODO look for false positives";
+            }
+        }
+    }
+
+    private Object findOwner(Object o) {
+        return o instanceof Closure<?> c ? findOwner(c.getOwner()) : o;
     }
 
     @Override public Object getAttribute(Object lhs, String name) throws Throwable {
