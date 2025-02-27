@@ -145,7 +145,7 @@ final class LoggingInvoker implements Invoker {
                 if (g != null) {
                     var e = g.getExecution();
                     if (e != null) {
-                        e.getOwner().getListener().getLogger().println(Messages.LoggingInvoker_field_set(findOwner(lhs).getClass().getName(), name, value.getClass().getSimpleName()));
+                        e.getOwner().getListener().getLogger().println(Messages.LoggingInvoker_field_set(owner.getClass().getSimpleName(), name, value.getClass().getSimpleName()));
                     }
                 }
             }

@@ -269,7 +269,7 @@ public class CpsBodyExecutionTest {
             }
             r.assertBuildStatusSuccess(r.waitForCompletion(b));
             new DepthFirstScanner().allNodes(b.getExecution()).stream().sorted(Comparator.comparing(n -> Integer.valueOf(n.getId()))).forEach(n -> System.out.println(n.getId() + " " + n.getDisplayName()));
-            r.assertLogContains(Messages.LoggingInvoker_field_set("WorkflowScript", "g", CpsClosure2.class.getSimpleName()), b);
+            r.assertLogContains(Messages.LoggingInvoker_field_set("WorkflowScript", "g", "CpsClosure2"), b);
         });
     }
 
