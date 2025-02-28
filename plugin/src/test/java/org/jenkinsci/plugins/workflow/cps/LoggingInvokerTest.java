@@ -76,4 +76,10 @@ public class LoggingInvokerTest {
         assertThat(exec.getInternalCalls(), containsInAnyOrder(calls));
     }
 
+    @Test public void settersOnClosures() throws Exception {
+        var p = r.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition("def c1 = {}; def c2 = {echo 'OK ran'}; c1.delegate = c2; c1.resolveStrategy = Closure.DELEGATE_FIRST; c1()", true));
+        r.assertLogNotContains("`def`", r.buildAndAssertSuccess(p));
+    }
+
 }

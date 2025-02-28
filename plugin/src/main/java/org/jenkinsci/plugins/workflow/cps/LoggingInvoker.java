@@ -134,12 +134,14 @@ final class LoggingInvoker implements Invoker {
         return delegate.getProperty(lhs, name);
     }
 
+    private static final Set<String> CLOSURE_METAPROPS = Set.of("delegate", "directive", "resolveStrategy");
+
     @Override public void setProperty(Object lhs, String name, Object value) throws Throwable {
         Class<?> clazz = classOf(lhs);
         maybeRecord(clazz, () -> clazz.getName() + "." + name);
         delegate.setProperty(lhs, name, value);
         if (SystemProperties.getBoolean(LoggingInvoker.class.getName() + ".fieldSetWarning", true)) {
-            if (value != null) {
+            if (value != null && !CLOSURE_METAPROPS.contains(name)) {
                 var owner = findOwner(lhs);
                 if (owner instanceof CpsScript) {
                     try {
