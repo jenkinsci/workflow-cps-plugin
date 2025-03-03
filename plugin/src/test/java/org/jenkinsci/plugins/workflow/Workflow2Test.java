@@ -90,5 +90,7 @@ public class Workflow2Test {
         var b2 = await().until(() -> p.getBuildByNumber(2), Matchers.notNullValue());
         var execution = await().until(b2::getExecution, Matchers.notNullValue());
         assertThat("Expecting the replayed build to use sandbox", ((CpsFlowExecution) execution).isSandbox(), is(true));
+        b2.doStop();
+        r.waitForCompletion(b2);
     }
 }
