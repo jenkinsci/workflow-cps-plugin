@@ -142,17 +142,17 @@ final class LoggingInvoker implements Invoker {
         delegate.setProperty(lhs, name, value);
         if (SystemProperties.getBoolean(LoggingInvoker.class.getName() + ".fieldSetWarning", true)) {
             if (value != null && !CLOSURE_METAPROPS.contains(name)) {
-                var owner = findOwner(lhs);
-                if (owner instanceof CpsScript) {
+                var receiver = findReceiver(lhs);
+                if (receiver instanceof CpsScript) {
                     try {
-                        owner.getClass().getDeclaredField(name);
+                        receiver.getClass().getDeclaredField(name);
                         // OK, @Field, ignore
                     } catch (NoSuchFieldException x) {
                         var g = CpsThreadGroup.current();
                         if (g != null) {
                             var e = g.getExecution();
                             if (e != null) {
-                                e.getOwner().getListener().getLogger().println(Messages.LoggingInvoker_field_set(owner.getClass().getSimpleName(), name, value.getClass().getSimpleName()));
+                                e.getOwner().getListener().getLogger().println(Messages.LoggingInvoker_field_set(receiver.getClass().getSimpleName(), name, value.getClass().getSimpleName()));
                             }
                         }
                     }
@@ -161,8 +161,28 @@ final class LoggingInvoker implements Invoker {
         }
     }
 
-    private Object findOwner(Object o) {
-        return o instanceof Closure<?> c ? findOwner(c.getOwner()) : o;
+    private Object findReceiver(Object o) {
+        if (o instanceof Closure<?> c) {
+            // c.f. https://github.com/apache/groovy/blob/41b990d0a20e442f29247f0e04cbed900f3dcad4/src/main/groovy/lang/Closure.java#L344
+            return switch (c.getResolveStrategy()) {
+                case Closure.DELEGATE_ONLY -> findReceiver(c.getDelegate());
+                case Closure.OWNER_ONLY -> findReceiver(c.getOwner());
+                case Closure.TO_SELF -> c;
+                case Closure.DELEGATE_FIRST -> {
+                    var delegate = c.getDelegate();
+                    if (delegate == null) {
+                        yield findReceiver(c.getOwner());
+                    }
+                    // TODO: Groovy will actually try the delegate first and then the owner if needed, but it is
+                    // difficult for us to know what will happen in advance.
+                    yield findReceiver(delegate);
+                }
+                default ->
+                    // TODO: Groovy will actually try the owner first and then the delegate if needed.
+                    findReceiver(c.getOwner());
+            };
+        }
+        return o;
     }
 
     @Override public Object getAttribute(Object lhs, String name) throws Throwable {
