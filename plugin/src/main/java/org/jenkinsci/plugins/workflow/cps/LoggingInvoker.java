@@ -175,7 +175,7 @@ final class LoggingInvoker implements Invoker {
                     }
                     // TODO: Groovy will actually try the delegate first and then the owner if needed, but it is
                     // difficult for us to know what will happen in advance.
-                    yield findReceiver(c.getDelegate());
+                    yield findReceiver(delegate);
                 }
                 default ->
                     // TODO: Groovy will actually try the owner first and then the delegate if needed.
