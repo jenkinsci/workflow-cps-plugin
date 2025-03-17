@@ -62,6 +62,12 @@
                 <artifactId>support-core</artifactId>
                 <version>1575.v49b_01a_460e3b_</version>
             </dependency>
+            <dependency>
+                <groupId>org.jenkins-ci.plugins.workflow</groupId>
+                <artifactId>workflow-api</artifactId>
+                <!-- TODO https://github.com/jenkinsci/workflow-api-plugin/pull/383 -->
+                <version>1365.v7993673de9a_c</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>

@@ -141,8 +141,6 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import net.jcip.annotations.GuardedBy;
 
-import org.acegisecurity.Authentication;
-import org.acegisecurity.userdetails.UsernameNotFoundException;
 import java.nio.charset.StandardCharsets;
 import jenkins.util.SystemProperties;
 import org.codehaus.groovy.GroovyBugError;
@@ -154,6 +152,8 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 /**
  * {@link FlowExecution} implemented with Groovy CPS.
@@ -421,8 +421,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this.script = script;
         this.sandbox = sandbox;
         this.durabilityHint = durabilityHint;
-        Authentication auth = Jenkins.getAuthentication();
-        this.user = auth.equals(ACL.SYSTEM) ? null : auth.getName();
+        Authentication auth = Jenkins.getAuthentication2();
+        this.user = auth.equals(ACL.SYSTEM2) ? null : auth.getName();
         this.storage = createStorage();
         this.storage.setAvoidAtomicWrite(!this.getDurabilityHint().isAtomicWrite());
     }
@@ -1563,21 +1563,21 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    @Override public Authentication getAuthentication() {
+    @Override public Authentication getAuthentication2() {
         if (user == null) {
-            return ACL.SYSTEM;
+            return ACL.SYSTEM2;
         }
         try {
             User u = User.getById(user, true);
             if (u == null) {
-                return Jenkins.ANONYMOUS;
+                return Jenkins.ANONYMOUS2;
             } else {
-                return u.impersonate();
+                return u.impersonate2();
             }
         } catch (UsernameNotFoundException x) {
             LOGGER.log(Level.WARNING, "could not restore authentication", x);
             // Should not expose this to callers.
-            return Jenkins.ANONYMOUS;
+            return Jenkins.ANONYMOUS2;
         }
     }
 

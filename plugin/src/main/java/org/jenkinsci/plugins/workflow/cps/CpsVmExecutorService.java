@@ -169,7 +169,7 @@ class CpsVmExecutorService extends InterceptingExecutorService {
 
     private ThreadContext setUp() {
         CpsFlowExecution execution = cpsThreadGroup.getExecution();
-        ACL.impersonate(execution.getAuthentication());
+        ACL.impersonate2(execution.getAuthentication2());
         CURRENT.set(cpsThreadGroup);
         cpsThreadGroup.busy = true;
         Thread t = Thread.currentThread();

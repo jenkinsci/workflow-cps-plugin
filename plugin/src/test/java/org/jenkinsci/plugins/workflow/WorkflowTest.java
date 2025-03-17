@@ -205,7 +205,7 @@ public class WorkflowTest {
             @Override public void onResume() {
                 super.onResume();
                 try {
-                    listener.getLogger().println("again running as " + flow.getAuthentication().getName() + " from " + Thread.currentThread().getName());
+                    listener.getLogger().println("again running as " + flow.getAuthentication2().getName() + " from " + Thread.currentThread().getName());
                 } catch (Exception x) {
                     getContext().onFailure(x);
                 }
@@ -214,7 +214,7 @@ public class WorkflowTest {
         public static void finish(final boolean terminate) {
             StepExecution.acceptAll(Execution.class, input -> {
                 try {
-                    input.listener.getLogger().println((terminate ? "finally" : "still") + " running as " + input.flow.getAuthentication().getName() + " from " + Thread.currentThread().getName());
+                    input.listener.getLogger().println((terminate ? "finally" : "still") + " running as " + input.flow.getAuthentication2().getName() + " from " + Thread.currentThread().getName());
                     if (terminate) {
                         input.getContext().onSuccess(null);
                     }
