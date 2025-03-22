@@ -41,6 +41,8 @@
         </license>
     </licenses>
     <properties>
+        <!-- TODO until in parent -->
+        <jenkins-test-harness.version>2403.v256947ecb_c8a_</jenkins-test-harness.version>
         <no-test-jar>false</no-test-jar>
         <node.version>18.15.0</node.version>
         <yarn.version>1.22.19</yarn.version>
@@ -53,6 +55,17 @@
                 <version>4023.va_eeb_b_4e45f07</version>
                 <scope>import</scope>
                 <type>pom</type>
+            </dependency>
+            <!-- TODO until in BOM -->
+            <dependency>
+                <groupId>org.jenkins-ci.plugins</groupId>
+                <artifactId>support-core</artifactId>
+                <version>1575.v49b_01a_460e3b_</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jenkins-ci.plugins.workflow</groupId>
+                <artifactId>workflow-api</artifactId>
+                <version>1366.vf1fb_e1a_f6b_22</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -226,7 +239,7 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.20.4</version>
+            <version>1.20.6</version>
             <scope>test</scope>
             <exclusions>
                 <!-- Provided by Jenkins core -->
@@ -239,7 +252,7 @@
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
-            <version>4.2.2</version>
+            <version>4.3.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>

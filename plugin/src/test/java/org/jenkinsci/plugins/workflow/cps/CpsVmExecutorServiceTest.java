@@ -139,7 +139,7 @@ public class CpsVmExecutorServiceTest {
     @Test public void okCatcherMetaClassImpl() throws Exception {
         p.setDefinition(new CpsFlowDefinition(
             "import org.codehaus.groovy.runtime.InvokerHelper \n" + 
-            "c = { println 'doing a thing' } \n" +
+            "def c = { println 'doing a thing' } \n" +
             "InvokerHelper.getMetaClass(c).invokeMethod(c, 'call', null)", false));
         WorkflowRun b = r.buildAndAssertSuccess(p);
         r.assertLogNotContains("MetaClassImpl", b);
@@ -150,7 +150,7 @@ public class CpsVmExecutorServiceTest {
     @Test public void okCatcherExpandoMetaClass() throws Exception {
         p.setDefinition(new CpsFlowDefinition(
             "import org.codehaus.groovy.runtime.InvokerHelper \n" + 
-            "c = { println 'doing a thing' } \n" +
+            "def c = { println 'doing a thing' } \n" +
             "c.getMetaClass().someField = 'r' \n" + 
             "InvokerHelper.getMetaClass(c).invokeMethod(c, 'call', null)", false));
         WorkflowRun b = r.buildAndAssertSuccess(p);
