@@ -41,8 +41,6 @@
         </license>
     </licenses>
     <properties>
-        <!-- TODO until in parent -->
-        <jenkins-test-harness.version>2403.v256947ecb_c8a_</jenkins-test-harness.version>
         <no-test-jar>false</no-test-jar>
         <node.version>18.15.0</node.version>
         <yarn.version>1.22.19</yarn.version>
