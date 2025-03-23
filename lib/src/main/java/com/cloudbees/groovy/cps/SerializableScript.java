@@ -1,5 +1,7 @@
 package com.cloudbees.groovy.cps;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import groovy.lang.Binding;
 import groovy.lang.Script;
 
@@ -26,6 +28,7 @@ public abstract class SerializableScript extends Script implements Serializable 
         oos.writeObject(getBinding().getVariables());
     }
 
+    @SuppressFBWarnings(value = "MC_OVERRIDABLE_METHOD_CALL_IN_READ_OBJECT", justification = "TODO needs triage")
     private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
         Map m = (Map)ois.readObject();
         getBinding().getVariables().putAll(m);

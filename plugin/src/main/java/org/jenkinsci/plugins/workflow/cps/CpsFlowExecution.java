@@ -299,13 +299,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      */
     @GuardedBy("this")
     /*package*/ /* almost final*/ Stack<BlockStartNode> startNodes = new Stack<>();
-    @SuppressFBWarnings({"IS_FIELD_NOT_GUARDED", "IS2_INCONSISTENT_SYNC"}) // irrelevant here
     private transient List<String> startNodesSerial; // used only between unmarshal and onLoad
 
     @GuardedBy("this")
     /* almost final*/ NavigableMap<Integer,FlowHead> heads = new TreeMap<>(); // Non-private for unit tests
 
-    @SuppressFBWarnings({"IS_FIELD_NOT_GUARDED", "IS2_INCONSISTENT_SYNC"}) // irrelevant here
     private transient Map<Integer,String> headsSerial; // used only between unmarshal and onLoad
 
     private final AtomicInteger iota = new AtomicInteger();
@@ -803,7 +801,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     @Override
-    @SuppressFBWarnings(value = "RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN", justification = "We want to explicitly check for boolean not-null and true")
     public void onLoad(FlowExecutionOwner owner) throws IOException {
         this.owner = owner;
 
@@ -1776,7 +1773,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             w.endNode();
         }
 
-        @SuppressFBWarnings(value = {"BX_UNBOXING_IMMEDIATELY_REBOXED", "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"}, justification = "Nastiness with the impl and timings variable could be null if deserialized from old version")
         public Object unmarshal(HierarchicalStreamReader reader, final UnmarshallingContext context) {
                 CpsFlowExecution result;
 
