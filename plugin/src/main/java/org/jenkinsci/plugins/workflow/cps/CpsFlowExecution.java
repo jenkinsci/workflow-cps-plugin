@@ -141,8 +141,6 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import net.jcip.annotations.GuardedBy;
 
-import org.acegisecurity.Authentication;
-import org.acegisecurity.userdetails.UsernameNotFoundException;
 import java.nio.charset.StandardCharsets;
 import jenkins.util.SystemProperties;
 import org.codehaus.groovy.GroovyBugError;
@@ -154,6 +152,8 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 /**
  * {@link FlowExecution} implemented with Groovy CPS.
@@ -299,13 +299,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      */
     @GuardedBy("this")
     /*package*/ /* almost final*/ Stack<BlockStartNode> startNodes = new Stack<>();
-    @SuppressFBWarnings({"IS_FIELD_NOT_GUARDED", "IS2_INCONSISTENT_SYNC"}) // irrelevant here
     private transient List<String> startNodesSerial; // used only between unmarshal and onLoad
 
     @GuardedBy("this")
     /* almost final*/ NavigableMap<Integer,FlowHead> heads = new TreeMap<>(); // Non-private for unit tests
 
-    @SuppressFBWarnings({"IS_FIELD_NOT_GUARDED", "IS2_INCONSISTENT_SYNC"}) // irrelevant here
     private transient Map<Integer,String> headsSerial; // used only between unmarshal and onLoad
 
     private final AtomicInteger iota = new AtomicInteger();
@@ -421,8 +419,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this.script = script;
         this.sandbox = sandbox;
         this.durabilityHint = durabilityHint;
-        Authentication auth = Jenkins.getAuthentication();
-        this.user = auth.equals(ACL.SYSTEM) ? null : auth.getName();
+        Authentication auth = Jenkins.getAuthentication2();
+        this.user = auth.equals(ACL.SYSTEM2) ? null : auth.getName();
         this.storage = createStorage();
         this.storage.setAvoidAtomicWrite(!this.getDurabilityHint().isAtomicWrite());
     }
@@ -803,7 +801,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     @Override
-    @SuppressFBWarnings(value = "RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN", justification = "We want to explicitly check for boolean not-null and true")
     public void onLoad(FlowExecutionOwner owner) throws IOException {
         this.owner = owner;
 
@@ -1563,21 +1560,21 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    @Override public Authentication getAuthentication() {
+    @Override public Authentication getAuthentication2() {
         if (user == null) {
-            return ACL.SYSTEM;
+            return ACL.SYSTEM2;
         }
         try {
             User u = User.getById(user, true);
             if (u == null) {
-                return Jenkins.ANONYMOUS;
+                return Jenkins.ANONYMOUS2;
             } else {
-                return u.impersonate();
+                return u.impersonate2();
             }
         } catch (UsernameNotFoundException x) {
             LOGGER.log(Level.WARNING, "could not restore authentication", x);
             // Should not expose this to callers.
-            return Jenkins.ANONYMOUS;
+            return Jenkins.ANONYMOUS2;
         }
     }
 
@@ -1776,7 +1773,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             w.endNode();
         }
 
-        @SuppressFBWarnings(value = {"BX_UNBOXING_IMMEDIATELY_REBOXED", "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"}, justification = "Nastiness with the impl and timings variable could be null if deserialized from old version")
         public Object unmarshal(HierarchicalStreamReader reader, final UnmarshallingContext context) {
                 CpsFlowExecution result;
 

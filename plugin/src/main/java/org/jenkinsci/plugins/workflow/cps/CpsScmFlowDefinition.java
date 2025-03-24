@@ -24,7 +24,6 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.FilePath;
@@ -105,11 +104,6 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         this.lightweight = lightweight;
     }
 
-    @SuppressFBWarnings(
-            value = {"NP_LOAD_OF_KNOWN_NULL_VALUE", "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE",
-                    "RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE"},
-            justification = "false positives for try-resource in java 11"
-    )
     @Override public CpsFlowExecution create(FlowExecutionOwner owner, TaskListener listener, List<? extends Action> actions) throws Exception {
         for (Action a : actions) {
             if (a instanceof CpsFlowFactoryAction2) {
