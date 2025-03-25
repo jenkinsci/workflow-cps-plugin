@@ -141,7 +141,7 @@ final class LoggingInvoker implements Invoker {
         maybeRecord(clazz, () -> clazz.getName() + "." + name);
         delegate.setProperty(lhs, name, value);
         if (SystemProperties.getBoolean(LoggingInvoker.class.getName() + ".fieldSetWarning", true)) {
-            if (value != null && !CLOSURE_METAPROPS.contains(name)) {
+            if (value != null && !CLOSURE_METAPROPS.contains(name) && /* RuntimeASTTransformer.SCRIPT_SPLITTING_TRANSFORMATION */ !name.startsWith("__model__")) {
                 var receiver = findReceiver(lhs);
                 if (receiver instanceof CpsScript) {
                     try {
