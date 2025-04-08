@@ -769,7 +769,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             "This is expected to happen when using the " + durabilitySetting + " durability setting and Jenkins is not shut down cleanly. " +
                             "Consider investigating to understand if Jenkins was not shut down cleanly or switching to the MAX_SURVIVABILITY durability setting which should prevent this issue in most cases.");
                 } else {
-                    throw new AbortException("Cannot resume build because FlowNode " + entry.getValue() + " for FlowHead " + entry.getKey() + " could not be loaded.");
+                    throw new AbortException("Cannot resume build because FlowNode " + entry.getValue() + " for FlowHead " + entry.getKey() + " could not be loaded from " + getStorageDir());
                 }
             }
         }
@@ -805,17 +805,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this.owner = owner;
 
         try {
-            try {
-                initializeStorage();  // Throws exception and bombs out if we can't load FlowNodes
-            } catch (Exception ex) {
-                LOGGER.log(Level.WARNING, "Error initializing storage and loading nodes, will try to create placeholders for: "+this, ex);
-                createPlaceholderNodes(ex);
-                return;
-            }
+            initializeStorage();  // Throws exception and bombs out if we can't load FlowNodes
         } catch (Exception ex) {
             done = true;
             programPromise = Futures.immediateFailedFuture(ex);
-            throw new IOException("Failed to even create placeholder nodes for execution", ex);
+            throw ex instanceof IOException ioe ? ioe : new IOException(ex);
         }
 
         try {
