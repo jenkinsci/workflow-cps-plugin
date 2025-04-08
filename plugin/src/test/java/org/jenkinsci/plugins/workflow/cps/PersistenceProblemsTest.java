@@ -1,5 +1,11 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import static jenkins.test.RunMatchers.completed;
+import static org.awaitility.Awaitility.await;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.isA;
+
 import com.google.common.util.concurrent.ListenableFuture;
 import hudson.model.Queue;
 import hudson.model.Result;
@@ -46,9 +52,7 @@ public class PersistenceProblemsTest {
 
     /** Verifies all the assumptions about a cleanly finished build. */
     static void assertCompletedCleanly(WorkflowRun run) throws Exception {
-        while (run.isBuilding()) {
-            Thread.sleep(100); // TODO seems to be unpredictable
-        }
+        await().until(() -> run, completed());
         Assert.assertNotNull(run.getResult());
         FlowExecution fe = run.getExecution();
         FlowExecutionList.get().forEach(f -> {
@@ -58,17 +62,14 @@ public class PersistenceProblemsTest {
         });
         Assert.assertTrue("Queue not empty after completion!", Queue.getInstance().isEmpty());
 
-        if (fe instanceof CpsFlowExecution) {
-            CpsFlowExecution cpsExec = (CpsFlowExecution)fe;
+        if (fe instanceof CpsFlowExecution cpsExec) {
             Assert.assertTrue(cpsExec.isComplete());
             Assert.assertEquals(Boolean.TRUE, cpsExec.done);
             Assert.assertEquals(1, cpsExec.getCurrentHeads().size());
             Assert.assertTrue(cpsExec.isComplete());
-            Assert.assertTrue(cpsExec.getCurrentHeads().get(0) instanceof FlowEndNode);
+            assertThat(cpsExec.getCurrentHeads().get(0), isA(FlowEndNode.class));
             Assert.assertTrue(cpsExec.startNodes == null || cpsExec.startNodes.isEmpty());
-            while (cpsExec.blocksRestart()) {
-                Thread.sleep(100); // TODO ditto
-            }
+            await().until(cpsExec::blocksRestart, is(false));
         } else {
             System.out.println("WARNING: no FlowExecutionForBuild");
         }
