@@ -2,8 +2,8 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import static jenkins.test.RunMatchers.completed;
 import static org.awaitility.Awaitility.await;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
 
 import com.google.common.util.concurrent.ListenableFuture;
