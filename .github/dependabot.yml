@@ -15,7 +15,12 @@ updates:
     schedule:
       interval: "weekly"
     groups:
-      javascript-version:
+      javascript-production:
         applies-to: version-updates
+        dependency-type: production
+      javascript-development:
+        applies-to: version-updates
+        dependency-type: development
       javascript-security:
         applies-to: security-updates
+        dependency-type: production
