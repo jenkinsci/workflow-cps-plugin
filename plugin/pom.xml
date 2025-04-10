@@ -42,7 +42,7 @@
     </licenses>
     <properties>
         <no-test-jar>false</no-test-jar>
-        <node.version>18.15.0</node.version>
+        <node.version>18.20.0</node.version>
         <yarn.version>1.22.19</yarn.version>
     </properties>
     <dependencyManagement>
