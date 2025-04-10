@@ -66,7 +66,7 @@ public class ParallelStepTest extends SingleJobTestBase {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(join(
                     "node {",
-                    "  x = parallel( a: { echo('echo a'); return 1; }, b: { echo('echo b'); sleep 1; return 2; } )",
+                    "  def x = parallel( a: { echo('echo a'); return 1; }, b: { echo('echo b'); sleep 1; return 2; } )",
                     "  assert x.a==1",
                     "  assert x.b==2",
                     "}"

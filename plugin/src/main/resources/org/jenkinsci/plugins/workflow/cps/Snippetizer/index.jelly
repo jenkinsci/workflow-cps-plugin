@@ -40,7 +40,7 @@ THE SOFTWARE.
                 </f:block>
                 <f:section title="${%Steps}"/>
                 <!-- Similar to f:dropdownDescriptorSelector, but adds fallback content to block, and JENKINS-25130 adds per-selection help: -->
-                <j:set var="item" value="${it.getItem(request)}"/>
+                <j:set var="item" value="${it.getItem(request2)}"/>
                 <d:taglib uri="local">
                     <d:tag name="listSteps">
                         <j:forEach var="quasiDescriptor" items="${quasiDescriptors}">
