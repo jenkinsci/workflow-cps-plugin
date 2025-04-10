@@ -9,6 +9,8 @@ import "ace-builds/src-noconflict/ext-language_tools";
 import "ace-builds/src-noconflict/mode-groovy";
 import "ace-builds/src-noconflict/snippets/javascript";
 
+if (true) console.log('lint failure')
+
 // Import custom snippets
 import "./snippets/workflow";
 
