@@ -1,10 +1,5 @@
-# https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
-
 version: 2
 updates:
-  # Intentionally not adding automatic NPM updates because I do
-  # not trust the plugin's tests to catch issues caused by updates.
-  # TODO or enable, but avoid merging without first doing a local interactive test?
   - package-ecosystem: "maven"
     directory: "/"
     schedule:
@@ -19,3 +14,8 @@ updates:
     directory: "/plugin"
     schedule:
       interval: "weekly"
+    groups:
+      javascript-version:
+        applies-to: version-updates
+      javascript-security:
+        applies-to: security-updates
