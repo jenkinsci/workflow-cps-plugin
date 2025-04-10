@@ -44,6 +44,10 @@
         <no-test-jar>false</no-test-jar>
         <node.version>18.20.0</node.version>
         <yarn.version>1.22.19</yarn.version>
+
+        <!-- Opt in to Jenkins handling eslint results -->
+        <maven.test.failure.ignore>false</maven.test.failure.ignore>
+        <frontend.testFailureIgnore>${maven.test.failure.ignore}</frontend.testFailureIgnore>
     </properties>
     <dependencyManagement>
         <dependencies>
