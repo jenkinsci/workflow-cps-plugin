@@ -47,9 +47,9 @@
     "webpack-merge": "^6.0.1"
   },
   "dependencies": {
-    "ace-builds": "^1.15.0",
-    "jquery": "^3.6.1",
-    "jquery-ui": "^1.13.2"
+    "ace-builds": "^1.40.0",
+    "jquery": "^3.7.1",
+    "jquery-ui": "^1.14.1"
   },
   "browserslist": [
     "defaults",
