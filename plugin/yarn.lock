@@ -1681,10 +1681,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ace-builds@npm:^1.15.0":
-  version: 1.15.0
-  resolution: "ace-builds@npm:1.15.0"
-  checksum: 10c0/aac05273102294c503447c7304b2798e173257d9c2f6849629f23f34f46f473f142becb9b08c4bb8e08ac8745f8d481f5919796bc3237125f12944d67126ff80
+"ace-builds@npm:^1.40.0":
+  version: 1.40.0
+  resolution: "ace-builds@npm:1.40.0"
+  checksum: 10c0/9aa13d2c3849a04923e1f85667944788cfff92a4a46c77df20a1fadb24913b8347ea0235cdf87a21c993427c9623b97b427085406fcf7634dcd31f7c5fb857a0
   languageName: node
   linkType: hard
 
@@ -3105,19 +3105,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jquery-ui@npm:^1.13.2":
-  version: 1.13.2
-  resolution: "jquery-ui@npm:1.13.2"
+"jquery-ui@npm:^1.14.1":
+  version: 1.14.1
+  resolution: "jquery-ui@npm:1.14.1"
   dependencies:
-    jquery: "npm:>=1.8.0 <4.0.0"
-  checksum: 10c0/a7895115cba1cad44b9926cf40aea457811e787fb790de7308a43fefbef1cb0e4f4bff04b25818d7227519616863aef181b90526954333c46ea7c8a9fa12d96c
+    jquery: "npm:>=1.12.0 <5.0.0"
+  checksum: 10c0/cf7a3c0aac369e513d78bc5864bbafb6ddf85a43513ca5d00b11d65e2890a6618ff2ef5b8cb2925db9a6b7d0c2482d717fb10cc813e419024ae8bc457e18f51d
   languageName: node
   linkType: hard
 
-"jquery@npm:>=1.8.0 <4.0.0, jquery@npm:^3.6.1":
-  version: 3.6.1
-  resolution: "jquery@npm:3.6.1"
-  checksum: 10c0/5867ba6c9f4eecb8e55965288799b2569f83cdac5f97602d6ae17959c3ff17e728dc7c6f75e607e00d235bfb41d6c730b61953a0052046e67784e2fb5edd151c
+"jquery@npm:>=1.12.0 <5.0.0, jquery@npm:^3.7.1":
+  version: 3.7.1
+  resolution: "jquery@npm:3.7.1"
+  checksum: 10c0/808cfbfb758438560224bf26e17fcd5afc7419170230c810dd11f5c1792e2263e2970cca8d659eb84fcd9acc301edb6d310096e450277d54be4f57071b0c82d9
   languageName: node
   linkType: hard
 
@@ -4829,7 +4829,7 @@ __metadata:
     "@delucis/if-env": "npm:^1.1.2"
     "@eslint/eslintrc": "npm:^3.3.1"
     "@eslint/js": "npm:^9.24.0"
-    ace-builds: "npm:^1.15.0"
+    ace-builds: "npm:^1.40.0"
     autoprefixer: "npm:^10.4.21"
     babel-loader: "npm:^10.0.0"
     clean-webpack-plugin: "npm:^4.0.0"
@@ -4838,8 +4838,8 @@ __metadata:
     eslint-formatter-checkstyle: "npm:^8.40.0"
     eslint-plugin-only-warn: "npm:^1.1.0"
     globals: "npm:^16.0.0"
-    jquery: "npm:^3.6.1"
-    jquery-ui: "npm:^1.13.2"
+    jquery: "npm:^3.7.1"
+    jquery-ui: "npm:^1.14.1"
     less: "npm:^4.3.0"
     less-loader: "npm:^12.2.0"
     mini-css-extract-plugin: "npm:^2.9.2"
