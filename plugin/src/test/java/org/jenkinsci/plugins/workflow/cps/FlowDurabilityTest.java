@@ -64,6 +64,8 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.aMapWithSize;
 import org.junit.Assume;
 import org.jvnet.hudson.test.LoggerRule;
 
@@ -221,7 +223,7 @@ public class FlowDurabilityTest {
         Assert.assertEquals(Result.SUCCESS, run.getResult());
         int outputHash = run.getLog().hashCode();
         FlowExecution exec = run.getExecution();
-        verifyCompletedCleanly(j, run);
+        verifyCompletedCleanly(j, run, true);
 
         // Confirm the flow graph is fully navigable and contains the heads with appropriate ending
         DepthFirstScanner scan = new DepthFirstScanner();
@@ -257,7 +259,7 @@ public class FlowDurabilityTest {
         assertHasTimingAction(run.getExecution());
         rule.waitForCompletion(run);
         Assert.assertEquals(Result.SUCCESS, run.getResult());
-        verifyCompletedCleanly(rule.jenkins, run);
+        verifyCompletedCleanly(rule.jenkins, run, true);
         //no checking nodes
         rule.assertLogContains(logStart, run);
     }
@@ -314,7 +316,7 @@ public class FlowDurabilityTest {
         }
     }
 
-    static void verifyFailedCleanly(Jenkins j, WorkflowRun run) throws Exception {
+    static void verifyFailedCleanly(Jenkins j, WorkflowRun run, Result executionResult, boolean verifyFlowEndNode) throws Exception {
 
         if (run.isBuilding()) {  // Give the run a little bit of time to see if it can resume or not
             FlowExecution exec = run.getExecution();
@@ -332,22 +334,23 @@ public class FlowDurabilityTest {
 
         assert !run.isBuilding();
 
-        if (run.getExecution() instanceof  CpsFlowExecution) {
-            Assert.assertEquals(Result.FAILURE, ((CpsFlowExecution) run.getExecution()).getResult());
+        if (run.getExecution() instanceof  CpsFlowExecution cpsFlowExecution) {
+            Assert.assertEquals(executionResult, cpsFlowExecution.getResult());
         }
 
         Assert.assertEquals(Result.FAILURE, run.getResult());
         assert !run.isBuilding();
-        // TODO verify all blocks cleanly closed out, so Block start and end nodes have same counts and FlowEndNode is last node
-        verifyCompletedCleanly(j, run);
+        verifyCompletedCleanly(j, run, verifyFlowEndNode);
     }
 
     /** Verifies all the universal post-build cleanup was done, regardless of pass/fail state. */
-    static void verifyCompletedCleanly(Jenkins j, WorkflowRun run) throws Exception {
+    static void verifyCompletedCleanly(Jenkins j, WorkflowRun run, boolean verifyFlowEndNode) throws Exception {
         // Assert that we have the appropriate flow graph entries
         FlowExecution exec = run.getExecution();
-        List<FlowNode> heads = exec.getCurrentHeads();
-        Assert.assertEquals(1, heads.size());
+        if (verifyFlowEndNode) {
+            List<FlowNode> heads = exec.getCurrentHeads();
+            Assert.assertEquals(1, heads.size());
+        }
         verifyNoTasksRunning(j);
         Assert.assertEquals(0, exec.getCurrentExecutions(false).get().size());
 
@@ -359,10 +362,12 @@ public class FlowDurabilityTest {
             Assert.assertNull("We should have no Groovy shell left or that's a memory leak", cpsFlow.getTrustedShell());
             Assert.assertTrue(cpsFlow.done);
             assert cpsFlow.isComplete();
-            assert cpsFlow.heads.size() == 1;
-            Map.Entry<Integer, FlowHead> finalHead = cpsFlow.heads.entrySet().iterator().next();
-            assert finalHead.getValue().get() instanceof FlowEndNode;
-            Assert.assertEquals(cpsFlow.storage.getNode(finalHead.getValue().get().getId()), finalHead.getValue().get());
+            if (verifyFlowEndNode) {
+                assertThat(cpsFlow.heads, aMapWithSize(1));
+                Map.Entry<Integer, FlowHead> finalHead = cpsFlow.heads.entrySet().iterator().next();
+                assert finalHead.getValue().get() instanceof FlowEndNode;
+                Assert.assertEquals(cpsFlow.storage.getNode(finalHead.getValue().get().getId()), finalHead.getValue().get());
+            }
         }
 
         verifyExecutionRemoved(run);
@@ -559,7 +564,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Thread.sleep(2000L);  // Just to allow time for basic async processes to finish.
-               verifyFailedCleanly(story.j.jenkins, story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild());
+               verifyFailedCleanly(story.j.jenkins, story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild(), Result.SUCCESS, false);
             }
         });
     }
@@ -584,7 +589,7 @@ public class FlowDurabilityTest {
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
                 if (run == null) { return; } //there is a small chance due to non atomic write that build.xml will be empty and the run won't load at all
-                verifyFailedCleanly(story.j.jenkins, run);
+                verifyFailedCleanly(story.j.jenkins, run, Result.SUCCESS, false);
                 story.j.assertLogContains(logStart[0], run);
             }
         });
@@ -616,7 +621,7 @@ public class FlowDurabilityTest {
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
                 if (run == null) { return; } //there is a small chance due to non atomic write that build.xml will be empty and the run won't load at all
-                verifyFailedCleanly(story.j.jenkins, run);
+                verifyFailedCleanly(story.j.jenkins, run, Result.SUCCESS, false);
                 story.j.assertLogContains(logStart[0], run);
             }
         });
@@ -662,7 +667,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
-                verifyFailedCleanly(story.j.jenkins, run);
+                verifyFailedCleanly(story.j.jenkins, run, Result.FAILURE, true);
                 story.j.assertLogContains(logStart[0], run);
                 assertIncludesNodes(nodesOut, run);
             }
@@ -773,7 +778,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                verifyFailedCleanly(story.j.jenkins, run);
+                verifyFailedCleanly(story.j.jenkins, run, Result.FAILURE, true);
             }
         });
     }
@@ -803,7 +808,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                verifyFailedCleanly(story.j.jenkins, run);
+                verifyFailedCleanly(story.j.jenkins, run, Result.FAILURE, true);
             }
         });
     }
@@ -899,7 +904,7 @@ public class FlowDurabilityTest {
                     assertBuildNotHung(story, run, 30_000);
                     Assert.assertEquals(Result.SUCCESS, run.getResult());
                 }
-                verifyCompletedCleanly(story.j.jenkins, run);
+                verifyCompletedCleanly(story.j.jenkins, run, true);
                 assertIncludesNodes(nodesOut, run);
                 story.j.assertLogContains(logStart[0], run);
             }
@@ -944,7 +949,7 @@ public class FlowDurabilityTest {
                     Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
                 }
                 assertBuildNotHung(story, run, 30_000);
-                verifyCompletedCleanly(story.j.jenkins, run);
+                verifyCompletedCleanly(story.j.jenkins, run, true);
                 story.j.assertLogContains(logStart[0], run);
             }
         });
@@ -1004,7 +1009,7 @@ public class FlowDurabilityTest {
                 if (run.isBuilding()) {
                     assertBuildNotHung(story, run, 30_000);
                 }
-                verifyCompletedCleanly(story.j.jenkins, run);
+                verifyCompletedCleanly(story.j.jenkins, run, true);
                 story.j.assertLogContains(logStart[0], run);
                 if (run.isBuilding()) {
                     try {
