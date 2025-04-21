@@ -1657,17 +1657,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     CpsFlowExecution cpsExec = (CpsFlowExecution) execution;
                     try {
                         cpsExec.checkAndAbortNonresumableBuild();
-                        if (cpsExec.owner != null) {
-                            try {
-                                Queue.Executable exec = cpsExec.owner.getExecutable();
-                                if (exec instanceof Saveable) {
-                                    LOGGER.fine(() -> "saving " + exec);
-                                    ((Saveable) exec).save();
-                                }
-                            } catch (IOException x) {
-                                LOGGER.log(Level.WARNING, "failed to save " + cpsExec, x);
-                            }
-                        }
+
                         LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
                         // Like waitForSuspension but with a timeout:
                         if (cpsExec.programPromise != null) {
@@ -1691,6 +1681,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                 }
                             });
                         }
+                        cpsExec.saveOwner();
                         if (cpsExec.owner != null) {
                             cpsExec.owner.getListener().getLogger().close();
                         }
@@ -2115,8 +2106,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      *   or pre-emptively lock the run before locking the execution and saving. */
     void saveOwner() {
         try {
-            if (this.owner != null && this.owner.getExecutable() instanceof Saveable) {  // Null-check covers some anomalous cases we've seen
-                Saveable saveable = (Saveable)(this.owner.getExecutable());
+            if (owner != null && owner.getExecutable() instanceof Saveable saveable) {  // Null-check covers some anomalous cases we've seen
                 persistedClean = true;
                 if (storage != null && storage.delegate != null) {
                     // Defensively flush FlowNodes to storage
@@ -2141,7 +2131,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      */
     private void checkpoint(boolean shuttingDown) {
         if (isComplete() || this.getDurabilityHint().isPersistWithEveryStep()) {
-            // Nothing to persist OR we've already persisted it along the way.
+            LOGGER.fine(() -> "Nothing to persist for " + this + " or it has already been persisted along the way");
             return;
         }
         LOGGER.log(Level.INFO, "Attempting to save a checkpoint of all data for {0}{1}", new Object[] {
@@ -2205,6 +2195,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
             persistedClean = persistOk;
             try {
+                LOGGER.fine(() -> "Saving owner for " + this);
                 saveOwner();
             } catch (Exception ex) {
                 persistOk = false;
