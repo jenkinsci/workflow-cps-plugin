@@ -1653,24 +1653,25 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         try (Timeout t = Timeout.limit(3, TimeUnit.MINUTES)) { // TODO some complicated sequence of calls to Futures could allow all of them to run in parallel
             LOGGER.fine("starting to suspend all executions");
             for (FlowExecution execution : FlowExecutionList.get()) {
-                if (execution instanceof CpsFlowExecution) {
-                    CpsFlowExecution cpsExec = (CpsFlowExecution) execution;
+                if (execution instanceof CpsFlowExecution cpsExec) {
                     try {
                         cpsExec.checkAndAbortNonresumableBuild();
 
-                        LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
+                        var programPromise = cpsExec.programPromise;
                         // Like waitForSuspension but with a timeout:
-                        if (cpsExec.programPromise != null) {
-                            LOGGER.log(Level.FINER, "Waiting for Pipeline to go to sleep for shutdown: "+execution);
+                        if (programPromise != null && programPromise.isDone()) {
+                            LOGGER.fine(() -> "waiting to suspend " + execution);
                             try {
-                                cpsExec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
+                                programPromise.get().scheduleRun().get(1, TimeUnit.MINUTES);
                                 LOGGER.log(Level.FINER, " Pipeline went to sleep OK: "+execution);
                             } catch (InterruptedException | TimeoutException ex) {
                                 LOGGER.log(Level.WARNING, "Error waiting for Pipeline to suspend: " + cpsExec, ex);
                             }
+                        } else {
+                            LOGGER.fine(() -> "not trying to suspend " + execution);
                         }
                         cpsExec.checkpoint(true);
-                        if (cpsExec.programPromise != null) {
+                        if (programPromise != null) {
                             cpsExec.runInCpsVmThread(new FutureCallback<>() {
                                 @Override public void onSuccess(CpsThreadGroup g) {
                                     LOGGER.fine(() -> "shutting down CPS VM for " + cpsExec);
