@@ -52,7 +52,7 @@ class ReplayFlowFactoryAction extends InvisibleAction implements CpsFlowFactoryA
 
     private String replacementMainScript;
     private final Map<String,String> replacementLoadedScripts;
-    private transient final boolean sandbox;
+    private final boolean sandbox;
     
     ReplayFlowFactoryAction(@NonNull String replacementMainScript, @NonNull Map<String,String> replacementLoadedScripts, boolean sandbox) {
         this.replacementMainScript = replacementMainScript;

@@ -7,7 +7,6 @@ import hudson.MarkupText;
 import hudson.console.ConsoleAnnotator;
 import hudson.console.ConsoleNote;
 import java.io.IOException;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.GroovySandbox;
@@ -24,8 +23,7 @@ class SandboxContinuable extends Continuable {
     }
 
     @SuppressWarnings("rawtypes")
-    @Override
-    public Outcome run0(final Outcome cn, final List<Class> categories) {
+    public Outcome run0(final Outcome cn) {
         CpsFlowExecution e = thread.group.getExecution();
         if (e == null) {
             throw new IllegalStateException("JENKINS-50407: no loaded execution");
@@ -48,7 +46,7 @@ class SandboxContinuable extends Continuable {
             trustedShell.getClassLoader(),
             shell.getClassLoader()));
         try (GroovySandbox.Scope scope = sandbox.enter()) {
-            return SandboxContinuable.super.run0(cn, categories);
+            return SandboxContinuable.super.run0(cn);
         }
     }
 

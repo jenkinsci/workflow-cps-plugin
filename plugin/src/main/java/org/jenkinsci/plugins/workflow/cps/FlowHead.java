@@ -31,7 +31,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -46,6 +45,7 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import jenkins.util.Timer;
 
 /**
  * Growing tip of the node graph.
@@ -115,23 +115,15 @@ final class FlowHead implements Serializable {
             this.head = execution.startNodes.push(n);
         }
         execution.storage.storeNode(head, false);
-
-        CpsThreadGroup c = CpsThreadGroup.current();
-        if (c !=null) {
-            // if the manipulation is from within the program executing thread, then
-            // defer the notification till we get to a safe point.
-            c.notifyNewHead(head);
-        } else {
-            // in recovering from error and such situation, we sometimes need to grow the graph
-            // without running the program.
-            // TODO can CpsThreadGroup.notifyNewHead be used instead to notify both kinds of listeners?
-            execution.notifyListeners(List.of(head), true);
-            execution.notifyListeners(List.of(head), false);
-        }
+        notifyNewHead(head, false);
     }
 
     /** Could be better described as "append to Flow graph" except for parallel cases. */
     void setNewHead(@NonNull FlowNode v) {
+        setNewHead(v, false);
+    }
+
+    void setNewHead(@NonNull FlowNode v, boolean asynchNotifications) {
         if (v == null) {
             // Because Findbugs isn't 100% at catching cases where this can happen and we really need to fail hard-and-fast
             throw new IllegalArgumentException("FlowHead.setNewHead called on FlowHead id="+this.id+" with a null FlowNode, execution="+this.execution);
@@ -151,17 +143,31 @@ final class FlowHead implements Serializable {
             LOGGER.log(Level.WARNING, "Failed to record new head or persist old: " + v, e);
         }
         this.head = v;
-        CpsThreadGroup c = CpsThreadGroup.current();
-        if (c !=null) {
-            // if the manipulation is from within the program executing thread, then
-            // defer the notification till we get to a safe point.
-            c.notifyNewHead(v);
+        notifyNewHead(v, asynchNotifications);
+    }
+
+    /**
+     * Usually calls {@link CpsThreadGroup#notifyNewHead}.
+     * If the manipulation is from within the program executing thread,
+     * then defer the notification till we get to a safe point.
+     * Can also be used for special situations such as a fatal error;
+     * in those cases we may need to grow the graph without running the program,
+     * and may also want to avoid holding any locks.
+     */
+    private void notifyNewHead(@NonNull FlowNode head, boolean asynchIfOutsideProgram) {
+        var g = CpsThreadGroup.current();
+        if (g !=null) {
+            g.notifyNewHead(head);
         } else {
-            // in recovering from error and such situation, we sometimes need to grow the graph
-            // without running the program.
-            // TODO can CpsThreadGroup.notifyNewHead be used instead to notify both kinds of listeners?
-            execution.notifyListeners(List.of(v), true);
-            execution.notifyListeners(List.of(v), false);
+            Runnable notify = () -> {
+                execution.notifyListeners(List.of(head), true);
+                execution.notifyListeners(List.of(head), false);
+            };
+            if (asynchIfOutsideProgram) {
+                Timer.get().submit(notify);
+            } else {
+                notify.run();
+            }
         }
     }
 

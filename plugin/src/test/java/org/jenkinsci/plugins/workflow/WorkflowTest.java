@@ -24,7 +24,8 @@
 
 package org.jenkinsci.plugins.workflow;
 
-import com.google.common.base.Function;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.EnvVars;
 import hudson.Functions;
 import hudson.model.Computer;
@@ -40,14 +41,13 @@ import hudson.slaves.SlaveComputer;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
+import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import jenkins.security.QueueItemAuthenticatorConfiguration;
+import org.hamcrest.MatcherAssert;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
@@ -65,48 +65,54 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.actions.EnvironmentAction;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.Test;
-import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockQueueItemAuthenticator;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
+import static org.hamcrest.Matchers.containsString;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import org.junit.Rule;
+import org.jvnet.hudson.test.JenkinsSessionRule;
 
 /**
  * Tests of workflows that involve restarting Jenkins in the middle.
  */
-public class WorkflowTest extends SingleJobTestBase {
+public class WorkflowTest {
+
+    private static final Logger LOGGER = Logger.getLogger(WorkflowTest.class.getName());
+
+    @Rule public JenkinsSessionRule rr = new JenkinsSessionRule();
 
     /**
      * Restart Jenkins while workflow is executing to make sure it suspends all right
      */
-    @Test public void demo() throws Exception {
-        story.addStep(new Statement() {
-            @Override
-            public void evaluate() throws Throwable {
-                p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition("semaphore 'wait'", false));
-                startBuilding();
-                SemaphoreStep.waitForStart("wait/1", b);
-                assertTrue(b.isBuilding());
-                liveness();
-            }
+    @Test public void demo() throws Throwable {
+        rr.then(r -> {
+            var p = r.createProject(WorkflowJob.class, "demo");
+            p.setDefinition(new CpsFlowDefinition("semaphore 'wait'", false));
+            var b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            assertTrue(b.isBuilding());
+            liveness(b);
         });
-        story.addStep(new Statement() {
-            @Override
-            public void evaluate() throws Throwable {
-                rebuildContext(story.j);
-                for (int i = 0; i < 600 && !Queue.getInstance().isEmpty(); i++) {
-                    Thread.sleep(100);
-                }
-                liveness();
-                SemaphoreStep.success("wait/1", null);
-                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
+        rr.then(r -> {
+            for (int i = 0; i < 600 && !Queue.getInstance().isEmpty(); i++) {
+                Thread.sleep(100);
             }
+            var b = r.jenkins.getItemByFullName("demo", WorkflowJob.class).getLastBuild();
+            r.waitForMessage("Ready to run", b);
+            liveness(b);
+            SemaphoreStep.success("wait/1", null);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
         });
     }
-    private void liveness() {
-        assertFalse(jenkins().toComputer().isIdle());
+    private void liveness(WorkflowRun b) {
+        assertFalse(Jenkins.get().toComputer().isIdle());
         Executor e = b.getOneOffExecutor();
         assertNotNull(e);
         assertEquals(e, b.getExecutor());
@@ -119,66 +125,60 @@ public class WorkflowTest extends SingleJobTestBase {
     /**
      * ability to invoke body needs to survive beyond Jenkins restart.
      */
-    @Test public void invokeBodyLaterAfterRestart() throws Exception {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(
-                    "int count=0;\n" +
-                    "retry(3) {\n" +
-                    "    semaphore 'wait'\n" +
-                    "    if (count++ < 2) {\n" + // forcing retry
-                    "        error 'died'\n" +
-                    "    }\n" +
-                    "}", false));
-
-                startBuilding();
-                SemaphoreStep.waitForStart("wait/1", b);
-                assertTrue(b.isBuilding());
-            }
+    @Test public void invokeBodyLaterAfterRestart() throws Throwable {
+        rr.then(r -> {
+            var p = r.createProject(WorkflowJob.class, "demo");
+            p.setDefinition(new CpsFlowDefinition(
+                """
+                int count=0;
+                retry(3) {
+                    semaphore 'wait'
+                    if (count++ < 2) { // forcing retry
+                        error 'died'
+                    }
+                }""", false));
+            var b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            assertTrue(b.isBuilding());
         });
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                rebuildContext(story.j);
+        rr.then(r -> {
+            var b = r.jenkins.getItemByFullName("demo", WorkflowJob.class).getLastBuild();
 
-                // resume execution and cause the retry to invoke the body again
-                SemaphoreStep.success("wait/1", null);
-                SemaphoreStep.success("wait/2", null);
-                SemaphoreStep.success("wait/3", null);
+            // resume execution and cause the retry to invoke the body again
+            SemaphoreStep.success("wait/1", null);
+            SemaphoreStep.success("wait/2", null);
+            SemaphoreStep.success("wait/3", null);
 
-                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
-                assertTrue(e.programPromise.get().closures.isEmpty());
-            }
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+            var e = (CpsFlowExecution) b.getExecutionPromise().get();
+            assertTrue(e.programPromise.get().closures.isEmpty());
         });
     }
 
-    @Test public void authentication() throws Exception {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                jenkins().setSecurityRealm(story.j.createDummySecurityRealm());
-                jenkins().save();
-                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Map.of("demo", User.getById("someone", true).impersonate())));
-                p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition("checkAuth()", false));
-                ScriptApproval.get().preapproveAll();
-                startBuilding();
-                waitForWorkflowToSuspend();
-                assertTrue(b.isBuilding());
-                story.j.waitForMessage("running as someone", b);
-                CheckAuth.finish(false);
-                waitForWorkflowToSuspend();
-                assertTrue(b.isBuilding());
-                story.j.waitForMessage("still running as someone", b);
-            }
+    @Test public void authentication() throws Throwable {
+        rr.then(r -> {
+            r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
+            r.jenkins.save();
+            QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Map.of("demo", User.getById("someone", true).impersonate())));
+            var p = r.createProject(WorkflowJob.class, "demo");
+            p.setDefinition(new CpsFlowDefinition("checkAuth()", false));
+            ScriptApproval.get().preapproveAll();
+            var b = p.scheduleBuild2(0).waitForStart();
+            var e = (CpsFlowExecution) b.getExecutionPromise().get();
+            e.waitForSuspension();
+            assertTrue(b.isBuilding());
+            r.waitForMessage("running as someone", b);
+            CheckAuth.finish(false);
+            e.waitForSuspension();
+            assertTrue(b.isBuilding());
+            r.waitForMessage("still running as someone", b);
         });
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                assertEquals(JenkinsRule.DummySecurityRealm.class, jenkins().getSecurityRealm().getClass());
-                rebuildContext(story.j);
-                story.j.waitForMessage("again running as someone", b);
-                CheckAuth.finish(true);
-                story.j.assertLogContains("finally running as someone", story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b)));
-            }
+        rr.then(r -> {
+            assertEquals(JenkinsRule.DummySecurityRealm.class, r.jenkins.getSecurityRealm().getClass());
+            var b = r.jenkins.getItemByFullName("demo", WorkflowJob.class).getLastBuild();
+            r.waitForMessage("again running as someone", b);
+            CheckAuth.finish(true);
+            r.assertLogContains("finally running as someone", r.assertBuildStatusSuccess(r.waitForCompletion(b)));
         });
     }
     public static final class CheckAuth extends AbstractStepImpl {
@@ -205,41 +205,36 @@ public class WorkflowTest extends SingleJobTestBase {
             @Override public void onResume() {
                 super.onResume();
                 try {
-                    listener.getLogger().println("again running as " + flow.getAuthentication().getName() + " from " + Thread.currentThread().getName());
+                    listener.getLogger().println("again running as " + flow.getAuthentication2().getName() + " from " + Thread.currentThread().getName());
                 } catch (Exception x) {
                     getContext().onFailure(x);
                 }
             }
         }
         public static void finish(final boolean terminate) {
-            StepExecution.applyAll(Execution.class, new Function<>() {
-                @Override public Void apply(Execution input) {
-                    try {
-                        input.listener.getLogger().println((terminate ? "finally" : "still") + " running as " + input.flow.getAuthentication().getName() + " from " + Thread.currentThread().getName());
-                        if (terminate) {
-                            input.getContext().onSuccess(null);
-                        }
-                    } catch (Exception x) {
-                        input.getContext().onFailure(x);
+            StepExecution.acceptAll(Execution.class, input -> {
+                try {
+                    input.listener.getLogger().println((terminate ? "finally" : "still") + " running as " + input.flow.getAuthentication2().getName() + " from " + Thread.currentThread().getName());
+                    if (terminate) {
+                        input.getContext().onSuccess(null);
                     }
-                    return null;
+                } catch (Exception x) {
+                    input.getContext().onFailure(x);
                 }
             });
         }
     }
 
     @Issue("JENKINS-30122")
-    @Test public void authenticationInSynchronousStep() {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                jenkins().setSecurityRealm(story.j.createDummySecurityRealm());
-                jenkins().save();
-                QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Map.of("demo", User.getById("someone", true).impersonate())));
-                p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition("echo \"ran as ${auth()}\"", true));
-                b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
-                story.j.assertLogContains("ran as someone", b);
-            }
+    @Test public void authenticationInSynchronousStep() throws Throwable {
+        rr.then(r -> {
+            r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
+            r.jenkins.save();
+            QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Map.of("demo", User.getById("someone", true).impersonate())));
+            var p = r.createProject(WorkflowJob.class, "demo");
+            p.setDefinition(new CpsFlowDefinition("echo \"ran as ${auth()}\"", true));
+            var b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+            r.assertLogContains("ran as someone", b);
         });
     }
     public static final class CheckAuthSync extends AbstractStepImpl {
@@ -264,13 +259,13 @@ public class WorkflowTest extends SingleJobTestBase {
 
     @Issue("JENKINS-52189")
     @Test
-    public void notifyFlowStartNode() {
-        story.then(s->{
-            WorkflowJob j = jenkins().createProject(WorkflowJob.class, "bob");
+    public void notifyFlowStartNode() throws Throwable {
+        rr.then(r -> {
+            WorkflowJob j = r.createProject(WorkflowJob.class, "bob");
             j.setDefinition(new CpsFlowDefinition("echo 'I did a thing'", true));
-            WorkflowRun r = story.j.buildAndAssertSuccess(j);
-            FlowStartNodeListener listener = jenkins().getExtensionList(FlowStartNodeListener.class).get(0);
-            assertTrue(listener.execNames.contains(r.getExecution().toString()));
+            WorkflowRun b = r.buildAndAssertSuccess(j);
+            FlowStartNodeListener listener = r.jenkins.getExtensionList(FlowStartNodeListener.class).get(0);
+            assertTrue(listener.execNames.contains(b.getExecution().toString()));
         });
     }
 
@@ -287,63 +282,64 @@ public class WorkflowTest extends SingleJobTestBase {
     }
 
     @Issue("JENKINS-29952")
-    @Test public void env() {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                Map<String,String> agentEnv = new HashMap<>();
-                agentEnv.put("BUILD_TAG", null);
-                agentEnv.put("PERMACHINE", "set");
-                createSpecialEnvSlave(story.j, "agent", null, agentEnv);
-                p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition("node('agent') {\n"
-                        + "  if (isUnix()) {sh 'echo tag=$BUILD_TAG PERMACHINE=$PERMACHINE'} else {bat 'echo tag=%BUILD_TAG% PERMACHINE=%PERMACHINE%'}\n"
-                        + "  env.BUILD_TAG='custom'\n"
-                        + "  if (isUnix()) {sh 'echo tag2=$BUILD_TAG'} else {bat 'echo tag2=%BUILD_TAG%'}\n"
-                        + "  env.STUFF='more'\n"
-                        + "  semaphore 'env'\n"
-                        + "  env.BUILD_TAG=\"${env.BUILD_TAG}2\"\n"
-                        + "  if (isUnix()) {sh 'echo tag3=$BUILD_TAG stuff=$STUFF'} else {bat 'echo tag3=%BUILD_TAG% stuff=%STUFF%'}\n"
-                        + "  if (isUnix()) {env.PATH=\"/opt/stuff/bin:${env.PATH}\"} else {env.PATH=$/c:\\whatever;${env.PATH}/$}\n"
-                        + "  if (isUnix()) {sh 'echo shell PATH=$PATH'} else {bat 'echo shell PATH=%PATH%'}\n"
-                        + "  echo \"groovy PATH=${env.PATH}\"\n"
-                        + "  echo \"simplified groovy PATH=${PATH}\"\n"
-                        + "}", true));
-                startBuilding();
-                SemaphoreStep.waitForStart("env/1", b);
-                assertTrue(b.isBuilding());
-            }
+    @Test public void env() throws Throwable {
+        rr.then(r -> {
+            Map<String,String> agentEnv = new HashMap<>();
+            agentEnv.put("BUILD_TAG", null);
+            agentEnv.put("PERMACHINE", "set");
+            createSpecialEnvSlave(r, "agent", null, agentEnv);
+            var p = r.createProject(WorkflowJob.class, "demo");
+            p.setDefinition(new CpsFlowDefinition("""
+                node('agent') {
+                  if (isUnix()) {sh 'echo tag=$BUILD_TAG PERMACHINE=$PERMACHINE'} else {bat 'echo tag=%BUILD_TAG% PERMACHINE=%PERMACHINE%'}
+                  env.BUILD_TAG='custom'
+                  if (isUnix()) {sh 'echo tag2=$BUILD_TAG'} else {bat 'echo tag2=%BUILD_TAG%'}
+                  env.STUFF='more'
+                  semaphore 'env'
+                  env.BUILD_TAG="${env.BUILD_TAG}2"
+                  if (isUnix()) {sh 'echo tag3=$BUILD_TAG stuff=$STUFF'} else {bat 'echo tag3=%BUILD_TAG% stuff=%STUFF%'}
+                  if (isUnix()) {env.PATH="/opt/stuff/bin:${env.PATH}"} else {env.PATH=$/c:\\whatever;${env.PATH}/$}
+                  if (isUnix()) {sh 'echo shell PATH=$PATH'} else {bat 'echo shell PATH=%PATH%'}
+                  echo "groovy PATH=${env.PATH}"
+                  echo "simplified groovy PATH=${PATH}"
+                }""", true));
+            var b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("env/1", b);
+            assertTrue(b.isBuilding());
         });
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                rebuildContext(story.j);
-                SemaphoreStep.success("env/1", null);
-                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
-                story.j.assertLogContains("tag=jenkins-demo-1 PERMACHINE=set", b);
-                story.j.assertLogContains("tag2=custom", b);
-                story.j.assertLogContains("tag3=custom2 stuff=more", b);
-                String prefix = Functions.isWindows() ? "c:\\whatever;" : "/opt/stuff/bin:";
-                story.j.assertLogContains("shell PATH=" + prefix, b);
-                story.j.assertLogContains("groovy PATH=" + prefix, b);
-                story.j.assertLogContains("simplified groovy PATH=" + prefix, b);
-                EnvironmentAction a = b.getAction(EnvironmentAction.class);
-                assertNotNull(a);
-                assertEquals("custom2", a.getEnvironment().get("BUILD_TAG"));
-                assertEquals("more", a.getEnvironment().get("STUFF"));
-                assertNotNull(a.getEnvironment().get("PATH"));
-                // Show that EnvActionImpl binding is a fallback only for things which would otherwise have been undefined:
-                p.setDefinition(new CpsFlowDefinition(
-                    "env.env = 'env.env'\n" +
-                    "env.echo = 'env.echo'\n" +
-                    "env.circle = 'env.circle'\n" +
-                    "env.var = 'env.var'\n" +
-                    "env.global = 'env.global'\n" +
-                    "global = 'global'\n" +
-                    "circle {\n" +
-                    "  def var = 'value'\n" +
-                    "  echo \"${var} vs. ${echo} vs. ${circle} vs. ${global}\"\n" +
-                    "}", true));
-                story.j.assertLogContains("value vs. env.echo vs. env.circle vs. global", story.j.buildAndAssertSuccess(p));
-            }
+        rr.then(r -> {
+            var p = r.jenkins.getItemByFullName("demo", WorkflowJob.class);
+            var b = p.getLastBuild();
+            SemaphoreStep.success("env/1", null);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+            r.assertLogContains("tag=jenkins-demo-1 PERMACHINE=set", b);
+            r.assertLogContains("tag2=custom", b);
+            r.assertLogContains("tag3=custom2 stuff=more", b);
+            String prefix = Functions.isWindows() ? "c:\\whatever;" : "/opt/stuff/bin:";
+            r.assertLogContains("shell PATH=" + prefix, b);
+            r.assertLogContains("groovy PATH=" + prefix, b);
+            r.assertLogContains("simplified groovy PATH=" + prefix, b);
+            EnvironmentAction a = b.getAction(EnvironmentAction.class);
+            assertNotNull(a);
+            assertEquals("custom2", a.getEnvironment().get("BUILD_TAG"));
+            assertEquals("more", a.getEnvironment().get("STUFF"));
+            assertNotNull(a.getEnvironment().get("PATH"));
+            // TODO use https://www.javadoc.io/doc/com.jayway.jsonpath/json-path-assert/2.4.0/com/jayway/jsonpath/matchers/JsonPathMatchers.html#hasJsonPath-java.lang.String-org.hamcrest.Matcher- to clarify that /actions/[_class="org.jenkinsci.plugins.workflow.cps.EnvActionImpl"].environment.STUFF ⇒ "more"
+            MatcherAssert.assertThat(r.createWebClient().getJSON(b.getUrl() + "api/json?tree=actions[environment]").getJSONObject().toString(), containsString("\"STUFF\":\"more\""));
+            // Show that EnvActionImpl binding is a fallback only for things which would otherwise have been undefined:
+            p.setDefinition(new CpsFlowDefinition(
+                """
+                env.env = 'env.env'
+                env.echo = 'env.echo'
+                env.circle = 'env.circle'
+                env.var = 'env.var'
+                env.global = 'env.global'
+                global = 'global'
+                circle {
+                  def var = 'value'
+                  echo "${var} vs. ${echo} vs. ${circle} vs. ${global}"
+                }""", true));
+            r.assertLogContains("value vs. env.echo vs. env.circle vs. global", r.buildAndAssertSuccess(p));
         });
     }
 

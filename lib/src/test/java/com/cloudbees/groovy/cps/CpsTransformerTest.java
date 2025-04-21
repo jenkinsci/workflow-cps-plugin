@@ -769,7 +769,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Issue("https://github.com/cloudbees/groovy-cps/issues/16")
     @Test
-    @Ignore
+    @Ignore("cannot easily be supported")
     public void category() throws Throwable {
         assertEvaluate("FOO",
             "class BarCategory {\n" +

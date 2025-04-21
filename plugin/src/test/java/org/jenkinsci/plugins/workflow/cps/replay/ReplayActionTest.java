@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.workflow.cps.replay;
 
+import org.htmlunit.FailingHttpStatusCodeException;
 import org.htmlunit.WebAssert;
 import org.htmlunit.html.HtmlForm;
 import org.htmlunit.html.HtmlPage;
@@ -56,6 +57,8 @@ import java.util.Map;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
+import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -77,6 +80,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -397,4 +401,60 @@ public class ReplayActionTest {
         });
     }
 
+    @Issue("SECURITY-3362")
+    @Test
+    public void rebuildNeedScriptApproval() throws Exception {
+        story.addStep(new Statement() {
+            @Override public void evaluate() throws Throwable {
+                story.j.jenkins.setSecurityRealm(story.j.createDummySecurityRealm());
+                story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
+                        grant(Jenkins.READ, Item.BUILD, Item.READ).everywhere().to("dev1"));
+
+                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "SECURITY-3362");
+                String script = "pipeline {\n" +
+                        "  agent any\n" +
+                        "  stages {\n" +
+                        "    stage('List Jobs') {\n" +
+                        "      steps {\n" +
+                        "        script {\n" +
+                        "           println \"Jobs: ${jenkins.model.Jenkins.instance.getItemByFullName(env.JOB_NAME)?.parent?.items*.fullName.join(', ')}!\"" +
+                        "        }\n" +
+                        "      }\n" +
+                        "    }\n" +
+                        "  }\n" +
+                        "}\n";
+                p.setDefinition(new CpsFlowDefinition(script, false));
+
+                ScriptApproval.get().preapprove(script, GroovyLanguage.get());
+
+                WorkflowRun b1 = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
+                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b1));
+
+                ScriptApproval.get().clearApprovedScripts();
+
+                { // First time around, verify that UI elements are present and functional.
+                    ReplayAction a = b1.getAction(ReplayAction.class);
+                    assertNotNull(a);
+                    assertFalse(canReplay(b1, "dev1"));
+                    assertTrue(canRebuild(b1, "dev1"));
+                    JenkinsRule.WebClient wc = story.j.createWebClient();
+                    wc.login("dev1");
+
+                    HtmlPage page = wc.getPage(b1, a.getUrlName());
+                    WebAssert.assertFormNotPresent(page, "config");
+                    HtmlForm form = page.getFormByName("rebuild");
+
+                    try {
+                        story.j.submit(form);
+                    } catch (FailingHttpStatusCodeException e) {
+                        String responseBody = e.getResponse().getContentAsString();
+                        assertTrue(responseBody.contains("The script is not approved."));
+                    }
+                    story.j.waitUntilNoActivity();
+                    WorkflowRun b2 = p.getBuildByNumber(2);
+                    assertNull(b2);
+                }
+            }
+        });
+    }
 }

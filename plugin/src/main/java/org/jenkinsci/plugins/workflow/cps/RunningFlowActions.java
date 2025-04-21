@@ -40,7 +40,12 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
  * Adds actions to the sidebar of a running Pipeline build.
  */
 @Extension public class RunningFlowActions extends TransientActionFactory<FlowExecutionOwner.Executable> {
-    
+
+    @Override
+    public Class<? extends Action> actionType() {
+        return RunningFlowAction.class;
+    }
+
     @Override public Class<FlowExecutionOwner.Executable> type() {
         return FlowExecutionOwner.Executable.class;
     }

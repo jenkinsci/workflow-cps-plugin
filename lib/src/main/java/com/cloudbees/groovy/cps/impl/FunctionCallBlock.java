@@ -7,7 +7,6 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -42,7 +41,6 @@ public class FunctionCallBlock extends CallSiteBlockSupport {
 
     private final boolean safe;
 
-    @SuppressFBWarnings(value = "EI_EXPOSE_REP2", justification = "Block array is constructed during compilation, is not mutated, and is never exposed")
     public FunctionCallBlock(SourceLocation loc, Collection<CallSiteTag> tags, Block lhsExp, Block nameExp, boolean safe, Block[] argExps) {
         super(tags);
         this.loc = loc;

@@ -25,7 +25,6 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
@@ -61,7 +60,6 @@ import org.apache.commons.lang.StringUtils;
 public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
     private static final Logger LOGGER = Logger.getLogger(GroovySourceFileAllowlist.class.getName());
     private static final String DISABLED_PROPERTY = GroovySourceFileAllowlist.class.getName() + ".DISABLED";
-    @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "Non-final for script console access")
     static boolean DISABLED = SystemProperties.getBoolean(DISABLED_PROPERTY);
 
     /**

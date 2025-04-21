@@ -24,14 +24,13 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import hudson.model.Action;
 import java.io.IOException;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
  * Allows a running flow to be paused or unpaused.
  */
-public class PauseUnpauseAction implements Action {
+public class PauseUnpauseAction extends RunningFlowAction {
 
     static final String URL = "pause";
 

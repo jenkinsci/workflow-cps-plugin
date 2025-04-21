@@ -2,7 +2,6 @@ package org.jenkinsci.plugins.workflow;
 
 import groovy.lang.Closure;
 import hudson.model.Result;
-import hudson.slaves.DumbSlave;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
@@ -15,7 +14,6 @@ import org.junit.Test;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
-import static org.junit.Assert.assertTrue;
 import org.jvnet.hudson.test.Issue;
 
 /**
@@ -99,43 +97,6 @@ public class SerializationTest extends SingleJobTestBase {
                 return false;
             }
         }
-    }
-
-    /**
-     * Workflow captures a stateful object, and we verify that it survives the restart
-     */
-    @Test public void persistEphemeralObject() throws Exception {
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                jenkins().setNumExecutors(0);
-                DumbSlave s = createSlave(story.j);
-                String nodeName = s.getNodeName();
-
-                p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(
-                    "def s = jenkins.model.Jenkins.instance.getComputer('" + nodeName + "')\n" +
-                    "def r = s.node.rootPath\n" +
-                    "def p = r.getRemote()\n" +
-
-                    "semaphore 'wait'\n" +
-
-                    // make sure these values are still alive
-                    "assert s.nodeName=='" + nodeName + "'\n" +
-                    "assert r.getRemote()==p : r.getRemote() + ' vs ' + p;\n" +
-                    "assert r.channel==s.channel : r.channel.toString() + ' vs ' + s.channel\n", false));
-
-                startBuilding();
-                SemaphoreStep.waitForStart("wait/1", b);
-                assertTrue(b.isBuilding());
-            }
-        });
-        story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
-                rebuildContext(story.j);
-                SemaphoreStep.success("wait/1", null);
-                story.j.assertBuildStatusSuccess(story.j.waitForCompletion(b));
-            }
-        });
     }
 
     @Test public void nonCps() {
