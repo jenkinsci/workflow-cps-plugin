@@ -1663,7 +1663,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         if (cpsExec.programPromise != null) {
                             LOGGER.log(Level.FINER, "Waiting for Pipeline to go to sleep for shutdown: "+execution);
                             try {
-                                cpsExec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
+                                cpsExec.programPromise.get(1, TimeUnit.MINUTES).terminating().get(1, TimeUnit.MINUTES);
                                 LOGGER.log(Level.FINER, " Pipeline went to sleep OK: "+execution);
                             } catch (InterruptedException | TimeoutException ex) {
                                 LOGGER.log(Level.WARNING, "Error waiting for Pipeline to suspend: " + cpsExec, ex);
