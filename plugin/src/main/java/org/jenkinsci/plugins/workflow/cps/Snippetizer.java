@@ -67,7 +67,7 @@ import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
-import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerRequest2;
 
 /**
  * Takes a {@link Step} as configured through the UI and tries to produce equivalent Groovy code.
@@ -476,7 +476,7 @@ import org.kohsuke.stapler.StaplerRequest;
     @Restricted(DoNotUse.class) // for stapler
     public Iterable<GlobalVariable> getGlobalVariables() {
         // TODO order TBD. Alphabetical? Extension.ordinal?
-        StaplerRequest req = Stapler.getCurrentRequest();
+        StaplerRequest2 req = Stapler.getCurrentRequest2();
         return GlobalVariable.forJob(req != null ? req.findAncestorObject(Job.class) : null);
     }
 
@@ -484,7 +484,7 @@ import org.kohsuke.stapler.StaplerRequest;
     public static final String GENERATE_URL = ACTION_URL + "/generateSnippet";
 
     @Restricted(DoNotUse.class) // accessed via REST API
-    public HttpResponse doGenerateSnippet(StaplerRequest req, @QueryParameter String json) throws Exception {
+    public HttpResponse doGenerateSnippet(StaplerRequest2 req, @QueryParameter String json) throws Exception {
         // TODO is there not an easier way to do this? Maybe Descriptor.newInstancesFromHeteroList on a one-element JSONArray?
         JSONObject jsonO = JSONObject.fromObject(json);
         Jenkins j = Jenkins.get();
@@ -532,7 +532,7 @@ import org.kohsuke.stapler.StaplerRequest;
     }
 
     @Restricted(DoNotUse.class) // for stapler
-    public @CheckForNull Item getItem(StaplerRequest req) {
+    public @CheckForNull Item getItem(StaplerRequest2 req) {
          return req.findAncestorObject(Item.class);
     }
 

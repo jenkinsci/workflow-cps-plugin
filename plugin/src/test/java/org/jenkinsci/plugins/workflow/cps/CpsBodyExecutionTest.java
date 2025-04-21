@@ -1,6 +1,5 @@
 package org.jenkinsci.plugins.workflow.cps;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Sets;
 import groovy.lang.Closure;
 import hudson.model.Result;
@@ -151,22 +150,14 @@ public class CpsBodyExecutionTest {
         SemaphoreStep.waitForStart("b/1", b);
         SemaphoreStep.waitForStart("c/1", b);
         final RetainsBodyStep.Execution[] execs = new RetainsBodyStep.Execution[3];
-        StepExecution.applyAll(RetainsBodyStep.Execution.class, new Function<>() {
-            @Override public Void apply(RetainsBodyStep.Execution exec) {
-                execs[exec.count] = exec;
-                return null;
-            }
-        }).get();
+        StepExecution.acceptAll(RetainsBodyStep.Execution.class, exec -> execs[exec.count] = exec).get();
         assertNotNull(execs[0]);
         assertNotNull(execs[1]);
         assertNotNull(execs[2]);
         final Set<SemaphoreStep.Execution> semaphores = new HashSet<>();
-        StepExecution.applyAll(SemaphoreStep.Execution.class, new Function<>() {
-            @Override public Void apply(SemaphoreStep.Execution exec) {
-                if (exec.getStatus().matches("waiting on [ab]/1")) {
-                    semaphores.add(exec);
-                }
-                return null;
+        StepExecution.acceptAll(SemaphoreStep.Execution.class, exec -> {
+            if (exec.getStatus().matches("waiting on [ab]/1")) {
+                semaphores.add(exec);
             }
         }).get();
         assertThat(semaphores, iterableWithSize(2));
@@ -278,6 +269,7 @@ public class CpsBodyExecutionTest {
             }
             r.assertBuildStatusSuccess(r.waitForCompletion(b));
             new DepthFirstScanner().allNodes(b.getExecution()).stream().sorted(Comparator.comparing(n -> Integer.valueOf(n.getId()))).forEach(n -> System.out.println(n.getId() + " " + n.getDisplayName()));
+            r.assertLogContains(Messages.LoggingInvoker_field_set("WorkflowScript", "g", "CpsClosure2"), b);
         });
     }
 

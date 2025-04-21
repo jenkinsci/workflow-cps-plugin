@@ -24,33 +24,55 @@
 
 package org.jenkinsci.plugins.workflow.cps.config;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.ExtensionList;
 import jenkins.model.GlobalConfiguration;
 import jenkins.model.GlobalConfigurationCategory;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.Symbol;
 
+/**
+ * @deprecated
+ * This class has been deprecated and its only configuration value is ignored. Do not rely on it or use it in any way.
+ * In order to force using the system sandbox for pipelines, please use {@link ScriptApproval#isForceSandbox} or {@link ScriptApproval#isForceSandboxForCurrentUser}
+ **/
 @Symbol("cps")
 @Extension
+@Deprecated
 public class CPSConfiguration extends GlobalConfiguration {
 
     /**
      * Whether to show the sandbox checkbox in jobs to users without Jenkins.ADMINISTER
      */
-    private boolean hideSandbox;
+    private transient boolean hideSandbox;
 
     public CPSConfiguration() {
+
         load();
+        if (hideSandbox) {
+            ScriptApproval.get().setForceSandbox(hideSandbox);
+        }
+
+        // Data migration from this configuration to ScriptApproval should be done only once,
+        // so removing the config file after the previous migration
+        try {
+            this.getConfigFile().delete();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     public boolean isHideSandbox() {
-        return hideSandbox;
+        return ScriptApproval.get().isForceSandbox();
     }
 
     public void setHideSandbox(boolean hideSandbox) {
         this.hideSandbox = hideSandbox;
-        save();
+        ScriptApproval.get().setForceSandbox(hideSandbox);
     }
 
     @NonNull

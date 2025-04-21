@@ -24,7 +24,6 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.FilePath;
@@ -68,7 +67,7 @@ import org.jenkinsci.plugins.workflow.support.actions.WorkspaceActionImpl;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.Stapler;
-import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerRequest2;
 
 @PersistIn(JOB)
 public class CpsScmFlowDefinition extends FlowDefinition {
@@ -105,11 +104,6 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         this.lightweight = lightweight;
     }
 
-    @SuppressFBWarnings(
-            value = {"NP_LOAD_OF_KNOWN_NULL_VALUE", "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE",
-                    "RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE"},
-            justification = "false positives for try-resource in java 11"
-    )
     @Override public CpsFlowExecution create(FlowExecutionOwner owner, TaskListener listener, List<? extends Action> actions) throws Exception {
         for (Action a : actions) {
             if (a instanceof CpsFlowFactoryAction2) {
@@ -218,7 +212,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         }
 
         public Collection<? extends SCMDescriptor<?>> getApplicableDescriptors() {
-            StaplerRequest req = Stapler.getCurrentRequest();
+            StaplerRequest2 req = Stapler.getCurrentRequest2();
             Job<?,?> job = req != null ? req.findAncestorObject(Job.class) : null;
             return SCM._for(job).stream().filter(d -> !"org.jenkinsci.plugins.multiplescms.MultiSCM".equals(d.getId())).collect(Collectors.toList());
 

@@ -33,7 +33,6 @@ import com.thoughtworks.xstream.converters.MarshallingContext;
 import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
@@ -60,7 +59,6 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -92,7 +90,6 @@ import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
  * @author Kohsuke Kawaguchi
  */
 @PersistIn(PersistenceContext.PROGRAM)
-@SuppressFBWarnings("SE_BAD_FIELD") // bogus warning about closures
 public final class CpsThreadGroup implements Serializable {
     /**
      * {@link CpsThreadGroup} always belong to the same {@link CpsFlowExecution}.
@@ -293,7 +290,6 @@ public final class CpsThreadGroup implements Serializable {
         final CompletableFuture<Void> f = new CompletableFuture<>();
         try {
             runner.submit(new Callable<Void>() {
-                @SuppressFBWarnings(value="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE", justification="runner.submit() result")
                 public Void call() throws Exception {
                     Jenkins j = Jenkins.getInstanceOrNull();
                     if (j != null && !j.isQuietingDown() && execution != null && pausedByQuietMode.compareAndSet(true, false)) {
@@ -454,7 +450,7 @@ public final class CpsThreadGroup implements Serializable {
                     runtimeThreads.remove(t.id);
                     t.cleanUp();
                     if (runtimeThreads.isEmpty()) {
-                        execution.onProgramEnd(o);
+                        execution.onProgramEnd(o, false);
                         try {
                             this.execution.saveOwner();
                         } catch (Exception ex) {

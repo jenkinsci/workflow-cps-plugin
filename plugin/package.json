@@ -10,8 +10,9 @@
     "prod": "webpack --config webpack.prod.js",
     "start": "yarn dev --watch",
     "lint:js": "eslint src/main/js --ext js",
+    "lint:js-ci": "eslint src/main/js -f checkstyle -o target/eslint-warnings.xml --ext js",
     "mvnbuild": "yarn prod",
-    "mvntest": "yarn lint:js"
+    "mvntest": "if-env CI=true && yarn lint:js-ci || yarn lint:js"
   },
   "repository": {
     "type": "git",
@@ -19,34 +20,40 @@
   },
   "readme": "../README.md",
   "devDependencies": {
-    "@babel/cli": "^7.19.3",
-    "@babel/core": "^7.19.3",
-    "@babel/preset-env": "^7.19.3",
-    "autoprefixer": "^10.4.13",
-    "babel-loader": "^9.0.1",
+    "@babel/cli": "^7.27.0",
+    "@babel/core": "^7.26.10",
+    "@babel/preset-env": "^7.26.9",
+    "@delucis/if-env": "^1.1.2",
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.24.0",
+    "autoprefixer": "^10.4.21",
+    "babel-loader": "^10.0.0",
     "clean-webpack-plugin": "^4.0.0",
-    "css-loader": "^5.0.0",
-    "eslint": "^8.41.0",
+    "css-loader": "^7.1.2",
+    "eslint": "^9.24.0",
+    "eslint-formatter-checkstyle": "^8.40.0",
     "eslint-plugin-only-warn": "^1.1.0",
-    "less": "^3.12.2",
-    "less-loader": "^7.0.2",
-    "mini-css-extract-plugin": "^1.2.1",
+    "globals": "^16.0.0",
+    "less": "^4.3.0",
+    "less-loader": "^12.2.0",
+    "mini-css-extract-plugin": "^2.9.2",
     "postcss": "^8.4.35",
-    "postcss-less": "^4.0.0",
-    "postcss-loader": "^4.0.4",
-    "style-loader": "^2.0.0",
-    "webpack": "^5.76.3",
-    "webpack-cli": "^5.0.1",
+    "postcss-less": "^6.0.0",
+    "postcss-loader": "^8.1.1",
+    "style-loader": "^4.0.0",
+    "webpack": "^5.99.5",
+    "webpack-cli": "^6.0.1",
     "webpack-fix-style-only-entries": "^0.6.1",
-    "webpack-merge": "^5.8.0"
+    "webpack-merge": "^6.0.1"
   },
   "dependencies": {
-    "ace-builds": "^1.15.0",
-    "jquery": "^3.6.1",
-    "jquery-ui": "^1.13.2"
+    "ace-builds": "^1.40.0",
+    "jquery": "^3.7.1",
+    "jquery-ui": "^1.14.1"
   },
   "browserslist": [
     "defaults",
     "not IE 11"
-  ]
+  ],
+  "packageManager": "yarn@4.9.1"
 }
