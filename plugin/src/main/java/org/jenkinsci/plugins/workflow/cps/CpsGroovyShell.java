@@ -1,6 +1,5 @@
 package org.jenkinsci.plugins.workflow.cps;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyCodeSource;
@@ -34,7 +33,6 @@ import org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.GroovySandbox;
  * @see "doc/classloader.md"
  * @see CpsGroovyShellFactory
  */
-@SuppressFBWarnings(value="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED", justification="irrelevant")
 class CpsGroovyShell extends GroovyShell {
 
     private static final Logger LOGGER = Logger.getLogger(CpsGroovyShell.class.getName());
