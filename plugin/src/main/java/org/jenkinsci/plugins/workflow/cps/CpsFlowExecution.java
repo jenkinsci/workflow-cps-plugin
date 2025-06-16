@@ -769,7 +769,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             "This is expected to happen when using the " + durabilitySetting + " durability setting and Jenkins is not shut down cleanly. " +
                             "Consider investigating to understand if Jenkins was not shut down cleanly or switching to the MAX_SURVIVABILITY durability setting which should prevent this issue in most cases.");
                 } else {
-                    throw new AbortException("Cannot resume build because FlowNode " + entry.getValue() + " for FlowHead " + entry.getKey() + " could not be loaded from " + getStorageDir());
+                    throw new AbortException("Cannot load build steps because FlowNode " + entry.getValue() + " for FlowHead " + entry.getKey() + " could not be loaded from " + getStorageDir());
                 }
             }
         }
