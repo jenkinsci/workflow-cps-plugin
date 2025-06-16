@@ -125,6 +125,8 @@ import java.io.PrintWriter;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -769,7 +771,14 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             "This is expected to happen when using the " + durabilitySetting + " durability setting and Jenkins is not shut down cleanly. " +
                             "Consider investigating to understand if Jenkins was not shut down cleanly or switching to the MAX_SURVIVABILITY durability setting which should prevent this issue in most cases.");
                 } else {
-                    throw new AbortException("Cannot load build steps because FlowNode " + entry.getValue() + " for FlowHead " + entry.getKey() + " could not be loaded from " + getStorageDir());
+                    var sd = getStorageDir().toPath();
+                    List<Path> files = null;
+                    try (var walk = Files.walk(sd)) {
+                        files = walk.filter(Files::isRegularFile).map(sd::relativize).sorted().toList();
+                    } catch (/*UncheckedIO*/Exception x) {
+                        LOGGER.log(Level.WARNING, null, x);
+                    }
+                    throw new AbortException("Cannot load build steps because FlowNode " + entry.getValue() + " for FlowHead " + entry.getKey() + " could not be loaded from " + storage + " in " + sd + ": " + files);
                 }
             }
         }
@@ -1997,6 +2006,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     readWriteLock.writeLock().unlock();
                 }
             }
+        }
+
+        @Override public String toString() {
+            return "TimingFlowNodeStorage[" + delegate + "]";
         }
     }
 
