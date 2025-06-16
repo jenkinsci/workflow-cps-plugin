@@ -1,11 +1,5 @@
 package org.jenkinsci.plugins.workflow.cps;
 
-import static jenkins.test.RunMatchers.completed;
-import static org.awaitility.Awaitility.await;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.isA;
-
 import com.google.common.util.concurrent.ListenableFuture;
 import hudson.model.Queue;
 import hudson.model.Result;
@@ -51,8 +45,10 @@ public class PersistenceProblemsTest {
     public FlagRule<Boolean> optimizeStorageFlag = new FlagRule<>(() -> CpsFlowExecution.OPTIMIZE_STORAGE_UPON_COMPLETION, v -> { CpsFlowExecution.OPTIMIZE_STORAGE_UPON_COMPLETION = v; });
 
     /** Verifies all the assumptions about a cleanly finished build. */
-    static void assertCompletedCleanly(WorkflowRun run, boolean verifyFlowEndNode) throws Exception {
-        await().until(() -> run, completed());
+    static void assertCompletedCleanly(WorkflowRun run) throws Exception {
+        while (run.isBuilding()) {
+            Thread.sleep(100); // TODO seems to be unpredictable
+        }
         Assert.assertNotNull(run.getResult());
         FlowExecution fe = run.getExecution();
         FlowExecutionList.get().forEach(f -> {
@@ -62,16 +58,17 @@ public class PersistenceProblemsTest {
         });
         Assert.assertTrue("Queue not empty after completion!", Queue.getInstance().isEmpty());
 
-        if (fe instanceof CpsFlowExecution cpsExec) {
+        if (fe instanceof CpsFlowExecution) {
+            CpsFlowExecution cpsExec = (CpsFlowExecution)fe;
             Assert.assertTrue(cpsExec.isComplete());
             Assert.assertEquals(Boolean.TRUE, cpsExec.done);
+            Assert.assertEquals(1, cpsExec.getCurrentHeads().size());
             Assert.assertTrue(cpsExec.isComplete());
-            if (verifyFlowEndNode) {
-                Assert.assertEquals(1, cpsExec.getCurrentHeads().size());
-                assertThat(cpsExec.getCurrentHeads().get(0), isA(FlowEndNode.class));
-                Assert.assertTrue(cpsExec.startNodes == null || cpsExec.startNodes.isEmpty());
+            Assert.assertTrue(cpsExec.getCurrentHeads().get(0) instanceof FlowEndNode);
+            Assert.assertTrue(cpsExec.startNodes == null || cpsExec.startNodes.isEmpty());
+            while (cpsExec.blocksRestart()) {
+                Thread.sleep(100); // TODO ditto
             }
-            await().until(cpsExec::blocksRestart, is(false));
         } else {
             System.out.println("WARNING: no FlowExecutionForBuild");
         }
@@ -109,7 +106,7 @@ public class PersistenceProblemsTest {
         job.addProperty(new DurabilityHintJobProperty(hint));
         WorkflowRun run = j.buildAndAssertSuccess(job);
         jobIdNumber[0] = run.getNumber();
-        assertCompletedCleanly(run, true);
+        assertCompletedCleanly(run);
         return run;
     }
 
@@ -178,9 +175,10 @@ public class PersistenceProblemsTest {
         story.then(j-> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
-            assertCompletedCleanly(run, true);
+            assertCompletedCleanly(run);
             //            assertNulledExecution(run);
-            Assert.assertEquals(Result.FAILURE, run.getResult());
+            Assert.assertEquals(Result.SUCCESS, run.getResult());
+            assertResultMatchExecutionAndRun(run, executionAndBuildResult);
         });
     }
     /** Perhaps there was a serialization error breaking the FlowGraph persistence for non-durable mode. */
@@ -197,9 +195,10 @@ public class PersistenceProblemsTest {
         story.then(j-> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
-            assertCompletedCleanly(run, true);
+            assertCompletedCleanly(run);
             // assertNulledExecution(run);
-            Assert.assertEquals(Result.FAILURE, run.getResult());
+            Assert.assertEquals(Result.SUCCESS, run.getResult());
+            assertResultMatchExecutionAndRun(run, executionAndBuildResult);
         });
     }
 
@@ -222,7 +221,7 @@ public class PersistenceProblemsTest {
         story.then(j-> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
-            assertCompletedCleanly(run, true);
+            assertCompletedCleanly(run);
             Assert.assertEquals(Result.SUCCESS, run.getResult());
             assertResultMatchExecutionAndRun(run, executionAndBuildResult);
         });
@@ -241,7 +240,7 @@ public class PersistenceProblemsTest {
             InputStepExecution exec = getInputStepExecution(run, "pause");
             exec.doProceedEmpty();
             j.waitForCompletion(run);
-            assertCompletedCleanly(run, true);
+            assertCompletedCleanly(run);
             Assert.assertEquals(Result.SUCCESS, run.getResult());
         });
     }
@@ -260,7 +259,7 @@ public class PersistenceProblemsTest {
             InputStepExecution exec = getInputStepExecution(run, "pause");
             exec.doProceedEmpty();
             j.waitForCompletion(run);
-            assertCompletedCleanly(run, true);
+            assertCompletedCleanly(run);
             Assert.assertEquals(Result.SUCCESS, run.getResult());
         });
     }
@@ -268,6 +267,7 @@ public class PersistenceProblemsTest {
     @Test
     public void inProgressMaxPerfDirtyShutdown() throws Exception {
         final int[] build = new int[1];
+        final String[] finalNodeId = new String[1];
         story.thenWithHardShutdown( j -> {
             runBasicPauseOnInput(j, DEFAULT_JOBNAME, build, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
             // SHOULD still save at end via persist-at-shutdown hooks
@@ -277,13 +277,15 @@ public class PersistenceProblemsTest {
             WorkflowRun run = r.getBuildByNumber(build[0]);
             Thread.sleep(1000);
             j.waitForCompletion(run);
-            assertCompletedCleanly(run, false);
+            assertCompletedCleanly(run);
             Assert.assertEquals(Result.FAILURE, run.getResult());
+            finalNodeId[0] = run.getExecution().getCurrentHeads().get(0).getId();
         });
         story.then(j-> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
-            assertCompletedCleanly(run, false);
+            assertCompletedCleanly(run);
+            Assert.assertEquals(finalNodeId[0], run.getExecution().getCurrentHeads().get(0).getId());
             // JENKINS-50199, verify it doesn't try to resume again
         });
     }
@@ -302,7 +304,7 @@ public class PersistenceProblemsTest {
         story.then( j->{
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
-            assertCompletedCleanly(run, false);
+            assertCompletedCleanly(run);
         });
     }
 
@@ -322,7 +324,7 @@ public class PersistenceProblemsTest {
         story.then( j->{
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
-            assertCompletedCleanly(run, true);
+            assertCompletedCleanly(run);
             j.assertLogContains("FileNotFoundException", run);
         });
     }
@@ -340,7 +342,7 @@ public class PersistenceProblemsTest {
         story.then( j->{
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
-            assertCompletedCleanly(run, false);
+            assertCompletedCleanly(run);
         });
     }
 

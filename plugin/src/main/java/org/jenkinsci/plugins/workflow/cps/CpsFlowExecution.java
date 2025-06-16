@@ -805,7 +805,18 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this.owner = owner;
 
         try {
-            initializeStorage();  // Throws exception and bombs out if we can't load FlowNodes
+            try {
+                initializeStorage();  // Throws exception and bombs out if we can't load FlowNodes
+            } catch (Exception ex) {
+                var propName = CpsFlowExecution.class.getName() + ".initializeStorageFromOnLoad";
+                if (SystemProperties.getBoolean(propName, true)) {
+                    LOGGER.log(Level.WARNING, ex, () -> "Error initializing storage and loading nodes, will try to create placeholders for " + this + " (use -D" + propName + "=false to suppress)");
+                    createPlaceholderNodes(ex);
+                    return;
+                } else {
+                    throw ex;
+                }
+            }
         } catch (Exception ex) {
             done = true;
             programPromise = Futures.immediateFailedFuture(ex);
