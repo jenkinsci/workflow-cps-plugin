@@ -1960,7 +1960,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
         }
 
-
         @Override public void saveActions(FlowNode node, List<Action> actions) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
                 withWriteLock(() -> delegate.saveActions(node, actions));
