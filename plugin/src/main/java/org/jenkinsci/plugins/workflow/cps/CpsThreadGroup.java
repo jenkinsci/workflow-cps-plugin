@@ -337,6 +337,7 @@ public final class CpsThreadGroup implements Serializable {
                                 LOGGER.log(Level.WARNING, null, x);
                             }
                         }
+                        saveProgramIfPossible(true);
                         f.complete(null);
                         return null;
                     }
