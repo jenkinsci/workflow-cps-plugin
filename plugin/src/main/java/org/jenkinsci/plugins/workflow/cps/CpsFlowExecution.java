@@ -808,6 +808,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     @Override
     public void onLoad(FlowExecutionOwner owner) throws IOException {
+        if (this.owner != null) {
+            LOGGER.log(Level.FINE, new Throwable(), () -> this + " was already loaded");
+            return;
+        }
+
         this.owner = owner;
 
         try {
