@@ -1672,14 +1672,16 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             for (FlowExecution execution : FlowExecutionList.get()) {
                 if (execution instanceof CpsFlowExecution cpsExec) {
                     try {
-                        cpsExec.checkAndAbortNonresumableBuild();
+                        var nonresumable = cpsExec.checkAndAbortNonresumableBuild();
 
                         var programPromise = cpsExec.programPromise;
                         // Like waitForSuspension but with a timeout:
                         if (programPromise != null && programPromise.isDone()) {
                             LOGGER.fine(() -> "waiting to suspend " + execution);
                             try {
-                                programPromise.get().terminating().get(1, TimeUnit.MINUTES);
+                                var program = programPromise.get();
+                                var f = nonresumable ? program.scheduleRun() : program.terminating();
+                                f.get(1, TimeUnit.MINUTES);
                                 LOGGER.log(Level.FINER, " Pipeline went to sleep OK: "+execution);
                             } catch (InterruptedException | TimeoutException ex) {
                                 LOGGER.log(Level.WARNING, "Error waiting for Pipeline to suspend: " + cpsExec, ex);
@@ -2230,9 +2232,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     /** Abort any running builds at Jenkins shutdown if they don't support resuming at next startup. */
-    private void checkAndAbortNonresumableBuild() {
+    private boolean checkAndAbortNonresumableBuild() {
         if (isComplete() || this.getDurabilityHint().isPersistWithEveryStep() || !isResumeBlocked()) {
-            return;
+            return false;
         }
         try {
             owner.getListener().getLogger().println("Failing build: shutting down controller and build is marked to not resume");
@@ -2260,6 +2262,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         } catch (IOException ioe) {
             LOGGER.log(Level.WARNING, "Error just doing logging", ioe);
         }
+        return true;
     }
 
 }
