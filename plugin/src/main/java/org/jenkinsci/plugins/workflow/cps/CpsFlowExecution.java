@@ -809,7 +809,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     @Override
     public void onLoad(FlowExecutionOwner owner) throws IOException {
         if (this.owner != null) {
-            LOGGER.log(Level.FINE, new Throwable(), () -> this + " was already loaded");
+            LOGGER.log(Level.WARNING, new Throwable(), () -> this + " was already loaded");
             return;
         }
 
@@ -1555,6 +1555,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     for (GraphListener listener : toRun) {
                         if (listener instanceof GraphListener.Synchronous == synchronous) {
                             try {
+                                LOGGER.fine(() -> "notifying " + listener + " of " + node);
                                 listener.onNewHead(node);
                             } catch (Throwable x) {
                                 LOGGER.log(Level.WARNING, null, x);
