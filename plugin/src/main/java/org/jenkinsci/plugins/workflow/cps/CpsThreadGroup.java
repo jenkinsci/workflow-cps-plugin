@@ -587,7 +587,7 @@ public final class CpsThreadGroup implements Serializable {
             }
             serializedOK = true;
             Files.move(tmpFile.toPath(), f.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            LOGGER.log(Level.FINE, "program state saved");
+            LOGGER.fine(() -> f + " saved");
         } catch (RuntimeException e) {
             propagateErrorToWorkflow(e);
             throw new IOException("Failed to persist "+f,e);
