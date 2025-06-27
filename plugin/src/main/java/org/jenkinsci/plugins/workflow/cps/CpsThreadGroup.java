@@ -40,6 +40,7 @@ import hudson.ExtensionList;
 import hudson.Functions;
 import hudson.Main;
 import hudson.Util;
+import hudson.init.Terminator;
 import hudson.model.Result;
 import hudson.util.XStream2;
 import jenkins.model.Jenkins;
@@ -147,6 +148,11 @@ public final class CpsThreadGroup implements Serializable {
      * when a failure is predictable.)
      */
     private /*almost final*/ transient AtomicBoolean paused = new AtomicBoolean();
+
+    /**
+     * {@link Jenkins#isTerminating} is unfortunately still false while {@link Terminator}s are running.
+     */
+    private transient boolean terminating;
 
     /**
      * Persistent version of {@link #paused}.
@@ -319,6 +325,18 @@ public final class CpsThreadGroup implements Serializable {
                         }
                         // by doing the pause check inside, we make sure that scheduleRun() returns a
                         // future that waits for any previously scheduled tasks to be completed.
+                        saveProgramIfPossible(true);
+                        f.complete(null);
+                        return null;
+                    }
+                    if (terminating) {
+                        if (execution != null) {
+                            try {
+                                execution.getOwner().getListener().getLogger().println("Pausing (shutting down)");
+                            } catch (IOException x) {
+                                LOGGER.log(Level.WARNING, null, x);
+                            }
+                        }
                         saveProgramIfPossible(true);
                         f.complete(null);
                         return null;
@@ -646,6 +664,12 @@ public final class CpsThreadGroup implements Serializable {
         } else {
             LOGGER.log(Level.WARNING, "encountered error but could not pass it to the flow", t);
         }
+    }
+
+    Future<?> terminating() {
+        LOGGER.fine(() -> "terminating " + execution);
+        terminating = true;
+        return scheduleRun();
     }
 
     void shutdown() {
