@@ -1523,10 +1523,14 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     List<GraphListener> getListenersToRun() {
         List<GraphListener> l = new ArrayList<>();
 
+        // TODO: Really, we need some kind of `GraphListener.ordinal` method that allows local listeners to be sorted
+        // into the overall listener list while also respection `Extension.ordinal`. Then we'd need to split
+        // `WorkflowRun.GraphL` in 2 and make the part that adds `TimingAction` high priority, but the part that calls
+        // `WorkflowRun.finish` low priority.
+        l.addAll(ExtensionList.lookup(GraphListener.class));
         if (listeners != null) {
             l.addAll(listeners);
         }
-        l.addAll(ExtensionList.lookup(GraphListener.class));
 
         return l;
     }
