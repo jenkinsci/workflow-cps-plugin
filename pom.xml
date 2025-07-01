@@ -9,7 +9,7 @@
     </parent>
     <groupId>org.jenkins-ci.plugins.workflow</groupId>
     <artifactId>workflow-cps-parent</artifactId>
-    <version>${changelist}</version>
+    <version>4106.${changelist}</version>
     <packaging>pom</packaging>
     <name>Pipeline: Groovy Parent</name>
     <url>https://github.com/jenkinsci/workflow-cps-plugin</url>
