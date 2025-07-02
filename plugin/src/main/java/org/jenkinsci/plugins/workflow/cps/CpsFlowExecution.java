@@ -812,6 +812,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     @Override
     public void onLoad(FlowExecutionOwner owner) throws IOException {
+        if (this.owner != null) {
+            LOGGER.log(Level.WARNING, new Throwable(), () -> this + " was already loaded");
+            return;
+        }
+
         this.owner = owner;
 
         try {
@@ -1557,6 +1562,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     for (GraphListener listener : toRun) {
                         if (listener instanceof GraphListener.Synchronous == synchronous) {
                             try {
+                                LOGGER.fine(() -> "notifying " + listener + " of " + node);
                                 listener.onNewHead(node);
                             } catch (Throwable x) {
                                 LOGGER.log(Level.WARNING, null, x);
@@ -1673,14 +1679,16 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             for (FlowExecution execution : FlowExecutionList.get()) {
                 if (execution instanceof CpsFlowExecution cpsExec) {
                     try {
-                        cpsExec.checkAndAbortNonresumableBuild();
+                        var nonresumable = cpsExec.checkAndAbortNonresumableBuild();
 
                         var programPromise = cpsExec.programPromise;
                         // Like waitForSuspension but with a timeout:
                         if (programPromise != null && programPromise.isDone()) {
                             LOGGER.fine(() -> "waiting to suspend " + execution);
                             try {
-                                programPromise.get().scheduleRun().get(1, TimeUnit.MINUTES);
+                                var program = programPromise.get();
+                                var f = nonresumable ? program.scheduleRun() : program.terminating();
+                                f.get(1, TimeUnit.MINUTES);
                                 LOGGER.log(Level.FINER, " Pipeline went to sleep OK: "+execution);
                             } catch (InterruptedException | TimeoutException ex) {
                                 LOGGER.log(Level.WARNING, "Error waiting for Pipeline to suspend: " + cpsExec, ex);
@@ -1700,6 +1708,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                 }
                             });
                         }
+                        cpsExec.saveOwner();
                         if (cpsExec.owner != null) {
                             cpsExec.owner.getListener().getLogger().close();
                         }
@@ -2117,8 +2126,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      *   or pre-emptively lock the run before locking the execution and saving. */
     void saveOwner() {
         try {
-            if (this.owner != null && this.owner.getExecutable() instanceof Saveable) {  // Null-check covers some anomalous cases we've seen
-                Saveable saveable = (Saveable)(this.owner.getExecutable());
+            if (owner != null && owner.getExecutable() instanceof Saveable saveable) {  // Null-check covers some anomalous cases we've seen
                 persistedClean = true;
                 if (storage != null && storage.delegate != null) {
                     // Defensively flush FlowNodes to storage
@@ -2143,7 +2151,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      */
     private void checkpoint(boolean shuttingDown) {
         if (isComplete() || this.getDurabilityHint().isPersistWithEveryStep()) {
-            // Nothing to persist OR we've already persisted it along the way.
+            LOGGER.fine(() -> "Nothing to persist for " + this + " or it has already been persisted along the way");
             return;
         }
         LOGGER.log(Level.INFO, "Attempting to save a checkpoint of all data for {0}{1}", new Object[] {
@@ -2207,6 +2215,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
             persistedClean = persistOk;
             try {
+                LOGGER.fine(() -> "Saving owner for " + this);
                 saveOwner();
             } catch (Exception ex) {
                 persistOk = false;
@@ -2230,9 +2239,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     /** Abort any running builds at Jenkins shutdown if they don't support resuming at next startup. */
-    private void checkAndAbortNonresumableBuild() {
+    private boolean checkAndAbortNonresumableBuild() {
         if (isComplete() || this.getDurabilityHint().isPersistWithEveryStep() || !isResumeBlocked()) {
-            return;
+            return false;
         }
         try {
             owner.getListener().getLogger().println("Failing build: shutting down controller and build is marked to not resume");
@@ -2260,6 +2269,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         } catch (IOException ioe) {
             LOGGER.log(Level.WARNING, "Error just doing logging", ioe);
         }
+        return true;
     }
 
 }

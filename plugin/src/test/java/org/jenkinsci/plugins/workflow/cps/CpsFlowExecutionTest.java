@@ -48,7 +48,10 @@ import hudson.init.Terminator;
 import hudson.model.Executor;
 import hudson.model.Item;
 import hudson.model.Result;
+import hudson.model.Saveable;
 import hudson.model.TaskListener;
+import hudson.model.listeners.ItemListener;
+import hudson.model.listeners.SaveableListener;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -125,6 +128,8 @@ import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 public class CpsFlowExecutionTest {
+
+    private static final Logger LOGGER = Logger.getLogger(CpsFlowExecutionTest.class.getName());
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public JenkinsSessionRule sessions = new JenkinsSessionRule();
@@ -962,6 +967,45 @@ public class CpsFlowExecutionTest {
             IOException e = assertThrows(IOException.class, echoStep::save);
             assertThat(e.getMessage(), containsString("Cannot save actions for " + echoStep + " for completed execution " + b.getExecution()));
         });
+    }
+
+    @Test public void buildXmlSaved() throws Throwable {
+        logger.record(CpsFlowExecution.class, Level.FINE);
+        sessions.then(r -> {
+            var p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("parallel a: {semaphore('wait-a')}, b: {semaphore('wait-b')}", true));
+            var b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait-a/1", b);
+            SemaphoreStep.waitForStart("wait-b/1", b);
+        });
+        sessions.then(r -> {
+            var p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            var b = p.getBuildByNumber(1);
+            SemaphoreStep.success("wait-a/1", null);
+            SemaphoreStep.success("wait-b/1", null);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+            assertThat("saved build.xml prior to shutdown", BuildXmlListener.saved);
+        });
+    }
+    @TestExtension("buildXmlSaved") public static final class ShuttingDown extends ItemListener {
+        boolean run;
+        @Override public void onBeforeShutdown() {
+            LOGGER.info("Shutting down");
+            run = true;
+        }
+    }
+    @TestExtension("buildXmlSaved") public static final class BuildXmlListener extends SaveableListener {
+        static boolean saved;
+        @Override public void onChange(Saveable o, XmlFile file) {
+            if (o instanceof WorkflowRun) {
+                if (ExtensionList.lookupSingleton(ShuttingDown.class).run) {
+                    Thread.dumpStack();
+                    saved = true;
+                } else {
+                    LOGGER.info("Not shutting down");
+                }
+            }
+        }
     }
 
     @Test public void timingActionAlwaysAdded() throws Throwable {
