@@ -53,16 +53,15 @@
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-${jenkins.baseline}.x</artifactId>
-                <version>4710.v016f0a_07e34d</version>
+                <version>4488.v7fe26526366e</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
             <dependency>
-                <!-- TODO: https://github.com/jenkinsci/workflow-api-plugin/pull/410 -->
-                <!-- TODO: Remove when included in BOM -->
+                <!-- TODO: https://github.com/jenkinsci/workflow-job-plugin/pull/548, but remove before merging PR -->
                 <groupId>org.jenkins-ci.plugins.workflow</groupId>
-                <artifactId>workflow-api</artifactId>
-                <version>1377.v6fdf65c6195c</version>
+                <artifactId>workflow-job</artifactId>
+                <version>999999-SNAPSHOT</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

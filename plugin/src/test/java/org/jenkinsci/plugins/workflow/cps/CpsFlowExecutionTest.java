@@ -88,6 +88,7 @@ import org.htmlunit.HttpMethod;
 import org.htmlunit.WebRequest;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
+import org.jenkinsci.plugins.workflow.actions.TimingAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.TimingFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DefaultAllowlist;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
@@ -960,6 +961,20 @@ public class CpsFlowExecutionTest {
             FlowNode echoStep = b.getExecution().getNode("3");
             IOException e = assertThrows(IOException.class, echoStep::save);
             assertThat(e.getMessage(), containsString("Cannot save actions for " + echoStep + " for completed execution " + b.getExecution()));
+        });
+    }
+
+    @Test public void timingActionAlwaysAdded() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("parallel(one: { stage('1') { echo '1' } }, two: { echo '2' })", true));
+            WorkflowRun b = r.buildAndAssertSuccess(p);
+            var nodesWithoutTiming = new DepthFirstScanner()
+                    .allNodes(b.getExecution())
+                    .stream()
+                    .filter(n -> n.getPersistentAction(TimingAction.class) == null)
+                    .toList();
+            assertThat(nodesWithoutTiming, empty());
         });
     }
 
