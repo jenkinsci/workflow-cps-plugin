@@ -43,6 +43,7 @@ import org.jenkinsci.plugins.workflow.graph.AtomNode;
 import org.jenkinsci.plugins.workflow.graph.BlockEndNode;
 import org.jenkinsci.plugins.workflow.graph.BlockStartNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.steps.FailureHandler;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
@@ -311,6 +312,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         if (t == null) {
             throw new IllegalArgumentException();
         }
+        t = FailureHandler.apply(this, t);
         completed(new Outcome(null, t));
     }
 
