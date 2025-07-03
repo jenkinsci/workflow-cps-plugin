@@ -144,7 +144,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import net.jcip.annotations.GuardedBy;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Comparator;
 import jenkins.util.SystemProperties;
 import org.codehaus.groovy.GroovyBugError;
 import org.jboss.marshalling.reflect.SerializableClassRegistry;
