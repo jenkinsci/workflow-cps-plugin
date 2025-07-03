@@ -1,8 +1,6 @@
 package org.jenkinsci.plugins.workflow;
 
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
 
 import hudson.ExtensionList;
 import hudson.model.Run;
@@ -20,7 +18,6 @@ import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestExtension;
 
 import java.io.Serializable;
-import java.time.Instant;
 import java.util.List;
 import java.util.Random;
 import java.util.logging.Level;
