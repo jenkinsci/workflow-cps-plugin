@@ -1,31 +1,31 @@
 package org.jenkinsci.plugins.workflow;
 
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.is;
 
 import hudson.ExtensionList;
 import hudson.model.Run;
-import java.io.IOException;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.flow.GraphListener;
+import org.jenkinsci.plugins.workflow.graph.FlowEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestExtension;
+import org.junit.rules.ErrorCollector;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Random;
 import java.util.logging.Level;
-import org.jenkinsci.plugins.workflow.graph.FlowEndNode;
-import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.junit.rules.ErrorCollector;
 import org.jvnet.hudson.test.Issue;
-import static org.awaitility.Awaitility.await;
 
 public class GraphListenerTest
 {
