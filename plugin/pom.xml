@@ -58,12 +58,6 @@
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
-            <!-- TODO: Remove once the BOM has caught up -->
-            <dependency>
-                <groupId>org.jenkins-ci.plugins.workflow</groupId>
-                <artifactId>workflow-step-api</artifactId>
-                <version>704.ve4f0967e98fa_</version>
-            </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>
