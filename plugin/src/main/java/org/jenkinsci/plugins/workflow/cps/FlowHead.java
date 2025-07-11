@@ -111,6 +111,7 @@ final class FlowHead implements Serializable {
             }
             execution.flowStartNodeActions.clear();
         } // may be unset from loadProgramFailed
+        n.addAction(new TimingAction());
         synchronized (execution) {
             this.head = execution.startNodes.push(n);
         }
