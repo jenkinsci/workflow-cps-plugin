@@ -375,9 +375,14 @@ class CpsBodyExecution extends BodyExecution {
                 localThread = thread;
             }
             try {
-                var handler = localThread.getContextVariables().get(FailureHandler.class, localThread::getExecution, sc::getNode);
-                if (handler != null) {
-                    return handler.handle(sc, t);
+                var contextVars = localThread.getContextVariables();
+                // CpsFlowExecution.start sets the context variables for the initial CpsThread to null, so context
+                // variables for all subsequent threads remain null until a block step adds a variable to its body.
+                if (contextVars != null) {
+                    var handler = contextVars.get(FailureHandler.class, localThread::getExecution, sc::getNode);
+                    if (handler != null) {
+                        return handler.handle(sc, t);
+                    }
                 }
             } catch (Throwable t2) {
                 t.addSuppressed(t2);
