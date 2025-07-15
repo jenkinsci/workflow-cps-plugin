@@ -237,6 +237,7 @@ public final class CpsThread implements Serializable {
      * something is unexpectedly holding a reference directly to it (see JENKINS-63164 for an example scenario).
      */
     void cleanUp() {
+        LOGGER.finest(() -> "Cleaning up " + this);
         program = null;
         resumeValue = null;
         step = null;
