@@ -375,7 +375,12 @@ class CpsBodyExecution extends BodyExecution {
                 localThread = thread;
             }
             try {
-                var handler = localThread.getContextVariables().get(FailureHandler.class, localThread::getExecution, sc::getNode);
+                var contextVars = localThread.getContextVariables();
+                if (contextVars == null) {
+                    LOGGER.log(Level.FINE, () -> "Context variables already cleaned up for FlowNode" + sc.getNode().getId() + " and thread " + localThread);
+                    return t;
+                }
+                var handler = contextVars.get(FailureHandler.class, localThread::getExecution, sc::getNode);
                 if (handler != null) {
                     return handler.handle(sc, t);
                 }

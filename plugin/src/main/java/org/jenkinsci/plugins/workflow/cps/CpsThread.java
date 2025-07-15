@@ -144,6 +144,7 @@ public final class CpsThread implements Serializable {
         }
     }
 
+    @CheckForNull
     public ContextVariableSet getContextVariables() {
         return contextVariables;
     }
