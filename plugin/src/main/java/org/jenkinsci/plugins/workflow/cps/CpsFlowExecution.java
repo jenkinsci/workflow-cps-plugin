@@ -1529,12 +1529,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     List<GraphListener> getListenersToRun() {
-        List<GraphListener> l = new ArrayList<>();
-
         // Listeners from extensions always come first, ordered by `Extension.ordinal`. Listeners added via
         // `addListener` are then notified in the reverse order that they were added (see `addListener`) so that the
         // `build-finalizing WorkflowRun$GraphL` always runs last.
-        l.addAll(ExtensionList.lookup(GraphListener.class));
+        List<GraphListener> l = new ArrayList<>(ExtensionList.lookup(GraphListener.class));
         if (listeners != null) {
             l.addAll(listeners);
         }
