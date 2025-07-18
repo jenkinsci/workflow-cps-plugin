@@ -70,6 +70,7 @@ import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
 import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
+import org.jenkinsci.plugins.workflow.support.concurrent.WithThreadName;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.PickleResolver;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverReader;
 import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
@@ -1990,7 +1991,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         private <T, E extends Exception> T withReadLock(@NonNull SupplierWithEx<T, E> supplier) throws E {
-            readWriteLock.readLock().lock();
+            try (var ignored = new WithThreadName(" acquiring read lock on storage of " + CpsFlowExecution.this)) {
+                readWriteLock.readLock().lock();
+            }
             try {
                 return supplier.get();
             } finally {
@@ -1999,7 +2002,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         private <E extends Exception> void withWriteLock(@NonNull RunnableWithEx<E> runnable) throws E {
-            readWriteLock.writeLock().lock();
+            try (var ignored = new WithThreadName(" acquiring write lock on storage of " + CpsFlowExecution.this)) {
+                readWriteLock.writeLock().lock();
+            }
             try {
                 runnable.run();
             } finally {
