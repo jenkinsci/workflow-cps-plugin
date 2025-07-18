@@ -70,10 +70,11 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockQueueItemAuthenticator;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.is;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import org.junit.Rule;
@@ -112,7 +113,7 @@ public class WorkflowTest {
         });
     }
     private void liveness(WorkflowRun b) {
-        assertFalse(Jenkins.get().toComputer().isIdle());
+        await().until(Jenkins.get().toComputer()::isIdle, is(false));
         Executor e = b.getOneOffExecutor();
         assertNotNull(e);
         assertEquals(e, b.getExecutor());
