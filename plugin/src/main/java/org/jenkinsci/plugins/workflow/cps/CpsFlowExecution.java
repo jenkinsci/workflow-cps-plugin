@@ -1994,7 +1994,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             try (var ignored = new WithThreadName(" acquiring read lock on storage of " + CpsFlowExecution.this)) {
                 readWriteLock.readLock().lock();
             }
-            try {
+            try (var ignored = new WithThreadName(" with read lock on storage of " + CpsFlowExecution.this)) {
                 return supplier.get();
             } finally {
                 readWriteLock.readLock().unlock();
@@ -2005,7 +2005,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             try (var ignored = new WithThreadName(" acquiring write lock on storage of " + CpsFlowExecution.this)) {
                 readWriteLock.writeLock().lock();
             }
-            try {
+            try (var ignored = new WithThreadName(" with write lock on storage of " + CpsFlowExecution.this)) {
                 runnable.run();
             } finally {
                 readWriteLock.writeLock().unlock();
