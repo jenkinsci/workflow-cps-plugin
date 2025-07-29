@@ -43,7 +43,6 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.util.SystemProperties;
-import org.apache.commons.lang.StringUtils;
 
 /**
  * Determines what Groovy source files can be loaded in Pipelines.
@@ -175,8 +174,8 @@ public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
             // We load custom entries first to improve performance in case .groovy is used for the property.
             String propertyValue = SystemProperties.getString(ALLOWED_SOURCE_FILES_PROPERTY, "");
             for (String groovyFile : propertyValue.split(",")) {
-                groovyFile = StringUtils.trimToNull(groovyFile);
-                if (groovyFile != null) {
+                groovyFile = groovyFile.trim();
+                if (!groovyFile.isEmpty()) {
                     if (groovyFile.endsWith(".groovy")) {
                         ALLOWED_SOURCE_FILES.add(groovyFile);
                         LOGGER.log(Level.INFO, "Allowing Pipelines to access {0}", groovyFile);

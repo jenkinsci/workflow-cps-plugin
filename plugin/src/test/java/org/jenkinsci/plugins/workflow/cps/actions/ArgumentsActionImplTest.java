@@ -12,7 +12,7 @@ import hudson.Functions;
 import hudson.XmlFile;
 import hudson.model.Action;
 import hudson.tasks.ArtifactArchiver;
-import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsMapContaining;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
