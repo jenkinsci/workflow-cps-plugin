@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import hudson.model.queue.QueueTaskFuture;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.jenkinsci.plugins.workflow.cps.CpsThreadDump.ThreadInfo;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;

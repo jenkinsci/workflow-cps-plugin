@@ -10,7 +10,7 @@ import hudson.model.Executor;
 import hudson.model.Item;
 import hudson.model.Result;
 import jenkins.model.Jenkins;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.jenkinsci.plugins.workflow.TestDurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
 import org.jenkinsci.plugins.workflow.actions.LogAction;
