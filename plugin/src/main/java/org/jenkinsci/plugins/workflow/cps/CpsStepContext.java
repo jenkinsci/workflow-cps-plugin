@@ -58,7 +58,10 @@ import net.jcip.annotations.GuardedBy;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -346,14 +349,14 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                     LOGGER.log(Level.FINE, "earlier success: {0}", outcome.getNormal());
                 }
             }
-            if (failure != null && earlierFailure != null && !refersTo(failure, earlierFailure)) {
+            if (failure != null && earlierFailure != null && !refersTo(failure, earlierFailure, Collections.newSetFromMap(new IdentityHashMap<>()))) {
                 earlierFailure.addSuppressed(failure);
             }
         }
     }
 
-    private static boolean refersTo(Throwable t1, Throwable t2) {
-        return t1 == t2 || t1.getCause() != null && refersTo(t1.getCause(), t2) || Stream.of(t1.getSuppressed()).anyMatch(t3 -> refersTo(t3, t2));
+    private static boolean refersTo(Throwable t1, Throwable t2, Set<Throwable> checked) {
+        return checked.add(t1) && (t1 == t2 || t1.getCause() != null && refersTo(t1.getCause(), t2, checked) || Stream.of(t1.getSuppressed()).anyMatch(t3 -> refersTo(t3, t2, checked)));
     }
 
     /**
