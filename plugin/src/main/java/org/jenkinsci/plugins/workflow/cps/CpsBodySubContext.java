@@ -35,7 +35,7 @@ final class CpsBodySubContext extends DefaultStepContext {
 
     @NonNull
     @Override
-    protected FlowNode getNode() throws IOException {
+    protected FlowNode getNode() {
         return node;
     }
 

@@ -18,6 +18,7 @@ import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext;
 import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
+import org.jenkinsci.plugins.workflow.steps.FailureHandler;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
@@ -344,14 +345,16 @@ class CpsBodyExecution extends BodyExecution {
                 StepStartNode ssn = addBodyStartFlowNode(h);
                 h.setNewHead(ssn);
             }
-
             StepEndNode en = addBodyEndFlowNode();
             Throwable t = (Throwable)o;
+
+            var sc = new CpsBodySubContext(context, en);
+            t = handleError(sc, t);
+
             en.addAction(new ErrorAction(t));
             CpsFlowExecution.maybeAutoPersistNode(en);
 
             setOutcome(new Outcome(null,t));
-            StepContext sc = new CpsBodySubContext(context, en);
             for (BodyExecutionCallback c : callbacks) {
                 try {
                     c.onFailure(sc, t);
@@ -364,6 +367,27 @@ class CpsBodyExecution extends BodyExecution {
                 thread = null;
             }
             return Next.terminate(null);
+        }
+
+        private Throwable handleError(CpsBodySubContext sc, Throwable t) {
+            CpsThread localThread;
+            synchronized (CpsBodyExecution.this) {
+                localThread = thread;
+            }
+            try {
+                var contextVars = localThread.getContextVariables();
+                // CpsFlowExecution.start sets the context variables for the initial CpsThread to null, so context
+                // variables for all subsequent threads remain null until a block step adds a variable to its body.
+                if (contextVars != null) {
+                    var handler = contextVars.get(FailureHandler.class, localThread::getExecution, sc::getNode);
+                    if (handler != null) {
+                        return handler.handle(sc, t);
+                    }
+                }
+            } catch (Throwable t2) {
+                t.addSuppressed(t2);
+            }
+            return t;
         }
 
         private static final long serialVersionUID = 1L;

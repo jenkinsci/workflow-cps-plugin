@@ -33,6 +33,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 
 public class CpsStepContextTest {
     @Rule
@@ -82,19 +83,6 @@ public class CpsStepContextTest {
         assertThat(logger.getMessages(), not(hasItem(containsString("Stale closure"))));
     }
 
-    @Issue("JENKINS-75067")
-    @Test
-    public void executionWithBodyRunningSyncNotLeakClosures() throws Exception {
-        logger.record(CpsThreadGroup.class, Level.WARNING).capture(10);
-        WorkflowJob job = r.createProject(WorkflowJob.class, "p");
-        job.setDefinition(new CpsFlowDefinition("def r = passthrough {}; echo r", true));
-
-        WorkflowRun build = r.buildAndAssertSuccess(job);
-        r.assertLogContains("hooray", build);
-        assertThat(ClosureCounter.get().closureCount, equalTo(0));
-        assertThat(logger.getMessages(), not(hasItem(containsString("Stale closure"))));
-    }
-
     public static class BadBlockStep extends Step {
 
         @DataBoundConstructor
@@ -125,6 +113,19 @@ public class CpsStepContextTest {
                 return true;
             }
         }
+    }
+
+    @Issue("JENKINS-75067")
+    @Test
+    public void executionWithBodyRunningSyncNotLeakClosures() throws Exception {
+        logger.record(CpsThreadGroup.class, Level.WARNING).capture(10);
+        WorkflowJob job = r.createProject(WorkflowJob.class, "p");
+        job.setDefinition(new CpsFlowDefinition("def r = passthrough {}; echo r", true));
+
+        WorkflowRun build = r.buildAndAssertSuccess(job);
+        r.assertLogContains("hooray", build);
+        assertThat(ClosureCounter.get().closureCount, equalTo(0));
+        assertThat(logger.getMessages(), not(hasItem(containsString("Stale closure"))));
     }
 
     public static class PassthroughStep extends Step {
@@ -181,4 +182,34 @@ public class CpsStepContextTest {
             return ExtensionList.lookupSingleton(ClosureCounter.class);
         }
     }
+
+    @Test public void refersToCycle() throws Exception {
+        logger.record(CpsStepContext.class, Level.ALL);
+        var p = r.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsFlowDefinition("refersToCycle()", true));
+        r.assertLogNotContains("StackOverflowError", r.buildAndAssertStatus(Result.UNSTABLE, p));
+    }
+    public static final class RefersToCycleStep extends Step {
+        @DataBoundConstructor public RefersToCycleStep() {}
+        @Override public StepExecution start(StepContext context) throws Exception {
+            return StepExecutions.synchronousNonBlockingVoid(context, ctx -> {
+                var t1 = new IllegalStateException("extra");
+                var t2 = new FlowInterruptedException(Result.UNSTABLE, false);
+                var t3 = new IllegalArgumentException("whatever");
+                t1.addSuppressed(t3);
+                t3.addSuppressed(t1);
+                ctx.onFailure(t2);
+                ctx.onFailure(t1);
+            });
+        }
+        @TestExtension("refersToCycle") public static final class DescriptorImpl extends StepDescriptor {
+            @Override public String getFunctionName() {
+                return "refersToCycle";
+            }
+            @Override public Set<? extends Class<?>> getRequiredContext() {
+                return Set.of();
+            }
+        }
+    }
+
 }
