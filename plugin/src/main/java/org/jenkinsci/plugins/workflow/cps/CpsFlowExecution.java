@@ -1002,8 +1002,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
         // first we need to wait for programPromise to fullfil CpsThreadGroup, then we need to run in its runner, phew!
         Futures.addCallback(programPromise, new FutureCallback<>() {
-            final Exception source = new Exception();   // call stack of this object captures who called this. useful during debugging.
-
             @Override
             public void onSuccess(final CpsThreadGroup g) {
                 g.runner.submit(new Runnable() {
