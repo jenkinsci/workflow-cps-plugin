@@ -296,7 +296,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     protected <T> T doGet(Class<T> key) throws IOException, InterruptedException {
         CpsThread t = getThreadSynchronously();
         if (t == null) {
-            throw new IOException("cannot find current thread");
+            throw new IOException("cannot find current thread in " + this);
         }
         return t.getContextVariable(key, this::getExecution, this::getNode);
     }
@@ -305,7 +305,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         if (node == null) {
             node = getExecution().getNode(id);
             if (node == null) {
-                throw new IOException("no node found for " + id);
+                throw new IOException("no node found for " + id + " in " + this);
             }
         }
         return node;
