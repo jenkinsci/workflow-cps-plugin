@@ -54,9 +54,13 @@ final class CpsBodySubContext extends DefaultStepContext {
         return 31 * base.hashCode() + node.hashCode();
     }
 
+    @Override
+    public String toString() {
+        return "CpsBodySubContext[" + base + ":" + node.getId()+ "]";
+    }
+
     // Delegation to 'base' from here
 //======================================
-
 
     @Override
     public void onFailure(Throwable t) {
