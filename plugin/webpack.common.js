@@ -9,6 +9,9 @@ module.exports = {
       path.join(__dirname, 'src/main/js/workflow-editor.js'),
       path.join(__dirname, 'src/main/less/workflow-editor.less'),
     ],
+    "ext-searchbox": [
+      path.join(__dirname, 'node_modules/ace-builds/src-noconflict/ext-searchbox.js'),
+    ],
   },
   output: {
     path: path.join(
