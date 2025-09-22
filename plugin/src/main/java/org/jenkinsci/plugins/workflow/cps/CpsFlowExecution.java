@@ -69,7 +69,6 @@ import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
-import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
 import org.jenkinsci.plugins.workflow.support.concurrent.WithThreadName;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.PickleResolver;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverReader;
@@ -81,6 +80,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -89,9 +89,12 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Stack;
 import java.util.TreeMap;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1670,50 +1673,71 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     @Restricted(DoNotUse.class)
     @Terminator(attains = FlowExecutionList.EXECUTIONS_SUSPENDED)
     public static void suspendAll() {
-        try (Timeout t = Timeout.limit(3, TimeUnit.MINUTES)) { // TODO some complicated sequence of calls to Futures could allow all of them to run in parallel
-            LOGGER.fine("starting to suspend all executions");
-            for (FlowExecution execution : FlowExecutionList.get()) {
-                if (execution instanceof CpsFlowExecution cpsExec) {
-                    try {
-                        var nonresumable = cpsExec.checkAndAbortNonresumableBuild();
-
-                        var programPromise = cpsExec.programPromise;
-                        // Like waitForSuspension but with a timeout:
-                        if (programPromise != null && programPromise.isDone()) {
-                            LOGGER.fine(() -> "waiting to suspend " + execution);
-                            try {
-                                var program = programPromise.get();
-                                var f = nonresumable ? program.scheduleRun() : program.terminating();
-                                f.get(1, TimeUnit.MINUTES);
-                                LOGGER.log(Level.FINER, " Pipeline went to sleep OK: "+execution);
-                            } catch (InterruptedException | TimeoutException ex) {
-                                LOGGER.log(Level.WARNING, "Error waiting for Pipeline to suspend: " + cpsExec, ex);
-                            }
-                        } else {
-                            LOGGER.fine(() -> "not trying to suspend " + execution);
-                        }
-                        cpsExec.checkpoint(true);
-                        if (programPromise != null) {
-                            cpsExec.runInCpsVmThread(new FutureCallback<>() {
-                                @Override public void onSuccess(CpsThreadGroup g) {
-                                    LOGGER.fine(() -> "shutting down CPS VM for " + cpsExec);
-                                    g.shutdown();
-                                }
-                                @Override public void onFailure(Throwable t) {
-                                    LOGGER.log(Level.WARNING, null, t);
-                                }
-                            });
-                        }
-                        cpsExec.saveOwner();
-                        if (cpsExec.owner != null) {
-                            cpsExec.owner.getListener().getLogger().close();
-                        }
-                    } catch (Exception ex) {
-                        LOGGER.log(Level.WARNING, "Error persisting Pipeline execution at shutdown: " + cpsExec.owner, ex);
-                    }
+        LOGGER.fine("looking for executions to suspend");
+        var pool = new ForkJoinPool();
+        try {
+            var tasks = new ArrayList<Callable<Object>>();
+            for (var fe : FlowExecutionList.get()) {
+                if (fe instanceof CpsFlowExecution cpsExec) {
+                    LOGGER.finer(() -> "will request suspension of " + cpsExec);
+                    tasks.add(Executors.callable(cpsExec::suspend));
                 }
             }
-            LOGGER.fine("finished suspending all executions");
+            LOGGER.fine(() -> "waiting for " + tasks.size() + " suspensions");
+            // TODO 2.516.x getDuration
+            var timeout = Duration.ofSeconds(SystemProperties.getLong(CpsFlowExecution.class.getName() + ".suspendTimeout", 10l));
+            try {
+                var futures = pool.invokeAll(tasks, timeout.toMillis(), TimeUnit.MILLISECONDS);
+                if (futures.stream().allMatch(Future::isDone)) {
+                    LOGGER.fine("finished suspending all executions");
+                } else {
+                    LOGGER.warning(() -> futures.stream().filter(f -> !f.isDone()).count() + "/" + futures.size() + " builds did not finish suspending within " + timeout);
+                }
+            } catch (InterruptedException x) {
+                LOGGER.log(Level.WARNING, null, x);
+            }
+        } finally {
+            pool.shutdown();
+        }
+    }
+
+    private void suspend() {
+        try {
+            var nonresumable = checkAndAbortNonresumableBuild();
+            // Like waitForSuspension but with a timeout:
+            if (programPromise != null && programPromise.isDone()) {
+                LOGGER.fine(() -> "waiting to suspend " + this);
+                try {
+                    var program = programPromise.get();
+                    var f = nonresumable ? program.scheduleRun() : program.terminating();
+                    f.get(1, TimeUnit.MINUTES);
+                    LOGGER.finer(() -> " Pipeline went to sleep OK: " + this);
+                } catch (InterruptedException | TimeoutException ex) {
+                    LOGGER.warning(() -> "Timed out waiting for Pipeline to suspend: " + this);
+                    LOGGER.log(Level.FINER, null, ex);
+                    // if helpful, could log CPS VM thread dump (though this itself could be expensive)
+                }
+            } else {
+                LOGGER.fine(() -> "not trying to suspend " + this);
+            }
+            checkpoint(true);
+            if (programPromise != null) {
+                runInCpsVmThread(new FutureCallback<>() {
+                    @Override public void onSuccess(CpsThreadGroup g) {
+                        LOGGER.fine(() -> "shutting down CPS VM for " + CpsFlowExecution.this);
+                        g.shutdown();
+                    }
+                    @Override public void onFailure(Throwable t) {
+                        LOGGER.log(t instanceof RejectedExecutionException ? Level.FINE : Level.WARNING, "failed to shut down " + CpsFlowExecution.this, t);
+                    }
+                });
+            }
+            saveOwner();
+            if (owner != null && !isComplete()) {
+                owner.getListener().getLogger().close();
+            }
+        } catch (Exception ex) {
+            LOGGER.log(Level.WARNING, "Failed to persist build at shutdown: " + this, ex);
         }
     }
 

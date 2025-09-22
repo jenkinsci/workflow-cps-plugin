@@ -84,6 +84,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsInRelativeOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import org.htmlunit.ElementNotFoundException;
 import org.htmlunit.FailingHttpStatusCodeException;
@@ -966,6 +967,21 @@ public class CpsFlowExecutionTest {
             FlowNode echoStep = b.getExecution().getNode("3");
             IOException e = assertThrows(IOException.class, echoStep::save);
             assertThat(e.getMessage(), containsString("Cannot save actions for " + echoStep + " for completed execution " + b.getExecution()));
+        });
+    }
+
+    @Test public void slowSuspension() throws Throwable {
+        logger.record(CpsFlowExecution.class, Level.FINE);
+        sessions.then(r -> {
+            var p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("echo 'sleeping now'; Thread.sleep((BUILD_NUMBER as int) * 1000)", false));
+            for (int i = 1; i <= 20; i++) {
+                var b = p.scheduleBuild2(0).waitForStart();
+                assertThat(b.getNumber(), is(i));
+                r.waitForMessage("sleeping now", b);
+            }
+            Thread.sleep(3_000); // allow earlier builds to complete
+            // nothing to assert here for now, just evaluating logs
         });
     }
 

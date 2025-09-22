@@ -76,6 +76,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.pickles.Pickle;
 import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
 import org.jenkinsci.plugins.workflow.support.concurrent.WithThreadName;
@@ -332,7 +333,12 @@ public final class CpsThreadGroup implements Serializable {
                     if (terminating) {
                         if (execution != null) {
                             try {
-                                execution.getOwner().getListener().getLogger().println("Pausing (shutting down)");
+                                var feo = execution.getOwner();
+                                if (feo.get().isComplete()) {
+                                    LOGGER.warning(() -> "too late to pause " + feo);
+                                } else {
+                                    feo.getListener().getLogger().println("Pausing (shutting down)");
+                                }
                             } catch (IOException x) {
                                 LOGGER.log(Level.WARNING, null, x);
                             }
