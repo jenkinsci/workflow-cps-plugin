@@ -971,18 +971,20 @@ public class CpsFlowExecutionTest {
     }
 
     @Test public void slowSuspension() throws Throwable {
-        logger.record(CpsFlowExecution.class, Level.FINE);
+        logger.record(CpsFlowExecution.class, Level.FINE).capture(100);
         sessions.then(r -> {
             var p = r.createProject(WorkflowJob.class, "p");
-            p.setDefinition(new CpsFlowDefinition("echo 'sleeping now'; Thread.sleep((BUILD_NUMBER as int) * 1000)", false));
+            // Odd-numbered builds will not suspend properly (if still running when Jenkins shuts down):
+            p.setDefinition(new CpsFlowDefinition("echo 'sleeping now'; def n = BUILD_NUMBER as int; if (n % 2 == 0) {sleep n} else {Thread.sleep(n * 1000)}", false));
             for (int i = 1; i <= 20; i++) {
                 var b = p.scheduleBuild2(0).waitForStart();
                 assertThat(b.getNumber(), is(i));
                 r.waitForMessage("sleeping now", b);
             }
             Thread.sleep(3_000); // allow earlier builds to complete
-            // nothing to assert here for now, just evaluating logs
         });
+        // normally would be 8/16 builds, but could be subject to timing conditions
+        assertThat(logger, LoggerRule.recorded(Level.WARNING, containsString("builds did not finish suspending")));
     }
 
     @Test public void buildXmlSaved() throws Throwable {

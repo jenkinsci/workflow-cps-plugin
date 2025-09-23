@@ -93,7 +93,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
@@ -1676,32 +1675,37 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         LOGGER.fine("looking for executions to suspend");
         var pool = new ForkJoinPool();
         try {
-            var tasks = new ArrayList<Callable<Object>>();
+            var tasks = new ArrayList<Callable<Boolean>>();
             for (var fe : FlowExecutionList.get()) {
                 if (fe instanceof CpsFlowExecution cpsExec) {
                     LOGGER.finer(() -> "will request suspension of " + cpsExec);
-                    tasks.add(Executors.callable(cpsExec::suspend));
+                    tasks.add(cpsExec::suspend);
                 }
             }
             LOGGER.fine(() -> "waiting for " + tasks.size() + " suspensions");
             // TODO 2.516.x getDuration
             var timeout = Duration.ofSeconds(SystemProperties.getLong(CpsFlowExecution.class.getName() + ".suspendTimeout", 10l));
-            try {
-                var futures = pool.invokeAll(tasks, timeout.toMillis(), TimeUnit.MILLISECONDS);
-                if (futures.stream().allMatch(Future::isDone)) {
-                    LOGGER.fine("finished suspending all executions");
-                } else {
-                    LOGGER.warning(() -> futures.stream().filter(f -> !f.isDone()).count() + "/" + futures.size() + " builds did not finish suspending within " + timeout);
+            var futures = pool.invokeAll(tasks, timeout.toMillis(), TimeUnit.MILLISECONDS);
+            int failed = tasks.size();
+            for (var future : futures) {
+                if (future.isDone() && !future.isCancelled() && future.get()) {
+                    failed--;
                 }
-            } catch (InterruptedException x) {
-                LOGGER.log(Level.WARNING, null, x);
             }
+            if (failed == 0) {
+                LOGGER.fine("finished suspending all executions");
+            } else {
+                LOGGER.warning(failed + "/" + tasks.size() + " builds did not finish suspending within " + timeout);
+            }
+        } catch (Exception x) {
+            LOGGER.log(Level.WARNING, null, x);
         } finally {
             pool.shutdown();
         }
     }
 
-    private void suspend() {
+    private boolean suspend() {
+        var steps = new AtomicInteger();
         try {
             var nonresumable = checkAndAbortNonresumableBuild();
             // Like waitForSuspension but with a timeout:
@@ -1712,6 +1716,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     var f = nonresumable ? program.scheduleRun() : program.terminating();
                     f.get(1, TimeUnit.MINUTES);
                     LOGGER.finer(() -> " Pipeline went to sleep OK: " + this);
+                    steps.incrementAndGet();
                 } catch (InterruptedException | TimeoutException ex) {
                     LOGGER.warning(() -> "Timed out waiting for Pipeline to suspend: " + this);
                     LOGGER.log(Level.FINER, null, ex);
@@ -1726,6 +1731,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     @Override public void onSuccess(CpsThreadGroup g) {
                         LOGGER.fine(() -> "shutting down CPS VM for " + CpsFlowExecution.this);
                         g.shutdown();
+                        steps.incrementAndGet();
                     }
                     @Override public void onFailure(Throwable t) {
                         LOGGER.log(t instanceof RejectedExecutionException ? Level.FINE : Level.WARNING, "failed to shut down " + CpsFlowExecution.this, t);
@@ -1735,10 +1741,12 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             saveOwner();
             if (owner != null && !isComplete()) {
                 owner.getListener().getLogger().close();
+                steps.incrementAndGet();
             }
         } catch (Exception ex) {
             LOGGER.log(Level.WARNING, "Failed to persist build at shutdown: " + this, ex);
         }
+        return steps.get() == 3; // suspended && shut down && closed
     }
 
     // TODO: write a custom XStream Converter so that while we are writing CpsFlowExecution, it holds that lock
