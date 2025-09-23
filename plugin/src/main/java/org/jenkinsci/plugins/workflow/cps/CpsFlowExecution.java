@@ -1684,7 +1684,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
             LOGGER.fine(() -> "waiting for " + tasks.size() + " suspensions");
             // TODO 2.516.x getDuration
-            var timeout = Duration.ofSeconds(SystemProperties.getLong(CpsFlowExecution.class.getName() + ".suspendTimeout", 10l));
+            var timeout = Duration.ofSeconds(SystemProperties.getLong(CpsFlowExecution.class.getName() + ".suspendTimeout", 10L));
             var futures = pool.invokeAll(tasks, timeout.toMillis(), TimeUnit.MILLISECONDS);
             int failed = tasks.size();
             for (var future : futures) {
@@ -1695,10 +1695,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             if (failed == 0) {
                 LOGGER.fine("finished suspending all executions");
             } else {
-                LOGGER.warning(failed + "/" + tasks.size() + " builds did not finish suspending within " + timeout);
+                LOGGER.warning(failed + "/" + tasks.size() + " builds did not finish suspending within " + timeout.toSeconds() + " seconds");
             }
         } catch (Exception x) {
-            LOGGER.log(Level.WARNING, null, x);
+            LOGGER.log(Level.WARNING, "Unexpected error suspending pipeline builds; some may not be in a consistent state on resume", x);
         } finally {
             pool.shutdown();
         }
