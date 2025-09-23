@@ -48,7 +48,10 @@ import hudson.init.Terminator;
 import hudson.model.Executor;
 import hudson.model.Item;
 import hudson.model.Result;
+import hudson.model.Saveable;
 import hudson.model.TaskListener;
+import hudson.model.listeners.ItemListener;
+import hudson.model.listeners.SaveableListener;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -88,6 +91,7 @@ import org.htmlunit.HttpMethod;
 import org.htmlunit.WebRequest;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
+import org.jenkinsci.plugins.workflow.actions.TimingAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.TimingFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DefaultAllowlist;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
@@ -124,6 +128,8 @@ import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 public class CpsFlowExecutionTest {
+
+    private static final Logger LOGGER = Logger.getLogger(CpsFlowExecutionTest.class.getName());
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public JenkinsSessionRule sessions = new JenkinsSessionRule();
@@ -960,6 +966,59 @@ public class CpsFlowExecutionTest {
             FlowNode echoStep = b.getExecution().getNode("3");
             IOException e = assertThrows(IOException.class, echoStep::save);
             assertThat(e.getMessage(), containsString("Cannot save actions for " + echoStep + " for completed execution " + b.getExecution()));
+        });
+    }
+
+    @Test public void buildXmlSaved() throws Throwable {
+        logger.record(CpsFlowExecution.class, Level.FINE);
+        sessions.then(r -> {
+            var p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("parallel a: {semaphore('wait-a')}, b: {semaphore('wait-b')}", true));
+            var b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait-a/1", b);
+            SemaphoreStep.waitForStart("wait-b/1", b);
+        });
+        sessions.then(r -> {
+            var p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            var b = p.getBuildByNumber(1);
+            SemaphoreStep.success("wait-a/1", null);
+            SemaphoreStep.success("wait-b/1", null);
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+            assertThat("saved build.xml prior to shutdown", BuildXmlListener.saved);
+        });
+    }
+    @TestExtension("buildXmlSaved") public static final class ShuttingDown extends ItemListener {
+        boolean run;
+        @Override public void onBeforeShutdown() {
+            LOGGER.info("Shutting down");
+            run = true;
+        }
+    }
+    @TestExtension("buildXmlSaved") public static final class BuildXmlListener extends SaveableListener {
+        static boolean saved;
+        @Override public void onChange(Saveable o, XmlFile file) {
+            if (o instanceof WorkflowRun) {
+                if (ExtensionList.lookupSingleton(ShuttingDown.class).run) {
+                    Thread.dumpStack();
+                    saved = true;
+                } else {
+                    LOGGER.info("Not shutting down");
+                }
+            }
+        }
+    }
+
+    @Test public void timingActionAlwaysAdded() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("parallel(one: { stage('1') { echo '1' } }, two: { echo '2' })", true));
+            WorkflowRun b = r.buildAndAssertSuccess(p);
+            var nodesWithoutTiming = new DepthFirstScanner()
+                    .allNodes(b.getExecution())
+                    .stream()
+                    .filter(n -> n.getPersistentAction(TimingAction.class) == null)
+                    .toList();
+            assertThat(nodesWithoutTiming, empty());
         });
     }
 

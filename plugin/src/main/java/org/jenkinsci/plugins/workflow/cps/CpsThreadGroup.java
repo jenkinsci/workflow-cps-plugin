@@ -33,7 +33,6 @@ import com.thoughtworks.xstream.converters.MarshallingContext;
 import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
@@ -41,6 +40,7 @@ import hudson.ExtensionList;
 import hudson.Functions;
 import hudson.Main;
 import hudson.Util;
+import hudson.init.Terminator;
 import hudson.model.Result;
 import hudson.util.XStream2;
 import jenkins.model.Jenkins;
@@ -91,7 +91,6 @@ import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
  * @author Kohsuke Kawaguchi
  */
 @PersistIn(PersistenceContext.PROGRAM)
-@SuppressFBWarnings("SE_BAD_FIELD") // bogus warning about closures
 public final class CpsThreadGroup implements Serializable {
     /**
      * {@link CpsThreadGroup} always belong to the same {@link CpsFlowExecution}.
@@ -149,6 +148,11 @@ public final class CpsThreadGroup implements Serializable {
      * when a failure is predictable.)
      */
     private /*almost final*/ transient AtomicBoolean paused = new AtomicBoolean();
+
+    /**
+     * {@link Jenkins#isTerminating} is unfortunately still false while {@link Terminator}s are running.
+     */
+    private transient boolean terminating;
 
     /**
      * Persistent version of {@link #paused}.
@@ -292,7 +296,6 @@ public final class CpsThreadGroup implements Serializable {
         final CompletableFuture<Void> f = new CompletableFuture<>();
         try {
             runner.submit(new Callable<Void>() {
-                @SuppressFBWarnings(value="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE", justification="runner.submit() result")
                 public Void call() throws Exception {
                     Jenkins j = Jenkins.getInstanceOrNull();
                     if (j != null && !j.isQuietingDown() && execution != null && pausedByQuietMode.compareAndSet(true, false)) {
@@ -322,6 +325,18 @@ public final class CpsThreadGroup implements Serializable {
                         }
                         // by doing the pause check inside, we make sure that scheduleRun() returns a
                         // future that waits for any previously scheduled tasks to be completed.
+                        saveProgramIfPossible(true);
+                        f.complete(null);
+                        return null;
+                    }
+                    if (terminating) {
+                        if (execution != null) {
+                            try {
+                                execution.getOwner().getListener().getLogger().println("Pausing (shutting down)");
+                            } catch (IOException x) {
+                                LOGGER.log(Level.WARNING, null, x);
+                            }
+                        }
                         saveProgramIfPossible(true);
                         f.complete(null);
                         return null;
@@ -590,7 +605,7 @@ public final class CpsThreadGroup implements Serializable {
             }
             serializedOK = true;
             Files.move(tmpFile.toPath(), f.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            LOGGER.log(Level.FINE, "program state saved");
+            LOGGER.fine(() -> f + " saved");
         } catch (RuntimeException e) {
             propagateErrorToWorkflow(e);
             throw new IOException("Failed to persist "+f,e);
@@ -649,6 +664,12 @@ public final class CpsThreadGroup implements Serializable {
         } else {
             LOGGER.log(Level.WARNING, "encountered error but could not pass it to the flow", t);
         }
+    }
+
+    Future<?> terminating() {
+        LOGGER.fine(() -> "terminating " + execution);
+        terminating = true;
+        return scheduleRun();
     }
 
     void shutdown() {

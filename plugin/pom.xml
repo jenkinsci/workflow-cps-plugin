@@ -41,11 +41,15 @@
         </license>
     </licenses>
     <properties>
-        <!-- TODO until in parent -->
-        <jenkins-test-harness.version>2403.v256947ecb_c8a_</jenkins-test-harness.version>
         <no-test-jar>false</no-test-jar>
-        <node.version>18.15.0</node.version>
-        <yarn.version>1.22.19</yarn.version>
+        <node.version>22.14.0</node.version>
+
+        <!-- Opt in to Jenkins handling eslint results -->
+        <maven.test.failure.ignore>false</maven.test.failure.ignore>
+        <frontend.testFailureIgnore>${maven.test.failure.ignore}</frontend.testFailureIgnore>
+        <useBeta>true</useBeta> <!-- FailureHandler -->
+        <hpi.bundledArtifacts>diff4j,groovy-cps</hpi.bundledArtifacts>
+        <hpi.strictBundledArtifacts>true</hpi.strictBundledArtifacts>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -55,17 +59,6 @@
                 <version>4051.v78dce3ce8b_d6</version>
                 <scope>import</scope>
                 <type>pom</type>
-            </dependency>
-            <!-- TODO until in BOM -->
-            <dependency>
-                <groupId>org.jenkins-ci.plugins</groupId>
-                <artifactId>support-core</artifactId>
-                <version>1575.v49b_01a_460e3b_</version>
-            </dependency>
-            <dependency>
-                <groupId>org.jenkins-ci.plugins.workflow</groupId>
-                <artifactId>workflow-api</artifactId>
-                <version>1366.vf1fb_e1a_f6b_22</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -239,7 +232,7 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.20.6</version>
+            <version>1.21.3</version>
             <scope>test</scope>
             <exclusions>
                 <!-- Provided by Jenkins core -->
@@ -263,6 +256,11 @@
         <dependency>
             <groupId>io.jenkins.configuration-as-code</groupId>
             <artifactId>test-harness</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jenkins.plugins</groupId>
+            <artifactId>commons-lang3-api</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -26,7 +26,11 @@ import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.steps.StepExecutions;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -271,6 +275,37 @@ public class CpsBodyExecutionTest {
             new DepthFirstScanner().allNodes(b.getExecution()).stream().sorted(Comparator.comparing(n -> Integer.valueOf(n.getId()))).forEach(n -> System.out.println(n.getId() + " " + n.getDisplayName()));
             r.assertLogContains(Messages.LoggingInvoker_field_set("WorkflowScript", "g", "CpsClosure2"), b);
         });
+    }
+
+    @Test public void failureWithNoContextVars() throws Throwable {
+        rr.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("noOpBlock { throw new Exception('oops') }", true));
+            var b = r.buildAndAssertStatus(Result.FAILURE, p);
+            r.assertLogNotContains("java.lang.NullPointerException: Cannot invoke \"org.jenkinsci.plugins.workflow.cps.ContextVariableSet.get", b);
+        });
+    }
+
+    public static class NoOpBlockStep extends Step {
+        @DataBoundConstructor
+        public NoOpBlockStep() {}
+        @Override
+        public StepExecution start(StepContext context) throws Exception {
+            return StepExecutions.block(context, (ctx, inv) -> {});
+        }
+        @TestExtension("failureWithNoContextVars") public static class DescriptorImpl extends StepDescriptor {
+            @Override public String getFunctionName() {
+                return "noOpBlock";
+            }
+            @Override
+            public boolean takesImplicitBlockArgument() {
+                return true;
+            }
+            @Override
+            public Set<? extends Class<?>> getRequiredContext() {
+                return Set.of();
+            }
+        }
     }
 
 }

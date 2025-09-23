@@ -25,7 +25,6 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
@@ -44,7 +43,6 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.util.SystemProperties;
-import org.apache.commons.lang.StringUtils;
 
 /**
  * Determines what Groovy source files can be loaded in Pipelines.
@@ -61,7 +59,6 @@ import org.apache.commons.lang.StringUtils;
 public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
     private static final Logger LOGGER = Logger.getLogger(GroovySourceFileAllowlist.class.getName());
     private static final String DISABLED_PROPERTY = GroovySourceFileAllowlist.class.getName() + ".DISABLED";
-    @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "Non-final for script console access")
     static boolean DISABLED = SystemProperties.getBoolean(DISABLED_PROPERTY);
 
     /**
@@ -177,8 +174,8 @@ public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
             // We load custom entries first to improve performance in case .groovy is used for the property.
             String propertyValue = SystemProperties.getString(ALLOWED_SOURCE_FILES_PROPERTY, "");
             for (String groovyFile : propertyValue.split(",")) {
-                groovyFile = StringUtils.trimToNull(groovyFile);
-                if (groovyFile != null) {
+                groovyFile = groovyFile.trim();
+                if (!groovyFile.isEmpty()) {
                     if (groovyFile.endsWith(".groovy")) {
                         ALLOWED_SOURCE_FILES.add(groovyFile);
                         LOGGER.log(Level.INFO, "Allowing Pipelines to access {0}", groovyFile);

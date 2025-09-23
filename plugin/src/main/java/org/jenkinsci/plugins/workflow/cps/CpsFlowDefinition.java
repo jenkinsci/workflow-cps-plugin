@@ -40,7 +40,6 @@ import hudson.util.FormValidation;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
-import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.flow.DurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
@@ -55,6 +54,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 
 import net.sf.json.JSON;
 import net.sf.json.JSONArray;
@@ -150,7 +150,7 @@ public class CpsFlowDefinition extends FlowDefinition {
             CpsFlowDefinition cpsFlowDefinition = (CpsFlowDefinition) super.newInstance(req, formData);
             if (!cpsFlowDefinition.sandbox && formData.get("oldScript") != null) {
                 String oldScript = formData.getString("oldScript");
-                boolean approveIfAdmin = !StringUtils.equals(oldScript, cpsFlowDefinition.script);
+                boolean approveIfAdmin = !Objects.equals(oldScript, cpsFlowDefinition.script);
                 if (approveIfAdmin) {
                     ScriptApproval.get().configuring(cpsFlowDefinition.script, GroovyLanguage.get(),
                             ApprovalContext.create().withCurrentUser().withItemAsKey(req.findAncestorObject(Item.class)), true);
@@ -168,7 +168,7 @@ public class CpsFlowDefinition extends FlowDefinition {
         public FormValidation doCheckScript(@QueryParameter String value, @QueryParameter String oldScript,
                                             @QueryParameter boolean sandbox) {
             return sandbox ? FormValidation.ok() :
-                    ScriptApproval.get().checking(value, GroovyLanguage.get(), !StringUtils.equals(oldScript, value));
+                    ScriptApproval.get().checking(value, GroovyLanguage.get(), !Objects.equals(oldScript, value));
         }
 
         @RequirePOST
