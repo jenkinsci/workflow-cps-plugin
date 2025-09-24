@@ -1493,8 +1493,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 }
             }
         }
-        Iterator<Class<?>> it = toRemove.iterator();
-        removeClassesFromOtherClassLoaders(it, loader);
+        removeClassesFromOtherClassLoaders(toRemove, loader);
         LOGGER.fine(() -> "cleaning up " + toRemove + " associated with " + loader);
         for (Class<?> klazz : toRemove) {
             loadedClasses.add(klazz);
@@ -1517,8 +1516,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 toRemove.add(clazz);
             }
         }
-        Iterator<Class<?>> it = toRemove.iterator();
-        removeClassesFromOtherClassLoaders(it, loader);
+        removeClassesFromOtherClassLoaders(toRemove, loader);
         LOGGER.fine(() -> "cleaning up " + toRemove + " associated with " + loader);
         Method removeM = classCache.getClass().getMethod("remove", Object.class);
         for (Class<?> klazz : toRemove) {
@@ -1527,17 +1525,15 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    private static void removeClassesFromOtherClassLoaders(Iterator<Class<?>> it, ClassLoader loader) {
-        while (it.hasNext()) {
-            Class<?> klazz = it.next();
+    private static void removeClassesFromOtherClassLoaders(Collection<Class<?>> it, ClassLoader loader) {
+        it.removeIf(klazz -> {
             ClassLoader encounteredLoader = klazz.getClassLoader();
-            if (encounteredLoader != loader) {
-                it.remove();
-                if (LOGGER.isLoggable(Level.FINEST)) {
-                  LOGGER.finest(() -> "ignoring " + klazz + " with loader " + encounteredLoader);
-                }
+            var irrelevant = encounteredLoader != loader;
+            if (irrelevant) {
+                LOGGER.finest(() -> "ignoring " + klazz + " with loader " + encounteredLoader);
             }
-        }
+            return irrelevant;
+        });
     }
 
     synchronized @CheckForNull FlowHead getFirstHead() {
