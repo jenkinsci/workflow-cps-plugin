@@ -134,7 +134,6 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.TreeSet;
@@ -142,6 +141,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -1495,7 +1495,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 }
             }
         }
-        removeClassesFromOtherClassLoaders(toRemove, loader);
+        toRemove.removeIf(isClassFromOtherClassLoader(loader));
         LOGGER.fine(() -> "cleaning up " + toRemove + " associated with " + loader);
         for (Class<?> klazz : toRemove) {
             loadedClasses.add(klazz);
@@ -1518,7 +1518,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 toRemove.add(clazz);
             }
         }
-        removeClassesFromOtherClassLoaders(toRemove, loader);
+        toRemove.removeIf(isClassFromOtherClassLoader(loader));
         LOGGER.fine(() -> "cleaning up " + toRemove + " associated with " + loader);
         Method removeM = classCache.getClass().getMethod("remove", Object.class);
         for (Class<?> klazz : toRemove) {
@@ -1527,15 +1527,15 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    private static void removeClassesFromOtherClassLoaders(Collection<Class<?>> it, ClassLoader loader) {
-        it.removeIf(klazz -> {
+    private static Predicate<Class<?>> isClassFromOtherClassLoader(ClassLoader loader) {
+        return klazz -> {
             ClassLoader encounteredLoader = klazz.getClassLoader();
             var irrelevant = encounteredLoader != loader;
             if (irrelevant) {
                 LOGGER.finest(() -> "ignoring " + klazz + " with loader " + encounteredLoader);
             }
             return irrelevant;
-        });
+        };
     }
 
     synchronized @CheckForNull FlowHead getFirstHead() {
