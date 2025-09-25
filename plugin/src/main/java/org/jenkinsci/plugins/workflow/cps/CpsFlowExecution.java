@@ -82,6 +82,7 @@ import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -133,7 +134,6 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.TreeSet;
@@ -141,6 +141,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -1448,20 +1449,23 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         cleanUpLoader(loader.getParent(), encounteredLoaders, encounteredClasses);
         LOGGER.finer(() -> "found " + loader);
         SerializableClassRegistry.getInstance().release(loader);
-        cleanUpGlobalClassValue(loader);
         GroovyClassLoader gcl = (GroovyClassLoader) loader;
-        for (Class<?> clazz : gcl.getLoadedClasses()) {
+        Set<Class<?>> loadedClasses = new HashSet<>(Arrays.asList((Class<?>[]) gcl.getLoadedClasses()));
+        // GroovyClassLoader.getLoadedClasses() only returns Groovy classes, not Java classes loaded when using `@Grab`
+        cleanUpGlobalClassValue(loader, loadedClasses);
+        cleanUpClassHelperCache(loader, loadedClasses);
+        for (Class<?> clazz : loadedClasses) {
             if (encounteredClasses.add(clazz)) {
                 LOGGER.finer(() -> "found " + clazz.getName());
+                // TODO: Do we also need to do a reverse lookup on the Introspector caches in case they have unique entries?
                 Introspector.flushFromCaches(clazz);
-                cleanUpClassHelperCache(clazz);
                 cleanUpLoader(clazz.getClassLoader(), encounteredLoaders, encounteredClasses);
             }
         }
         gcl.clearCache();
     }
 
-    private static void cleanUpGlobalClassValue(@NonNull ClassLoader loader) throws Exception {
+    private static void cleanUpGlobalClassValue(@NonNull ClassLoader loader, Set<Class<?>> loadedClasses) throws Exception {
         Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
         // TODO switch to MethodHandle for speed
         Field globalClassValueF = classInfoC.getDeclaredField("globalClassValue");
@@ -1491,31 +1495,47 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 }
             }
         }
-        Iterator<Class<?>> it = toRemove.iterator();
-        while (it.hasNext()) {
-            Class<?> klazz = it.next();
-            ClassLoader encounteredLoader = klazz.getClassLoader();
-            if (encounteredLoader != loader) {
-                it.remove();
-                if (LOGGER.isLoggable(Level.FINEST)) {
-                  LOGGER.finest(() -> "ignoring " + klazz + " with loader " + encounteredLoader);
-                }
-            }
-        }
+        toRemove.removeIf(isClassFromOtherClassLoader(loader));
         LOGGER.fine(() -> "cleaning up " + toRemove + " associated with " + loader);
         for (Class<?> klazz : toRemove) {
+            loadedClasses.add(klazz);
             removeM.invoke(map, klazz);
         }
     }
 
-    private static void cleanUpClassHelperCache(@NonNull Class<?> clazz) throws Exception {
+    private static void cleanUpClassHelperCache(@NonNull ClassLoader loader, Set<Class<?>> loadedClasses) throws Exception {
         Field classCacheF = Class.forName("org.codehaus.groovy.ast.ClassHelper$ClassHelperCache").getDeclaredField("classCache");
         classCacheF.setAccessible(true);
         Object classCache = classCacheF.get(null);
-        if (LOGGER.isLoggable(Level.FINER)) {
-            LOGGER.log(Level.FINER, "cleaning up {0} from ClassHelperCache? {1}", new Object[] {clazz.getName(), classCache.getClass().getMethod("get", Object.class).invoke(classCache, clazz) != null});
+        Class<?> classCacheC = classCache.getClass();
+        Collection entries = (Collection) classCacheC.getMethod("values").invoke(classCache);
+        Class<?> managedRefC = Class.forName("org.codehaus.groovy.util.ManagedReference");
+        var getRefM = managedRefC.getMethod("get");
+        List<Class<?>> toRemove = new ArrayList<>(); // not sure if it is safe against ConcurrentModificationException or not
+        for (Object entry : entries) {
+            Class<?> clazz = (Class<?>) getRefM.invoke(entry);
+            if (clazz != null) {
+                toRemove.add(clazz);
+            }
         }
-        classCache.getClass().getMethod("remove", Object.class).invoke(classCache, clazz);
+        toRemove.removeIf(isClassFromOtherClassLoader(loader));
+        LOGGER.fine(() -> "cleaning up " + toRemove + " associated with " + loader);
+        Method removeM = classCache.getClass().getMethod("remove", Object.class);
+        for (Class<?> klazz : toRemove) {
+            loadedClasses.add(klazz);
+            removeM.invoke(classCache, klazz);
+        }
+    }
+
+    private static Predicate<Class<?>> isClassFromOtherClassLoader(ClassLoader loader) {
+        return klazz -> {
+            ClassLoader encounteredLoader = klazz.getClassLoader();
+            var irrelevant = encounteredLoader != loader;
+            if (irrelevant) {
+                LOGGER.finest(() -> "ignoring " + klazz + " with loader " + encounteredLoader);
+            }
+            return irrelevant;
+        };
     }
 
     synchronized @CheckForNull FlowHead getFirstHead() {
