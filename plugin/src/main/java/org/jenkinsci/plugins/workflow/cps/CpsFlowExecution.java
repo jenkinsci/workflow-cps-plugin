@@ -1398,6 +1398,14 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
         this.optimizeStorage(head);
 
+        try {
+            if (owner != null) {
+                owner.getListener().getLogger().close();
+            }
+        } catch (Exception x) {
+            LOGGER.log(Level.FINE, "Closing Pipeline logger after program end", x);
+        }
+
         this.persistedClean = Boolean.TRUE;
     }
 
