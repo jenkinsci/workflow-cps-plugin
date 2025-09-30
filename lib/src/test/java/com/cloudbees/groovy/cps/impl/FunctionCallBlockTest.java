@@ -45,22 +45,23 @@ public class FunctionCallBlockTest extends AbstractGroovyCpsTest {
 
     @Test
     public void stackTraceFixup() throws Throwable {
-        List<StackTraceElement> elements = List.of((StackTraceElement[]) evalCPSonly("\n" + "\n"
-                + "def x() {\n"
-                + "  y()\n"
-                + // line 4
-                "}\n"
-                + "\n"
-                + "def y() {\n"
-                + "  FunctionCallBlockTest.someSyncCode(3)\n"
-                + // line 8
-                "}\n"
-                + "try {\n"
-                + "  x()\n"
-                + // line 11
-                "} catch (Exception e) {\n"
-                + "  return e.stackTrace\n"
-                + "}\n"));
+        List<StackTraceElement> elements = List.of(
+                (StackTraceElement[])
+                        evalCPSonly(
+                                """
+                                def x() {
+                                  y()
+                                }
+
+                                def y() {
+                                  FunctionCallBlockTest.someSyncCode(3)
+                                }
+                                try {
+                                  x()
+                                } catch (Exception e) {
+                                  return e.stackTrace
+                                }
+                                """));
 
         List<String> traces = elements.stream().map(Object::toString).collect(Collectors.toList());
 
@@ -68,9 +69,9 @@ public class FunctionCallBlockTest extends AbstractGroovyCpsTest {
         assertThat(
                 traces,
                 hasItems(
-                        containsString("Script1.y(Script1.groovy:8)"),
-                        containsString("Script1.x(Script1.groovy:4)"),
-                        containsString("Script1.run(Script1.groovy:11)"),
+                        containsString("Script1.y(Script1.groovy:6)"),
+                        containsString("Script1.x(Script1.groovy:2)"),
+                        containsString("Script1.run(Script1.groovy:9)"),
                         containsString("___cps.transform___(Native Method)"),
                         containsString("com.cloudbees.groovy.cps.impl.ContinuationGroup.methodCall")));
 

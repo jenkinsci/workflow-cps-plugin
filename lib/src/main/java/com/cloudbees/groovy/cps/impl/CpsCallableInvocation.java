@@ -26,11 +26,10 @@ import java.util.Map;
  * {@linkplain #arguments actual arguments to the function}.
  *
  * When we invoke CPS-transformed closure or function, this throwable gets thrown.
- *
+ * (Not really an error but we want something that doesn't change signature.)
  * @author Kohsuke Kawaguchi
  */
-public class CpsCallableInvocation
-        extends Error /*not really an error but we want something that doesn't change signature*/ {
+public class CpsCallableInvocation extends Error {
     public final String methodName;
     public final CpsCallable call;
     public final Object receiver;

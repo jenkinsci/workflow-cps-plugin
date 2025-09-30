@@ -230,7 +230,7 @@ public class SnippetizerTest {
             throw new UnsupportedOperationException();
         }
 
-        @TestExtension /* cannot specify test name when using ClassRule */
+        @TestExtension // cannot specify test name when using ClassRule
         public static final class DescriptorImpl extends StepDescriptor {
             @Override
             public String getFunctionName() {

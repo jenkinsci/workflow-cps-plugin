@@ -77,8 +77,8 @@ public class FunctionCallBlock extends CallSiteBlockSupport {
         }
 
         public Next fixName(Object name) {
-            this.name =
-                    name.toString(); // TODO: verify the semantics if the value resolves to something other than String
+            // TODO: verify the semantics if the value resolves to something other than String
+            this.name = name.toString();
             return dispatchOrArg();
         }
 

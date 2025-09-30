@@ -118,8 +118,8 @@ public class ArgumentsActionImplTest {
         Field nodeExecutionF = FlowNode.class.getDeclaredField("exec");
         nodeExecutionF.setAccessible(true);
 
-        // Read each node via deserialization from storage, and sanity check the node, the actions, and the
-        // ArgumentsAction read back right
+        // Read each node via deserialization from storage,
+        // and sanity check the node, the actions, and the ArgumentsAction read back right
         for (FlowNode f : nodes) {
             XmlFile file = (XmlFile) (getFileM.invoke(storage, f.getId()));
             Object tagObj = file.read();
@@ -724,10 +724,11 @@ public class ArgumentsActionImplTest {
     public void testReallyUnusualStepInstantiations() throws Exception {
         WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
-                " node() {\n" + "   writeFile text: 'hello world', file: 'msg.out'\n"
-                        + "   step(new hudson.tasks.ArtifactArchiver('msg.out'))\n"
-                        + // note, not whitelisted
-                        "}",
+                """
+                node() {
+                   writeFile text: 'hello world', file: 'msg.out'
+                   step(new hudson.tasks.ArtifactArchiver('msg.out')) // note, not whitelisted
+                }""",
                 false));
         WorkflowRun run = r.buildAndAssertSuccess(job);
         LinearScanner scan = new LinearScanner();
@@ -759,8 +760,8 @@ public class ArgumentsActionImplTest {
                         + "nop(TimeUnit.MINUTES)\n"
                         + "nop(ChronoUnit.MINUTES)\n",
                 true));
-        ScriptApproval.get()
-                .approveSignature("staticField java.time.temporal.ChronoUnit MINUTES"); // TODO add to generic-whitelist
+        // TODO add to generic-whitelist
+        ScriptApproval.get().approveSignature("staticField java.time.temporal.ChronoUnit MINUTES");
         WorkflowRun run = r.buildAndAssertSuccess(p);
         List<FlowNode> nodes =
                 new DepthFirstScanner().filteredNodes(run.getExecution(), new NodeStepTypePredicate("nop"));

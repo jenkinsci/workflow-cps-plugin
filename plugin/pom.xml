@@ -46,8 +46,8 @@
     <!-- Opt in to Jenkins handling eslint results -->
     <maven.test.failure.ignore>false</maven.test.failure.ignore>
     <frontend.testFailureIgnore>${maven.test.failure.ignore}</frontend.testFailureIgnore>
-    <useBeta>true</useBeta>
     <!-- FailureHandler -->
+    <useBeta>true</useBeta>
     <hpi.bundledArtifacts>diff4j,groovy-cps</hpi.bundledArtifacts>
     <hpi.strictBundledArtifacts>true</hpi.strictBundledArtifacts>
   </properties>

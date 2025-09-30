@@ -215,8 +215,8 @@ public class ParallelStepTest extends SingleJobTestBase {
                 SemaphoreStep.failure("b/1", new AbortException("normal failure"));
                 story.j.assertBuildStatus(Result.FAILURE, story.j.waitForCompletion(b1));
                 story.j.assertLogContains("Failed in branch b", b1);
-                // Apparently !b1.isBuilding() before WorkflowRun.finish has printed the stack trace, so need to wait
-                // for StreamBuildListener.finished:
+                // Apparently !b1.isBuilding() before WorkflowRun.finish has printed the stack trace,
+                // so need to wait for StreamBuildListener.finished:
                 story.j.waitForMessage("Finished: FAILURE", b1);
                 story.j.assertLogContains("normal failure", b1);
                 story.j.assertLogNotContains("AbortException", b1);

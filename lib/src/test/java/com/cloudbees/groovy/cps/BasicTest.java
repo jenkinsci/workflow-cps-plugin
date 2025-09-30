@@ -134,13 +134,11 @@ public class BasicTest {
         }
 
         //  z=5; new Op().add(1,2)+z   => 8
+        // part of the test is to ensure this 'z' is separated from 'z' in the add function
         assertEquals(
                 3,
                 run(
-                        b.setLocalVariable(
-                                0, "z",
-                                b.zero()), // part of the test is to ensure this 'z' is separated from 'z' in the
-                        // add function
+                        b.setLocalVariable(0, "z", b.zero()),
                         b.plus(0, b.functionCall(0, b.constant(new Op()), "add", b.one(), b.two()), $z)));
     }
 
@@ -234,13 +232,11 @@ public class BasicTest {
                return e.message + x;
            }
         */
+        // part of the test is to ensure this 'z' is separated from 'z' in the add function
         assertEquals(
                 "hello1",
                 run(
-                        b.setLocalVariable(
-                                0, "x",
-                                b.zero()), // part of the test is to ensure this 'z' is separated from 'z' in the
-                        // add function
+                        b.setLocalVariable(0, "x", b.zero()),
                         b.tryCatch(
                                 b.block(
                                         b.setLocalVariable(0, "x", b.one()),

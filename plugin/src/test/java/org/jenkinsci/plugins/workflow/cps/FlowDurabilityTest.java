@@ -295,8 +295,8 @@ public class FlowDurabilityTest {
         Assert.assertEquals(1, heads.size());
         FlowNode node = heads.get(0);
         String name = node.getDisplayFunctionName();
-        // TODO https://github.com/jenkinsci/workflow-cps-plugin/pull/570#issuecomment-1192679404 Head node not a
-        // semaphore step or sleep: {
+        // TODO https://github.com/jenkinsci/workflow-cps-plugin/pull/570#issuecomment-1192679404
+        // Head node not a semaphore step or sleep: {
         Assume.assumeTrue(
                 "Head node not a semaphore step or sleep: " + name, "semaphore".equals(name) || "sleep".equals(name));
         if (!isSemaphore) {
@@ -364,8 +364,8 @@ public class FlowDurabilityTest {
 
         Assert.assertEquals(Result.FAILURE, run.getResult());
         assert !run.isBuilding();
-        // TODO verify all blocks cleanly closed out, so Block start and end nodes have same counts and FlowEndNode is
-        // last node
+        // TODO verify all blocks cleanly closed out, so Block start and end nodes have same counts
+        // and FlowEndNode is last node
         verifyCompletedCleanly(j, run);
     }
 
@@ -644,9 +644,10 @@ public class FlowDurabilityTest {
                         .getItemByFullName("durableAgainstClean", WorkflowJob.class)
                         .getLastBuild();
                 if (run == null) {
+                    // there is a small chance due to non atomic write that build.xml will be empty
+                    // and the run won't load at all
                     return;
-                } // there is a small chance due to non atomic write that build.xml will be empty and the run won't load
-                // at all
+                }
                 verifyFailedCleanly(story.j.jenkins, run);
                 story.j.assertLogContains(logStart[0], run);
             }
@@ -686,9 +687,10 @@ public class FlowDurabilityTest {
                         .getItemByFullName("durableAgainstClean", WorkflowJob.class)
                         .getLastBuild();
                 if (run == null) {
+                    // there is a small chance due to non atomic write that build.xml will be empty
+                    // and the run won't load at all
                     return;
-                } // there is a small chance due to non atomic write that build.xml will be empty and the run won't load
-                // at all
+                }
                 verifyFailedCleanly(story.j.jenkins, run);
                 story.j.assertLogContains(logStart[0], run);
             }
@@ -917,6 +919,8 @@ public class FlowDurabilityTest {
         if (job == null) { // Job may already have been created
             job = jenkins.createProject(WorkflowJob.class, jobName);
             job.addProperty(new DurabilityHintJobProperty(hint));
+            // First we need to build the job to get an appropriate estimate for how long we need to wait
+            // before hard-restarting Jenkins in order to catch it in the middle
             job.setDefinition(new CpsFlowDefinition(
                     "echo 'first'\n" + "def steps = [:]\n"
                             + "steps['1'] = {\n"
@@ -940,14 +944,12 @@ public class FlowDurabilityTest {
                     false));
         }
 
-        // First we need to build the job to get an appropriate estimate for how long we need to wait before
-        // hard-restarting Jenkins in order to catch it in the middle
         story.j.buildAndAssertSuccess(job);
         long millisDuration = job.getLastBuild().getDuration();
         System.out.println("Test fuzzer job in  completed in " + millisDuration + " ms");
 
-        // Now we run the job again and wait an appropriate amount of time -- but we return the job so tests can grab
-        // info before restarting.
+        // Now we run the job again and wait an appropriate amount of time,
+        // but we return the job so tests can grab info before restarting.
         int time = new Random().nextInt((int) millisDuration);
         System.out.println("Starting fuzzer job and waiting " + time + " ms before restarting.");
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();

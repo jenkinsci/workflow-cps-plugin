@@ -89,8 +89,8 @@ class CpsWhitelist extends AbstractWhitelist {
     public boolean permitsStaticMethod(Method method, Object[] args) {
         Class<?> c = method.getDeclaringClass();
         String n = method.getName();
-        // type coercive cast. In particular, this is used to build GString. See
-        // com.cloudbees.groovy.cps.Builder.gstring
+        // type coercive cast. In particular, this is used to build GString.
+        // See com.cloudbees.groovy.cps.Builder.gstring
         if (c == ScriptBytecodeAdapter.class && n.equals("asType")) {
             Object object = args[0];
             Class<?> type = (Class<?>) args[1];

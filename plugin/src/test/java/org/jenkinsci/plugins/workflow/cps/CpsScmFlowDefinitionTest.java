@@ -106,8 +106,8 @@ public class CpsScmFlowDefinitionTest {
         def.setLightweight(false); // currently the default, but just to be clear that we do rely on that in this test
         p.setDefinition(def);
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
-        // TODO currently the log text is in Run.log, but not on FlowStartNode/LogAction, so not visible from Workflow
-        // Steps etc.
+        // TODO currently the log text is in Run.log, but not on FlowStartNode/LogAction,
+        // so not visible from Workflow Steps etc.
         r.assertLogContains("hello from SCM", b);
         r.assertLogContains("Staging flow.groovy", b);
         r.assertLogNotContains("Retrying after 10 seconds", b);
@@ -323,9 +323,9 @@ public class CpsScmFlowDefinitionTest {
     @Issue("SECURITY-2595")
     @Test
     public void scriptPathSymlinksCannotEscapeCheckoutDirectory() throws Exception {
-        assumeFalse(Functions.isWindows()); // On Windows, the symlink is treated as a regular file, so there is no
-        // vulnerability,
-        // but the error message is different.
+        // On Windows, the symlink is treated as a regular file,
+        // so there is no vulnerability, but the error message is different.
+        assumeFalse(Functions.isWindows());
         sampleRepo.init();
         Path secrets = Paths.get(sampleRepo.getRoot().getPath(), "Jenkinsfile");
         Files.createSymbolicLink(secrets, Paths.get(r.jenkins.getRootDir() + "/secrets/master.key"));

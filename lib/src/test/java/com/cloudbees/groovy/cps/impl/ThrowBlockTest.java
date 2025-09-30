@@ -20,29 +20,28 @@ import org.junit.Test;
 public class ThrowBlockTest extends AbstractGroovyCpsTest {
     @Test
     public void stackTraceFixup() throws Throwable {
-        List<StackTraceElement> elements = List.of((StackTraceElement[]) evalCPSonly("\n" + "\n"
-                + "def x() {\n"
-                + "  y();\n"
-                + // line 4
-                "}\n"
-                + "\n"
-                + "def y() {\n"
-                + "  throw new javax.naming.NamingException();\n"
-                + // line 8
-                "}\n"
-                + "try {\n"
-                + "  x();\n"
-                + // line 11
-                "} catch (Exception e) {\n"
-                + "  return e.stackTrace;\n"
-                + "}\n"));
+        List<StackTraceElement> elements = List.of(
+                (StackTraceElement[])
+                        evalCPSonly(
+                                """
+                    def x() {
+                      y();
+                    }
+
+                    def y() {
+                      throw new javax.naming.NamingException();
+                    }
+                    try {
+                      x();
+                    } catch (Exception e) {
+                      return e.stackTrace;
+                    }
+                    """));
 
         assertThat(
                 elements.subList(0, 3).stream().map(Object::toString).collect(Collectors.toList()),
                 hasItems(
-                        "Script1.y(Script1.groovy:8)",
-                        "Script1.x(Script1.groovy:4)",
-                        "Script1.run(Script1.groovy:11)"));
+                        "Script1.y(Script1.groovy:6)", "Script1.x(Script1.groovy:2)", "Script1.run(Script1.groovy:9)"));
 
         assertThat(elements.get(3), equalTo(Continuable.SEPARATOR_STACK_ELEMENT));
 

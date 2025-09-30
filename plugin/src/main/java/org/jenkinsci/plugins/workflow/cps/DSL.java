@@ -271,8 +271,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         // Ensure ArgumentsAction is attached before we notify even synchronous listeners:
         ArgumentsActionImpl argumentsAction = null;
         try {
-            // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure
-            // arguments
+            // No point storing empty arguments,
+            // and ParallelStep is a special case where we can't store its closure arguments
             if (ps.namedArgs != null
                     && !(ps.namedArgs.isEmpty())
                     && isKeepStepArguments()
@@ -404,9 +404,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             return;
         }
 
-        final EnvVars nonNullEnvVars =
-                envVars; // Workaround for NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE false positive in
-        // lambdas: https://github.com/spotbugs/spotbugs/issues/552.
+        // Workaround for NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE false positive in lambdas:
+        // https://github.com/spotbugs/spotbugs/issues/552
+        final EnvVars nonNullEnvVars = envVars;
         List<String> scanResults = sensitiveVariables.stream()
                 .filter(e -> !nonNullEnvVars.get(e, "").isEmpty()
                         && interpolatedStrings.stream().anyMatch(g -> g.contains(nonNullEnvVars.get(e))))
@@ -488,8 +488,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // where this UninstantiatedDescribable is ultimately used, the symbol
             // might be resolved with a specific type.
 
-            // Note: Declarative relies on an instance of UninstantiatedDescribable being returned here in some cases
-            // where there is no Pipeline step involved, e.g. for the `triggers` directive.
+            // Note: Declarative relies on an instance of UninstantiatedDescribable being returned here
+            // in some cases where there is no Pipeline step involved, e.g. for the `triggers` directive.
             return new UninstantiatedDescribableWithInterpolation(
                     symbol, null, args.namedArgs, args.interpolatedStrings);
         } else {
@@ -729,9 +729,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             return new NamedArgsAndClosure(Collections.<String, Object>emptyMap(), (Closure) arg, interpolatedStrings);
         }
 
-        if (arg
-                instanceof
-                Object[]) { // this is how Groovy appears to pack argument list into one Object for invokeMethod
+        // this is how Groovy appears to pack argument list into one Object for invokeMethod
+        if (arg instanceof Object[]) {
             List a = Arrays.asList((Object[]) arg);
             if (a.size() == 0) {
                 return new NamedArgsAndClosure(Collections.<String, Object>emptyMap(), null, interpolatedStrings);
@@ -821,8 +820,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // we want to do this first before starting body so that the order of heads preserve
             // natural ordering.
 
-            // TODO give this javadocs worth a darn, because this is how we create parallel branches and the docs are
-            // cryptic as can be!
+            // TODO give this javadocs worth a darn,
+            // because this is how we create parallel branches and the docs are cryptic as can be!
             // Also we need to double-check this logic because this might cause a failure of persistence
             return context.withBodyInvokers(bodyInvokers -> {
                 FlowHead[] heads = new FlowHead[bodyInvokers.size()];

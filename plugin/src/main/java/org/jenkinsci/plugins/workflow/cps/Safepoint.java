@@ -11,8 +11,8 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
  *
  * @author Kohsuke Kawaguchi
  */
-// classes compiled from Pipeline Script refers to this class, so it needs to be public, but not meant for external
-// consumption
+// classes compiled from Pipeline Script refers to this class, so it needs to be public,
+// but not meant for external consumption
 @Restricted(NoExternalUse.class)
 public class Safepoint extends ThreadTask {
     /**

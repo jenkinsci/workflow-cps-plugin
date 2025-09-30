@@ -233,8 +233,8 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                     .collect(Collectors.toList());
         }
 
-        // TODO doCheckLightweight impossible to write even though we have SCMFileSystem.supports(SCM), because form
-        // validation cannot pass the SCM object
+        // TODO doCheckLightweight impossible to write even though we have SCMFileSystem.supports(SCM),
+        // because form validation cannot pass the SCM object
 
     }
 }

@@ -133,14 +133,14 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             return true;
         }
         if (ob instanceof Enum) {
-            // We use getDeclaringClass instead of getClass to handle enums with value-specific class bodies like
-            // TimeUnit.
+            // We use getDeclaringClass instead of getClass
+            // to handle enums with value-specific class bodies like TimeUnit.
             Class enumClass = ((Enum) ob).getDeclaringClass();
             return !(enumClass.getClassLoader() instanceof GroovyClassLoader);
         }
         Class c = ob.getClass();
-        return c.isPrimitive()
-                || (c.isArray() && !(c.getComponentType().isPrimitive())); // Primitive arrays are not legal here
+        // Primitive arrays are not legal here
+        return c.isPrimitive() || (c.isArray() && !(c.getComponentType().isPrimitive()));
     }
 
     /**
@@ -169,8 +169,9 @@ public class ArgumentsActionImpl extends ArgumentsAction {
                 // Sanitization stripped out some values, so we need to store the mutated object
                 output.add(modded);
                 isMutated = true; // isUnmodifiedBySanitization was already set
-            } else { // Any mutation was just from exploding step/uninstantiated describable, and we can just use the
-                // original
+            } else {
+                // Any mutation was just from exploding step/uninstantiated describable,
+                // and we can just use the original
                 output.add(o);
             }
         }
@@ -215,13 +216,13 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             tempVal = ((Step) tempVal).getDescriptor().defineArguments((Step) tempVal);
         } else if (tempVal instanceof UninstantiatedDescribable) {
             tempVal = ((UninstantiatedDescribable) tempVal).toMap();
-        } else if (tempVal
-                instanceof Describable) { // Raw Describables may not be safe to store, so we should explode it
+        } else if (tempVal instanceof Describable) {
+            // Raw Describables may not be safe to store, so we should explode it
             try {
                 m = DescribableModel.of(tempVal.getClass());
                 tempVal = m.uninstantiate2(o).toMap();
-            } catch (RuntimeException x) { // usually NoStaplerConstructorException, but could also be misc.
-                // UnsupportedOperationException
+            } catch (RuntimeException x) {
+                // usually NoStaplerConstructorException, but could also be misc. UnsupportedOperationException
                 LOGGER.log(Level.FINE, "failed to store " + tempVal, x);
                 this.isUnmodifiedBySanitization = false;
                 return NotStoredReason.UNSERIALIZABLE;
@@ -266,11 +267,9 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         if (modded != tempVal) {
             // Sanitization stripped out some values, so we need to record that and return modified version
             this.isUnmodifiedBySanitization = false;
-            if (o instanceof Describable
-                    && !(o
-                            instanceof
-                            Step)) { // Return an UninstantiatedDescribable for the input Describable with masking
-                // applied to arguments
+            if (o instanceof Describable && !(o instanceof Step)) {
+                // Return an UninstantiatedDescribable for the input Describable
+                // with masking applied to arguments
                 // We're skipping steps because for those we want to return the raw arguments anyway...
                 UninstantiatedDescribable rawUd = m.uninstantiate2(o);
                 return new UninstantiatedDescribable(rawUd.getSymbol(), rawUd.getKlass(), (Map<String, ?>) modded);
@@ -281,14 +280,12 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             } else {
                 return modded;
             }
-        } else if (o instanceof Describable
-                && tempVal
-                        instanceof Map) { // Handle oddball cases where Describable is passed in directly and we need to
-            // uninstantiate.
+        } else if (o instanceof Describable && tempVal instanceof Map) {
+            // Handle oddball cases where Describable is passed in directly and we need to uninstantiate.
             UninstantiatedDescribable rawUd = m.uninstantiate2(o);
             return rawUd;
-        } else { // Any mutation was just from exploding step/uninstantiated describable, and we can just use the
-            // original
+        } else {
+            // Any mutation was just from exploding step/uninstantiated describable, and we can just use the original
             return o;
         }
     }
@@ -310,8 +307,8 @@ public class ArgumentsActionImpl extends ArgumentsAction {
                         && !(val instanceof NotStoredReason)
                         && !(val instanceof TimeUnit)) {
                     // We only need to check serialization for nontrivial types
-                    Jenkins.XSTREAM2.toXMLUTF8(
-                            entry.getValue(), OutputStream.nullOutputStream()); // Hacky but can't find a better way
+                    // Hacky but can't find a better way
+                    Jenkins.XSTREAM2.toXMLUTF8(entry.getValue(), OutputStream.nullOutputStream());
                 }
                 out.put(entry.getKey(), entry.getValue());
             } catch (Exception ex) {
@@ -364,8 +361,9 @@ public class ArgumentsActionImpl extends ArgumentsAction {
                 // Sanitization stripped out some values, so we need to store the mutated object
                 output.put(param.getKey(), modded);
                 isMutated = true; // isUnmodifiedBySanitization was already set
-            } else { // Any mutation was just from exploding step/uninstantiated describable, and we can just use the
-                // original
+            } else {
+                // Any mutation was just from exploding step/uninstantiated describable,
+                // and we can just use the original
                 output.put(param.getKey(), param.getValue());
             }
         }

@@ -22,7 +22,12 @@ import org.junit.Test;
 public class ContinuableTest extends AbstractGroovyCpsTest {
     @Test
     public void resumeAndSuspend() throws Throwable {
-        Script s = getCsh().parse("int x = 1;\n" + "x = Continuable.suspend(x+1)\n" + "return x+1;\n");
+        Script s = getCsh().parse(
+                        """
+                                  int x = 1;
+                                  x = Continuable.suspend(x+1)
+                                  return x+1;
+                                  """);
 
         Continuable c = new Continuable(s);
         assertTrue(c.isResumable());
@@ -38,22 +43,26 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
 
     @Test
     public void serializeComplexContinuable() throws Throwable {
-        Script s = getCsh().parse("def foo(int x) {\n" + "    return Continuable.suspend(x);\n"
-                + "}\n"
-                + "def plus3(int x) {\n"
-                + "    return x+3;\n"
-                + "}\n"
-                + "try {\n"
-                + "    for (int x=0; x<1; x++) {\n"
-                + "        while (true) {\n"
-                + "            y = plus3(foo(5))\n"
-                + "            break;\n"
-                + "        }\n"
-                + "    }\n"
-                + "} catch (ClassCastException e) {\n"
-                + "    y = e;\n"
-                + "}\n"
-                + "return y;\n");
+        Script s = getCsh().parse(
+                        """
+                                  def foo(int x) {
+                                      return Continuable.suspend(x);
+                                  }
+                                  def plus3(int x) {
+                                      return x+3;
+                                  }
+                                  try {
+                                      for (int x=0; x<1; x++) {
+                                          while (true) {
+                                              y = plus3(foo(5))
+                                              break;
+                                          }
+                                      }
+                                  } catch (ClassCastException e) {
+                                      y = e;
+                                  }
+                                  return y;
+                                  """);
 
         Continuable c = new Continuable(s);
         assertEquals("suspension within a subroutine", 5, c.run(null));
@@ -67,7 +76,11 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
 
     @Test
     public void howComeBindingIsSerializable() throws Throwable {
-        Script s = getCsh().parse("Continuable.suspend(42);\n" + "return value;\n");
+        Script s = getCsh().parse(
+                        """
+                                  Continuable.suspend(42);
+                                  return value;
+                                  """);
         s.setProperty("value", 15);
         Continuable c = new Continuable(s);
         assertEquals(42, c.run(null));
@@ -130,26 +143,24 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
      */
     @Test
     public void stackTrace() throws Throwable {
-        Script s = getCsh().parse("\n" + "\n"
-                + "def x(i,v) {\n"
-                + "  if (i>0)\n"
-                + "    y(i-1,v);\n"
-                + // line 5
-                "  else\n"
-                + "    Continuable.suspend(v);\n"
-                + // line 7
-                "}\n"
-                + "\n"
-                + "def y(i,v) {\n"
-                + "  if (i>0)\n"
-                + "    x(i-1,v);\n"
-                + // line 12
-                "  else\n"
-                + "    Continuable.suspend(v);\n"
-                + // line 14
-                "}\n"
-                + "\n"
-                + "x(5,3); // line 17\n");
+        Script s = getCsh().parse(
+                        """
+                        def x(i,v) {
+                          if (i>0)
+                            y(i-1,v);
+                          else
+                            Continuable.suspend(v);
+                        }
+
+                        def y(i,v) {
+                          if (i>0)
+                            x(i-1,v);
+                          else
+                            Continuable.suspend(v);
+                        }
+
+                        x(5,3);
+                        """);
 
         Continuable c = new Continuable(s);
 
@@ -162,13 +173,13 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
         assertThat(
                 c.getStackTrace().stream().map(Object::toString).collect(Collectors.toList()),
                 hasItems(
-                        containsString("Script1.y(Script1.groovy:14)"),
-                        containsString("Script1.x(Script1.groovy:5)"),
                         containsString("Script1.y(Script1.groovy:12)"),
-                        containsString("Script1.x(Script1.groovy:5)"),
-                        containsString("Script1.y(Script1.groovy:12)"),
-                        containsString("Script1.x(Script1.groovy:5)"),
-                        containsString("Script1.run(Script1.groovy:17)")));
+                        containsString("Script1.x(Script1.groovy:3)"),
+                        containsString("Script1.y(Script1.groovy:10)"),
+                        containsString("Script1.x(Script1.groovy:3)"),
+                        containsString("Script1.y(Script1.groovy:10)"),
+                        containsString("Script1.x(Script1.groovy:3)"),
+                        containsString("Script1.run(Script1.groovy:15)")));
 
         c.run(null);
 

@@ -25,12 +25,15 @@ public class NotBlockTest extends AbstractGroovyCpsTest {
         FileOutputStream baos = new FileOutputStream("notBlock.dat");
         new ObjectOutputStream(baos).writeObject(c);
         */
-        // We need to define a script class in the current JVM with a serialVersionUID that matches the serialized
-        // class.
-        Script s = getCsh().parse("class Script1 extends SerializableScript {\n"
-                + "  private static final long serialVersionUID = -2376309021360195963\n"
-                + "  public Object run() { throw new RuntimeException('unused') }\n"
-                + "}\n");
+        // We need to define a script class in the current JVM
+        // with a serialVersionUID that matches the serialized class.
+        Script s = getCsh().parse(
+                        """
+                                  class Script1 extends SerializableScript {
+                                    private static final long serialVersionUID = -2376309021360195963
+                                    public Object run() { throw new RuntimeException('unused') }
+                                  }
+                                  """);
         Continuable c;
         try (InputStream is = NotBlockTest.class.getResourceAsStream("notBlock.dat");
                 ObjectInputStream ois = new ObjectInputStreamWithLoader(is, getCsh().getClassLoader())) {

@@ -163,14 +163,11 @@ public class ReplayAction implements Action {
 
         CpsFlowExecution exec = getExecutionLazy();
         if (exec != null) {
-            return exec.isSandbox()
-                    || Jenkins.get()
-                            .hasPermission(
-                                    Jenkins.ADMINISTER); // We have to check for ADMINISTER because un-sandboxed code
-            // can execute arbitrary on-controller code
+            // We have to check for ADMINISTER because un-sandboxed code can execute arbitrary on-controller code
+            return exec.isSandbox() || Jenkins.get().hasPermission(Jenkins.ADMINISTER);
         } else {
-            // If the execution hasn't been lazy-loaded then we will wait to do deeper checks until someone tries to
-            // lazy load
+            // If the execution hasn't been lazy-loaded
+            // then we will wait to do deeper checks until someone tries to lazy load
             // OR until isReplayableSandboxTest is invoked b/c they actually try to replay the build
             return true;
         }
@@ -224,15 +221,15 @@ public class ReplayAction implements Action {
     @RequirePOST
     public void doRun(StaplerRequest2 req, StaplerResponse2 rsp) throws ServletException, IOException {
         if (!isEnabled() || !(isReplayableSandboxTest())) {
-            throw new AccessDeniedException(
-                    "not allowed to replay"); // AccessDeniedException2 requires us to look up the specific Permission
+            // AccessDeniedException2 requires us to look up the specific Permission
+            throw new AccessDeniedException("not allowed to replay");
         }
         JSONObject form = req.getSubmittedForm();
         // Copy originalLoadedScripts, replacing values with those from the form wherever defined.
         Map<String, String> replacementLoadedScripts = new HashMap<>();
         for (Map.Entry<String, String> entry : getOriginalLoadedScripts().entrySet()) {
-            // optString since you might be replaying a running build, which might have loaded a script after the page
-            // load but before submission.
+            // optString since you might be replaying a running build,
+            // which might have loaded a script after the page load but before submission.
             replacementLoadedScripts.put(
                     entry.getKey(), form.optString(entry.getKey().replace('.', '_'), entry.getValue()));
         }
@@ -247,8 +244,8 @@ public class ReplayAction implements Action {
     @RequirePOST
     public void doRebuild(StaplerRequest2 req, StaplerResponse2 rsp) throws ServletException, IOException {
         if (!isRebuildEnabled()) {
-            throw new AccessDeniedException(
-                    "not allowed to replay"); // AccessDeniedException2 requires us to look up the specific Permission
+            // AccessDeniedException2 requires us to look up the specific Permission
+            throw new AccessDeniedException("not allowed to replay");
         }
         if (run(getOriginalScript(), getOriginalLoadedScripts()) == null) {
             throw HttpResponses.error(

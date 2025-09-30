@@ -112,11 +112,9 @@ public class CpsVmExecutorServiceTest {
         p.setDefinition(new CpsFlowDefinition(
                 "class C {@Override String toString() {'never used'}}; def gstring = /embedding ${new C()}/; echo(/oops got $gstring/)",
                 true));
-        WorkflowRun b = r.assertBuildStatus(
-                Result.FAILURE,
-                p.scheduleBuild2(
-                        0)); // JENKINS-27306: No such constructor found: new org.codehaus.groovy.runtime.GStringImpl
-        // java.lang.String java.lang.String[]
+        // JENKINS-27306: No such constructor found: new org.codehaus.groovy.runtime.GStringImpl java.lang.String
+        // java.lang.String[]
+        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogContains(
                 CpsVmExecutorService.mismatchMessage(
                         "org.codehaus.groovy.runtime.ScriptBytecodeAdapter", "asType", "C", "toString"),

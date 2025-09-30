@@ -218,18 +218,15 @@ public class ReplayActionTest {
 
             assertNotNull(run.asFlowExecutionOwner().getOrNull());
             assertTrue(canReplay(run, "admin"));
-            assertFalse(canReplay(
-                    run, "normal")); // Now we know to check if the user can run outside sandbox, and they can't
+            // Now we know to check if the user can run outside sandbox, and they can't
+            assertFalse(canReplay(run, "normal"));
             assertTrue(canReplay(run2, "normal")); // We can still run stuff inside sandbox
             assertTrue(canRebuild(run, "admin"));
         });
     }
 
-    @Initializer(
-            after = InitMilestone.EXTENSIONS_AUGMENTED,
-            before =
-                    InitMilestone
-                            .JOB_LOADED) // same time as Jenkins global config is loaded (e.g., AuthorizationStrategy)
+    // same time as Jenkins global config is loaded (e.g., AuthorizationStrategy)
+    @Initializer(after = InitMilestone.EXTENSIONS_AUGMENTED, before = InitMilestone.JOB_LOADED)
     public static void assertPermissionId() {
         String thePermissionId = "hudson.model.Run.Replay";
         // An AuthorizationStrategy may be loading a permission by name during Jenkins startup.
@@ -338,8 +335,8 @@ public class ReplayActionTest {
                 story.j.assertLogContains("trying edits", b2);
                 story.j.assertLogContains("original first part", b2);
                 story.j.assertLogContains("new second part", b2);
-                // Can take a look at the build.xml and see that we are not duplicating script content once edits are
-                // applied (not yet formally asserted).
+                // Can take a look at the build.xml and see that we are not duplicating script content
+                // once edits are applied (not yet formally asserted).
                 System.out.println(new XmlFile(new File(b2.getRootDir(), "build.xml")).asString());
                 // Diff should reflect both sets of changes.
                 String diff = b2.getAction(ReplayAction.class).getDiff();

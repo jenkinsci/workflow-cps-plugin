@@ -92,8 +92,8 @@ final class LoggingInvoker implements Invoker {
             // Likely synthetic call, as to CpsDefaultGroovyMethods.
             return false;
         }
-        // acc. to `find …/jenkinsci/*/src/main/java -type f -exec egrep -h '^package ' {} \; | sort | uniq` this is
-        // decent
+        // acc. to `find …/jenkinsci/*/src/main/java -type f -exec egrep -h '^package ' {} \; | sort | uniq`
+        // this is decent
         return name.contains("jenkins") || name.contains("hudson") || name.contains("cloudbees");
     }
 

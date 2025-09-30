@@ -137,9 +137,9 @@ final class FlowHead implements Serializable {
             execution.storage.storeNode(v, true);
             assert execution.storage.getNode(v.getId()) != null;
             v.addAction(new TimingAction());
-            CpsFlowExecution.maybeAutoPersistNode(
-                    v); // Persist node before changing head, otherwise Program can have unpersisted nodes and will fail
-            // to deserialize
+            // Persist node before changing head, otherwise Program can have unpersisted nodes
+            // and will fail to deserialize
+            CpsFlowExecution.maybeAutoPersistNode(v);
             // NOTE: we may also need to persist the FlowExecution by persisting its owner (which will be a WorkflowRun)
             // But this will be handled by the WorkflowRun GraphListener momentarily
         } catch (Exception e) {

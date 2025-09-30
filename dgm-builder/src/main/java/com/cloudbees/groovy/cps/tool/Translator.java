@@ -190,10 +190,10 @@ public class Translator {
                 if (translatable.contains(fqcn + "." + e)) {
                     overloadsResolved.put(mangledName(e), e);
                 }
-                // System.err.println("Not translating " + e.getAnnotationMirrors() + " " + e.getModifiers() + " " +
-                // fqcn + "." + e);
-                // TODO else if it is public and has a Closure argument, translate to a form that just throws
-                // UnsupportedOperationException when called in CPS mode
+                // System.err.println("Not translating " + e.getAnnotationMirrors() + " " + e.getModifiers()
+                //                    + " " + fqcn + "." + e);
+                // TODO else if it is public and has a Closure argument,
+                // translate to a form that just throws UnsupportedOperationException when called in CPS mode
                 return null;
             }
         }.visitType(dgm, null);
@@ -364,13 +364,12 @@ public class Translator {
 
                                 if (ms.getKind() == Tree.Kind.MEMBER_SELECT) {
                                     MemberSelectTree mst = (MemberSelectTree) ms;
-                                    // If this is a call to a static method on another class, it may be an
-                                    // already-translated method,
-                                    // in which case, we need to use that translated method, not the original. So check
-                                    // if the expression
-                                    // is an identifier, that it's not the class we're in the process of translating,
-                                    // and if it's one
-                                    // of the other known translated classes.
+                                    // If this is a call to a static method on another class,
+                                    // it may be an already-translated method,
+                                    // in which case, we need to use that translated method, not the original.
+                                    // So check if the expression is an identifier,
+                                    // that it's not the class we're in the process of translating,
+                                    // and if it's one of the other known translated classes.
                                     Element mstExpr = getElement(mst.getExpression());
                                     if (mst.getExpression().getKind() == Tree.Kind.IDENTIFIER
                                             && !mstExpr.toString().equals(fqcn)
@@ -436,15 +435,17 @@ public class Translator {
                                                         .arg(n(e));
                                             } else if (overloadsResolved.containsKey(overloadResolved)) {
                                                 // Private, so delegate to our mangled version.
-                                                // TODO add a String parameter to each internal helper method for the
-                                                // expected methodName to pass to CpsCallableInvocation.<init>
-                                                // (It could be improved to take a parameter for the name under which we
-                                                // expect methodCall to be invoking it.
-                                                // Usually just `each`, but might be
-                                                // `$each__java_util_Iterable__groovy_lang_Closure` for the case that
-                                                // one DGM method is delegating to another.
-                                                // See comment in ContinuationGroup, where we are unable to enforce
-                                                // continuation name mismatches in this case.)
+                                                // TODO add a String parameter to each internal helper method
+                                                // for the expected methodName
+                                                // to pass to CpsCallableInvocation.<init>
+                                                // (It could be improved to take a parameter for the name
+                                                // under which we expect methodCall to be invoking it.
+                                                // Usually just `each`,
+                                                // but might be `$each__java_util_Iterable__groovy_lang_Closure`
+                                                // for the case that one DGM method is delegating to another.
+                                                // See comment in ContinuationGroup,
+                                                // where we are unable to enforce continuation name mismatches
+                                                // in this case.)
                                                 inv = $b.invoke("staticCall")
                                                         .arg(loc(mt))
                                                         .arg($output.dotclass())

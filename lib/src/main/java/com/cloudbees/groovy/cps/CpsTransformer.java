@@ -1385,8 +1385,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void visitArgumentlistExpression(ArgumentListExpression expression) {
-        // This should not be reachable since ArgumentListExpression only shows up in contexts where we already handle
-        // it directly.
+        // This should not be reachable since ArgumentListExpression only shows up
+        // in contexts where we already handle it directly.
         sourceUnit.addError(new SyntaxException(
                 "Unsupported argument list expression for CPS transformation in this context",
                 expression.getLineNumber(),
@@ -1395,8 +1395,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void visitClosureListExpression(ClosureListExpression closureListExpression) {
-        // This should not be reachable since ClosureListExpression only shows up in context where we already handle it
-        // directly.
+        // This should not be reachable since ClosureListExpression only shows up
+        // in contexts where we already handle it directly.
         sourceUnit.addError(new SyntaxException(
                 "Unsupported closure list expression for CPS transformation in this context",
                 closureListExpression.getLineNumber(),

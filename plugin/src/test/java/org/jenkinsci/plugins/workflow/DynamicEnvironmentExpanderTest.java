@@ -131,8 +131,8 @@ public class DynamicEnvironmentExpanderTest {
         private static class ExpanderImpl extends EnvironmentExpander {
             private static final long serialVersionUID = 1;
             // Also works as this$0 from an inner class, but see
-            // http://docs.oracle.com/javase/8/docs/platform/serialization/spec/serial-arch.html#a4539 for why that is
-            // risky:
+            // http://docs.oracle.com/javase/8/docs/platform/serialization/spec/serial-arch.html#a4539
+            // for why that is risky:
             private final Execution execution;
 
             ExpanderImpl(Execution execution) {

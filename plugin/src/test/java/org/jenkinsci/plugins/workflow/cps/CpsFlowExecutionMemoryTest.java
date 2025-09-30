@@ -49,10 +49,8 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.MemoryAssert;
 
-@For(
-        CpsFlowExecution
-                .class) // but kept separate from CpsFlowExecutionTest since it is sensitive to at least a leak from
-// trustedShell()
+// but kept separate from CpsFlowExecutionTest since it is sensitive to at least a leak from trustedShell()
+@For(CpsFlowExecution.class)
 public class CpsFlowExecutionMemoryTest {
 
     @ClassRule
@@ -79,9 +77,8 @@ public class CpsFlowExecutionMemoryTest {
 
     @Test
     public void loaderReleased() throws Exception {
-        Computer.threadPoolForRemoting
-                .submit(() -> {})
-                .get(); // do not let it be initialized inside the CpsVmExecutorService thread group
+        // do not let it be initialized inside the CpsVmExecutorService thread group
+        Computer.threadPoolForRemoting.submit(() -> {}).get();
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         r.jenkins
                 .getWorkspaceFor(p)
@@ -94,11 +91,12 @@ public class CpsFlowExecutionMemoryTest {
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         assertFalse(((CpsFlowExecution) b.getExecution()).getProgramDataFile().exists());
         assertFalse(LOADERS.isEmpty());
-        { // TODO it seems that the call to CpsFlowExecutionMemoryTest.register(Object) on a Script1 parameter creates a
-            // MetaMethodIndex.Entry.cachedStaticMethod.
+        {
+            // TODO it seems that the call to CpsFlowExecutionMemoryTest.register(Object) on a Script1 parameter
+            // creates a MetaMethodIndex.Entry.cachedStaticMethod.
             // In other words any call to a foundational API might leak classes. Why does Groovy need to do this?
-            // Unclear whether this is a problem in a realistic environment; for the moment, suppressing it so the test
-            // can run with no SoftReference.
+            // Unclear whether this is a problem in a realistic environment;
+            // for the moment, suppressing it so the test can run with no SoftReference.
             MetaClass metaClass =
                     ClassInfo.getClassInfo(CpsFlowExecutionMemoryTest.class).getMetaClass();
             Method clearInvocationCaches = metaClass.getClass().getDeclaredMethod("clearInvocationCaches");

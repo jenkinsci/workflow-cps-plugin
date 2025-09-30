@@ -173,13 +173,10 @@ public class CpsBodyExecutionTest {
                     })
                     .get();
             assertThat(semaphores, iterableWithSize(2));
-            Collection<StepExecution> currentExecutions1 =
-                    execs[1].body.getCurrentExecutions(); // A or B, does not matter
-            assertThat(
-                    /* irritatingly, iterableWithSize does not show the collection in its mismatch message */ currentExecutions1
-                            .toString(),
-                    currentExecutions1,
-                    iterableWithSize(1));
+            // A or B, does not matter
+            Collection<StepExecution> currentExecutions1 = execs[1].body.getCurrentExecutions();
+            // irritatingly, iterableWithSize does not show the collection in its mismatch message
+            assertThat(currentExecutions1.toString(), currentExecutions1, iterableWithSize(1));
             Collection<StepExecution> currentExecutions2 = execs[2].body.getCurrentExecutions();
             assertThat(currentExecutions2, iterableWithSize(1));
             assertEquals(
@@ -284,8 +281,8 @@ public class CpsBodyExecutionTest {
                     ((CpsFlowExecution) b.getExecution()).programPromise.get().asXml();
             System.out.print(xml);
             assertThat(xml, not(containsString(s.getWorkspaceFor(p).getRemote())));
-            // TODO: ExecutorStepExecution.PlaceholderTask.Callback is still present in the program, should we do
-            // something about CpsBodyExecution.callbacks?
+            // TODO: ExecutorStepExecution.PlaceholderTask.Callback is still present in the program,
+            // should we do something about CpsBodyExecution.callbacks?
             r.jenkins.removeNode(s);
         });
         rr.then(r -> {

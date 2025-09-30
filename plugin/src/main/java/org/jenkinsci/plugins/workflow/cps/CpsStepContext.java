@@ -263,8 +263,8 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         return threadGroup;
     }
 
-    // As in c16a522, using jenkins.util.Timer for this could deadlock. TODO would like a standard unbounded executor
-    // service.
+    // As in c16a522, using jenkins.util.Timer for this could deadlock.
+    // TODO would like a standard unbounded executor service.
     private static final ExecutorService isReadyExecutorService =
             new ContextResettingExecutorService(Executors.newCachedThreadPool(
                     new NamingThreadFactory(new DaemonThreadFactory(), "CpsStepContext.isReady")));
@@ -435,10 +435,10 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                                             new FlowInterruptedException(Result.FAILURE, new BodyFailed());
                                     cause.initCause(getOutcome().getAbnormal());
                                     try {
-                                        // TODO JENKINS-26148/JENKINS-34637 this is probably wrong: should interrupt the
-                                        // innermost execution
-                                        // (the “next” one could be block-scoped, and we would want to interrupt all
-                                        // parallel heads)
+                                        // TODO JENKINS-26148/JENKINS-34637 this is probably wrong:
+                                        // should interrupt the innermost execution
+                                        // (the “next” one could be block-scoped,
+                                        // and we would want to interrupt all parallel heads)
                                         s.stop(cause);
                                     } catch (Exception e) {
                                         LOGGER.log(
@@ -531,8 +531,12 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
             return getOutcome().replay();
         } catch (Throwable failure) {
             // Cf. CpsBodyExecution.FailureAdapter:
-            if (failure instanceof RuntimeException) throw (RuntimeException) failure;
-            if (failure instanceof Error) throw (Error) failure;
+            if (failure instanceof RuntimeException) {
+                throw (RuntimeException) failure;
+            }
+            if (failure instanceof Error) {
+                throw (Error) failure;
+            }
             // Any GroovyRuntimeException is treated magically by ScriptBytecodeAdapter.unwrap (from PogoMetaClassSite):
             throw new InvokerInvocationException(failure);
         }
@@ -592,8 +596,9 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                 @Override
                 public void onSuccess(CpsThreadGroup result) {
                     try {
-                        // TODO keep track of whether the program was saved anyway after saveState was called but before
-                        // now, and do not bother resaving it in that case
+                        // TODO keep track of whether the program was saved anyway
+                        // after saveState was called but before now,
+                        // and do not bother resaving it in that case
                         if (result.getExecution().getDurabilityHint().isPersistWithEveryStep()) {
                             result.getExecution().getStorage().flush();
                             result.saveProgram();

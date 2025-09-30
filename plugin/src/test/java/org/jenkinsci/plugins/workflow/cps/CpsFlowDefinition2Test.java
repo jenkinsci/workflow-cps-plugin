@@ -113,8 +113,8 @@ public class CpsFlowDefinition2Test {
      */
     @Test
     public void endlessRecursionNonCPS() throws Exception {
-        Assume.assumeTrue(
-                !Functions.isWindows()); // Sidestep false failures specific to a few Windows build environments.
+        // Sidestep false failures specific to a few Windows build environments.
+        Assume.assumeTrue(!Functions.isWindows());
 
         String script = "@NonCPS def getThing(){return thing == null}; \n" + "node { echo getThing(); } ";
         WorkflowJob job = jenkins.createProject(WorkflowJob.class);
@@ -704,15 +704,17 @@ public class CpsFlowDefinition2Test {
     public void scriptInitializersClassSyntax() throws Exception {
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(
-                "class MyScript extends org.jenkinsci.plugins.workflow.cps.CpsScript {\n" + "  { MyScript.foo++ }\n"
-                        + // The instance initializer seems to be context sensitive, if placed below the field it is
-                        // treated as a closure...
-                        "  static { MyScript.foo++ }\n"
-                        + "  static int foo = 0\n"
-                        + "  def run() {\n"
-                        + "    echo(/MyScript.foo is ${MyScript.foo}/)\n "
-                        + "  }\n"
-                        + "}\n",
+                """
+                class MyScript extends org.jenkinsci.plugins.workflow.cps.CpsScript {
+                  // The instance initializer seems to be context sensitive, if placed below the field it is treated as a closure…
+                  { MyScript.foo++ }
+                  static { MyScript.foo++ }
+                  static int foo = 0
+                  def run() {
+                    echo(/MyScript.foo is ${MyScript.foo}/)
+                   }
+                }
+                """,
                 true));
         WorkflowRun b = jenkins.buildAndAssertSuccess(p);
         jenkins.assertLogContains("MyScript.foo is 2", b);
@@ -760,18 +762,20 @@ public class CpsFlowDefinition2Test {
         // over in groovy-sandbox.
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(
-                "import groovy.transform.Field\n" + "@Field def i = 0\n"
-                        + "@NonCPS def unsafe() {\n"
-                        + // Using an @NonCPS method instead of a closure to avoid a CpsCallableInvocation being thrown
-                        // out of Checker.preCheckedCast() when it invokes a method on the proxied Collection.
-                        "  if(i) {\n"
-                        + "    return ['secret.txt'] as Object[]\n"
-                        + "  } else {\n"
-                        + "    i = 1\n"
-                        + "    return null\n"
-                        + "  }\n"
-                        + "}\n"
-                        + "((this.&unsafe as Collection) as File) as Object[]",
+                """
+                import groovy.transform.Field
+                @Field def i = 0
+                // Using an @NonCPS method instead of a closure to avoid a CpsCallableInvocation being thrown
+                // out of Checker.preCheckedCast() when it invokes a method on the proxied Collection.
+                @NonCPS def unsafe() {
+                  if(i) {
+                    return ['secret.txt'] as Object[]
+                  } else {
+                    i = 1
+                    return null
+                  }
+                }
+                ((this.&unsafe as Collection) as File) as Object[]""",
                 true));
         WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         // Before the security fix, fails with FileNotFoundException, bypassing the sandbox!
@@ -783,12 +787,13 @@ public class CpsFlowDefinition2Test {
     public void blockCastingSafeUserDefinedImplementationsOfCollection() throws Exception {
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(
-                "@NonCPS def safe() {\n"
-                        + // Using an @NonCPS method instead of a closure to avoid a CpsCallableInvocation being thrown
-                        // out of Checker.preCheckedCast() when it invokes a method on the proxied Collection.
-                        "  return ['secret.txt'] as Object[]\n"
-                        + "}\n"
-                        + "(this.&safe as Collection) as File",
+                """
+                // Using an @NonCPS method instead of a closure to avoid a CpsCallableInvocation being thrown
+                // out of Checker.preCheckedCast() when it invokes a method on the proxied Collection.
+                @NonCPS def safe() {
+                  return ['secret.txt'] as Object[]
+                }
+                (this.&safe as Collection) as File""",
                 true));
         WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         // Before the security fix, fails because `new File(String)` is not whitelisted, so not a problem, but we have
@@ -994,8 +999,8 @@ public class CpsFlowDefinition2Test {
                 "enum Thing {\n" + "  ONE, TWO\n" + "  Thing() { }\n" + "}\n" + "Thing.ONE\n", true));
         WorkflowRun b = jenkins.buildAndAssertSuccess(p);
         p.setDefinition(new CpsFlowDefinition("enum Thing {\n" + "  ONE, TWO\n" + "}\n" + "Thing.ONE\n", true));
-        // Seems undesirable, but this is the current behavior. Requires new java.util.LinkedHashMap and staticMethod
-        // ImmutableASTTransformation checkPropNames.
+        // Seems undesirable, but this is the current behavior.
+        // Requires new java.util.LinkedHashMap and staticMethod ImmutableASTTransformation checkPropNames.
         b = jenkins.buildAndAssertStatus(Result.FAILURE, p);
         jenkins.assertLogContains("Scripts not permitted to use new java.util.LinkedHashMap", b);
     }

@@ -131,8 +131,8 @@ class CpsBodyExecution extends BodyExecution {
             Object x = params.body.getBody(currentThread).call();
 
             // body has completed synchronously. mark this done after the fact
-            // pointless synchronization to make findbugs happy. This is already done, so there's no cancelling this
-            // anyway.
+            // pointless synchronization to make findbugs happy.
+            // This is already done, so there's no cancelling this anyway.
             synchronized (this) {
                 this.thread = currentThread;
             }
@@ -207,8 +207,9 @@ class CpsBodyExecution extends BodyExecution {
                         m.put(t.head, t);
                     }
                     for (CpsThread t : m.values()) {
-                        // TODO seems cumbersome to have to go through the flow graph to find out whether a head is a
-                        // descendant of ours, yet FlowHead does not seem to retain a parent field
+                        // TODO seems cumbersome to have to go through the flow graph
+                        // to find out whether a head is a descendant of ours,
+                        // yet FlowHead does not seem to retain a parent field
                         LinearBlockHoppingScanner scanner = new LinearBlockHoppingScanner();
                         scanner.setup(t.head.get());
                         for (FlowNode node : scanner) {

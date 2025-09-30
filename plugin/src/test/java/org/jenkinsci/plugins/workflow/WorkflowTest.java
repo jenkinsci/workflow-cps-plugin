@@ -381,7 +381,9 @@ public class WorkflowTest {
             assertEquals("more", a.getEnvironment().get("STUFF"));
             assertNotNull(a.getEnvironment().get("PATH"));
             // TODO use
-            // https://www.javadoc.io/doc/com.jayway.jsonpath/json-path-assert/2.4.0/com/jayway/jsonpath/matchers/JsonPathMatchers.html#hasJsonPath-java.lang.String-org.hamcrest.Matcher- to clarify that /actions/[_class="org.jenkinsci.plugins.workflow.cps.EnvActionImpl"].environment.STUFF ⇒ "more"
+            // https://www.javadoc.io/doc/com.jayway.jsonpath/json-path-assert/2.4.0/com/jayway/jsonpath/matchers/JsonPathMatchers.html#hasJsonPath-java.lang.String-org.hamcrest.Matcher-
+            // to clarify that
+            // /actions/[_class="org.jenkinsci.plugins.workflow.cps.EnvActionImpl"].environment.STUFF ⇒ "more"
             MatcherAssert.assertThat(
                     r.createWebClient()
                             .getJSON(b.getUrl() + "api/json?tree=actions[environment]")
@@ -414,9 +416,9 @@ public class WorkflowTest {
      */
     public static Slave createSpecialEnvSlave(
             JenkinsRule rule, String nodeName, @CheckForNull String labels, Map<String, String> env) throws Exception {
-        @SuppressWarnings(
-                "deprecation") // keep consistency with original signature rather than force the caller to pass in a
-        // TemporaryFolder rule
+        // keep consistency with original signature
+        // rather than force the caller to pass in a TemporaryFolder rule
+        @SuppressWarnings("deprecation")
         File remoteFS = rule.createTmpDir();
         SpecialEnvSlave slave = new SpecialEnvSlave(
                 remoteFS,

@@ -126,8 +126,8 @@ class CpsVmExecutorService extends InterceptingExecutorService {
             }
         }
         cpsThreadGroup.getExecution().croak(t);
-        // cpsThreadGroup.run() must not execute again. We shut this executor service down after stopping steps and
-        // completing the build rather than before
+        // cpsThreadGroup.run() must not execute again.
+        // We shut this executor service down after stopping steps and completing the build rather than before
         // to avoid RejectedExecutionExceptions inside of StepExecution.stop above as the steps try to call
         // StepContext.onFailure which eventually submits a task to this executor service to trigger CpsThreadGroup.run.
         shutdown();

@@ -96,9 +96,8 @@ public class WorkflowJobNonRestartingTest {
 
         WorkflowRun b = p.scheduleBuild2(0).get();
 
-        jenkins.assertLogContains(
-                "such as: node",
-                b); // make sure the 'node' is a suggested message. this comes from MissingContextVariableException
+        // make sure the 'node' is a suggested message. this comes from MissingContextVariableException
+        jenkins.assertLogContains("such as: node", b);
         //        jenkins.assertLogNotContains("Exception", b)   // haven't figured out how to hide this
         jenkins.assertBuildStatus(Result.FAILURE, b);
     }

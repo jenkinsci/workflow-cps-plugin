@@ -144,8 +144,7 @@ public class CpsFlowExecutionTest {
     @Rule
     public FlagRule<Boolean> secretField =
             new FlagRule<>(() -> CpsFlowExecutionTest.SECRET, v -> CpsFlowExecutionTest.SECRET = v);
-    // We intentionally avoid using the static fields so that tests can call setProperty before the classes are
-    // initialized.
+    /** We intentionally avoid using the static fields so that tests can call setProperty before the classes are initialized. */
     @Rule
     public FlagRule<String> groovySourceFileAllowlistDisabled =
             FlagRule.systemProperty("org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DISABLED");
@@ -565,11 +564,11 @@ public class CpsFlowExecutionTest {
             SemaphoreStep.success("wait/1", null);
             r.assertBuildStatusSuccess(r.waitForCompletion(b));
             while (logger.getRecords().isEmpty()) {
-                Thread.sleep(100); // apparently a race condition between CpsVmExecutorService.tearDown and
-                // WorkflowRun.finish
+                // apparently a race condition between CpsVmExecutorService.tearDown and WorkflowRun.finish
+                Thread.sleep(100);
             }
-            // TODO https://github.com/jenkinsci/workflow-cps-plugin/pull/570#issuecomment-1192679404 message can be
-            // duplicated
+            // TODO https://github.com/jenkinsci/workflow-cps-plugin/pull/570#issuecomment-1192679404
+            // message can be duplicated
             assertThat(logger.getRecords(), not(empty()));
             assertEquals(
                     CpsFlowExecution.TimingKind.values().length,
@@ -885,13 +884,13 @@ public class CpsFlowExecutionTest {
         sessions.then(r -> {
             WorkflowJob p = r.createProject(WorkflowJob.class, "p");
             p.setDefinition(new CpsFlowDefinition(
-                    "def e = env\n" + "semaphore('wait')\n"
-                            + // An instance of EnvActionImpl is part of the program's state at this point.
-                            "e.foo = 'bar'\n"
-                            + // Without EnvActionImplPickle, this throws an NPE in EnvActionImpl.setProperty because
-                            // owner is null.
-                            "env.getProperty('foo')\n",
-                    true)); // Without EnvActionImpl.readResolve, this throws an NPE in PogoMetaClassSite.call
+                    """
+                    def e = env
+                    semaphore('wait') // An instance of EnvActionImpl is part of the program's state at this point.
+                    e.foo = 'bar' // Without EnvActionImplPickle, this throws an NPE in EnvActionImpl.setProperty because owner is null.
+                    env.getProperty('foo') // Without EnvActionImpl.readResolve, this throws an NPE in PogoMetaClassSite.call
+                    """,
+                    true));
             WorkflowRun b = p.scheduleBuild2(0).waitForStart();
             SemaphoreStep.waitForStart("wait/1", b);
         });

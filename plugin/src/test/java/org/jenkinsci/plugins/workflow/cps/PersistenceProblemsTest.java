@@ -129,8 +129,8 @@ public class PersistenceProblemsTest {
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
         ListenableFuture<FlowExecution> listener = run.getExecutionPromise();
         FlowExecution exec = listener.get();
-        while (exec.getCurrentHeads().isEmpty()
-                || (exec.getCurrentHeads().get(0) instanceof FlowStartNode)) { // Wait until input step starts
+        // Wait until input step starts
+        while (exec.getCurrentHeads().isEmpty() || (exec.getCurrentHeads().get(0) instanceof FlowStartNode)) {
             System.out.println("Waiting for input step to begin");
             Thread.sleep(50);
         }

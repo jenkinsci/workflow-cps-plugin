@@ -170,8 +170,8 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
     }
 
     private Object readResolve() {
-        // We need to restore the transient MetaClass field when this class is deserialized by XStream to prevent NPEs
-        // in Groovy code that calls methods on this class.
+        // We need to restore the transient MetaClass field when this class is deserialized by XStream
+        // to prevent NPEs in Groovy code that calls methods on this class.
         setMetaClass(null);
         return this;
     }
