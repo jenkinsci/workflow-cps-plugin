@@ -20,9 +20,8 @@ public class YieldBlock implements Block {
     }
 
     public Next eval(Env e, final Continuation k) {
-        return Next.yield(v,e,k);
+        return Next.yield(v, e, k);
     }
 
     private static final long serialVersionUID = 1L;
-
 }

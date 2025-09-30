@@ -24,26 +24,24 @@
 
 package org.jenkinsci.plugins.workflow;
 
+import static org.junit.Assert.assertEquals;
+
 import hudson.model.Result;
 import hudson.model.queue.QueueTaskFuture;
+import hudson.util.OneShotEvent;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
-import hudson.util.OneShotEvent;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.junit.Test;
-import org.jvnet.hudson.test.Issue;
-
 import org.junit.ClassRule;
+import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-
-import static org.junit.Assert.assertEquals;
 
 /**
  * Test of {@link WorkflowJob} that doesn't involve Jenkins restarts.
@@ -52,8 +50,11 @@ import static org.junit.Assert.assertEquals;
  */
 public class WorkflowJobNonRestartingTest {
 
-    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-    @ClassRule public static JenkinsRule jenkins = new JenkinsRule();
+    @ClassRule
+    public static BuildWatcher buildWatcher = new BuildWatcher();
+
+    @ClassRule
+    public static JenkinsRule jenkins = new JenkinsRule();
 
     /**
      * If a prohibited method is called, execution should fail.
@@ -66,6 +67,7 @@ public class WorkflowJobNonRestartingTest {
         assertRejected("parallel(main: {parallel(main2: {Jenkins.getInstance()})})");
         assertRejected("node {parallel(main: {ws {parallel(main2: {ws {Jenkins.getInstance()}})}})}");
     }
+
     private void assertRejected(String script) throws Exception {
         String signature = "staticMethod jenkins.model.Jenkins getInstance";
         ScriptApproval scriptApproval = ScriptApproval.get();
@@ -74,12 +76,14 @@ public class WorkflowJobNonRestartingTest {
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition(script, true));
         WorkflowRun b = p.scheduleBuild2(0).get();
-        jenkins.assertLogContains("org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use " + signature, b);
+        jenkins.assertLogContains(
+                "org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use "
+                        + signature,
+                b);
         jenkins.assertBuildStatus(Result.FAILURE, b);
         Set<ScriptApproval.PendingSignature> pendingSignatures = scriptApproval.getPendingSignatures();
         assertEquals(script, 1, pendingSignatures.size());
         assertEquals(signature, pendingSignatures.iterator().next().signature);
-
     }
 
     /**
@@ -92,26 +96,31 @@ public class WorkflowJobNonRestartingTest {
 
         WorkflowRun b = p.scheduleBuild2(0).get();
 
-        jenkins.assertLogContains("such as: node", b); // make sure the 'node' is a suggested message. this comes from MissingContextVariableException
-//        jenkins.assertLogNotContains("Exception", b)   // haven't figured out how to hide this
+        jenkins.assertLogContains(
+                "such as: node",
+                b); // make sure the 'node' is a suggested message. this comes from MissingContextVariableException
+        //        jenkins.assertLogNotContains("Exception", b)   // haven't figured out how to hide this
         jenkins.assertBuildStatus(Result.FAILURE, b);
     }
 
-    @Test @Issue("JENKINS-25623")
+    @Test
+    @Issue("JENKINS-25623")
     public void killInfiniteLoop() throws Exception {
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
-        p.setDefinition(new CpsFlowDefinition("while(true) { " + WorkflowJobNonRestartingTest.class.getName()+".going(); }", true));
+        p.setDefinition(new CpsFlowDefinition(
+                "while(true) { " + WorkflowJobNonRestartingTest.class.getName() + ".going(); }", true));
 
         QueueTaskFuture<WorkflowRun> f = p.scheduleBuild2(0);
         WorkflowRun b = f.getStartCondition().get(3, TimeUnit.SECONDS);
 
-        going.block(3000);    // get the buld going, which will loop infinitely
+        going.block(3000); // get the buld going, which will loop infinitely
         b.doStop(); // abort, abort!
 
         jenkins.assertBuildStatus(Result.ABORTED, jenkins.waitForCompletion(b));
     }
 
-    @Test @Issue("JENKINS-25623")
+    @Test
+    @Issue("JENKINS-25623")
     public void timeoutKillsLoop() throws Exception {
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("timeout(time:3, unit:'SECONDS') { while (true) {} }", true));

@@ -1,14 +1,13 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.Result;
+import java.io.IOException;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.support.DefaultStepContext;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
-import java.io.IOException;
 
 /**
  * {@link StepContext} passed to {@link BodyExecutionCallback}.
@@ -46,7 +45,6 @@ final class CpsBodySubContext extends DefaultStepContext {
 
         CpsBodySubContext that = (CpsBodySubContext) o;
         return base.equals(that.base) && node.equals(that.node);
-
     }
 
     @Override
@@ -56,11 +54,11 @@ final class CpsBodySubContext extends DefaultStepContext {
 
     @Override
     public String toString() {
-        return "CpsBodySubContext[" + base + ":" + node.getId()+ "]";
+        return "CpsBodySubContext[" + base + ":" + node.getId() + "]";
     }
 
     // Delegation to 'base' from here
-//======================================
+    // ======================================
 
     @Override
     public void onFailure(Throwable t) {
@@ -103,8 +101,8 @@ final class CpsBodySubContext extends DefaultStepContext {
         return base.getExecution();
     }
 
-// Delegation to 'base' until here
-//======================================
+    // Delegation to 'base' until here
+    // ======================================
 
     private static final long serialVersionUID = 1L;
 }

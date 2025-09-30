@@ -21,6 +21,5 @@ public class MonomorphicData extends AbstractDescribableImpl<MonomorphicData> {
     }
 
     @Extension
-    public static class DescriptorImpl extends Descriptor<MonomorphicData> {
-    }
+    public static class DescriptorImpl extends Descriptor<MonomorphicData> {}
 }

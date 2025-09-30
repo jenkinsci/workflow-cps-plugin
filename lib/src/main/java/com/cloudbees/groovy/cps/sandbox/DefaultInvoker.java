@@ -17,12 +17,12 @@ import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 public class DefaultInvoker implements Invoker {
     public Object methodCall(Object receiver, String method, Object[] args) throws Throwable {
         CallSite callSite = fakeCallSite(method);
-        Object v = callSite.call(receiver,args);
+        Object v = callSite.call(receiver, args);
         return v;
     }
 
     public Object constructorCall(Class lhs, Object[] args) throws Throwable {
-        Object v = fakeCallSite("<init>").callConstructor(lhs,args);
+        Object v = fakeCallSite("<init>").callConstructor(lhs, args);
         return v;
     }
 
@@ -36,29 +36,29 @@ public class DefaultInvoker implements Invoker {
     }
 
     public Object getProperty(Object lhs, String name) throws Throwable {
-        Object v = ScriptBytecodeAdapter.getProperty(null/*Groovy doesn't use this parameter*/, lhs, name);
+        Object v = ScriptBytecodeAdapter.getProperty(null /*Groovy doesn't use this parameter*/, lhs, name);
         return v;
     }
 
     public void setProperty(Object lhs, String name, Object value) throws Throwable {
-        ScriptBytecodeAdapter.setProperty(value, null/*Groovy doesn't use this parameter*/, lhs, name);
+        ScriptBytecodeAdapter.setProperty(value, null /*Groovy doesn't use this parameter*/, lhs, name);
     }
 
     public Object getAttribute(Object lhs, String name) throws Throwable {
-        Object v = ScriptBytecodeAdapter.getField(null/*Groovy doesn't use this parameter*/, lhs, name);
+        Object v = ScriptBytecodeAdapter.getField(null /*Groovy doesn't use this parameter*/, lhs, name);
         return v;
     }
 
     public void setAttribute(Object lhs, String name, Object value) throws Throwable {
-        ScriptBytecodeAdapter.setField(value, null/*Groovy doesn't use this parameter*/, lhs, name);
+        ScriptBytecodeAdapter.setField(value, null /*Groovy doesn't use this parameter*/, lhs, name);
     }
 
     public Object getArray(Object lhs, Object index) throws Throwable {
-        return fakeCallSite("getAt").call(lhs,index);
+        return fakeCallSite("getAt").call(lhs, index);
     }
 
     public void setArray(Object lhs, Object index, Object value) throws Throwable {
-        fakeCallSite("putAt").call(lhs,index,value);
+        fakeCallSite("putAt").call(lhs, index, value);
     }
 
     public Object methodPointer(Object lhs, String name) {
@@ -66,11 +66,10 @@ public class DefaultInvoker implements Invoker {
     }
 
     @Override
-    public Object cast(Object value, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict) throws Throwable {
+    public Object cast(Object value, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict)
+            throws Throwable {
         // TODO: What should we do with ignoreAutoboxing and strict?
-        return coerce
-                ? ScriptBytecodeAdapter.asType(value, type)
-                : ScriptBytecodeAdapter.castToType(value, type);
+        return coerce ? ScriptBytecodeAdapter.asType(value, type) : ScriptBytecodeAdapter.castToType(value, type);
     }
 
     public Invoker contextualize(CallSiteBlock tags) {
@@ -79,7 +78,7 @@ public class DefaultInvoker implements Invoker {
 
     /*TODO: specify the proper owner value (to the script that includes the call site) */
     protected CallSite fakeCallSite(String method) {
-        CallSiteArray csa = new CallSiteArray(DefaultInvoker.class, new String[]{method});
+        CallSiteArray csa = new CallSiteArray(DefaultInvoker.class, new String[] {method});
         return csa.array[0];
     }
 

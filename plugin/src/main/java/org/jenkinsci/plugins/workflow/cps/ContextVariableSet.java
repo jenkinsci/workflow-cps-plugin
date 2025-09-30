@@ -24,6 +24,8 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
+
 import com.google.common.util.concurrent.ListenableFuture;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.ExtensionList;
@@ -38,7 +40,6 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import net.jcip.annotations.Immutable;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.BodyInvoker;
@@ -62,21 +63,27 @@ final class ContextVariableSet implements Serializable {
         this.parent = parent;
     }
 
-    private static final ThreadLocal<Set<DynamicContextQuery>> dynamicContextClasses = ThreadLocal.withInitial(HashSet::new);
+    private static final ThreadLocal<Set<DynamicContextQuery>> dynamicContextClasses =
+            ThreadLocal.withInitial(HashSet::new);
 
     private static final class DynamicContextQuery {
         final DynamicContext dynamicContext;
         final Class<?> key;
+
         DynamicContextQuery(DynamicContext dynamicContext, Class<?> key) {
             this.dynamicContext = dynamicContext;
             this.key = key;
         }
-        @Override public boolean equals(Object obj) {
-            return obj instanceof DynamicContextQuery &&
-                dynamicContext == ((DynamicContextQuery) obj).dynamicContext &&
-                key == ((DynamicContextQuery) obj).key;
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof DynamicContextQuery
+                    && dynamicContext == ((DynamicContextQuery) obj).dynamicContext
+                    && key == ((DynamicContextQuery) obj).key;
         }
-        @Override public int hashCode() {
+
+        @Override
+        public int hashCode() {
             return dynamicContext.hashCode() ^ key.hashCode();
         }
     }
@@ -86,7 +93,8 @@ final class ContextVariableSet implements Serializable {
         T get() throws IOException;
     }
 
-    <T> T get(Class<T> key, ThrowingSupplier<FlowExecution> execution, ThrowingSupplier<FlowNode> node) throws IOException, InterruptedException {
+    <T> T get(Class<T> key, ThrowingSupplier<FlowExecution> execution, ThrowingSupplier<FlowNode> node)
+            throws IOException, InterruptedException {
         for (Object v : values) {
             if (key.isInstance(v)) {
                 LOGGER.fine(() -> "found a " + v.getClass().getName() + " in " + this);
@@ -94,39 +102,60 @@ final class ContextVariableSet implements Serializable {
             }
         }
         class Delegate extends DefaultStepContext implements DynamicContext.DelegatedContext {
-            @Override protected <T> T doGet(Class<T> key) throws IOException, InterruptedException {
+            @Override
+            protected <T> T doGet(Class<T> key) throws IOException, InterruptedException {
                 return ContextVariableSet.this.get(key, execution, node);
             }
-            @Override protected FlowExecution getExecution() throws IOException {
+
+            @Override
+            protected FlowExecution getExecution() throws IOException {
                 return execution.get();
             }
-            @Override protected FlowNode getNode() throws IOException {
+
+            @Override
+            protected FlowNode getNode() throws IOException {
                 return node.get();
             }
-            @Override public void onSuccess(Object result) {
+
+            @Override
+            public void onSuccess(Object result) {
                 throw new AssertionError();
             }
-            @Override public boolean isReady() {
+
+            @Override
+            public boolean isReady() {
                 throw new AssertionError();
             }
-            @Override public ListenableFuture<Void> saveState() {
+
+            @Override
+            public ListenableFuture<Void> saveState() {
                 throw new AssertionError();
             }
-            @Override public void setResult(Result r) {
+
+            @Override
+            public void setResult(Result r) {
                 throw new AssertionError();
             }
-            @Override public BodyInvoker newBodyInvoker() throws IllegalStateException {
+
+            @Override
+            public BodyInvoker newBodyInvoker() throws IllegalStateException {
                 throw new AssertionError();
             }
+
             @SuppressFBWarnings(value = "EQ_UNUSUAL", justification = "DefaultStepContext does not delegate to this")
             @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
-            @Override public boolean equals(Object o) {
+            @Override
+            public boolean equals(Object o) {
                 throw new AssertionError();
             }
-            @Override public int hashCode() {
+
+            @Override
+            public int hashCode() {
                 throw new AssertionError();
             }
-            @Override public void onFailure(Throwable t) {
+
+            @Override
+            public void onFailure(Throwable t) {
                 throw new AssertionError();
             }
         }
@@ -138,7 +167,8 @@ final class ContextVariableSet implements Serializable {
                 try {
                     T v = dynamicContext.get(key, delegate);
                     if (v != null) {
-                        LOGGER.fine(() -> "looked up a " + v.getClass().getName() + " from " + dynamicContext + " in " + this);
+                        LOGGER.fine(() ->
+                                "looked up a " + v.getClass().getName() + " from " + dynamicContext + " in " + this);
                         return v;
                     }
                 } finally {
@@ -153,16 +183,18 @@ final class ContextVariableSet implements Serializable {
         }
     }
 
-    @Override public String toString() {
-        return "ContextVariableSet" + values.stream().map(Object::getClass).map(Class::getName).collect(Collectors.toList()) + (parent != null ? "<" + parent : "");
+    @Override
+    public String toString() {
+        return "ContextVariableSet"
+                + values.stream().map(Object::getClass).map(Class::getName).collect(Collectors.toList())
+                + (parent != null ? "<" + parent : "");
     }
 
     /**
      * Obtains {@link ContextVariableSet} that inherits from the given parent and adds the specified overrides.
      */
     public static ContextVariableSet from(ContextVariableSet parent, List<Object> overrides) {
-        if (overrides==null || overrides.isEmpty())
-            return parent;  // nothing to override
+        if (overrides == null || overrides.isEmpty()) return parent; // nothing to override
 
         ContextVariableSet o = new ContextVariableSet(parent);
         o.values.addAll(overrides);

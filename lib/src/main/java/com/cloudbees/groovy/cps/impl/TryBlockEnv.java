@@ -16,7 +16,8 @@ import java.util.Map.Entry;
  */
 // TODO: should be package local once all the impls move into this class
 public class TryBlockEnv extends ProxyEnv {
-    private final Map<Class,Continuation> handlers = new LinkedHashMap<>(2);
+    private final Map<Class, Continuation> handlers = new LinkedHashMap<>(2);
+
     @CheckForNull
     private final Block finally_;
 
@@ -29,14 +30,13 @@ public class TryBlockEnv extends ProxyEnv {
      * Handlers can be only added immediately after instantiation.
      */
     public void addHandler(Class<? extends Throwable> type, Continuation k) {
-        handlers.put(type,k);
+        handlers.put(type, k);
     }
 
     @Override
     public Continuation getExceptionHandler(Class<? extends Throwable> type) {
         for (Entry<Class, Continuation> e : handlers.entrySet()) {
-            if (e.getKey().isAssignableFrom(type))
-                return e.getValue();
+            if (e.getKey().isAssignableFrom(type)) return e.getValue();
         }
 
         return withFinally(super.getExceptionHandler(type));
@@ -47,8 +47,8 @@ public class TryBlockEnv extends ProxyEnv {
      * proceed to the given continuation.
      */
     Continuation withFinally(Continuation k) {
-        if (finally_==null)     return k;
-        else                    return new Finally(k);
+        if (finally_ == null) return k;
+        else return new Finally(k);
     }
 
     @Override
@@ -85,9 +85,7 @@ public class TryBlockEnv extends ProxyEnv {
         }
 
         private static final long serialVersionUID = 1L;
-
     }
 
     private static final long serialVersionUID = 1L;
-
 }

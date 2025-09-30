@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 import jenkins.model.CauseOfInterruption;
-
 import org.apache.commons.io.IOUtils;
 import org.jenkinsci.plugins.workflow.SingleJobTestBase;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
@@ -51,7 +50,8 @@ import org.jvnet.hudson.test.WithoutJenkins;
  */
 public class ParallelStepTest extends SingleJobTestBase {
 
-    @Rule public LoggerRule logging = new LoggerRule();
+    @Rule
+    public LoggerRule logging = new LoggerRule();
 
     private FlowGraphTable t;
 
@@ -61,16 +61,18 @@ public class ParallelStepTest extends SingleJobTestBase {
     @Test
     public void minimumViableParallelRun() throws Exception {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 logging.record(CpsThreadGroup.class, Level.FINE);
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(join(
-                    "node {",
-                    "  def x = parallel( a: { echo('echo a'); return 1; }, b: { echo('echo b'); sleep 1; return 2; } )",
-                    "  assert x.a==1",
-                    "  assert x.b==2",
-                    "}"
-                ), false));
+                p.setDefinition(new CpsFlowDefinition(
+                        join(
+                                "node {",
+                                "  def x = parallel( a: { echo('echo a'); return 1; }, b: { echo('echo b'); sleep 1; return 2; } )",
+                                "  assert x.a==1",
+                                "  assert x.b==2",
+                                "}"),
+                        false));
 
                 startBuilding().get(); // 15, SECONDS);
                 assertBuildCompletedSuccessfully();
@@ -87,72 +89,81 @@ public class ParallelStepTest extends SingleJobTestBase {
     @Test
     public void failure_in_subflow_will_cause_join_to_fail() throws Exception {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(join(
-                    "import "+AbortException.class.getName(),
+                p.setDefinition(new CpsFlowDefinition(
+                        join(
+                                "import " + AbortException.class.getName(),
+                                "node {",
+                                "  try {",
+                                "    parallel(",
+                                "      b: { error 'died' },",
 
-                    "node {",
-                    "  try {",
-                    "    parallel(",
-                    "      b: { error 'died' },",
-
-                        // make sure this branch takes longer than a
-                    "      a: { sleep 3; writeFile text: '', file: 'a.done' }",
-                    "    )",
-                    "    assert false;",
-                    "  } catch (AbortException e) {",
-                    "    assert e.message == 'died'",
-                    "  }",
-                    "}"
-                ), false));
+                                // make sure this branch takes longer than a
+                                "      a: { sleep 3; writeFile text: '', file: 'a.done' }",
+                                "    )",
+                                "    assert false;",
+                                "  } catch (AbortException e) {",
+                                "    assert e.message == 'died'",
+                                "  }",
+                                "}"),
+                        false));
 
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();
                 assert jenkins().getWorkspaceFor(p).child("a.done").exists();
 
                 buildTable();
-                shouldHaveParallelStepsInTheOrder("b","a");
+                shouldHaveParallelStepsInTheOrder("b", "a");
             }
         });
     }
 
-
     /**
      * Failure in a branch will cause the join to fail.
      */
-    @Test @Issue("JENKINS-26034")
+    @Test
+    @Issue("JENKINS-26034")
     public void failure_in_subflow_will_fail_fast() throws Exception {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(join(
-                    "import "+AbortException.class.getName(),
+                p.setDefinition(new CpsFlowDefinition(
+                        join(
+                                "import " + AbortException.class.getName(),
+                                "node {",
+                                "  try {",
+                                "    parallel(",
+                                "      b: { error 'died' },",
 
-                    "node {",
-                    "  try {",
-                    "    parallel(",
-                    "      b: { error 'died' },",
-
-                        // make sure this branch takes longer than a
-                    "      a: { sleep 25; writeFile text: '', file: 'a.done' },",
-                    "      failFast: true",
-                    "    )",
-                    "    assert false",
-                    "  } catch (AbortException e) {",
-                    "    assert e.message == 'died'",
-                    "  }",
-                    "}"
-                ), false));
+                                // make sure this branch takes longer than a
+                                "      a: { sleep 25; writeFile text: '', file: 'a.done' },",
+                                "      failFast: true",
+                                "    )",
+                                "    assert false",
+                                "  } catch (AbortException e) {",
+                                "    assert e.message == 'died'",
+                                "  }",
+                                "}"),
+                        false));
 
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();
-                Assert.assertFalse("a should have aborted", jenkins().getWorkspaceFor(p).child("a.done").exists());
+                Assert.assertFalse(
+                        "a should have aborted",
+                        jenkins().getWorkspaceFor(p).child("a.done").exists());
                 for (FlowNode n : new DepthFirstScanner().allNodes(e)) {
                     ErrorAction err = n.getPersistentAction(ErrorAction.class);
                     if (err != null) {
                         if (err.getError() instanceof FlowInterruptedException) {
-                            assertEquals("Failed in branch b", ((FlowInterruptedException) err.getError()).getCauses().stream().map(CauseOfInterruption::getShortDescription).collect(Collectors.joining("; ")));
+                            assertEquals(
+                                    "Failed in branch b",
+                                    ((FlowInterruptedException) err.getError())
+                                            .getCauses().stream()
+                                                    .map(CauseOfInterruption::getShortDescription)
+                                                    .collect(Collectors.joining("; ")));
                         }
                     }
                 }
@@ -163,23 +174,26 @@ public class ParallelStepTest extends SingleJobTestBase {
     /**
      * FailFast should not kill branches if there is no failure.
      */
-    @Test @Issue("JENKINS-26034")
+    @Test
+    @Issue("JENKINS-26034")
     public void failFast_has_no_effect_on_success() throws Exception {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(join(
-                    "node {",
-                    "    parallel(",
-                    "      a: { echo 'hello from a';sleep 1;echo 'goodbye from a' },",
-                    "      b: { echo 'hello from b';sleep 1;echo 'goodbye from b' },",
-                    "      c: { echo 'hello from c';sleep 1;echo 'goodbye from c' },",
-                    // make sure this branch is quicker than the others.
-                    "      d: { echo 'hello from d' },",
-                    "      failFast: true",
-                    "    )",
-                    "}"
-                ), false));
+                p.setDefinition(new CpsFlowDefinition(
+                        join(
+                                "node {",
+                                "    parallel(",
+                                "      a: { echo 'hello from a';sleep 1;echo 'goodbye from a' },",
+                                "      b: { echo 'hello from b';sleep 1;echo 'goodbye from b' },",
+                                "      c: { echo 'hello from c';sleep 1;echo 'goodbye from c' },",
+                                // make sure this branch is quicker than the others.
+                                "      d: { echo 'hello from d' },",
+                                "      failFast: true",
+                                "    )",
+                                "}"),
+                        false));
 
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();
@@ -188,9 +202,11 @@ public class ParallelStepTest extends SingleJobTestBase {
     }
 
     @Issue("JENKINS-25894")
-    @Test public void failureReporting() throws Exception {
+    @Test
+    public void failureReporting() throws Exception {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("parallel a: {semaphore 'a'}, b: {semaphore 'b'}", true));
                 // Original bug report: AbortException not properly handled.
@@ -199,7 +215,8 @@ public class ParallelStepTest extends SingleJobTestBase {
                 SemaphoreStep.failure("b/1", new AbortException("normal failure"));
                 story.j.assertBuildStatus(Result.FAILURE, story.j.waitForCompletion(b1));
                 story.j.assertLogContains("Failed in branch b", b1);
-                // Apparently !b1.isBuilding() before WorkflowRun.finish has printed the stack trace, so need to wait for StreamBuildListener.finished:
+                // Apparently !b1.isBuilding() before WorkflowRun.finish has printed the stack trace, so need to wait
+                // for StreamBuildListener.finished:
                 story.j.waitForMessage("Finished: FAILURE", b1);
                 story.j.assertLogContains("normal failure", b1);
                 story.j.assertLogNotContains("AbortException", b1);
@@ -236,10 +253,9 @@ public class ParallelStepTest extends SingleJobTestBase {
                 story.j.assertLogContains("\tat " + ParallelStepTest.class.getName() + ".failureInB", b3);
                 // Also check stack traces within the script.
                 p.setDefinition(new CpsFlowDefinition(
-                    "parallel bad: {\n" +
-                    "  throw new IllegalStateException('bad')\n" +
-                    "}", false));
-                WorkflowRun b4 = story.j.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0).get());
+                        "parallel bad: {\n" + "  throw new IllegalStateException('bad')\n" + "}", false));
+                WorkflowRun b4 = story.j.assertBuildStatus(
+                        Result.FAILURE, p.scheduleBuild2(0).get());
                 story.j.assertLogContains("Failed in branch bad", b4);
                 story.j.waitForMessage("Finished: FAILURE", b4);
                 story.j.assertLogContains("java.lang.IllegalStateException: bad", b4);
@@ -247,19 +263,24 @@ public class ParallelStepTest extends SingleJobTestBase {
             }
         });
     }
+
     private static void failureInA() {
         throw new IllegalStateException("first problem");
     }
+
     private static void failureInB() {
         throw new IllegalStateException("second problem");
     }
 
     @Issue("JENKINS-26148")
-    @Test public void abort() {
+    @Test
+    public void abort() {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
-                p.setDefinition(new CpsFlowDefinition("parallel a: {def r = semaphore 'a'; echo r}, b: {semaphore 'b'}", true));
+                p.setDefinition(
+                        new CpsFlowDefinition("parallel a: {def r = semaphore 'a'; echo r}, b: {semaphore 'b'}", true));
                 WorkflowRun b1 = p.scheduleBuild2(0).waitForStart();
                 SemaphoreStep.waitForStart("a/1", b1);
                 SemaphoreStep.waitForStart("b/1", b1);
@@ -283,14 +304,16 @@ public class ParallelStepTest extends SingleJobTestBase {
     @Test
     public void localMethodCallWithinBranch() {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(join(
-                    "def touch(f) { writeFile text: '', file: f }",
-                    "node {",
-                    "  parallel(aa: {touch('a')}, bb: {touch('b')})",
-                    "}"
-                ), false));
+                p.setDefinition(new CpsFlowDefinition(
+                        join(
+                                "def touch(f) { writeFile text: '', file: f }",
+                                "node {",
+                                "  parallel(aa: {touch('a')}, bb: {touch('b')})",
+                                "}"),
+                        false));
 
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();
@@ -304,24 +327,26 @@ public class ParallelStepTest extends SingleJobTestBase {
     @Test
     public void localMethodCallWithinBranch2() {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(join(
-                        "def notify(msg) {",
-                        "  echo msg",
-                        "}",
-                        "node {",
-                        "  ws {",
-                        "    echo 'start'",
-                        "    parallel(one: {",
-                        "      notify('one')",
-                        "    }, two: {",
-                        "      notify('two')",
-                        "    })",
-                        "    echo 'end'",
-                        "  }",
-                        "}"
-                ), false));
+                p.setDefinition(new CpsFlowDefinition(
+                        join(
+                                "def notify(msg) {",
+                                "  echo msg",
+                                "}",
+                                "node {",
+                                "  ws {",
+                                "    echo 'start'",
+                                "    parallel(one: {",
+                                "      notify('one')",
+                                "    }, two: {",
+                                "      notify('two')",
+                                "    })",
+                                "    echo 'end'",
+                                "  }",
+                                "}"),
+                        false));
 
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();
@@ -334,30 +359,34 @@ public class ParallelStepTest extends SingleJobTestBase {
     @Test
     public void localMethodCallWithinLotsOfBranches() {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(
-                        IOUtils.toString(getClass().getResource("localMethodCallWithinLotsOfBranches.groovy"), StandardCharsets.UTF_8), false));
+                        IOUtils.toString(
+                                getClass().getResource("localMethodCallWithinLotsOfBranches.groovy"),
+                                StandardCharsets.UTF_8),
+                        false));
 
                 startBuilding().get();
                 assertBuildCompletedSuccessfully();
 
                 // count number of shell steps
                 FlowGraphTable t = buildTable();
-                int shell=0;
+                int shell = 0;
                 for (Row r : t.getRows()) {
                     if (r.getNode() instanceof StepAtomNode) {
-                        StepDescriptor descriptor = ((StepAtomNode)r.getNode()).getDescriptor();
-                        if (descriptor instanceof ShellStep.DescriptorImpl || descriptor instanceof BatchScriptStep.DescriptorImpl) {
+                        StepDescriptor descriptor = ((StepAtomNode) r.getNode()).getDescriptor();
+                        if (descriptor instanceof ShellStep.DescriptorImpl
+                                || descriptor instanceof BatchScriptStep.DescriptorImpl) {
                             shell++;
                         }
                     }
                 }
-                assertEquals(42*3,shell);
+                assertEquals(42 * 3, shell);
             }
         });
     }
-
 
     /**
      * Restarts in the middle of a parallel workflow.
@@ -365,17 +394,19 @@ public class ParallelStepTest extends SingleJobTestBase {
     @Test
     public void suspend() throws Exception {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(join(
-                    "node {",
-                    "    parallel(",
-                    "      a: { semaphore 'suspendA'; echo 'A done' },",
-                    "      b: { semaphore 'suspendB'; echo 'B done' },",
-                    "      c: { semaphore 'suspendC'; echo 'C done' },",
-                    "    )",
-                    "}"
-                ), false));
+                p.setDefinition(new CpsFlowDefinition(
+                        join(
+                                "node {",
+                                "    parallel(",
+                                "      a: { semaphore 'suspendA'; echo 'A done' },",
+                                "      b: { semaphore 'suspendB'; echo 'B done' },",
+                                "      c: { semaphore 'suspendC'; echo 'C done' },",
+                                "    )",
+                                "}"),
+                        false));
 
                 startBuilding();
 
@@ -385,19 +416,20 @@ public class ParallelStepTest extends SingleJobTestBase {
                 SemaphoreStep.waitForStart("suspendC/1", b);
 
                 assert !e.isComplete();
-                assert e.getCurrentHeads().size()==3;
+                assert e.getCurrentHeads().size() == 3;
                 assert b.isBuilding();
 
                 buildTable();
-                shouldHaveParallelStepsInTheOrder("a","b","c");
+                shouldHaveParallelStepsInTheOrder("a", "b", "c");
             }
         });
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 rebuildContext(story.j);
 
                 // make sure we are still running two heads
-                assert e.getCurrentHeads().size()==3;
+                assert e.getCurrentHeads().size() == 3;
                 assert b.isBuilding();
 
                 // we let one branch go at a time
@@ -423,18 +455,17 @@ public class ParallelStepTest extends SingleJobTestBase {
                 buildTable();
                 shouldHaveSteps(SemaphoreStep.DescriptorImpl.class, 3);
                 shouldHaveSteps(EchoStep.DescriptorImpl.class, 3);
-                shouldHaveParallelStepsInTheOrder("a","b","c");
+                shouldHaveParallelStepsInTheOrder("a", "b", "c");
             }
         });
     }
 
     private void shouldHaveSteps(Class<? extends StepDescriptor> d, int n) {
-        int count=0;
+        int count = 0;
         for (Row row : t.getRows()) {
             if (row.getNode() instanceof StepAtomNode) {
-                StepAtomNode a = (StepAtomNode)row.getNode();
-                if (a.getDescriptor().getClass()==d)
-                    count++;
+                StepAtomNode a = (StepAtomNode) row.getNode();
+                if (a.getDescriptor().getClass() == d) count++;
             }
         }
         assertEquals(d.getName(), n, count);
@@ -448,52 +479,55 @@ public class ParallelStepTest extends SingleJobTestBase {
         t.build();
         return t;
     }
+
     private void shouldHaveParallelStepsInTheOrder(String... expected) {
         List<String> actual = new ArrayList<>();
 
         for (Row row : t.getRows()) {
             ThreadNameAction a = row.getNode().getAction(ThreadNameAction.class);
-            if (a!=null)
-                actual.add(a.getThreadName());
+            if (a != null) actual.add(a.getThreadName());
         }
 
-        assertEquals(List.of(expected),actual);
+        assertEquals(List.of(expected), actual);
     }
 
     /**
      * Parallel branches become invisible once completed until the whole parallel step is completed.
      */
-    @Test @Issue("JENKINS-26074")
+    @Test
+    @Issue("JENKINS-26074")
     public void invisibleParallelBranch() throws Exception {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
-                p.setDefinition(new CpsFlowDefinition(join(
-                    "    parallel(\n" +
-                    "      'abc' : {\n" +
-                    "        noSuchFunctionExists(); \n"+
-                    "      }\n" +
-                    "      ,\n" +
-                    "      'waitForever' : {\n" +
-                    "        semaphore 'wait'\n" +
-                    "      }\n" +
-                    "      ,\n" +
-                    "      'someSimpleError' : {\n" +
-                    "        noSuchFunctionExists(); \n"+
-                    "      }\n" +
-                    "    )\n"
-                ), false));
+                p.setDefinition(new CpsFlowDefinition(
+                        join("    parallel(\n" + "      'abc' : {\n"
+                                + "        noSuchFunctionExists(); \n"
+                                + "      }\n"
+                                + "      ,\n"
+                                + "      'waitForever' : {\n"
+                                + "        semaphore 'wait'\n"
+                                + "      }\n"
+                                + "      ,\n"
+                                + "      'someSimpleError' : {\n"
+                                + "        noSuchFunctionExists(); \n"
+                                + "      }\n"
+                                + "    )\n"),
+                        false));
 
                 startBuilding();
 
                 // wait for workflow to progress far enough to the point that it has finished  failing two branches
                 // and pause on one
-                for (int i=0; i<10; i++)
-                    waitForWorkflowToSuspend();
+                for (int i = 0; i < 10; i++) waitForWorkflowToSuspend();
 
                 SemaphoreStep.waitForStart("wait/1", b);
 
-                assertEquals("Expecting 3 heads for 3 branches", 3,e.getCurrentHeads().size());
+                assertEquals(
+                        "Expecting 3 heads for 3 branches",
+                        3,
+                        e.getCurrentHeads().size());
 
                 SemaphoreStep.success("wait/1", null);
                 waitForWorkflowToComplete();
@@ -507,9 +541,11 @@ public class ParallelStepTest extends SingleJobTestBase {
     }
 
     @Issue("JENKINS-29413")
-    @Test public void emptyMap() {
+    @Test
+    public void emptyMap() {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition("parallel [:]", true));
                 story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
@@ -521,19 +557,21 @@ public class ParallelStepTest extends SingleJobTestBase {
     @Test
     public void parallelLexicalScope() throws Exception {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "p");
-                p.setDefinition(new CpsFlowDefinition("def fn = { arg ->\n" +
-                        "    arg.count = arg.count + 1;\n" +
-                        "}\n" +
-                        "def a = [ id: 'a', count : 0 ];\n" +
-                        "def b = [ id: 'b', count : 0 ];\n" +
-                        "parallel(\n" +
-                        "    StepA : { fn(a); },\n" +
-                        "    StepB : { fn(b); },\n" +
-                        ");\n" +
-                        "assert a.count == 1;\n" +
-                        "assert b.count == 1;\n", true));
+                p.setDefinition(new CpsFlowDefinition(
+                        "def fn = { arg ->\n" + "    arg.count = arg.count + 1;\n"
+                                + "}\n"
+                                + "def a = [ id: 'a', count : 0 ];\n"
+                                + "def b = [ id: 'b', count : 0 ];\n"
+                                + "parallel(\n"
+                                + "    StepA : { fn(a); },\n"
+                                + "    StepB : { fn(b); },\n"
+                                + ");\n"
+                                + "assert a.count == 1;\n"
+                                + "assert b.count == 1;\n",
+                        true));
                 story.j.buildAndAssertSuccess(p);
             }
         });
@@ -543,60 +581,41 @@ public class ParallelStepTest extends SingleJobTestBase {
     @Test
     public void throwableComparator() throws Exception {
         Comparator<Throwable> comparator = new ParallelStep.ResultHandler.ThrowableComparator();
-        assertEquals(
-                -1,
-                comparator.compare(
-                        new AbortException(), new FlowInterruptedException(Result.FAILURE)));
+        assertEquals(-1, comparator.compare(new AbortException(), new FlowInterruptedException(Result.FAILURE)));
         assertEquals(
                 0,
                 comparator.compare(
-                        new FlowInterruptedException(Result.FAILURE),
-                        new FlowInterruptedException(Result.FAILURE)));
-        assertEquals(
-                1,
-                comparator.compare(
-                        new FlowInterruptedException(Result.FAILURE), new AbortException()));
-        assertEquals(
-                -1,
-                comparator.compare(
-                        new IllegalStateException(), new FlowInterruptedException(Result.FAILURE)));
-        assertEquals(
-                1,
-                comparator.compare(
-                        new FlowInterruptedException(Result.FAILURE), new IllegalStateException()));
+                        new FlowInterruptedException(Result.FAILURE), new FlowInterruptedException(Result.FAILURE)));
+        assertEquals(1, comparator.compare(new FlowInterruptedException(Result.FAILURE), new AbortException()));
+        assertEquals(-1, comparator.compare(new IllegalStateException(), new FlowInterruptedException(Result.FAILURE)));
+        assertEquals(1, comparator.compare(new FlowInterruptedException(Result.FAILURE), new IllegalStateException()));
         assertEquals(-1, comparator.compare(new IllegalStateException(), new AbortException()));
         assertEquals(0, comparator.compare(new AbortException(), new AbortException()));
         assertEquals(1, comparator.compare(new AbortException(), new IllegalStateException()));
         assertEquals(
                 1,
                 comparator.compare(
-                        new FlowInterruptedException(Result.SUCCESS),
-                        new FlowInterruptedException(Result.FAILURE)));
+                        new FlowInterruptedException(Result.SUCCESS), new FlowInterruptedException(Result.FAILURE)));
         assertEquals(
                 -1,
                 comparator.compare(
-                        new FlowInterruptedException(Result.FAILURE),
-                        new FlowInterruptedException(Result.SUCCESS)));
+                        new FlowInterruptedException(Result.FAILURE), new FlowInterruptedException(Result.SUCCESS)));
         assertEquals(
                 1,
                 comparator.compare(
-                        new FlowInterruptedException(Result.SUCCESS),
-                        new FlowInterruptedException(Result.UNSTABLE)));
+                        new FlowInterruptedException(Result.SUCCESS), new FlowInterruptedException(Result.UNSTABLE)));
         assertEquals(
                 -1,
                 comparator.compare(
-                        new FlowInterruptedException(Result.UNSTABLE),
-                        new FlowInterruptedException(Result.SUCCESS)));
+                        new FlowInterruptedException(Result.UNSTABLE), new FlowInterruptedException(Result.SUCCESS)));
         assertEquals(
                 1,
                 comparator.compare(
-                        new FlowInterruptedException(Result.UNSTABLE),
-                        new FlowInterruptedException(Result.FAILURE)));
+                        new FlowInterruptedException(Result.UNSTABLE), new FlowInterruptedException(Result.FAILURE)));
         assertEquals(
                 -1,
                 comparator.compare(
-                        new FlowInterruptedException(Result.FAILURE),
-                        new FlowInterruptedException(Result.UNSTABLE)));
+                        new FlowInterruptedException(Result.FAILURE), new FlowInterruptedException(Result.UNSTABLE)));
     }
 
     @Issue("JENKINS-49073")
@@ -605,40 +624,33 @@ public class ParallelStepTest extends SingleJobTestBase {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                parallelPropagatesStatusImpl(
-                        Result.SUCCESS, Result.SUCCESS, Result.SUCCESS, Result.SUCCESS);
-                parallelPropagatesStatusImpl(
-                        Result.UNSTABLE, Result.SUCCESS, Result.SUCCESS, Result.UNSTABLE);
-                parallelPropagatesStatusImpl(
-                        Result.FAILURE, Result.SUCCESS, Result.SUCCESS, Result.FAILURE);
-                parallelPropagatesStatusImpl(
-                        Result.FAILURE, Result.SUCCESS, Result.UNSTABLE, Result.FAILURE);
-                parallelPropagatesStatusImpl(
-                        Result.FAILURE, Result.SUCCESS, Result.FAILURE, Result.UNSTABLE);
-                parallelPropagatesStatusImpl(
-                        Result.NOT_BUILT, Result.SUCCESS, Result.NOT_BUILT);
-                parallelPropagatesStatusImpl(
-                        Result.NOT_BUILT, Result.SUCCESS, Result.UNSTABLE, Result.NOT_BUILT);
+                parallelPropagatesStatusImpl(Result.SUCCESS, Result.SUCCESS, Result.SUCCESS, Result.SUCCESS);
+                parallelPropagatesStatusImpl(Result.UNSTABLE, Result.SUCCESS, Result.SUCCESS, Result.UNSTABLE);
+                parallelPropagatesStatusImpl(Result.FAILURE, Result.SUCCESS, Result.SUCCESS, Result.FAILURE);
+                parallelPropagatesStatusImpl(Result.FAILURE, Result.SUCCESS, Result.UNSTABLE, Result.FAILURE);
+                parallelPropagatesStatusImpl(Result.FAILURE, Result.SUCCESS, Result.FAILURE, Result.UNSTABLE);
+                parallelPropagatesStatusImpl(Result.NOT_BUILT, Result.SUCCESS, Result.NOT_BUILT);
+                parallelPropagatesStatusImpl(Result.NOT_BUILT, Result.SUCCESS, Result.UNSTABLE, Result.NOT_BUILT);
                 parallelPropagatesStatusImpl(
                         Result.NOT_BUILT, Result.SUCCESS, Result.UNSTABLE, Result.FAILURE, Result.NOT_BUILT);
-                parallelPropagatesStatusImpl(
-                        Result.NOT_BUILT, Result.NOT_BUILT, Result.NOT_BUILT);
-                parallelPropagatesStatusImpl(
-                        Result.ABORTED, Result.SUCCESS, Result.ABORTED);
-                parallelPropagatesStatusImpl(
-                        Result.ABORTED, Result.SUCCESS, Result.UNSTABLE, Result.ABORTED);
+                parallelPropagatesStatusImpl(Result.NOT_BUILT, Result.NOT_BUILT, Result.NOT_BUILT);
+                parallelPropagatesStatusImpl(Result.ABORTED, Result.SUCCESS, Result.ABORTED);
+                parallelPropagatesStatusImpl(Result.ABORTED, Result.SUCCESS, Result.UNSTABLE, Result.ABORTED);
                 parallelPropagatesStatusImpl(
                         Result.ABORTED, Result.SUCCESS, Result.UNSTABLE, Result.FAILURE, Result.ABORTED);
                 parallelPropagatesStatusImpl(
-                        Result.ABORTED, Result.SUCCESS, Result.UNSTABLE, Result.FAILURE, Result.NOT_BUILT, Result.ABORTED);
-                parallelPropagatesStatusImpl(
-                        Result.ABORTED, Result.ABORTED, Result.ABORTED);
+                        Result.ABORTED,
+                        Result.SUCCESS,
+                        Result.UNSTABLE,
+                        Result.FAILURE,
+                        Result.NOT_BUILT,
+                        Result.ABORTED);
+                parallelPropagatesStatusImpl(Result.ABORTED, Result.ABORTED, Result.ABORTED);
             }
         });
     }
 
-    private void parallelPropagatesStatusImpl(Result upstreamResult, Result... downstreamResults)
-            throws Exception {
+    private void parallelPropagatesStatusImpl(Result upstreamResult, Result... downstreamResults) throws Exception {
         List<FreeStyleProject> downstreamJobs = new ArrayList<>();
         for (Result downstreamResult : downstreamResults) {
             FreeStyleProject downstreamJob = getDownstreamJob(downstreamResult);
@@ -650,12 +662,9 @@ public class ParallelStepTest extends SingleJobTestBase {
         upstreamJobDefinition.append("node {\n");
         upstreamJobDefinition.append("  parallel(\n");
         for (FreeStyleProject downstreamJob : downstreamJobs) {
-            upstreamJobDefinition.append(
-                    String.format("    'branch-%s': {\n", downstreamJob.getName()));
-            upstreamJobDefinition.append(
-                    String.format("      semaphore 'sem-%s'\n", downstreamJob.getName()));
-            upstreamJobDefinition.append(
-                    String.format("      build '%s'\n", downstreamJob.getName()));
+            upstreamJobDefinition.append(String.format("    'branch-%s': {\n", downstreamJob.getName()));
+            upstreamJobDefinition.append(String.format("      semaphore 'sem-%s'\n", downstreamJob.getName()));
+            upstreamJobDefinition.append(String.format("      build '%s'\n", downstreamJob.getName()));
             upstreamJobDefinition.append("    },\n");
         }
         upstreamJobDefinition.append("  )\n");
@@ -668,16 +677,13 @@ public class ParallelStepTest extends SingleJobTestBase {
             Result downstreamResult = downstreamResults[i];
 
             SemaphoreStep.success(String.format("sem-%s/1", downstreamJob.getName()), null);
-            story.j.waitForMessage(
-                    String.format("Scheduling project: %s", downstreamJob.getName()), run);
-            story.j.waitForMessage(
-                    String.format("Starting building: %s", downstreamJob.getName()), run);
+            story.j.waitForMessage(String.format("Scheduling project: %s", downstreamJob.getName()), run);
+            story.j.waitForMessage(String.format("Starting building: %s", downstreamJob.getName()), run);
             List<FreeStyleBuild> downstreamBuilds = new ArrayList<>(downstreamJob.getBuilds());
             assertEquals(1, downstreamBuilds.size());
             story.j.waitForCompletion(downstreamBuilds.get(0));
             if (!downstreamResult.equals(Result.SUCCESS)) {
-                story.j.waitForMessage(
-                        String.format("Failed in branch branch-%s", downstreamJob.getName()), run);
+                story.j.waitForMessage(String.format("Failed in branch branch-%s", downstreamJob.getName()), run);
             }
         }
 
@@ -691,8 +697,7 @@ public class ParallelStepTest extends SingleJobTestBase {
             if (!downstreamResult.equals(Result.SUCCESS)) {
                 story.j.waitForMessage(
                         String.format(
-                                "%s #1 completed with status %s",
-                                downstreamJob.getName(), downstreamResult.toString()),
+                                "%s #1 completed with status %s", downstreamJob.getName(), downstreamResult.toString()),
                         run);
             }
         }
@@ -702,10 +707,7 @@ public class ParallelStepTest extends SingleJobTestBase {
         FreeStyleProject ds = story.j.createFreeStyleProject();
         ds.getBuildersList().add(new TestBuilder() {
             @Override
-            public boolean perform(
-                    AbstractBuild<?, ?> build,
-                    Launcher launcher,
-                    BuildListener listener)
+            public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener)
                     throws InterruptedException, IOException {
                 build.setResult(result);
                 return true;

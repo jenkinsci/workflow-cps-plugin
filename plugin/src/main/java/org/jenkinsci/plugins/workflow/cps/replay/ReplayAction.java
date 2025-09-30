@@ -24,7 +24,11 @@
 
 package org.jenkinsci.plugins.workflow.cps.replay;
 
+import static jakarta.servlet.http.HttpServletResponse.SC_CONFLICT;
+
 import com.cloudbees.diff.Diff;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.ExtensionList;
@@ -44,6 +48,8 @@ import hudson.model.queue.QueueTaskFuture;
 import hudson.security.Permission;
 import hudson.security.PermissionScope;
 import hudson.util.FormValidation;
+import hudson.util.HttpResponses;
+import jakarta.servlet.ServletException;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
@@ -56,11 +62,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import jakarta.servlet.ServletException;
-
-import hudson.util.HttpResponses;
 import jenkins.model.Jenkins;
 import jenkins.model.ParameterizedJobMixIn;
 import jenkins.model.TransientActionFactory;
@@ -85,8 +86,6 @@ import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
-import static jakarta.servlet.http.HttpServletResponse.SC_CONFLICT;
-
 /**
  * Attached to a {@link Run} when it could be replayed with script edits.
  */
@@ -101,15 +100,18 @@ public class ReplayAction implements Action {
         this.run = run;
     }
 
-    @Override public String getDisplayName() {
+    @Override
+    public String getDisplayName() {
         return isEnabled() ? Messages.ReplayAction_displayName() : Messages.ReplayAction_rebuild_displayName();
     }
 
-    @Override public String getIconFileName() {
+    @Override
+    public String getIconFileName() {
         return isEnabled() || isRebuildEnabled() ? "symbol-arrow-redo-outline plugin-ionicons-api" : null;
     }
 
-    @Override public String getUrlName() {
+    @Override
+    public String getUrlName() {
         return isEnabled() || isRebuildEnabled() ? "replay" : null;
     }
 
@@ -161,9 +163,14 @@ public class ReplayAction implements Action {
 
         CpsFlowExecution exec = getExecutionLazy();
         if (exec != null) {
-            return exec.isSandbox() || Jenkins.get().hasPermission(Jenkins.ADMINISTER); // We have to check for ADMINISTER because un-sandboxed code can execute arbitrary on-controller code
+            return exec.isSandbox()
+                    || Jenkins.get()
+                            .hasPermission(
+                                    Jenkins.ADMINISTER); // We have to check for ADMINISTER because un-sandboxed code
+            // can execute arbitrary on-controller code
         } else {
-            // If the execution hasn't been lazy-loaded then we will wait to do deeper checks until someone tries to lazy load
+            // If the execution hasn't been lazy-loaded then we will wait to do deeper checks until someone tries to
+            // lazy load
             // OR until isReplayableSandboxTest is invoked b/c they actually try to replay the build
             return true;
         }
@@ -197,12 +204,12 @@ public class ReplayAction implements Action {
     }
 
     /** @see CpsFlowExecution#getLoadedScripts */
-    /* accessible to Jelly */ public Map<String,String> getOriginalLoadedScripts() {
+    /* accessible to Jelly */ public Map<String, String> getOriginalLoadedScripts() {
         CpsFlowExecution execution = getExecutionBlocking();
         if (execution == null) { // ?
-            return Collections.<String,String>emptyMap();
+            return Collections.<String, String>emptyMap();
         }
-        Map<String,String> scripts = new TreeMap<>();
+        Map<String, String> scripts = new TreeMap<>();
         for (OriginalLoadedScripts replayer : ExtensionList.lookup(OriginalLoadedScripts.class)) {
             scripts.putAll(replayer.loadScripts(execution));
         }
@@ -217,18 +224,21 @@ public class ReplayAction implements Action {
     @RequirePOST
     public void doRun(StaplerRequest2 req, StaplerResponse2 rsp) throws ServletException, IOException {
         if (!isEnabled() || !(isReplayableSandboxTest())) {
-            throw new AccessDeniedException("not allowed to replay"); // AccessDeniedException2 requires us to look up the specific Permission
+            throw new AccessDeniedException(
+                    "not allowed to replay"); // AccessDeniedException2 requires us to look up the specific Permission
         }
         JSONObject form = req.getSubmittedForm();
         // Copy originalLoadedScripts, replacing values with those from the form wherever defined.
-        Map<String,String> replacementLoadedScripts = new HashMap<>();
-        for (Map.Entry<String,String> entry : getOriginalLoadedScripts().entrySet()) {
-            // optString since you might be replaying a running build, which might have loaded a script after the page load but before submission.
-            replacementLoadedScripts.put(entry.getKey(), form.optString(entry.getKey().replace('.', '_'), entry.getValue()));
+        Map<String, String> replacementLoadedScripts = new HashMap<>();
+        for (Map.Entry<String, String> entry : getOriginalLoadedScripts().entrySet()) {
+            // optString since you might be replaying a running build, which might have loaded a script after the page
+            // load but before submission.
+            replacementLoadedScripts.put(
+                    entry.getKey(), form.optString(entry.getKey().replace('.', '_'), entry.getValue()));
         }
         if (run(form.getString("mainScript"), replacementLoadedScripts) == null) {
-            throw HttpResponses.error(SC_CONFLICT, new IOException(run.getParent().getFullName() + " is not buildable"));
-
+            throw HttpResponses.error(
+                    SC_CONFLICT, new IOException(run.getParent().getFullName() + " is not buildable"));
         }
         rsp.sendRedirect("../.."); // back to WorkflowJob; new build might not start instantly so cannot redirect to it
     }
@@ -237,19 +247,18 @@ public class ReplayAction implements Action {
     @RequirePOST
     public void doRebuild(StaplerRequest2 req, StaplerResponse2 rsp) throws ServletException, IOException {
         if (!isRebuildEnabled()) {
-            throw new AccessDeniedException("not allowed to replay"); // AccessDeniedException2 requires us to look up the specific Permission
+            throw new AccessDeniedException(
+                    "not allowed to replay"); // AccessDeniedException2 requires us to look up the specific Permission
         }
         if (run(getOriginalScript(), getOriginalLoadedScripts()) == null) {
-            throw HttpResponses.error(SC_CONFLICT, new IOException(run.getParent().getFullName() + " is not buildable"));
-
+            throw HttpResponses.error(
+                    SC_CONFLICT, new IOException(run.getParent().getFullName() + " is not buildable"));
         }
         rsp.sendRedirect("../.."); // back to WorkflowJob; new build might not start instantly so cannot redirect to it
     }
 
-    private static final Iterable<Class<? extends Action>> COPIED_ACTIONS = List.of(
-        ParametersAction.class,
-        SCMRevisionAction.class
-    );
+    private static final Iterable<Class<? extends Action>> COPIED_ACTIONS =
+            List.of(ParametersAction.class, SCMRevisionAction.class);
 
     /**
      * For whitebox testing.
@@ -257,7 +266,8 @@ public class ReplayAction implements Action {
      * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
      * @return a way to wait for the replayed build to complete
      */
-    public @CheckForNull QueueTaskFuture/*<Run>*/ run(@NonNull String replacementMainScript, @NonNull Map<String,String> replacementLoadedScripts) {
+    public @CheckForNull QueueTaskFuture /*<Run>*/ run(
+            @NonNull String replacementMainScript, @NonNull Map<String, String> replacementLoadedScripts) {
         Queue.Item item = run2(replacementMainScript, replacementLoadedScripts);
         return item == null ? null : item.getFuture();
     }
@@ -269,7 +279,8 @@ public class ReplayAction implements Action {
      * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
      * @return build queue item
      */
-    public @CheckForNull Queue.Item run2(@NonNull String replacementMainScript, @NonNull Map<String,String> replacementLoadedScripts) {
+    public @CheckForNull Queue.Item run2(
+            @NonNull String replacementMainScript, @NonNull Map<String, String> replacementLoadedScripts) {
         List<Action> actions = new ArrayList<>();
         CpsFlowExecution execution = getExecutionBlocking();
         if (execution == null) {
@@ -277,7 +288,8 @@ public class ReplayAction implements Action {
         }
 
         if (!execution.isSandbox()) {
-            ScriptApproval.get().configuring(replacementMainScript,GroovyLanguage.get(), ApprovalContext.create(), true);
+            ScriptApproval.get()
+                    .configuring(replacementMainScript, GroovyLanguage.get(), ApprovalContext.create(), true);
             try {
                 ScriptApproval.get().using(replacementMainScript, GroovyLanguage.get());
             } catch (UnapprovedUsageException e) {
@@ -285,7 +297,8 @@ public class ReplayAction implements Action {
             }
         }
 
-        actions.add(new ReplayFlowFactoryAction(replacementMainScript, replacementLoadedScripts, execution.isSandbox()));
+        actions.add(
+                new ReplayFlowFactoryAction(replacementMainScript, replacementLoadedScripts, execution.isSandbox()));
         actions.add(new CauseAction(new Cause.UserIdCause(), new ReplayCause(run)));
 
         if (hasPasswordParameter(this.run)) {
@@ -330,7 +343,8 @@ public class ReplayAction implements Action {
      * @param clazz an entry possibly in {@link #replacementsIn}
      * @return the replacement text, or null if no replacement was available for some reason
      */
-    public static @CheckForNull String replace(@NonNull CpsFlowExecution execution, @NonNull String clazz) throws IOException {
+    public static @CheckForNull String replace(@NonNull CpsFlowExecution execution, @NonNull String clazz)
+            throws IOException {
         Queue.Executable executable = execution.getOwner().getExecutable();
         if (executable instanceof Run) {
             ReplayFlowFactoryAction action = ((Run) executable).getAction(ReplayFlowFactoryAction.class);
@@ -346,10 +360,10 @@ public class ReplayAction implements Action {
     }
 
     public String getDiff() {
-        Run<?,?> original = run;
+        Run<?, ?> original = run;
         ReplayCause cause;
         while ((cause = original.getCause(ReplayCause.class)) != null) {
-            Run<?,?> earlier = cause.getOriginal();
+            Run<?, ?> earlier = cause.getOriginal();
             if (earlier == null) {
                 // Deleted? Oh well.
                 break;
@@ -361,9 +375,10 @@ public class ReplayAction implements Action {
             return "???";
         }
         try {
-            StringBuilder diff = new StringBuilder(diff(/* TODO JENKINS-31838 */"Jenkinsfile", originalAction.getOriginalScript(), getOriginalScript()));
-            Map<String,String> originalLoadedScripts = originalAction.getOriginalLoadedScripts();
-            for (Map.Entry<String,String> entry : getOriginalLoadedScripts().entrySet()) {
+            StringBuilder diff = new StringBuilder(diff(
+                    /* TODO JENKINS-31838 */ "Jenkinsfile", originalAction.getOriginalScript(), getOriginalScript()));
+            Map<String, String> originalLoadedScripts = originalAction.getOriginalLoadedScripts();
+            for (Map.Entry<String, String> entry : getOriginalLoadedScripts().entrySet()) {
                 String script = entry.getKey();
                 String originalScript = originalLoadedScripts.get(script);
                 if (originalScript != null) {
@@ -375,10 +390,14 @@ public class ReplayAction implements Action {
             return Functions.printThrowable(x);
         }
     }
+
     private static String diff(String script, String oldText, String nueText) throws IOException {
         Diff hunks = Diff.diff(new StringReader(oldText), new StringReader(nueText), false);
         // TODO rather than old vs. new could use (e.g.) build-10 vs. build-13
-        return hunks.isEmpty() ? "" : hunks.toUnifiedDiff("old/" + script, "new/" + script, new StringReader(oldText), new StringReader(nueText), 3);
+        return hunks.isEmpty()
+                ? ""
+                : hunks.toUnifiedDiff(
+                        "old/" + script, "new/" + script, new StringReader(oldText), new StringReader(nueText), 3);
     }
 
     /**
@@ -398,32 +417,43 @@ public class ReplayAction implements Action {
      */
     @RequirePOST
     public FormValidation doCheckScript(@QueryParameter String value) {
-        return Jenkins.get().getDescriptorByType(CpsFlowDefinition.DescriptorImpl.class).doCheckScript(value, "", isSandboxed());
+        return Jenkins.get()
+                .getDescriptorByType(CpsFlowDefinition.DescriptorImpl.class)
+                .doCheckScript(value, "", isSandboxed());
     }
 
     @RequirePOST
     public JSON doCheckScriptCompile(@AncestorInPath Item job, @QueryParameter String value) {
-        return Jenkins.get().getDescriptorByType(CpsFlowDefinition.DescriptorImpl.class).doCheckScriptCompile(job, value);
+        return Jenkins.get()
+                .getDescriptorByType(CpsFlowDefinition.DescriptorImpl.class)
+                .doCheckScriptCompile(job, value);
     }
 
-    public static final Permission REPLAY = new Permission(Run.PERMISSIONS, "Replay", Messages._Replay_permission_description(), Item.CONFIGURE, PermissionScope.RUN);
+    public static final Permission REPLAY = new Permission(
+            Run.PERMISSIONS, "Replay", Messages._Replay_permission_description(), Item.CONFIGURE, PermissionScope.RUN);
 
-    @SuppressFBWarnings(value="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT", justification="getEnabled return value discarded")
-    @Initializer(after=InitMilestone.PLUGINS_STARTED, before=InitMilestone.EXTENSIONS_AUGMENTED)
+    @SuppressFBWarnings(
+            value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
+            justification = "getEnabled return value discarded")
+    @Initializer(after = InitMilestone.PLUGINS_STARTED, before = InitMilestone.EXTENSIONS_AUGMENTED)
     public static void ensurePermissionRegistered() {
         REPLAY.getEnabled();
     }
 
-    @Extension public static class Factory extends TransientActionFactory<Run> {
+    @Extension
+    public static class Factory extends TransientActionFactory<Run> {
 
-        @Override public Class<Run> type() {
+        @Override
+        public Class<Run> type() {
             return Run.class;
         }
 
-        @Override public Collection<? extends Action> createFor(Run run) {
-            return run instanceof FlowExecutionOwner.Executable && run.getParent() instanceof ParameterizedJobMixIn.ParameterizedJob ? Collections.<Action>singleton(new ReplayAction(run)) : Collections.<Action>emptySet();
+        @Override
+        public Collection<? extends Action> createFor(Run run) {
+            return run instanceof FlowExecutionOwner.Executable
+                            && run.getParent() instanceof ParameterizedJobMixIn.ParameterizedJob
+                    ? Collections.<Action>singleton(new ReplayAction(run))
+                    : Collections.<Action>emptySet();
         }
-
     }
-
 }

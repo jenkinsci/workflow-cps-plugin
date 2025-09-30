@@ -11,7 +11,8 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
  *
  * @author Kohsuke Kawaguchi
  */
-// classes compiled from Pipeline Script refers to this class, so it needs to be public, but not meant for external consumption
+// classes compiled from Pipeline Script refers to this class, so it needs to be public, but not meant for external
+// consumption
 @Restricted(NoExternalUse.class)
 public class Safepoint extends ThreadTask {
     /**
@@ -28,6 +29,6 @@ public class Safepoint extends ThreadTask {
     protected ThreadTaskResult eval(CpsThread cur) {
         // immediately resume with null value, but this will happen in another
         // invocation of CpsThread.runNextChunk() after yielding.
-        return ThreadTaskResult.resumeWith(new Outcome(null,null));
+        return ThreadTaskResult.resumeWith(new Outcome(null, null));
     }
 }

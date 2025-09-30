@@ -24,24 +24,22 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import com.google.common.util.concurrent.FutureCallback;
-import hudson.model.Action;
-import org.jenkinsci.plugins.workflow.actions.LabelAction;
-import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-import org.jenkinsci.plugins.workflow.graph.FlowNode;
-import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
-import org.jenkinsci.plugins.workflow.steps.BodyInvoker;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.NONE;
 
+import com.google.common.util.concurrent.FutureCallback;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.model.Action;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import edu.umd.cs.findbugs.annotations.NonNull;
-
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.NONE;
-
+import org.jenkinsci.plugins.workflow.actions.LabelAction;
+import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
+import org.jenkinsci.plugins.workflow.steps.BodyInvoker;
 
 /**
  * Builder pattern for accumulating configuration for executing the body.
@@ -124,16 +122,16 @@ public final class CpsBodyInvoker extends BodyInvoker {
      */
     @Override
     public CpsBodyExecution start() {
-        if (execution!=null)    throw new IllegalStateException("Already started");
+        if (execution != null) throw new IllegalStateException("Already started");
         execution = new CpsBodyExecution(owner, callbacks, unexport ? body : null);
 
-        if (displayName!=null)
-            startNodeActions.add(new LabelAction(displayName));
+        if (displayName != null) startNodeActions.add(new LabelAction(displayName));
 
         if (owner.isCompleted()) {
             // if this step is already done, no further body invocations can happen doing so will end up
             // causing two CpsThreads competing on the same FlowHead.
-            // if this restriction ever needs to be lifted, the newly launched body will have to run in a separate thread.
+            // if this restriction ever needs to be lifted, the newly launched body will have to run in a separate
+            // thread.
             throw new IllegalStateException("The " + owner.getDisplayName() + " step has already completed.");
         }
 

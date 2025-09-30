@@ -45,7 +45,9 @@ final class LoggingInvoker implements Invoker {
 
     public static Invoker create(boolean sandbox) {
         Invoker delegate = sandbox ? new SandboxInvoker() : new DefaultInvoker();
-        return  SystemProperties.getBoolean(LoggingInvoker.class.getName() + ".enabled", true) ? new LoggingInvoker(delegate) : delegate;
+        return SystemProperties.getBoolean(LoggingInvoker.class.getName() + ".enabled", true)
+                ? new LoggingInvoker(delegate)
+                : delegate;
     }
 
     private final Invoker delegate;
@@ -68,11 +70,8 @@ final class LoggingInvoker implements Invoker {
         execution.recordInternalCall(call);
     }
 
-    private static final Set<Class<?>> IGNORED = Set.of(
-        Safepoint.class,
-        CpsClosure2.class,
-        EnvActionImpl.class,
-        RunWrapper.class);
+    private static final Set<Class<?>> IGNORED =
+            Set.of(Safepoint.class, CpsClosure2.class, EnvActionImpl.class, RunWrapper.class);
 
     private static boolean isInternal(Class<?> clazz) {
         if (IGNORED.contains(clazz)) {
@@ -88,11 +87,13 @@ final class LoggingInvoker implements Invoker {
         // (simply checking whether the class loader can “see”, say, jenkins/model/Jenkins.class
         // would falsely mark third-party libs bundled in Jenkins plugins)
         String name = clazz.getName();
-        if (name.startsWith("com.cloudbees.groovy.cps.") || name.startsWith("org.jenkinsci.plugins.workflow.cps.persistence.IteratorHack$")) {
+        if (name.startsWith("com.cloudbees.groovy.cps.")
+                || name.startsWith("org.jenkinsci.plugins.workflow.cps.persistence.IteratorHack$")) {
             // Likely synthetic call, as to CpsDefaultGroovyMethods.
             return false;
         }
-        // acc. to `find …/jenkinsci/*/src/main/java -type f -exec egrep -h '^package ' {} \; | sort | uniq` this is decent
+        // acc. to `find …/jenkinsci/*/src/main/java -type f -exec egrep -h '^package ' {} \; | sort | uniq` this is
+        // decent
         return name.contains("jenkins") || name.contains("hudson") || name.contains("cloudbees");
     }
 
@@ -112,23 +113,27 @@ final class LoggingInvoker implements Invoker {
         }
     }
 
-    @Override public Object methodCall(Object receiver, String method, Object[] args) throws Throwable {
+    @Override
+    public Object methodCall(Object receiver, String method, Object[] args) throws Throwable {
         Class<?> clazz = classOf(receiver);
         maybeRecord(clazz, () -> clazz.getName() + "." + method);
         return delegate.methodCall(receiver, method, args);
     }
 
-    @Override public Object constructorCall(Class lhs, Object[] args) throws Throwable {
+    @Override
+    public Object constructorCall(Class lhs, Object[] args) throws Throwable {
         maybeRecord(lhs, () -> lhs.getName() + ".<init>");
         return delegate.constructorCall(lhs, args);
     }
 
-    @Override public Object superCall(Class senderType, Object receiver, String method, Object[] args) throws Throwable {
+    @Override
+    public Object superCall(Class senderType, Object receiver, String method, Object[] args) throws Throwable {
         maybeRecord(senderType, () -> senderType.getName() + "." + method);
         return delegate.superCall(senderType, receiver, method, args);
     }
 
-    @Override public Object getProperty(Object lhs, String name) throws Throwable {
+    @Override
+    public Object getProperty(Object lhs, String name) throws Throwable {
         Class<?> clazz = classOf(lhs);
         maybeRecord(clazz, () -> clazz.getName() + "." + name);
         return delegate.getProperty(lhs, name);
@@ -136,12 +141,15 @@ final class LoggingInvoker implements Invoker {
 
     private static final Set<String> CLOSURE_METAPROPS = Set.of("delegate", "directive", "resolveStrategy");
 
-    @Override public void setProperty(Object lhs, String name, Object value) throws Throwable {
+    @Override
+    public void setProperty(Object lhs, String name, Object value) throws Throwable {
         Class<?> clazz = classOf(lhs);
         maybeRecord(clazz, () -> clazz.getName() + "." + name);
         delegate.setProperty(lhs, name, value);
         if (SystemProperties.getBoolean(LoggingInvoker.class.getName() + ".fieldSetWarning", true)) {
-            if (value != null && !CLOSURE_METAPROPS.contains(name) && /* RuntimeASTTransformer.SCRIPT_SPLITTING_TRANSFORMATION */ !name.startsWith("__model__")) {
+            if (value != null
+                    && !CLOSURE_METAPROPS.contains(name)
+                    && /* RuntimeASTTransformer.SCRIPT_SPLITTING_TRANSFORMATION */ !name.startsWith("__model__")) {
                 var receiver = findReceiver(lhs);
                 if (receiver instanceof CpsScript) {
                     try {
@@ -152,7 +160,13 @@ final class LoggingInvoker implements Invoker {
                         if (g != null) {
                             var e = g.getExecution();
                             if (e != null) {
-                                e.getOwner().getListener().getLogger().println(Messages.LoggingInvoker_field_set(receiver.getClass().getSimpleName(), name, value.getClass().getSimpleName()));
+                                e.getOwner()
+                                        .getListener()
+                                        .getLogger()
+                                        .println(Messages.LoggingInvoker_field_set(
+                                                receiver.getClass().getSimpleName(),
+                                                name,
+                                                value.getClass().getSimpleName()));
                             }
                         }
                     }
@@ -163,7 +177,8 @@ final class LoggingInvoker implements Invoker {
 
     private Object findReceiver(Object o) {
         if (o instanceof Closure<?> c) {
-            // c.f. https://github.com/apache/groovy/blob/41b990d0a20e442f29247f0e04cbed900f3dcad4/src/main/groovy/lang/Closure.java#L344
+            // c.f.
+            // https://github.com/apache/groovy/blob/41b990d0a20e442f29247f0e04cbed900f3dcad4/src/main/groovy/lang/Closure.java#L344
             return switch (c.getResolveStrategy()) {
                 case Closure.DELEGATE_ONLY -> findReceiver(c.getDelegate());
                 case Closure.OWNER_ONLY -> findReceiver(c.getOwner());
@@ -185,40 +200,47 @@ final class LoggingInvoker implements Invoker {
         return o;
     }
 
-    @Override public Object getAttribute(Object lhs, String name) throws Throwable {
+    @Override
+    public Object getAttribute(Object lhs, String name) throws Throwable {
         Class<?> clazz = classOf(lhs);
         maybeRecord(clazz, () -> clazz.getName() + "." + name);
         return delegate.getAttribute(lhs, name);
     }
 
-    @Override public void setAttribute(Object lhs, String name, Object value) throws Throwable {
+    @Override
+    public void setAttribute(Object lhs, String name, Object value) throws Throwable {
         Class<?> clazz = classOf(lhs);
         maybeRecord(clazz, () -> clazz.getName() + "." + name);
         delegate.setAttribute(lhs, name, value);
     }
 
-    @Override public Object getArray(Object lhs, Object index) throws Throwable {
+    @Override
+    public Object getArray(Object lhs, Object index) throws Throwable {
         return delegate.getArray(lhs, index);
     }
 
-    @Override public void setArray(Object lhs, Object index, Object value) throws Throwable {
+    @Override
+    public void setArray(Object lhs, Object index, Object value) throws Throwable {
         delegate.setArray(lhs, index, value);
     }
 
-    @Override public Object methodPointer(Object lhs, String name) {
+    @Override
+    public Object methodPointer(Object lhs, String name) {
         Class<?> clazz = classOf(lhs);
         maybeRecord(clazz, () -> clazz.getName() + "." + name);
         return delegate.methodPointer(lhs, name);
     }
 
-    @Override public Object cast(Object value, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict) throws Throwable {
+    @Override
+    public Object cast(Object value, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict)
+            throws Throwable {
         // Nothing obvious to record.
         return delegate.cast(value, type, ignoreAutoboxing, coerce, strict);
     }
 
-    @Override public Invoker contextualize(CallSiteBlock tags) {
+    @Override
+    public Invoker contextualize(CallSiteBlock tags) {
         Invoker contextualized = delegate.contextualize(tags);
         return contextualized instanceof LoggingInvoker ? contextualized : new LoggingInvoker(contextualized);
     }
-
 }

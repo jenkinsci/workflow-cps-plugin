@@ -1,7 +1,6 @@
 package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.MethodLocation;
-
 import java.io.Serializable;
 
 /**

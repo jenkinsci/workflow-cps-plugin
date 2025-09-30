@@ -3,13 +3,6 @@ package com.cloudbees.groovy.cps.tool;
 import com.sun.codemodel.writer.FileCodeWriter;
 import groovy.lang.GroovyShell;
 import hudson.remoting.Which;
-
-import javax.tools.DiagnosticListener;
-import javax.tools.JavaCompiler;
-import javax.tools.JavaFileObject;
-import javax.tools.StandardJavaFileManager;
-import javax.tools.StandardLocation;
-import javax.tools.ToolProvider;
 import java.io.File;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -17,6 +10,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import javax.tools.DiagnosticListener;
+import javax.tools.JavaCompiler;
+import javax.tools.JavaFileObject;
+import javax.tools.StandardJavaFileManager;
+import javax.tools.StandardLocation;
+import javax.tools.ToolProvider;
 
 public class Driver {
     public static void main(String[] args) throws Exception {
@@ -27,20 +26,25 @@ public class Driver {
         JavaCompiler javac = ToolProvider.getSystemJavaCompiler();
         DiagnosticListener<JavaFileObject> errorListener = createErrorListener();
 
-        try (StandardJavaFileManager fileManager = javac.getStandardFileManager(errorListener, Locale.getDefault(), Charset.defaultCharset())) {
-            fileManager.setLocation(StandardLocation.CLASS_PATH,
-                    Set.of(Which.jarFile(GroovyShell.class)));
+        try (StandardJavaFileManager fileManager =
+                javac.getStandardFileManager(errorListener, Locale.getDefault(), Charset.defaultCharset())) {
+            fileManager.setLocation(StandardLocation.CLASS_PATH, Set.of(Which.jarFile(GroovyShell.class)));
 
-            File groovySrcJar = Which.jarFile(Driver.class.getClassLoader().getResource("groovy/lang/GroovyShell.java"));
+            File groovySrcJar =
+                    Which.jarFile(Driver.class.getClassLoader().getResource("groovy/lang/GroovyShell.java"));
 
             // classes to translate
-            // TODO include other classes mentioned in DefaultGroovyMethods.DGM_LIKE_CLASSES if they have any applicable methods
-            List<String> fileNames = List.of("DefaultGroovyMethods",
-                    "DefaultGroovyStaticMethods",
-                    "StringGroovyMethods");
+            // TODO include other classes mentioned in DefaultGroovyMethods.DGM_LIKE_CLASSES if they have any applicable
+            // methods
+            List<String> fileNames =
+                    List.of("DefaultGroovyMethods", "DefaultGroovyStaticMethods", "StringGroovyMethods");
 
             List<JavaFileObject> src = new ArrayList<>();
-            for (JavaFileObject jfo : fileManager.list(StandardLocation.CLASS_PATH, "org.codehaus.groovy.runtime", Set.of(JavaFileObject.Kind.SOURCE), true)) {
+            for (JavaFileObject jfo : fileManager.list(
+                    StandardLocation.CLASS_PATH,
+                    "org.codehaus.groovy.runtime",
+                    Set.of(JavaFileObject.Kind.SOURCE),
+                    true)) {
                 for (String name : fileNames) {
                     if (jfo.toUri().toString().endsWith("/org/codehaus/groovy/runtime/" + name + ".java")) {
                         src.add(jfo);
@@ -60,11 +64,10 @@ public class Driver {
 
             for (String name : fileNames) {
                 t.translate(
-                        "org.codehaus.groovy.runtime."+name,
-                        "com.cloudbees.groovy.cps.Cps"+name,
+                        "org.codehaus.groovy.runtime." + name,
+                        "com.cloudbees.groovy.cps.Cps" + name,
                         groovySrcJar.getName());
             }
-
 
             Files.createDirectories(dir.toPath());
             t.generateTo(new FileCodeWriter(dir));
@@ -74,5 +77,4 @@ public class Driver {
     private DiagnosticListener<JavaFileObject> createErrorListener() {
         return System.out::println;
     }
-
 }

@@ -29,5 +29,4 @@ import hudson.model.AbstractDescribableImpl;
 public abstract class Curve extends AbstractDescribableImpl<Curve> {
 
     public abstract String getDescription();
-
 }

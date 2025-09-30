@@ -6,8 +6,8 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 
 /**
-* @author Kohsuke Kawaguchi
-*/
+ * @author Kohsuke Kawaguchi
+ */
 public class ReturnBlock implements Block {
     private final Block exp;
 
@@ -16,7 +16,7 @@ public class ReturnBlock implements Block {
     }
 
     public Next eval(Env e, Continuation k) {
-        return new Next(exp,e, e.getReturnAddress());
+        return new Next(exp, e, e.getReturnAddress());
     }
 
     private static final long serialVersionUID = 1L;

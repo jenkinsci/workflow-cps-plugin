@@ -24,8 +24,11 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
+
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.annotations.VisibleForTesting;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.Action;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -34,18 +37,13 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
+import jenkins.util.Timer;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.actions.FlowNodeAction;
 import org.jenkinsci.plugins.workflow.actions.TimingAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
-
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
-import jenkins.util.Timer;
 
 /**
  * Growing tip of the node graph.
@@ -126,8 +124,10 @@ final class FlowHead implements Serializable {
 
     void setNewHead(@NonNull FlowNode v, boolean asynchNotifications) {
         if (v == null) {
-            // Because Findbugs isn't 100% at catching cases where this can happen and we really need to fail hard-and-fast
-            throw new IllegalArgumentException("FlowHead.setNewHead called on FlowHead id="+this.id+" with a null FlowNode, execution="+this.execution);
+            // Because Findbugs isn't 100% at catching cases where this can happen and we really need to fail
+            // hard-and-fast
+            throw new IllegalArgumentException("FlowHead.setNewHead called on FlowHead id=" + this.id
+                    + " with a null FlowNode, execution=" + this.execution);
         }
         try {
             if (this.head != null) {
@@ -137,7 +137,9 @@ final class FlowHead implements Serializable {
             execution.storage.storeNode(v, true);
             assert execution.storage.getNode(v.getId()) != null;
             v.addAction(new TimingAction());
-            CpsFlowExecution.maybeAutoPersistNode(v); // Persist node before changing head, otherwise Program can have unpersisted nodes and will fail to deserialize
+            CpsFlowExecution.maybeAutoPersistNode(
+                    v); // Persist node before changing head, otherwise Program can have unpersisted nodes and will fail
+            // to deserialize
             // NOTE: we may also need to persist the FlowExecution by persisting its owner (which will be a WorkflowRun)
             // But this will be handled by the WorkflowRun GraphListener momentarily
         } catch (Exception e) {
@@ -157,7 +159,7 @@ final class FlowHead implements Serializable {
      */
     private void notifyNewHead(@NonNull FlowNode head, boolean asynchIfOutsideProgram) {
         var g = CpsThreadGroup.current();
-        if (g !=null) {
+        if (g != null) {
             g.notifyNewHead(head);
         } else {
             Runnable notify = () -> {
@@ -207,15 +209,18 @@ final class FlowHead implements Serializable {
     @NonNull
     private Object readResolve() {
         execution = CpsFlowExecution.PROGRAM_STATE_SERIALIZATION.get();
-        if (execution!=null) {
+        if (execution != null) {
             // See if parallel loading?
             FlowHead myHead = execution.getFlowHead(id);
             if (myHead == null) {
-                throw new IllegalStateException("FlowHead loading problem at deserialize: Null FlowHead with id "+id+" in execution "+execution);
+                throw new IllegalStateException("FlowHead loading problem at deserialize: Null FlowHead with id " + id
+                        + " in execution " + execution);
             }
             return myHead;
         } else {
-            LOGGER.log(Level.WARNING, "Tried to load a FlowHead from program with no Execution in PROGRAM_STATE_SERIALIZATION");
+            LOGGER.log(
+                    Level.WARNING,
+                    "Tried to load a FlowHead from program with no Execution in PROGRAM_STATE_SERIALIZATION");
             return this;
         }
     }
@@ -225,6 +230,6 @@ final class FlowHead implements Serializable {
 
     @Override
     public String toString() {
-        return id+":"+head;
+        return id + ":" + head;
     }
 }

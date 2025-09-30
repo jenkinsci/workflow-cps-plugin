@@ -16,13 +16,14 @@
 
 package com.cloudbees.groovy.cps.impl;
 
-import org.junit.Test;
 import static org.junit.Assert.*;
+
+import org.junit.Test;
 
 public class CallerTest {
 
-    @Test public void isAsynchronous() {
+    @Test
+    public void isAsynchronous() {
         assertFalse(Caller.isAsynchronous("hello", "isEmpty"));
     }
-
 }

@@ -16,7 +16,7 @@ public class SuperBlock implements Block {
     }
 
     public Next eval(Env e, Continuation k) {
-        return k.receive(new Super(senderType,e.closureOwner()));
+        return k.receive(new Super(senderType, e.closureOwner()));
     }
 
     private static final long serialVersionUID = 1L;

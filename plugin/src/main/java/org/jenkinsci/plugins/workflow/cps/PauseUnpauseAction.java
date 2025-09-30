@@ -40,15 +40,18 @@ public class PauseUnpauseAction extends RunningFlowAction {
         this.execution = execution;
     }
 
-    @Override public String getUrlName() {
+    @Override
+    public String getUrlName() {
         return URL;
     }
 
-    @Override public String getIconFileName() {
+    @Override
+    public String getIconFileName() {
         return null; // special presentation
     }
 
-    @Override public String getDisplayName() {
+    @Override
+    public String getDisplayName() {
         return null; // special presentation
     }
 
@@ -56,5 +59,4 @@ public class PauseUnpauseAction extends RunningFlowAction {
     public void doToggle() throws IOException {
         execution.pause(!execution.isPaused());
     }
-
 }

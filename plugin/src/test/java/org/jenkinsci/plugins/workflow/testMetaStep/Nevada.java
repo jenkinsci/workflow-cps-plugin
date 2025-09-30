@@ -16,8 +16,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 public class Nevada extends State {
 
     @DataBoundConstructor
-    public Nevada() {
-    }
+    public Nevada() {}
 
     @Override
     public void sayHello(TaskListener hello) {
@@ -26,6 +25,5 @@ public class Nevada extends State {
 
     @Extension
     @Symbol("nevada")
-    public static class DescriptorImpl extends Descriptor<State> {
-    }
+    public static class DescriptorImpl extends Descriptor<State> {}
 }

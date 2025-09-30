@@ -5,6 +5,11 @@ import static org.hamcrest.Matchers.is;
 
 import hudson.ExtensionList;
 import hudson.model.Run;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.List;
+import java.util.Random;
+import java.util.logging.Level;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.flow.GraphListener;
@@ -16,19 +21,12 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestExtension;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.List;
-import java.util.Random;
-import java.util.logging.Level;
-import org.jvnet.hudson.test.Issue;
-
-public class GraphListenerTest
-{
+public class GraphListenerTest {
     @Rule
     public JenkinsRule r = new JenkinsRule();
 
@@ -42,33 +40,28 @@ public class GraphListenerTest
 
     @Issue("JENKINS-54890")
     @Test
-    public void listener()
-        throws Exception
-    {
-        logging.record( CpsFlowExecution.class, Level.WARNING).capture(200);
+    public void listener() throws Exception {
+        logging.record(CpsFlowExecution.class, Level.WARNING).capture(200);
         String script = "node { \n" //
-            + "    echo \"hello\"\n" //
-            + "  " + "}";
-        WorkflowJob j = r.createProject( WorkflowJob.class, "listener" );
-        j.setDefinition( new CpsFlowDefinition( script, true ) );
-        Run run = r.buildAndAssertSuccess( j );
+                + "    echo \"hello\"\n" //
+                + "  " + "}";
+        WorkflowJob j = r.createProject(WorkflowJob.class, "listener");
+        j.setDefinition(new CpsFlowDefinition(script, true));
+        Run run = r.buildAndAssertSuccess(j);
         List<String> logs = logging.getMessages();
-        long found = logs.stream().filter( s -> s.contains( LOG_MESSAGE ) ).count();
-        Assert.assertTrue( "cannot find listener exception message", found > 0 );
+        long found = logs.stream().filter(s -> s.contains(LOG_MESSAGE)).count();
+        Assert.assertTrue("cannot find listener exception message", found > 0);
     }
 
     @TestExtension("listener")
-    public static class TestGraphListener
-        implements GraphListener, Serializable
-    {
+    public static class TestGraphListener implements GraphListener, Serializable {
         private Random random = new Random();
 
         @Override
-        public void onNewHead( FlowNode flowNode )
-        {
-            Assert.assertNotNull( flowNode.getDisplayName() );
-            Assert.assertNotNull( flowNode.getExecution() );
-            throw new NullPointerException( LOG_MESSAGE );
+        public void onNewHead(FlowNode flowNode) {
+            Assert.assertNotNull(flowNode.getDisplayName());
+            Assert.assertNotNull(flowNode.getExecution());
+            throw new NullPointerException(LOG_MESSAGE);
         }
     }
 

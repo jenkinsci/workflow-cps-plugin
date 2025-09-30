@@ -23,16 +23,15 @@
  */
 package org.jenkinsci.plugins.workflow.cps.view;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.Run;
+import java.util.ArrayList;
+import java.util.List;
 import jenkins.model.RunAction2;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Action to generate the UI report for watched environment variables
@@ -62,7 +61,7 @@ public class InterpolatedSecretsAction implements RunAction2 {
 
     @Exported
     public List<InterpolatedWarnings> getWarnings() {
-       return interpolatedWarnings;
+        return interpolatedWarnings;
     }
 
     public boolean hasWarnings() {

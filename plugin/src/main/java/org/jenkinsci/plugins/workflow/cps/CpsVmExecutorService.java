@@ -3,23 +3,23 @@ package org.jenkinsci.plugins.workflow.cps;
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.google.common.collect.ImmutableList;
-import hudson.Main;
-import hudson.remoting.SingleLaneExecutorService;
-import hudson.security.ACL;
-import java.io.IOException;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import groovy.lang.Closure;
+import hudson.Main;
 import hudson.model.TaskListener;
+import hudson.remoting.SingleLaneExecutorService;
+import hudson.security.ACL;
 import hudson.util.DaemonThreadFactory;
 import hudson.util.ExceptionCatchingThreadFactory;
 import hudson.util.NamingThreadFactory;
+import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import jenkins.security.ImpersonatingExecutorService;
 import jenkins.util.ContextResettingExecutorService;
@@ -40,9 +40,9 @@ class CpsVmExecutorService extends InterceptingExecutorService {
 
     @SuppressWarnings("rawtypes")
     private static final List<Class> CATEGORIES = ImmutableList.<Class>builder()
-        .addAll(Continuable.categories)
-        .add(IteratorHack.class)
-        .build();
+            .addAll(Continuable.categories)
+            .add(IteratorHack.class)
+            .build();
 
     private static ThreadFactory categoryThreadFactory(ThreadFactory core) {
         return r -> core.newThread(() -> {
@@ -57,16 +57,12 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         });
     }
 
-    private static final ExecutorService threadPool = new ContextResettingExecutorService(
-        new ImpersonatingExecutorService(
-            new ErrorLoggingExecutorService(
-                Executors.newCachedThreadPool(
-                    categoryThreadFactory(
-                        new ExceptionCatchingThreadFactory(
-                            new NamingThreadFactory(
-                                new DaemonThreadFactory(),
-                                "CpsVmExecutorService"))))),
-            ACL.SYSTEM2));
+    private static final ExecutorService threadPool =
+            new ContextResettingExecutorService(new ImpersonatingExecutorService(
+                    new ErrorLoggingExecutorService(
+                            Executors.newCachedThreadPool(categoryThreadFactory(new ExceptionCatchingThreadFactory(
+                                    new NamingThreadFactory(new DaemonThreadFactory(), "CpsVmExecutorService"))))),
+                    ACL.SYSTEM2));
 
     private CpsThreadGroup cpsThreadGroup;
 
@@ -103,7 +99,11 @@ class CpsVmExecutorService extends InterceptingExecutorService {
             // We probably already got here once with the actual root cause, and in all likelihood the interesting part
             // of the stack trace has been lost to the async boundary and the error is just a side effect of the
             // execution being complete.
-            LOGGER.log(Level.FINE, t, () -> "Unexpected exception in CPS VM thread and execution is already complete: " + cpsThreadGroup.getExecution());
+            LOGGER.log(
+                    Level.FINE,
+                    t,
+                    () -> "Unexpected exception in CPS VM thread and execution is already complete: "
+                            + cpsThreadGroup.getExecution());
             return;
         }
         LOGGER.log(Level.WARNING, "Unexpected exception in CPS VM thread: " + cpsThreadGroup.getExecution(), t);
@@ -116,7 +116,9 @@ class CpsVmExecutorService extends InterceptingExecutorService {
                     TaskListener listener = se.getContext().get(TaskListener.class);
                     FlowNode node = se.getContext().get(FlowNode.class);
                     if (listener != null && node != null) {
-                        listener.getLogger().println("Terminating " + node.getDisplayFunctionName() + " (id: " + node.getId() + ")");
+                        listener.getLogger()
+                                .println(
+                                        "Terminating " + node.getDisplayFunctionName() + " (id: " + node.getId() + ")");
                     }
                 } catch (Throwable e) {
                     t.addSuppressed(e);
@@ -124,7 +126,8 @@ class CpsVmExecutorService extends InterceptingExecutorService {
             }
         }
         cpsThreadGroup.getExecution().croak(t);
-        // cpsThreadGroup.run() must not execute again. We shut this executor service down after stopping steps and completing the build rather than before
+        // cpsThreadGroup.run() must not execute again. We shut this executor service down after stopping steps and
+        // completing the build rather than before
         // to avoid RejectedExecutionExceptions inside of StepExecution.stop above as the steps try to call
         // StepContext.onFailure which eventually submits a task to this executor service to trigger CpsThreadGroup.run.
         shutdown();
@@ -152,6 +155,7 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         final String name;
         final ClassLoader classLoader;
         final CpsFlowExecution.Timing timing;
+
         ThreadContext(Thread thread, CpsFlowExecution execution) {
             this.thread = thread;
             this.name = thread.getName();
@@ -159,6 +163,7 @@ class CpsVmExecutorService extends InterceptingExecutorService {
             ORIGINAL_CONTEXT_CLASS_LOADER.set(classLoader);
             timing = execution.time(CpsFlowExecution.TimingKind.run);
         }
+
         void restore() {
             thread.setName(name);
             thread.setContextClassLoader(classLoader);
@@ -184,18 +189,25 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         return context;
     }
 
-    private void handleMismatch(Object expectedReceiver, String expectedMethodName, Object actualReceiver, String actualMethodName) {
+    private void handleMismatch(
+            Object expectedReceiver, String expectedMethodName, Object actualReceiver, String actualMethodName) {
         Class receiverClass = expectedReceiver.getClass();
         if (Jenkins.get().getPluginManager().whichPlugin(receiverClass) != null) {
             // Plugin code is opaque to the mismatch detector.
             return;
         }
-        String mismatchMessage = mismatchMessage(className(expectedReceiver), expectedMethodName, className(actualReceiver), actualMethodName);
+        String mismatchMessage = mismatchMessage(
+                className(expectedReceiver), expectedMethodName, className(actualReceiver), actualMethodName);
         if (FAIL_ON_MISMATCH) {
             throw new IllegalStateException(mismatchMessage);
         } else {
             try {
-                cpsThreadGroup.getExecution().getOwner().getListener().getLogger().println(mismatchMessage);
+                cpsThreadGroup
+                        .getExecution()
+                        .getOwner()
+                        .getListener()
+                        .getLogger()
+                        .println(mismatchMessage);
             } catch (IOException x) {
                 LOGGER.log(Level.FINE, null, x);
             }
@@ -220,7 +232,11 @@ class CpsVmExecutorService extends InterceptingExecutorService {
      */
     static boolean FAIL_ON_MISMATCH = Main.isUnitTest;
 
-    static String mismatchMessage(@CheckForNull String expectedReceiverClassName, String expectedMethodName, @CheckForNull String actualReceiverClassName, String actualMethodName) {
+    static String mismatchMessage(
+            @CheckForNull String expectedReceiverClassName,
+            String expectedMethodName,
+            @CheckForNull String actualReceiverClassName,
+            String actualMethodName) {
         StringBuilder b = new StringBuilder("expected to call ");
         if (expectedReceiverClassName != null) {
             b.append(expectedReceiverClassName).append('.');
@@ -230,7 +246,8 @@ class CpsVmExecutorService extends InterceptingExecutorService {
             b.append(actualReceiverClassName).append('.');
         }
         b.append(actualMethodName);
-        return b.append("; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/").toString();
+        return b.append("; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/")
+                .toString();
     }
 
     private void tearDown(ThreadContext context) {
@@ -238,7 +255,11 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         cpsThreadGroup.busy = false;
         context.restore();
         CpsFlowExecution execution = cpsThreadGroup.getExecution();
-        if (isShutdown() && /* build completed, not just after suspendAll */!cpsThreadGroup.getThreads().iterator().hasNext()) {
+        if (isShutdown()
+                && /* build completed, not just after suspendAll */ !cpsThreadGroup
+                        .getThreads()
+                        .iterator()
+                        .hasNext()) {
             execution.logTimings();
         }
         CpsCallableInvocation.registerMismatchHandler(null);

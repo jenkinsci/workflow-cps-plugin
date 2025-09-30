@@ -2,10 +2,9 @@ package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.CpsClosure;
 import groovy.lang.Closure;
-import org.codehaus.groovy.ast.ClassNode;
-
 import java.util.ArrayList;
 import java.util.List;
+import org.codehaus.groovy.ast.ClassNode;
 
 /**
  * Switches that affect the behaviour of {@link CpsTransformer}
@@ -48,7 +47,7 @@ public class TransformerConfiguration {
      * the execution of a program.
      */
     public TransformerConfiguration withSafepoint(Class clazz, String methodName) {
-        safepoints.add(new Safepoint(clazz,methodName));
+        safepoints.add(new Safepoint(clazz, methodName));
         return this;
     }
 }

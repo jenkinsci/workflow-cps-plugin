@@ -3,12 +3,6 @@ package org.jenkinsci.plugins.workflow.cps;
 import com.cloudbees.groovy.cps.Continuable;
 import hudson.model.Run;
 import java.io.IOException;
-import org.codehaus.groovy.runtime.GStringImpl;
-import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
-import org.jenkinsci.plugins.scriptsecurity.sandbox.Whitelist;
-import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.AbstractWhitelist;
-import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.ProxyWhitelist;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -17,6 +11,11 @@ import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
+import org.codehaus.groovy.runtime.GStringImpl;
+import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.Whitelist;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.AbstractWhitelist;
+import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.ProxyWhitelist;
 import org.kohsuke.groovy.sandbox.impl.Checker;
 
 /**
@@ -50,7 +49,7 @@ class CpsWhitelist extends AbstractWhitelist {
             if (name.equals("getProperty") && args.length == 1 && args[0] instanceof String) {
                 String property = (String) args[0];
                 CpsScript script = (CpsScript) receiver;
-                Run<?,?> b = script.$buildNoException();
+                Run<?, ?> b = script.$buildNoException();
                 if (GlobalVariable.byName(property, b) != null) {
                     return true;
                 }
@@ -81,8 +80,7 @@ class CpsWhitelist extends AbstractWhitelist {
 
     @Override
     public boolean permitsConstructor(Constructor<?> constructor, Object[] args) {
-        if (constructor.getDeclaringClass()== GStringImpl.class)
-            return true;
+        if (constructor.getDeclaringClass() == GStringImpl.class) return true;
 
         return false;
     }
@@ -91,7 +89,8 @@ class CpsWhitelist extends AbstractWhitelist {
     public boolean permitsStaticMethod(Method method, Object[] args) {
         Class<?> c = method.getDeclaringClass();
         String n = method.getName();
-        // type coercive cast. In particular, this is used to build GString. See com.cloudbees.groovy.cps.Builder.gstring
+        // type coercive cast. In particular, this is used to build GString. See
+        // com.cloudbees.groovy.cps.Builder.gstring
         if (c == ScriptBytecodeAdapter.class && n.equals("asType")) {
             Object object = args[0];
             Class<?> type = (Class<?>) args[1];
@@ -122,7 +121,8 @@ class CpsWhitelist extends AbstractWhitelist {
                         expectedName = n;
                     }
                     for (Method m2 : orig.getMethods()) {
-                        if (m2.getName().equals(expectedName) && Arrays.equals(m2.getParameterTypes(), expectedParameterTypes)) {
+                        if (m2.getName().equals(expectedName)
+                                && Arrays.equals(m2.getParameterTypes(), expectedParameterTypes)) {
                             return Whitelist.all().permitsStaticMethod(m2, args);
                         }
                     }
@@ -140,7 +140,7 @@ class CpsWhitelist extends AbstractWhitelist {
     /**
      * Stuff we whitelist specifically for CPS, with the rest of the installed rules combined.
      */
-    private static final Map<Jenkins,Whitelist> wrappedByJenkins = new WeakHashMap<>();
+    private static final Map<Jenkins, Whitelist> wrappedByJenkins = new WeakHashMap<>();
 
     static synchronized Whitelist get() {
         Jenkins j = Jenkins.getInstanceOrNull();

@@ -24,26 +24,24 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.jenkinsci.plugins.workflow.cps.Snippetizer.ACTION_URL;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.ExtensionPoint;
 import hudson.model.Item;
 import hudson.model.Job;
-import org.kohsuke.stapler.Stapler;
-import org.kohsuke.stapler.StaplerRequest2;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static org.jenkinsci.plugins.workflow.cps.Snippetizer.ACTION_URL;
+import org.kohsuke.stapler.Stapler;
+import org.kohsuke.stapler.StaplerRequest2;
 
 /**
  * A link that will show up on the side panel of the snippet generator and other similar pages.
  * Display order is determined by extension ordinal - highest ordinal first.
- * 
+ *
  * @author Andrew Bayer
  */
 public abstract class SnippetizerLink implements ExtensionPoint {

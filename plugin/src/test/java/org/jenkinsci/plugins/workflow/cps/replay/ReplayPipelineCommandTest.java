@@ -24,6 +24,8 @@
 
 package org.jenkinsci.plugins.workflow.cps.replay;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import hudson.cli.CLICommandInvoker;
 import jenkins.model.Jenkins;
 import org.apache.tools.ant.filters.StringInputStream;
@@ -38,26 +40,23 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+public class ReplayPipelineCommandTest {
 
-public class  ReplayPipelineCommandTest {
-
-    @Rule public JenkinsRule j = new JenkinsRule();
+    @Rule
+    public JenkinsRule j = new JenkinsRule();
 
     @Issue("SECURITY-3362")
     @Test
     public void rebuildNeedScriptApprovalCLIEdition() throws Exception {
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
-        j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
-                grant(Jenkins.ADMINISTER).everywhere().toEveryone());
+        j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy()
+                .grant(Jenkins.ADMINISTER)
+                .everywhere()
+                .toEveryone());
 
         WorkflowJob p = j.jenkins.createProject(WorkflowJob.class, "SECURITY-3362");
         j.jenkins.getWorkspaceFor(p).child("a.groovy").write("echo 'Hello LoadedWorld'", null);
-        String script =
-                "def a\n" +
-                "node() {\n" +
-                "    a = load('a.groovy')\n" +
-                "}\n";
+        String script = "def a\n" + "node() {\n" + "    a = load('a.groovy')\n" + "}\n";
         p.setDefinition(new CpsFlowDefinition(script, false));
 
         ScriptApproval.get().preapprove(script, GroovyLanguage.get());
@@ -66,34 +65,44 @@ public class  ReplayPipelineCommandTest {
         j.assertBuildStatusSuccess(j.waitForCompletion(b1));
         String viaCliScript = "echo 'HelloWorld'";
 
-        assertThat(new CLICommandInvoker(j, new ReplayPipelineCommand()).withStdin(new StringInputStream(viaCliScript))
-                .invokeWithArgs(p.getName(), "-n", "1"),
+        assertThat(
+                new CLICommandInvoker(j, new ReplayPipelineCommand())
+                        .withStdin(new StringInputStream(viaCliScript))
+                        .invokeWithArgs(p.getName(), "-n", "1"),
                 CLICommandInvoker.Matcher.succeededSilently());
         j.waitUntilNoActivity();
         j.assertBuildStatusSuccess(p.getBuildByNumber(2));
 
-        assertThat(new CLICommandInvoker(j, new ReplayPipelineCommand()).withStdin(new StringInputStream(viaCliScript))
-                .invokeWithArgs(p.getName(), "-n", "1", "-s", "Script1"),
+        assertThat(
+                new CLICommandInvoker(j, new ReplayPipelineCommand())
+                        .withStdin(new StringInputStream(viaCliScript))
+                        .invokeWithArgs(p.getName(), "-n", "1", "-s", "Script1"),
                 CLICommandInvoker.Matcher.succeededSilently());
         j.waitUntilNoActivity();
         j.assertBuildStatusSuccess(p.getBuildByNumber(3));
 
         ScriptApproval.get().clearApprovedScripts();
 
-        assertThat(new CLICommandInvoker(j, new ReplayPipelineCommand()).withStdin(new StringInputStream(viaCliScript))
-                .invokeWithArgs(p.getName(), "-n", "1"),
+        assertThat(
+                new CLICommandInvoker(j, new ReplayPipelineCommand())
+                        .withStdin(new StringInputStream(viaCliScript))
+                        .invokeWithArgs(p.getName(), "-n", "1"),
                 CLICommandInvoker.Matcher.succeededSilently());
         j.waitUntilNoActivity();
         j.assertBuildStatusSuccess(p.getBuildByNumber(4));
 
         ScriptApproval.get().clearApprovedScripts();
 
-        assertThat(new CLICommandInvoker(j, new ReplayPipelineCommand()).withStdin(new StringInputStream(viaCliScript))
-                .invokeWithArgs(p.getName(), "-n", "1", "-s", "Script1"),
+        assertThat(
+                new CLICommandInvoker(j, new ReplayPipelineCommand())
+                        .withStdin(new StringInputStream(viaCliScript))
+                        .invokeWithArgs(p.getName(), "-n", "1", "-s", "Script1"),
                 CLICommandInvoker.Matcher.failedWith(1));
 
-        assertThat(new CLICommandInvoker(j, new ReplayPipelineCommand()).withStdin(new StringInputStream(viaCliScript))
-                .invokeWithArgs(p.getName(), "-n", "1", "-s", "Script1", "-a"),
+        assertThat(
+                new CLICommandInvoker(j, new ReplayPipelineCommand())
+                        .withStdin(new StringInputStream(viaCliScript))
+                        .invokeWithArgs(p.getName(), "-n", "1", "-s", "Script1", "-a"),
                 CLICommandInvoker.Matcher.succeededSilently());
         j.waitUntilNoActivity();
         j.assertBuildStatusSuccess(p.getBuildByNumber(5));

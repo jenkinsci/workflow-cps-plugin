@@ -52,8 +52,8 @@ import java.util.Map;
         this.caller = caller;
         this.returnAddress = returnAddress;
         this.callSiteLoc = loc;
-        this.invoker = caller==null ? Invoker.INSTANCE : caller.getInvoker();
-        assert returnAddress!=null;
+        this.invoker = caller == null ? Invoker.INSTANCE : caller.getInvoker();
+        assert returnAddress != null;
         if (localsCount <= 0) {
             types = Collections.EMPTY_MAP;
         } else {
@@ -71,7 +71,7 @@ import java.util.Map;
     }
 
     /** Used when we are actually going to mutate the types info */
-    protected Map<String,Class> getTypesForMutation() {
+    protected Map<String, Class> getTypesForMutation() {
         if (types == null || types == Collections.EMPTY_MAP) {
             this.types = new HashMap<>(2);
         }
@@ -106,12 +106,12 @@ import java.util.Map;
     }
 
     public final Continuation getExceptionHandler(Class<? extends Throwable> type) {
-        if (caller==null) {
+        if (caller == null) {
             // TODO: maybe define a mechanism so that the run() or start() kinda method will return
             // by having this exception thrown?
             return new Continuation() {
                 public Next receive(Object o) {
-                    return Next.unhandledException((Throwable)o);
+                    return Next.unhandledException((Throwable) o);
                 }
             };
         } else {
@@ -121,10 +121,8 @@ import java.util.Map;
     }
 
     public void buildStackTraceElements(List<StackTraceElement> stack, int depth) {
-        if (callSiteLoc!=null)
-            stack.add(callSiteLoc.toStackTrace());
-        if (caller!=null && depth>1)
-            caller.buildStackTraceElements(stack, depth-1);
+        if (callSiteLoc != null) stack.add(callSiteLoc.toStackTrace());
+        if (caller != null && depth > 1) caller.buildStackTraceElements(stack, depth - 1);
     }
 
     private static final long serialVersionUID = 1L;
@@ -137,5 +135,4 @@ import java.util.Map;
     public String toString() {
         return callSiteLoc != null ? super.toString() + " @" + callSiteLoc : super.toString();
     }
-
 }

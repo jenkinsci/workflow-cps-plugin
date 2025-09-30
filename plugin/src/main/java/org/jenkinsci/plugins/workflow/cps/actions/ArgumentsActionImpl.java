@@ -1,4 +1,3 @@
-
 /*
  * The MIT License
  *
@@ -25,26 +24,18 @@
 package org.jenkinsci.plugins.workflow.cps.actions;
 
 import com.google.common.collect.Maps;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import groovy.lang.GroovyClassLoader;
 import hudson.EnvVars;
 import hudson.model.Describable;
 import hudson.model.Result;
-import java.util.Collection;
-import jenkins.model.Jenkins;
-import org.jenkinsci.plugins.structs.describable.DescribableModel;
-import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
-import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
-import org.jenkinsci.plugins.workflow.steps.Step;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.OutputStream;
 import java.lang.reflect.Type;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -55,6 +46,13 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import jenkins.model.Jenkins;
+import org.jenkinsci.plugins.structs.describable.DescribableModel;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
+import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 /**
  * Implements {@link ArgumentsAction} by storing step arguments, with sanitization.
@@ -64,7 +62,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
     /** Arguments to the step, for cases where we cannot simply store the step because masking was applied */
     @CheckForNull
-    private Map<String,Object> arguments;
+    private Map<String, Object> arguments;
 
     private final Set<String> sensitiveVariables;
 
@@ -72,7 +70,10 @@ public class ArgumentsActionImpl extends ArgumentsAction {
 
     private static final Logger LOGGER = Logger.getLogger(ArgumentsActionImpl.class.getName());
 
-    public ArgumentsActionImpl(@NonNull Map<String, Object> stepArguments, @CheckForNull EnvVars env, @NonNull Set<String> sensitiveVariables) {
+    public ArgumentsActionImpl(
+            @NonNull Map<String, Object> stepArguments,
+            @CheckForNull EnvVars env,
+            @NonNull Set<String> sensitiveVariables) {
         this.sensitiveVariables = new HashSet<>(sensitiveVariables);
         this.arguments = serializationCheck(sanitizeStepArguments(stepArguments, env));
     }
@@ -83,15 +84,16 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     }
 
     /** For testing use only */
-    ArgumentsActionImpl(@NonNull Set<String> sensitiveVariables){
+    ArgumentsActionImpl(@NonNull Set<String> sensitiveVariables) {
         this.isUnmodifiedBySanitization = true;
         this.arguments = Collections.emptyMap();
         this.sensitiveVariables = sensitiveVariables;
     }
 
     /** See if sensitive environment variable content is in a string and replace the content with its associated variable name, otherwise return string unmodified*/
-    public static String replaceSensitiveVariables(@NonNull String input, @CheckForNull EnvVars variables, @NonNull Set<String> sensitiveVariables) {
-        if (variables == null || variables.size() == 0 || sensitiveVariables.size() ==0) {
+    public static String replaceSensitiveVariables(
+            @NonNull String input, @CheckForNull EnvVars variables, @NonNull Set<String> sensitiveVariables) {
+        if (variables == null || variables.size() == 0 || sensitiveVariables.size() == 0) {
             return input;
         }
         String modded = input;
@@ -120,18 +122,25 @@ public class ArgumentsActionImpl extends ArgumentsAction {
     boolean isStorableType(Object ob) {
         if (ob == null) {
             return true;
-        } else if (ob instanceof CharSequence || ob instanceof Number || ob instanceof Boolean
-                || ob instanceof Map || ob instanceof List || ob instanceof UninstantiatedDescribable
-                || ob instanceof URL || ob instanceof Result) {
+        } else if (ob instanceof CharSequence
+                || ob instanceof Number
+                || ob instanceof Boolean
+                || ob instanceof Map
+                || ob instanceof List
+                || ob instanceof UninstantiatedDescribable
+                || ob instanceof URL
+                || ob instanceof Result) {
             return true;
         }
         if (ob instanceof Enum) {
-            // We use getDeclaringClass instead of getClass to handle enums with value-specific class bodies like TimeUnit.
+            // We use getDeclaringClass instead of getClass to handle enums with value-specific class bodies like
+            // TimeUnit.
             Class enumClass = ((Enum) ob).getDeclaringClass();
             return !(enumClass.getClassLoader() instanceof GroovyClassLoader);
         }
         Class c = ob.getClass();
-        return c.isPrimitive() || (c.isArray() && !(c.getComponentType().isPrimitive()));  // Primitive arrays are not legal here
+        return c.isPrimitive()
+                || (c.isArray() && !(c.getComponentType().isPrimitive())); // Primitive arrays are not legal here
     }
 
     /**
@@ -159,8 +168,9 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             if (modded != o) {
                 // Sanitization stripped out some values, so we need to store the mutated object
                 output.add(modded);
-                isMutated = true; //isUnmodifiedBySanitization was already set
-            } else { // Any mutation was just from exploding step/uninstantiated describable, and we can just use the original
+                isMutated = true; // isUnmodifiedBySanitization was already set
+            } else { // Any mutation was just from exploding step/uninstantiated describable, and we can just use the
+                // original
                 output.add(o);
             }
         }
@@ -202,14 +212,16 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         if (tempVal instanceof Step) {
             // Ugly but functional used for legacy syntaxes with metasteps
             m = DescribableModel.of(tempVal.getClass());
-            tempVal = ((Step)tempVal).getDescriptor().defineArguments((Step)tempVal);
+            tempVal = ((Step) tempVal).getDescriptor().defineArguments((Step) tempVal);
         } else if (tempVal instanceof UninstantiatedDescribable) {
-            tempVal = ((UninstantiatedDescribable)tempVal).toMap();
-        } else if (tempVal instanceof Describable) {  // Raw Describables may not be safe to store, so we should explode it
+            tempVal = ((UninstantiatedDescribable) tempVal).toMap();
+        } else if (tempVal
+                instanceof Describable) { // Raw Describables may not be safe to store, so we should explode it
             try {
                 m = DescribableModel.of(tempVal.getClass());
                 tempVal = m.uninstantiate2(o).toMap();
-            } catch (RuntimeException x) { // usually NoStaplerConstructorException, but could also be misc. UnsupportedOperationException
+            } catch (RuntimeException x) { // usually NoStaplerConstructorException, but could also be misc.
+                // UnsupportedOperationException
                 LOGGER.log(Level.FINE, "failed to store " + tempVal, x);
                 this.isUnmodifiedBySanitization = false;
                 return NotStoredReason.UNSERIALIZABLE;
@@ -221,7 +233,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             return NotStoredReason.OVERSIZE_VALUE;
         }
 
-        if (!isStorableType(tempVal)) {  // If we're not a legal type to store, then don't.
+        if (!isStorableType(tempVal)) { // If we're not a legal type to store, then don't.
             this.isUnmodifiedBySanitization = false;
             return NotStoredReason.UNSERIALIZABLE;
         }
@@ -229,14 +241,14 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         Object modded = tempVal;
         if (modded instanceof Map) {
             // Recursive sanitization, oh my!
-            modded = sanitizeMapAndRecordMutation((Map)modded, vars, false);
+            modded = sanitizeMapAndRecordMutation((Map) modded, vars, false);
         } else if (modded instanceof List) {
             modded = sanitizeListAndRecordMutation((List) modded, vars);
         } else if (modded != null && modded.getClass().isArray()) {
             Class componentType = modded.getClass().getComponentType();
-            if (!componentType.isPrimitive()) {  // Object arrays get recursively sanitized
-                modded = sanitizeArrayAndRecordMutation((Object[])modded, vars);
-            } else {  // Primitive arrays aren't a valid type here
+            if (!componentType.isPrimitive()) { // Object arrays get recursively sanitized
+                modded = sanitizeArrayAndRecordMutation((Object[]) modded, vars);
+            } else { // Primitive arrays aren't a valid type here
                 this.isUnmodifiedBySanitization = true;
                 return NotStoredReason.UNSERIALIZABLE;
             }
@@ -244,7 +256,7 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             this.isUnmodifiedBySanitization = false;
             return "<contains ASCII NUL>";
         } else if (modded instanceof String && vars != null && !vars.isEmpty()) {
-            String replaced = replaceSensitiveVariables((String)modded, vars, sensitiveVariables);
+            String replaced = replaceSensitiveVariables((String) modded, vars, sensitiveVariables);
             if (!replaced.equals(modded)) {
                 this.isUnmodifiedBySanitization = false;
             }
@@ -254,7 +266,11 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         if (modded != tempVal) {
             // Sanitization stripped out some values, so we need to record that and return modified version
             this.isUnmodifiedBySanitization = false;
-            if (o instanceof Describable && !(o instanceof Step)) { // Return an UninstantiatedDescribable for the input Describable with masking applied to arguments
+            if (o instanceof Describable
+                    && !(o
+                            instanceof
+                            Step)) { // Return an UninstantiatedDescribable for the input Describable with masking
+                // applied to arguments
                 // We're skipping steps because for those we want to return the raw arguments anyway...
                 UninstantiatedDescribable rawUd = m.uninstantiate2(o);
                 return new UninstantiatedDescribable(rawUd.getSymbol(), rawUd.getKlass(), (Map<String, ?>) modded);
@@ -265,10 +281,14 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             } else {
                 return modded;
             }
-        } else if (o instanceof Describable && tempVal instanceof Map) {  // Handle oddball cases where Describable is passed in directly and we need to uninstantiate.
+        } else if (o instanceof Describable
+                && tempVal
+                        instanceof Map) { // Handle oddball cases where Describable is passed in directly and we need to
+            // uninstantiate.
             UninstantiatedDescribable rawUd = m.uninstantiate2(o);
             return rawUd;
-        } else {  // Any mutation was just from exploding step/uninstantiated describable, and we can just use the original
+        } else { // Any mutation was just from exploding step/uninstantiated describable, and we can just use the
+            // original
             return o;
         }
     }
@@ -283,15 +303,21 @@ public class ArgumentsActionImpl extends ArgumentsAction {
         for (Map.Entry<String, Object> entry : arguments.entrySet()) {
             Object val = entry.getValue();
             try {
-                if (val != null && !(val instanceof String) && !(val instanceof Boolean) && !(val instanceof Number) && !(val instanceof NotStoredReason) && !(val instanceof TimeUnit)) {
+                if (val != null
+                        && !(val instanceof String)
+                        && !(val instanceof Boolean)
+                        && !(val instanceof Number)
+                        && !(val instanceof NotStoredReason)
+                        && !(val instanceof TimeUnit)) {
                     // We only need to check serialization for nontrivial types
-                    Jenkins.XSTREAM2.toXMLUTF8(entry.getValue(), OutputStream.nullOutputStream());  // Hacky but can't find a better way
+                    Jenkins.XSTREAM2.toXMLUTF8(
+                            entry.getValue(), OutputStream.nullOutputStream()); // Hacky but can't find a better way
                 }
                 out.put(entry.getKey(), entry.getValue());
             } catch (Exception ex) {
                 out.put(entry.getKey(), NotStoredReason.UNSERIALIZABLE);
                 isMutated = true;
-                LOGGER.log(Level.FINE, "Failed to serialize argument "+entry.getKey(), ex);
+                LOGGER.log(Level.FINE, "Failed to serialize argument " + entry.getKey(), ex);
             }
         }
         if (isMutated) {
@@ -318,12 +344,13 @@ public class ArgumentsActionImpl extends ArgumentsAction {
      * Goes through {@link #sanitizeObjectAndRecordMutation(Object, EnvVars)} for each value in a map input.
      */
     @NonNull
-    private Object sanitizeMapAndRecordMutation(@NonNull Map<String, Object> mapContents, @CheckForNull EnvVars variables, boolean topLevel) {
+    private Object sanitizeMapAndRecordMutation(
+            @NonNull Map<String, Object> mapContents, @CheckForNull EnvVars variables, boolean topLevel) {
         LinkedHashMap<String, Object> output = new LinkedHashMap<>(mapContents.size());
         long size = mapContents.size();
 
         boolean isMutated = false;
-        for (Map.Entry<String,?> param : mapContents.entrySet()) {
+        for (Map.Entry<String, ?> param : mapContents.entrySet()) {
             Object modded = sanitizeObjectAndRecordMutation(param.getValue(), variables);
             if (!topLevel) {
                 size += param.getKey().length();
@@ -336,8 +363,9 @@ public class ArgumentsActionImpl extends ArgumentsAction {
             if (modded != param.getValue()) {
                 // Sanitization stripped out some values, so we need to store the mutated object
                 output.put(param.getKey(), modded);
-                isMutated = true; //isUnmodifiedBySanitization was already set
-            } else { // Any mutation was just from exploding step/uninstantiated describable, and we can just use the original
+                isMutated = true; // isUnmodifiedBySanitization was already set
+            } else { // Any mutation was just from exploding step/uninstantiated describable, and we can just use the
+                // original
                 output.put(param.getKey(), param.getValue());
             }
         }

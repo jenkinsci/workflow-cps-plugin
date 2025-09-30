@@ -5,14 +5,14 @@ import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Collections;
-import java.util.Map;
 import groovy.lang.Closure;
 import groovy.lang.GroovyObject;
 import groovy.lang.MetaClass;
 import groovy.lang.MissingPropertyException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * When an CPS-interpreted method is invoked, it immediately throws this error
@@ -29,7 +29,8 @@ import groovy.lang.MissingPropertyException;
  *
  * @author Kohsuke Kawaguchi
  */
-public class CpsCallableInvocation extends Error/*not really an error but we want something that doesn't change signature*/ {
+public class CpsCallableInvocation
+        extends Error /*not really an error but we want something that doesn't change signature*/ {
     public final String methodName;
     public final CpsCallable call;
     public final Object receiver;
@@ -51,7 +52,7 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
     }
 
     public Next invoke(Env caller, SourceLocation loc, Continuation k) {
-        return call.invoke(caller, loc, receiver,arguments,k);
+        return call.invoke(caller, loc, receiver, arguments, k);
     }
 
     /**
@@ -61,15 +62,17 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
      */
     void checkMismatch(Object expectedReceiver, List<String> expectedMethodNames) {
         String expectedMethodName = expectedMethodNames.get(0);
-        
+
         if (expectedReceiver instanceof MetaClass && expectedMethodName.equals("invokeMethod")) {
-            return; 
+            return;
         }
 
         if ("call".equals(methodName) && !expectedMethodNames.contains(methodName)) {
             if (expectedReceiver instanceof GroovyObject) {
                 try {
-                    Object propVal = ((GroovyObject) expectedReceiver).getMetaClass().getProperty(expectedReceiver, expectedMethodName);
+                    Object propVal = ((GroovyObject) expectedReceiver)
+                            .getMetaClass()
+                            .getProperty(expectedReceiver, expectedMethodName);
                     if (propVal instanceof Closure) {
                         return;
                     }
@@ -85,8 +88,8 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
             }
         }
 
-        if(methodName.equals("methodMissing")){
-            return; 
+        if (methodName.equals("methodMissing")) {
+            return;
         }
 
         if (!expectedMethodNames.contains(methodName)) {
@@ -124,7 +127,7 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
     public static void registerMismatchHandler(@CheckForNull MismatchHandler handler) {
         handlers.set(handler);
     }
-    
+
     /**
      * Creates a {@link Block} that performs this invocation and pass the result to the given {@link Continuation}.
      */
@@ -143,7 +146,7 @@ public class CpsCallableInvocation extends Error/*not really an error but we wan
 
     @Override
     public String toString() {
-        return "CpsCallableInvocation{methodName=" + methodName + ", call=" + call + ", receiver=" + receiver + ", arguments=" + arguments + '}';
+        return "CpsCallableInvocation{methodName=" + methodName + ", call=" + call + ", receiver=" + receiver
+                + ", arguments=" + arguments + '}';
     }
-
 }

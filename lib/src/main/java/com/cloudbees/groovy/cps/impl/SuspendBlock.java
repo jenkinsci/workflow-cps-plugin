@@ -5,7 +5,6 @@ import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-
 import java.util.List;
 
 /**
@@ -15,14 +14,13 @@ import java.util.List;
  * @see Continuable#suspend(Object)
  */
 public class SuspendBlock implements Block {
-    private SuspendBlock() {
-    }
+    private SuspendBlock() {}
 
     public Next eval(Env e, final Continuation k) {
         Object v = e.getLocalVariable("suspendValue");
-        e.setLocalVariable("suspendValue",null);
+        e.setLocalVariable("suspendValue", null);
 
-        return Next.yield(v,e,k);
+        return Next.yield(v, e, k);
     }
 
     private static final long serialVersionUID = 1L;
@@ -30,5 +28,5 @@ public class SuspendBlock implements Block {
     /**
      * CPS Definition of the {@link Continuable#suspend(Object)} method.
      */
-    public static final CpsFunction SUSPEND = new CpsFunction(List.of("suspendValue"),new SuspendBlock());
+    public static final CpsFunction SUSPEND = new CpsFunction(List.of("suspendValue"), new SuspendBlock());
 }

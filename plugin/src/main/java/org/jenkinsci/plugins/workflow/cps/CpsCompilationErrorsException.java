@@ -1,7 +1,7 @@
 package org.jenkinsci.plugins.workflow.cps;
 
-import org.codehaus.groovy.control.MultipleCompilationErrorsException;
 import java.io.NotSerializableException;
+import org.codehaus.groovy.control.MultipleCompilationErrorsException;
 
 /**
  * An exception that replaces Groovy's {@link MultipleCompilationErrorsException},

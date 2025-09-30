@@ -31,21 +31,26 @@ import hudson.model.queue.QueueTaskFuture;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
-import org.junit.Test;
 import org.junit.Rule;
+import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
 public class CpsThreadDumpActionTest {
 
-    @Rule public JenkinsRule r = new JenkinsRule();
+    @Rule
+    public JenkinsRule r = new JenkinsRule();
 
-    @Test public void doProgramDotXml() throws Exception {
+    @Test
+    public void doProgramDotXml() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("node {semaphore 'wait'}", true));
         final QueueTaskFuture<WorkflowRun> f = p.scheduleBuild2(0);
         WorkflowRun b = f.waitForStart();
         SemaphoreStep.waitForStart("wait/1", b);
-        String xml = r.createWebClient().goTo(b.getUrl() + b.getAction(CpsThreadDumpAction.class).getUrlName() + "/program.xml", "text/xml").getWebResponse().getContentAsString();
+        String xml = r.createWebClient()
+                .goTo(b.getUrl() + b.getAction(CpsThreadDumpAction.class).getUrlName() + "/program.xml", "text/xml")
+                .getWebResponse()
+                .getContentAsString();
         System.out.println(xml);
         assertThat(xml, containsString("SemaphoreStep"));
         SemaphoreStep.success("wait/1", null);

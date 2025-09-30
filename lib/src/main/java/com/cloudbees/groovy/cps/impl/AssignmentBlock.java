@@ -7,7 +7,6 @@ import com.cloudbees.groovy.cps.LValue;
 import com.cloudbees.groovy.cps.LValueBlock;
 import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
-
 import java.util.Collection;
 
 /**
@@ -18,7 +17,7 @@ import java.util.Collection;
  * @author Kohsuke Kawaguchi
  */
 public class AssignmentBlock extends CallSiteBlockSupport {
-    private final Block lhsExp,rhsExp;
+    private final Block lhsExp, rhsExp;
 
     /**
      * For compound assignment operator (such as ^=), set the operator method here.
@@ -27,7 +26,8 @@ public class AssignmentBlock extends CallSiteBlockSupport {
 
     private final SourceLocation loc;
 
-    public AssignmentBlock(SourceLocation loc, Collection<CallSiteTag> tags, LValueBlock lhsExp, Block rhsExp, String compoundOp) {
+    public AssignmentBlock(
+            SourceLocation loc, Collection<CallSiteTag> tags, LValueBlock lhsExp, Block rhsExp, String compoundOp) {
         super(tags);
         this.loc = loc;
         this.compoundOp = compoundOp;
@@ -36,7 +36,7 @@ public class AssignmentBlock extends CallSiteBlockSupport {
     }
 
     public Next eval(Env e, Continuation k) {
-        return new ContinuationImpl(e,k).then(lhsExp,e,fixLhs);
+        return new ContinuationImpl(e, k).then(lhsExp, e, fixLhs);
     }
 
     class ContinuationImpl extends ContinuationGroup {
@@ -44,7 +44,7 @@ public class AssignmentBlock extends CallSiteBlockSupport {
         final Env e;
 
         LValue lhs;
-        Object rhs,cur;
+        Object rhs, cur;
 
         ContinuationImpl(Env e, Continuation k) {
             this.e = e;
@@ -55,12 +55,10 @@ public class AssignmentBlock extends CallSiteBlockSupport {
          * Computes {@link LValue}
          */
         public Next fixLhs(Object lhs) {
-            this.lhs = (LValue)lhs;
+            this.lhs = (LValue) lhs;
 
-            if (compoundOp==null)
-                return then(rhsExp,e,assignAndDone);
-            else
-                return ((LValue) lhs).get(fixCur.bind(this));
+            if (compoundOp == null) return then(rhsExp, e, assignAndDone);
+            else return ((LValue) lhs).get(fixCur.bind(this));
         }
 
         /**
@@ -76,7 +74,7 @@ public class AssignmentBlock extends CallSiteBlockSupport {
          */
         public Next fixCur(Object cur) {
             this.cur = cur;
-            return then(rhsExp,e,fixRhs);
+            return then(rhsExp, e, fixRhs);
         }
 
         /**
@@ -90,10 +88,10 @@ public class AssignmentBlock extends CallSiteBlockSupport {
         private static final long serialVersionUID = 1L;
     }
 
-    static final ContinuationPtr fixLhs = new ContinuationPtr(ContinuationImpl.class,"fixLhs");
-    static final ContinuationPtr assignAndDone = new ContinuationPtr(ContinuationImpl.class,"assignAndDone");
-    static final ContinuationPtr fixCur = new ContinuationPtr(ContinuationImpl.class,"fixCur");
-    static final ContinuationPtr fixRhs = new ContinuationPtr(ContinuationImpl.class,"fixRhs");
+    static final ContinuationPtr fixLhs = new ContinuationPtr(ContinuationImpl.class, "fixLhs");
+    static final ContinuationPtr assignAndDone = new ContinuationPtr(ContinuationImpl.class, "assignAndDone");
+    static final ContinuationPtr fixCur = new ContinuationPtr(ContinuationImpl.class, "fixCur");
+    static final ContinuationPtr fixRhs = new ContinuationPtr(ContinuationImpl.class, "fixRhs");
 
     private static final long serialVersionUID = 1L;
 }

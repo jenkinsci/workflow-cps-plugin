@@ -24,11 +24,16 @@
 
 package org.jenkinsci.plugins.workflow.cps.replay;
 
-import org.htmlunit.FailingHttpStatusCodeException;
-import org.htmlunit.WebAssert;
-import org.htmlunit.html.HtmlForm;
-import org.htmlunit.html.HtmlPage;
-import org.htmlunit.html.HtmlTextArea;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+
 import hudson.FilePath;
 import hudson.XmlFile;
 import hudson.cli.CLICommandInvoker;
@@ -50,13 +55,16 @@ import hudson.security.Permission;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
+import org.htmlunit.FailingHttpStatusCodeException;
+import org.htmlunit.WebAssert;
+import org.htmlunit.html.HtmlForm;
+import org.htmlunit.html.HtmlPage;
+import org.htmlunit.html.HtmlTextArea;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -74,24 +82,19 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 public class ReplayActionTest {
 
-    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-    @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
+    @ClassRule
+    public static BuildWatcher buildWatcher = new BuildWatcher();
 
-    @Test public void editSimpleDefinition() throws Exception {
+    @Rule
+    public RestartableJenkinsRule story = new RestartableJenkinsRule();
+
+    @Test
+    public void editSimpleDefinition() throws Exception {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("echo 'first script'", false));
                 // Start off with a simple run of the first script.
@@ -122,7 +125,9 @@ public class ReplayActionTest {
                 assertEquals(b1, cause.getOriginal());
                 assertEquals(b2, cause.getRun());
                 // Replay #2 as #3. Note that the diff is going to be from #1 → #3, not #2 → #3.
-                WorkflowRun b3 = (WorkflowRun) b2.getAction(ReplayAction.class).run("echo 'third script'", Collections.<String,String>emptyMap()).get();
+                WorkflowRun b3 = (WorkflowRun) b2.getAction(ReplayAction.class)
+                        .run("echo 'third script'", Collections.<String, String>emptyMap())
+                        .get();
                 story.j.assertLogContains("third script", story.j.assertBuildStatusSuccess(b3));
                 String diff = b3.getAction(ReplayAction.class).getDiff();
                 assertThat(diff, containsString("-echo 'first script'"));
@@ -135,39 +140,48 @@ public class ReplayActionTest {
         });
     }
 
-    @Test public void parameterized() throws Exception {
+    @Test
+    public void parameterized() throws Exception {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("param", "")));
                 p.setDefinition(new CpsFlowDefinition("echo \"run with ${param}\"", true));
-                WorkflowRun b1 = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("param", "some value"))));
+                WorkflowRun b1 = story.j.assertBuildStatusSuccess(
+                        p.scheduleBuild2(0, new ParametersAction(new StringParameterValue("param", "some value"))));
                 story.j.assertLogContains("run with some value", b1);
                 // When we replay a parameterized build, we expect the original parameter values to be set.
-                WorkflowRun b2 = (WorkflowRun) b1.getAction(ReplayAction.class).run("echo \"run again with ${param}\"", Collections.<String,String>emptyMap()).get();
+                WorkflowRun b2 = (WorkflowRun) b1.getAction(ReplayAction.class)
+                        .run("echo \"run again with ${param}\"", Collections.<String, String>emptyMap())
+                        .get();
                 story.j.assertLogContains("run again with some value", story.j.assertBuildStatusSuccess(b2));
             }
         });
     }
 
     @Issue("SECURITY-2443")
-    @Test public void withPasswordParameter() {
+    @Test
+    public void withPasswordParameter() {
         story.then(r -> {
             WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
-            p.addProperty(new ParametersDefinitionProperty(new PasswordParameterDefinition("passwordParam", "top secret", "")));
+            p.addProperty(new ParametersDefinitionProperty(
+                    new PasswordParameterDefinition("passwordParam", "top secret", "")));
             p.setDefinition(new CpsFlowDefinition("echo(/passwordParam: ${passwordParam}/)", true));
-            WorkflowRun run1 = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0,
-                    new ParametersAction(new PasswordParameterValue("passwordParam", "confidential"))));
+            WorkflowRun run1 = story.j.assertBuildStatusSuccess(p.scheduleBuild2(
+                    0, new ParametersAction(new PasswordParameterValue("passwordParam", "confidential"))));
 
             // When we replay a build with password parameter it should fail with access denied exception.
-            assertThrows(Failure.class,
-                    () -> run1.getAction(ReplayAction.class).run("echo(/Replaying passwordParam: ${passwordParam}/)", Collections.emptyMap()).get());
+            assertThrows(Failure.class, () -> run1.getAction(ReplayAction.class)
+                    .run("echo(/Replaying passwordParam: ${passwordParam}/)", Collections.emptyMap())
+                    .get());
         });
     }
 
     @Issue("JENKINS-50784")
-    @Test public void lazyLoadExecutionStillReplayable() throws Exception {
-        story.then( r-> {
+    @Test
+    public void lazyLoadExecutionStillReplayable() throws Exception {
+        story.then(r -> {
             WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
             WorkflowJob p2 = r.jenkins.createProject(WorkflowJob.class, "p2");
             p.setDefinition(new CpsFlowDefinition("echo 'I did a thing'", false));
@@ -177,11 +191,15 @@ public class ReplayActionTest {
             r.buildAndAssertSuccess(p2);
 
             r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
-            r.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
-                    grant(Jenkins.ADMINISTER).everywhere().to("admin").
-                    grant(ReplayAction.REPLAY).everywhere().to("normal"));
+            r.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy()
+                    .grant(Jenkins.ADMINISTER)
+                    .everywhere()
+                    .to("admin")
+                    .grant(ReplayAction.REPLAY)
+                    .everywhere()
+                    .to("normal"));
         });
-        story.then( r-> {
+        story.then(r -> {
             WorkflowJob job = r.jenkins.getItemByFullName("p", WorkflowJob.class);
             WorkflowJob job2 = r.jenkins.getItemByFullName("p2", WorkflowJob.class);
             WorkflowRun run = job.getLastBuild();
@@ -200,13 +218,18 @@ public class ReplayActionTest {
 
             assertNotNull(run.asFlowExecutionOwner().getOrNull());
             assertTrue(canReplay(run, "admin"));
-            assertFalse(canReplay(run, "normal")); // Now we know to check if the user can run outside sandbox, and they can't
+            assertFalse(canReplay(
+                    run, "normal")); // Now we know to check if the user can run outside sandbox, and they can't
             assertTrue(canReplay(run2, "normal")); // We can still run stuff inside sandbox
             assertTrue(canRebuild(run, "admin"));
         });
     }
 
-    @Initializer(after=InitMilestone.EXTENSIONS_AUGMENTED, before=InitMilestone.JOB_LOADED) // same time as Jenkins global config is loaded (e.g., AuthorizationStrategy)
+    @Initializer(
+            after = InitMilestone.EXTENSIONS_AUGMENTED,
+            before =
+                    InitMilestone
+                            .JOB_LOADED) // same time as Jenkins global config is loaded (e.g., AuthorizationStrategy)
     public static void assertPermissionId() {
         String thePermissionId = "hudson.model.Run.Replay";
         // An AuthorizationStrategy may be loading a permission by name during Jenkins startup.
@@ -216,19 +239,29 @@ public class ReplayActionTest {
         assertEquals(thePermissionId, thePermission.getId());
     }
 
-    @Test public void permissions() throws Exception {
+    @Test
+    public void permissions() throws Exception {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 // assertPermissionId should have been run before we get here
                 story.j.jenkins.setSecurityRealm(story.j.createDummySecurityRealm());
                 // Set up an administrator, and three developer users with varying levels of access.
                 List<Permission> permissions = Run.PERMISSIONS.getPermissions();
                 assertThat(permissions, Matchers.hasItem(ReplayAction.REPLAY));
-                story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
-                        grant(Jenkins.ADMINISTER).everywhere().to("admin").
-                        grant(Jenkins.READ, /* implies REPLAY */ Item.CONFIGURE).everywhere().to("dev1").
-                        grant(Jenkins.READ, ReplayAction.REPLAY).everywhere().to("dev2").
-                        grant(Jenkins.READ, /* does not imply REPLAY, does allow rebuilding */Item.BUILD).everywhere().to("dev3"));
+                story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy()
+                        .grant(Jenkins.ADMINISTER)
+                        .everywhere()
+                        .to("admin")
+                        .grant(Jenkins.READ, /* implies REPLAY */ Item.CONFIGURE)
+                        .everywhere()
+                        .to("dev1")
+                        .grant(Jenkins.READ, ReplayAction.REPLAY)
+                        .everywhere()
+                        .to("dev2")
+                        .grant(Jenkins.READ, /* does not imply REPLAY, does allow rebuilding */ Item.BUILD)
+                        .everywhere()
+                        .to("dev3"));
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("", /* whole-script approval */ false));
                 WorkflowRun b1 = p.scheduleBuild2(0).get();
@@ -256,6 +289,7 @@ public class ReplayActionTest {
             }
         });
     }
+
     private static boolean canReplay(WorkflowRun b, String user) {
         ReplayAction a = b.getAction(ReplayAction.class);
         try (ACLContext context = ACL.as(User.getById(user, true))) {
@@ -277,14 +311,17 @@ public class ReplayActionTest {
         }
     }
 
-    @Test public void loadStep() throws Exception {
+    @Test
+    public void loadStep() throws Exception {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 // Shortcut to simulate checking out an external repo with an auxiliary script.
                 story.j.jenkins.getWorkspaceFor(p).child("f1.groovy").write("echo 'original first part'", null);
                 story.j.jenkins.getWorkspaceFor(p).child("f2.groovy").write("echo 'original second part'", null);
-                p.setDefinition(new CpsFlowDefinition("node {load 'f1.groovy'}; semaphore 'wait'; node {load 'f2.groovy'}", true));
+                p.setDefinition(new CpsFlowDefinition(
+                        "node {load 'f1.groovy'}; semaphore 'wait'; node {load 'f2.groovy'}", true));
                 // Initial build loads external script and prints a message.
                 SemaphoreStep.success("wait/1", null);
                 WorkflowRun b1 = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
@@ -292,14 +329,17 @@ public class ReplayActionTest {
                 story.j.assertLogContains("original second part", b1);
                 // Editing main script to print an initial message, and editing one of the loaded scripts as well.
                 SemaphoreStep.success("wait/2", null);
-                WorkflowRun b2 = (WorkflowRun) b1.getAction(ReplayAction.class).run(
-                    "echo 'trying edits'\nnode {load 'f1.groovy'}; semaphore 'wait'; node {load 'f2.groovy'}",
-                    Map.of("Script2", "echo 'new second part'")).get();
+                WorkflowRun b2 = (WorkflowRun) b1.getAction(ReplayAction.class)
+                        .run(
+                                "echo 'trying edits'\nnode {load 'f1.groovy'}; semaphore 'wait'; node {load 'f2.groovy'}",
+                                Map.of("Script2", "echo 'new second part'"))
+                        .get();
                 story.j.assertBuildStatusSuccess(b2);
                 story.j.assertLogContains("trying edits", b2);
                 story.j.assertLogContains("original first part", b2);
                 story.j.assertLogContains("new second part", b2);
-                // Can take a look at the build.xml and see that we are not duplicating script content once edits are applied (not yet formally asserted).
+                // Can take a look at the build.xml and see that we are not duplicating script content once edits are
+                // applied (not yet formally asserted).
                 System.out.println(new XmlFile(new File(b2.getRootDir(), "build.xml")).asString());
                 // Diff should reflect both sets of changes.
                 String diff = b2.getAction(ReplayAction.class).getDiff();
@@ -311,15 +351,17 @@ public class ReplayActionTest {
                 assertThat(diff, not(containsString("first part")));
                 System.out.println(diff);
                 // Now replay #2, editing all scripts, and restarting in the middle.
-                Map<String,String> replayMap = Map.of("Script1", "echo 'new first part'", "Script2", "echo 'newer second part'");
-                WorkflowRun b3 = (WorkflowRun) b2.getAction(ReplayAction.class).run(
-                    "node {load 'f1.groovy'}; semaphore 'wait'; node {load 'f2.groovy'}",
-                    replayMap).waitForStart();
+                Map<String, String> replayMap =
+                        Map.of("Script1", "echo 'new first part'", "Script2", "echo 'newer second part'");
+                WorkflowRun b3 = (WorkflowRun) b2.getAction(ReplayAction.class)
+                        .run("node {load 'f1.groovy'}; semaphore 'wait'; node {load 'f2.groovy'}", replayMap)
+                        .waitForStart();
                 SemaphoreStep.waitForStart("wait/3", b3);
             }
         });
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.getItemByFullName("p", WorkflowJob.class);
                 WorkflowRun b3 = p.getLastBuild();
                 assertEquals(3, b3.getNumber());
@@ -333,9 +375,11 @@ public class ReplayActionTest {
         });
     }
 
-    @Test public void cli() throws Exception {
+    @Test
+    public void cli() throws Exception {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 // As in loadStep, will set up a main and auxiliary script.
                 FilePath f = story.j.jenkins.getWorkspaceFor(p).child("f.groovy");
@@ -344,13 +388,25 @@ public class ReplayActionTest {
                 WorkflowRun b1 = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
                 story.j.assertLogContains("got original text", b1);
                 // s/got/received/ on main script
-                assertEquals(0, new CLICommandInvoker(story.j, "replay-pipeline").withStdin(IOUtils.toInputStream("node {def t = load 'f.groovy'; echo \"received ${t}\"}", StandardCharsets.UTF_8)).invokeWithArgs("p").returnCode());
+                assertEquals(
+                        0,
+                        new CLICommandInvoker(story.j, "replay-pipeline")
+                                .withStdin(IOUtils.toInputStream(
+                                        "node {def t = load 'f.groovy'; echo \"received ${t}\"}",
+                                        StandardCharsets.UTF_8))
+                                .invokeWithArgs("p")
+                                .returnCode());
                 story.j.waitUntilNoActivity();
                 WorkflowRun b2 = p.getLastBuild();
                 assertEquals(2, b2.getNumber());
                 story.j.assertLogContains("received original text", b2);
                 // s/original/new/ on auxiliary script, and explicitly asking to replay #1 rather than the latest
-                assertEquals(0, new CLICommandInvoker(story.j, "replay-pipeline").withStdin(IOUtils.toInputStream("'new text'", StandardCharsets.UTF_8)).invokeWithArgs("p", "-n", "1", "-s", "Script1").returnCode());
+                assertEquals(
+                        0,
+                        new CLICommandInvoker(story.j, "replay-pipeline")
+                                .withStdin(IOUtils.toInputStream("'new text'", StandardCharsets.UTF_8))
+                                .invokeWithArgs("p", "-n", "1", "-s", "Script1")
+                                .returnCode());
                 story.j.waitUntilNoActivity();
                 WorkflowRun b3 = p.getLastBuild();
                 assertEquals(3, b3.getNumber());
@@ -364,10 +420,13 @@ public class ReplayActionTest {
     @Test
     public void rebuild() throws Exception {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 story.j.jenkins.setSecurityRealm(story.j.createDummySecurityRealm());
-                story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
-                        grant(Jenkins.READ, Item.BUILD, Item.READ).everywhere().to("dev3"));
+                story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy()
+                        .grant(Jenkins.READ, Item.BUILD, Item.READ)
+                        .everywhere()
+                        .to("dev3"));
 
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
                 p.setDefinition(new CpsFlowDefinition("echo 'script to rebuild'", true));
@@ -405,24 +464,26 @@ public class ReplayActionTest {
     @Test
     public void rebuildNeedScriptApproval() throws Exception {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 story.j.jenkins.setSecurityRealm(story.j.createDummySecurityRealm());
-                story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().
-                        grant(Jenkins.READ, Item.BUILD, Item.READ).everywhere().to("dev1"));
+                story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy()
+                        .grant(Jenkins.READ, Item.BUILD, Item.READ)
+                        .everywhere()
+                        .to("dev1"));
 
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "SECURITY-3362");
-                String script = "pipeline {\n" +
-                        "  agent any\n" +
-                        "  stages {\n" +
-                        "    stage('List Jobs') {\n" +
-                        "      steps {\n" +
-                        "        script {\n" +
-                        "           println \"Jobs: ${jenkins.model.Jenkins.instance.getItemByFullName(env.JOB_NAME)?.parent?.items*.fullName.join(', ')}!\"" +
-                        "        }\n" +
-                        "      }\n" +
-                        "    }\n" +
-                        "  }\n" +
-                        "}\n";
+                String script = "pipeline {\n" + "  agent any\n"
+                        + "  stages {\n"
+                        + "    stage('List Jobs') {\n"
+                        + "      steps {\n"
+                        + "        script {\n"
+                        + "           println \"Jobs: ${jenkins.model.Jenkins.instance.getItemByFullName(env.JOB_NAME)?.parent?.items*.fullName.join(', ')}!\""
+                        + "        }\n"
+                        + "      }\n"
+                        + "    }\n"
+                        + "  }\n"
+                        + "}\n";
                 p.setDefinition(new CpsFlowDefinition(script, false));
 
                 ScriptApproval.get().preapprove(script, GroovyLanguage.get());

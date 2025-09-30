@@ -1,12 +1,11 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import groovy.lang.GroovyShell;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.customizers.ImportCustomizer;
-
 
 /**
  * Hook to customize the behaviour of {@link GroovyShell}
@@ -58,6 +57,5 @@ public abstract class GroovyShellDecorator implements ExtensionPoint {
     /**
      * {@link GroovyShellDecorator} that doesn't do anything.
      */
-    public static final GroovyShellDecorator NULL = new GroovyShellDecorator() {
-    };
+    public static final GroovyShellDecorator NULL = new GroovyShellDecorator() {};
 }

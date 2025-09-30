@@ -42,7 +42,7 @@ public class WhileBlock implements Block {
             return castToBoolean(cond, e, b -> {
                 if (b) {
                     // loop
-                    return then(body,e,loopHead);
+                    return then(body, e, loopHead);
                 } else {
                     // exit loop
                     return loopEnd.receive(null);
@@ -53,8 +53,8 @@ public class WhileBlock implements Block {
         private static final long serialVersionUID = 1L;
     }
 
-    static final ContinuationPtr loopHead = new ContinuationPtr(ContinuationImpl.class,"loopHead");
-    static final ContinuationPtr loopCond = new ContinuationPtr(ContinuationImpl.class,"loopCond");
+    static final ContinuationPtr loopHead = new ContinuationPtr(ContinuationImpl.class, "loopHead");
+    static final ContinuationPtr loopCond = new ContinuationPtr(ContinuationImpl.class, "loopCond");
 
     private static final long serialVersionUID = 1L;
 }

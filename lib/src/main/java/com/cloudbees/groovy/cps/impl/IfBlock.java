@@ -20,7 +20,7 @@ public class IfBlock implements Block {
     }
 
     public Next eval(Env e, Continuation k) {
-        return new ContinuationImpl(e,k).then(cond,e,jump);
+        return new ContinuationImpl(e, k).then(cond, e, jump);
     }
 
     class ContinuationImpl extends ContinuationGroup {
@@ -39,7 +39,7 @@ public class IfBlock implements Block {
         private static final long serialVersionUID = 1L;
     }
 
-    static final ContinuationPtr jump = new ContinuationPtr(ContinuationImpl.class,"jump");
+    static final ContinuationPtr jump = new ContinuationPtr(ContinuationImpl.class, "jump");
 
     private static final long serialVersionUID = 1L;
 }

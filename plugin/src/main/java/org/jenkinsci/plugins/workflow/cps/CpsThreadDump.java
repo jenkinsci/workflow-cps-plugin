@@ -1,21 +1,19 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import org.jenkinsci.plugins.workflow.steps.StepExecution;
-
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 /**
  * Immutable snapshot of a state of {@link CpsThreadGroup}.
@@ -28,6 +26,7 @@ public final class CpsThreadDump {
      * Whether this is an actual list of threads, or just some special text such as a list of pickles.
      */
     public final boolean valid;
+
     private final List<ThreadInfo> threads = new ArrayList<>();
 
     public static final class ThreadInfo {
@@ -49,7 +48,7 @@ public final class CpsThreadDump {
                 CpsThread t = itr.previous();
 
                 StepExecution s = t.getStep();
-                if (s !=null) {
+                if (s != null) {
                     StepDescriptor d = ((CpsStepContext) s.getContext()).getStepDescriptor();
                     if (d != null) {
                         String status = s.getStatusBounded(3, TimeUnit.SECONDS);
@@ -57,7 +56,8 @@ public final class CpsThreadDump {
                             int len = status.length();
                             if (len > MAX_STATUS_LENGTH) {
                                 int half = MAX_STATUS_LENGTH / 2;
-                                status = status.subSequence(0, half) + "…[truncated " + (len - MAX_STATUS_LENGTH) + " chars]…" + status.subSequence(len - half, len);
+                                status = status.subSequence(0, half) + "…[truncated " + (len - MAX_STATUS_LENGTH)
+                                        + " chars]…" + status.subSequence(len - half, len);
                             }
                             stack.add(new StackTraceElement("DSL", d.getFunctionName(), status, -1));
                         } else {
@@ -115,14 +115,13 @@ public final class CpsThreadDump {
         return Collections.unmodifiableList(threads);
     }
 
-    @SuppressFBWarnings(value="DM_DEFAULT_ENCODING", justification="Only used by tests anyway.")
+    @SuppressFBWarnings(value = "DM_DEFAULT_ENCODING", justification = "Only used by tests anyway.")
     public void print(PrintStream ps) {
-        print(new PrintWriter(ps,true));
+        print(new PrintWriter(ps, true));
     }
 
     public void print(PrintWriter w) {
-        for (ThreadInfo t : threads)
-            t.print(w);
+        for (ThreadInfo t : threads) t.print(w);
     }
 
     @Override
@@ -135,7 +134,8 @@ public final class CpsThreadDump {
     public static CpsThreadDump from(Throwable t) {
         CpsThreadDump td = new CpsThreadDump(false);
         td.threads.add(new ThreadInfo(t));
-        return td;}
+        return td;
+    }
 
     public static CpsThreadDump from(CpsThreadGroup g) {
         // all the threads that share the same head form a logically single thread
@@ -146,8 +146,7 @@ public final class CpsThreadDump {
         }
 
         CpsThreadDump td = new CpsThreadDump(true);
-        for (List<CpsThread> e : m.values())
-            td.threads.add(new ThreadInfo(e));
+        for (List<CpsThread> e : m.values()) td.threads.add(new ThreadInfo(e));
         return td;
     }
 
@@ -158,10 +157,13 @@ public final class CpsThreadDump {
     @SuppressWarnings("serial")
     public static @NonNull CpsThreadDump fromText(@NonNull final String text) {
         return CpsThreadDump.from(new Throwable() {
-            @Override public String toString() {
+            @Override
+            public String toString() {
                 return text;
             }
-            @Override public Throwable fillInStackTrace() {
+
+            @Override
+            public Throwable fillInStackTrace() {
                 return this; // irrelevant
             }
         });
@@ -174,5 +176,4 @@ public final class CpsThreadDump {
 
     @Deprecated
     public static final CpsThreadDump UNKNOWN = fromText("Program state is not yet known");
-
 }

@@ -4,6 +4,10 @@ import com.google.common.util.concurrent.ListenableFuture;
 import hudson.model.Queue;
 import hudson.model.Result;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.io.FileUtils;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
@@ -26,11 +30,6 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 /**
  * Verifies we can cope with all the bizarre quirks that occur when persistence fails or something unexpected happens.
  */
@@ -42,7 +41,10 @@ public class PersistenceProblemsTest {
     public RestartableJenkinsRule story = new RestartableJenkinsRule();
 
     @Rule
-    public FlagRule<Boolean> optimizeStorageFlag = new FlagRule<>(() -> CpsFlowExecution.OPTIMIZE_STORAGE_UPON_COMPLETION, v -> { CpsFlowExecution.OPTIMIZE_STORAGE_UPON_COMPLETION = v; });
+    public FlagRule<Boolean> optimizeStorageFlag =
+            new FlagRule<>(() -> CpsFlowExecution.OPTIMIZE_STORAGE_UPON_COMPLETION, v -> {
+                CpsFlowExecution.OPTIMIZE_STORAGE_UPON_COMPLETION = v;
+            });
 
     /** Verifies all the assumptions about a cleanly finished build. */
     static void assertCompletedCleanly(WorkflowRun run) throws Exception {
@@ -56,10 +58,11 @@ public class PersistenceProblemsTest {
                 Assert.fail("FlowExecution still in FlowExecutionList!");
             }
         });
-        Assert.assertTrue("Queue not empty after completion!", Queue.getInstance().isEmpty());
+        Assert.assertTrue(
+                "Queue not empty after completion!", Queue.getInstance().isEmpty());
 
         if (fe instanceof CpsFlowExecution) {
-            CpsFlowExecution cpsExec = (CpsFlowExecution)fe;
+            CpsFlowExecution cpsExec = (CpsFlowExecution) fe;
             Assert.assertTrue(cpsExec.isComplete());
             Assert.assertEquals(Boolean.TRUE, cpsExec.done);
             Assert.assertEquals(1, cpsExec.getCurrentHeads().size());
@@ -87,7 +90,7 @@ public class PersistenceProblemsTest {
         if (!hasExecutionInList.get()) {
             Assert.fail("Build completed but should still show in FlowExecutionList");
         }
-        CpsFlowExecution cpsExec = (CpsFlowExecution)fe;
+        CpsFlowExecution cpsExec = (CpsFlowExecution) fe;
         Assert.assertFalse(cpsExec.isComplete());
         Assert.assertEquals(Boolean.FALSE, cpsExec.done);
         Assert.assertFalse(cpsExec.getCurrentHeads().get(0) instanceof FlowEndNode);
@@ -100,7 +103,8 @@ public class PersistenceProblemsTest {
     }
 
     /** Create and run a basic build before we mangle its persisted contents.  Stores job number to jobIdNumber index 0. */
-    private static WorkflowRun runBasicBuild(JenkinsRule j, String jobName, int[] jobIdNumber, FlowDurabilityHint hint) throws Exception {
+    private static WorkflowRun runBasicBuild(JenkinsRule j, String jobName, int[] jobIdNumber, FlowDurabilityHint hint)
+            throws Exception {
         WorkflowJob job = j.jenkins.createProject(WorkflowJob.class, jobName);
         job.setDefinition(new CpsFlowDefinition("echo 'doSomething'", true));
         job.addProperty(new DurabilityHintJobProperty(hint));
@@ -116,7 +120,8 @@ public class PersistenceProblemsTest {
     }
 
     /** Sets up a running build that is waiting on input. */
-    private static WorkflowRun runBasicPauseOnInput(JenkinsRule j, String jobName, int[] jobIdNumber, FlowDurabilityHint durabilityHint) throws Exception {
+    private static WorkflowRun runBasicPauseOnInput(
+            JenkinsRule j, String jobName, int[] jobIdNumber, FlowDurabilityHint durabilityHint) throws Exception {
         WorkflowJob job = j.jenkins.createProject(WorkflowJob.class, jobName);
         job.setDefinition(new CpsFlowDefinition("input 'pause'", true));
         job.addProperty(new DurabilityHintJobProperty(durabilityHint));
@@ -124,15 +129,16 @@ public class PersistenceProblemsTest {
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
         ListenableFuture<FlowExecution> listener = run.getExecutionPromise();
         FlowExecution exec = listener.get();
-        while(exec.getCurrentHeads().isEmpty() || (exec.getCurrentHeads().get(0) instanceof FlowStartNode)) {  // Wait until input step starts
+        while (exec.getCurrentHeads().isEmpty()
+                || (exec.getCurrentHeads().get(0) instanceof FlowStartNode)) { // Wait until input step starts
             System.out.println("Waiting for input step to begin");
             Thread.sleep(50);
         }
-        while(run.getAction(InputAction.class) == null) {  // Wait until input step starts
+        while (run.getAction(InputAction.class) == null) { // Wait until input step starts
             System.out.println("Waiting for input action to get attached to run");
             Thread.sleep(50);
         }
-        Thread.sleep(100L);  // A little extra buffer for persistence etc
+        Thread.sleep(100L); // A little extra buffer for persistence etc
         if (durabilityHint != FlowDurabilityHint.PERFORMANCE_OPTIMIZED) {
             File f = ((CpsFlowExecution) run.getExecution()).getProgramDataFile();
             while (!Files.exists(f.toPath())) {
@@ -151,10 +157,13 @@ public class PersistenceProblemsTest {
     private static InputStepExecution getInputStepExecution(WorkflowRun run, String inputMessage) throws Exception {
         InputAction ia = run.getAction(InputAction.class);
         List<InputStepExecution> execList = ia.getExecutions();
-        return execList.stream().filter(e -> inputMessage.equals(e.getInput().getMessage())).findFirst().orElse(null);
+        return execList.stream()
+                .filter(e -> inputMessage.equals(e.getInput().getMessage()))
+                .findFirst()
+                .orElse(null);
     }
 
-    final  static String DEFAULT_JOBNAME = "testJob";
+    static final String DEFAULT_JOBNAME = "testJob";
 
     /** Simulates something happening badly during final shutdown, which may cause build to not appear done. */
     @Test
@@ -162,17 +171,17 @@ public class PersistenceProblemsTest {
         CpsFlowExecution.OPTIMIZE_STORAGE_UPON_COMPLETION = false;
         final int[] build = new int[1];
         final Result[] executionAndBuildResult = new Result[2];
-        story.thenWithHardShutdown( j -> {
+        story.thenWithHardShutdown(j -> {
             WorkflowRun run = runBasicBuild(j, DEFAULT_JOBNAME, build);
             String finalId = run.getExecution().getCurrentHeads().get(0).getId();
 
             // Hack but deletes the file from disk
             CpsFlowExecution cpsExec = (CpsFlowExecution) run.getExecution();
-            Files.delete(cpsExec.getStorageDir().toPath().resolve(finalId+".xml"));
+            Files.delete(cpsExec.getStorageDir().toPath().resolve(finalId + ".xml"));
             executionAndBuildResult[0] = ((CpsFlowExecution) run.getExecution()).getResult();
             executionAndBuildResult[1] = run.getResult();
         });
-        story.then(j-> {
+        story.then(j -> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
             assertCompletedCleanly(run);
@@ -186,13 +195,13 @@ public class PersistenceProblemsTest {
     public void completedNoNodesPersisted() throws Exception {
         final int[] build = new int[1];
         final Result[] executionAndBuildResult = new Result[2];
-        story.thenWithHardShutdown( j -> {
+        story.thenWithHardShutdown(j -> {
             WorkflowRun run = runBasicBuild(j, DEFAULT_JOBNAME, build);
             FileUtils.deleteDirectory(((CpsFlowExecution) run.getExecution()).getStorageDir());
             executionAndBuildResult[0] = ((CpsFlowExecution) run.getExecution()).getResult();
             executionAndBuildResult[1] = run.getResult();
         });
-        story.then(j-> {
+        story.then(j -> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
             assertCompletedCleanly(run);
@@ -207,7 +216,7 @@ public class PersistenceProblemsTest {
     public void completedButWrongDoneStatus() throws Exception {
         final int[] build = new int[1];
         final Result[] executionAndBuildResult = new Result[2];
-        story.thenWithHardShutdown( j -> {
+        story.thenWithHardShutdown(j -> {
             WorkflowRun run = runBasicBuild(j, DEFAULT_JOBNAME, build);
             String finalId = run.getExecution().getCurrentHeads().get(0).getId();
 
@@ -218,7 +227,7 @@ public class PersistenceProblemsTest {
             executionAndBuildResult[0] = ((CpsFlowExecution) run.getExecution()).getResult();
             executionAndBuildResult[1] = run.getResult();
         });
-        story.then(j-> {
+        story.then(j -> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
             assertCompletedCleanly(run);
@@ -230,10 +239,10 @@ public class PersistenceProblemsTest {
     @Test
     public void inProgressNormal() throws Exception {
         final int[] build = new int[1];
-        story.then( j -> {
+        story.then(j -> {
             WorkflowRun run = runBasicPauseOnInput(j, DEFAULT_JOBNAME, build);
         });
-        story.then( j->{
+        story.then(j -> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
             assertCleanInProgress(run);
@@ -248,11 +257,11 @@ public class PersistenceProblemsTest {
     @Test
     public void inProgressMaxPerfCleanShutdown() throws Exception {
         final int[] build = new int[1];
-        story.then( j -> {
+        story.then(j -> {
             WorkflowRun run = runBasicPauseOnInput(j, DEFAULT_JOBNAME, build, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
             // SHOULD still save at end via persist-at-shutdown hooks
         });
-        story.then( j->{
+        story.then(j -> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
             assertCleanInProgress(run);
@@ -268,11 +277,11 @@ public class PersistenceProblemsTest {
     public void inProgressMaxPerfDirtyShutdown() throws Exception {
         final int[] build = new int[1];
         final String[] finalNodeId = new String[1];
-        story.thenWithHardShutdown( j -> {
+        story.thenWithHardShutdown(j -> {
             runBasicPauseOnInput(j, DEFAULT_JOBNAME, build, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
             // SHOULD still save at end via persist-at-shutdown hooks
         });
-        story.then( j->{
+        story.then(j -> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
             Thread.sleep(1000);
@@ -281,11 +290,12 @@ public class PersistenceProblemsTest {
             Assert.assertEquals(Result.FAILURE, run.getResult());
             finalNodeId[0] = run.getExecution().getCurrentHeads().get(0).getId();
         });
-        story.then(j-> {
+        story.then(j -> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
             assertCompletedCleanly(run);
-            Assert.assertEquals(finalNodeId[0], run.getExecution().getCurrentHeads().get(0).getId());
+            Assert.assertEquals(
+                    finalNodeId[0], run.getExecution().getCurrentHeads().get(0).getId());
             // JENKINS-50199, verify it doesn't try to resume again
         });
     }
@@ -293,7 +303,7 @@ public class PersistenceProblemsTest {
     @Test
     public void inProgressButFlowNodesLost() throws Exception {
         final int[] build = new int[1];
-        story.thenWithHardShutdown( j -> {
+        story.thenWithHardShutdown(j -> {
             WorkflowRun run = runBasicPauseOnInput(j, DEFAULT_JOBNAME, build);
             try {
                 FileUtils.deleteDirectory(((CpsFlowExecution) run.getExecution()).getStorageDir());
@@ -301,7 +311,7 @@ public class PersistenceProblemsTest {
                 throw new AssumptionViolatedException("Failed to delete storage directory (race condition?)", x);
             }
         });
-        story.then( j->{
+        story.then(j -> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
             assertCompletedCleanly(run);
@@ -312,7 +322,7 @@ public class PersistenceProblemsTest {
     @Test
     public void inProgressButProgramLoadFailure() throws Exception {
         final int[] build = new int[1];
-        story.thenWithHardShutdown( j -> {
+        story.thenWithHardShutdown(j -> {
             WorkflowRun run = runBasicPauseOnInput(j, DEFAULT_JOBNAME, build);
             CpsFlowExecution cpsExec = (CpsFlowExecution) run.getExecution();
             // Wait until program.dat is written and then delete it.
@@ -321,7 +331,7 @@ public class PersistenceProblemsTest {
             }
             Files.delete(cpsExec.getProgramDataFile().toPath());
         });
-        story.then( j->{
+        story.then(j -> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
             assertCompletedCleanly(run);
@@ -333,37 +343,42 @@ public class PersistenceProblemsTest {
     @Test
     public void inProgressButStartBlocksLost() throws Exception {
         final int[] build = new int[1];
-        story.thenWithHardShutdown( j -> {
+        story.thenWithHardShutdown(j -> {
             WorkflowRun run = runBasicPauseOnInput(j, DEFAULT_JOBNAME, build);
             CpsFlowExecution cpsExec = (CpsFlowExecution) run.getExecution();
             cpsExec.startNodes.push(new FlowStartNode(cpsExec, cpsExec.iotaStr()));
             run.save();
         });
-        story.then( j->{
+        story.then(j -> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
             assertCompletedCleanly(run);
         });
     }
 
-    @Issue("JENKINS-50888")  // Tried to modify build without lazy load being triggered
-    @Test public void modifyBeforeLazyLoad() {
-        story.then(r -> {  // Normal build
-            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-            p.setDefinition(new CpsFlowDefinition("echo 'dosomething'", true));
-            r.buildAndAssertSuccess(p);
-        });
-        story.then(r -> {  // But wait, we try to modify the build without loading the execution
-            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
-            WorkflowRun b = p.getBuildByNumber(1);
-            b.setDescription("Bob");
-            b.save();  // Before the JENKINS-50888 fix this would trigger an IOException
-        });
-        story.then( r-> {  // Verify that the FlowExecutionOwner can trigger lazy-load correctly
-            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
-            WorkflowRun b = p.getBuildByNumber(1);
-            Assert.assertEquals("Bob", b.getDescription());
-            Assert.assertEquals("4", b.getExecution().getCurrentHeads().get(0).getId());
-        });
+    @Issue("JENKINS-50888") // Tried to modify build without lazy load being triggered
+    @Test
+    public void modifyBeforeLazyLoad() {
+        story.then(
+                r -> { // Normal build
+                    WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+                    p.setDefinition(new CpsFlowDefinition("echo 'dosomething'", true));
+                    r.buildAndAssertSuccess(p);
+                });
+        story.then(
+                r -> { // But wait, we try to modify the build without loading the execution
+                    WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+                    WorkflowRun b = p.getBuildByNumber(1);
+                    b.setDescription("Bob");
+                    b.save(); // Before the JENKINS-50888 fix this would trigger an IOException
+                });
+        story.then(
+                r -> { // Verify that the FlowExecutionOwner can trigger lazy-load correctly
+                    WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+                    WorkflowRun b = p.getBuildByNumber(1);
+                    Assert.assertEquals("Bob", b.getDescription());
+                    Assert.assertEquals(
+                            "4", b.getExecution().getCurrentHeads().get(0).getId());
+                });
     }
 }

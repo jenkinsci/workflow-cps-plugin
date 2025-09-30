@@ -34,8 +34,8 @@ public class SubtypeInjectingStepExecution extends AbstractSynchronousStepExecut
 
     @Override
     protected Void run() throws Exception {
-        if (r==null || n==null || f==null)  throw new AssertionError("Bzzzt");
-        if (r!=r2 || n!=n2 || f!=f2)        throw new AssertionError("What!?");
+        if (r == null || n == null || f == null) throw new AssertionError("Bzzzt");
+        if (r != r2 || n != n2 || f != f2) throw new AssertionError("What!?");
         return null;
     }
 }

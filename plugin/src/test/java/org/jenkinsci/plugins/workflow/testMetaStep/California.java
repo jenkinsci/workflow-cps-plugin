@@ -26,10 +26,10 @@ public class California extends State {
 
     @Override
     public void sayHello(TaskListener hello) {
-        hello.getLogger().println("California from "+ocean+" to "+mountain);
+        hello.getLogger().println("California from " + ocean + " to " + mountain);
     }
 
-    @Extension @Symbol("california")
-    public static class DescriptorImpl extends Descriptor<State> {
-    }
+    @Extension
+    @Symbol("california")
+    public static class DescriptorImpl extends Descriptor<State> {}
 }

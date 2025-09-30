@@ -26,10 +26,12 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import groovy.lang.GroovyObjectSupport;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.model.EnvironmentContributor;
+import hudson.model.Queue;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.util.LogTaskListener;
@@ -40,8 +42,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import hudson.model.Queue;
 import jenkins.model.RunAction2;
 import org.jenkinsci.plugins.workflow.flow.FlowCopier;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
@@ -62,15 +62,16 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
     private static final Logger LOGGER = Logger.getLogger(EnvActionImpl.class.getName());
     private static final long serialVersionUID = 1;
 
-    private final Map<String,String> env;
-    private transient Run<?,?> owner;
+    private final Map<String, String> env;
+    private transient Run<?, ?> owner;
 
     private EnvActionImpl() {
         this.env = new TreeMap<>();
     }
 
-    @Override public EnvVars getEnvironment() throws IOException, InterruptedException {
-      return getEnvironment(getListener());
+    @Override
+    public EnvVars getEnvironment() throws IOException, InterruptedException {
+        return getEnvironment(getListener());
     }
 
     private TaskListener getListener() throws IOException {
@@ -94,20 +95,25 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
         return e;
     }
 
-    @Exported(name="environment")
-    @Override public Map<String,String> getOverriddenEnvironment() {
+    @Exported(name = "environment")
+    @Override
+    public Map<String, String> getOverriddenEnvironment() {
         return Collections.unmodifiableMap(env);
     }
 
-    @Override public String getProperty(String propertyName) {
+    @Override
+    public String getProperty(String propertyName) {
         try {
             CpsThread t = CpsThread.current();
             TaskListener listener = getListener();
 
             return EnvironmentExpander.getEffectiveEnvironment(
-                    getEnvironment(listener), t.getContextVariable(EnvVars.class, this::getExecution, this::getNode),
-                    t.getContextVariable(EnvironmentExpander.class, this::getExecution, this::getNode), null, listener)
-                .get(propertyName);
+                            getEnvironment(listener),
+                            t.getContextVariable(EnvVars.class, this::getExecution, this::getNode),
+                            t.getContextVariable(EnvironmentExpander.class, this::getExecution, this::getNode),
+                            null,
+                            listener)
+                    .get(propertyName);
         } catch (Exception x) {
             LOGGER.log(Level.WARNING, null, x);
             return null;
@@ -116,7 +122,9 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
 
     private FlowExecution getExecution() throws IOException {
         if (owner instanceof FlowExecutionOwner.Executable) {
-            return ((FlowExecutionOwner.Executable) owner).asFlowExecutionOwner().get();
+            return ((FlowExecutionOwner.Executable) owner)
+                    .asFlowExecutionOwner()
+                    .get();
         } else {
             throw new IOException("no FlowExecution");
         }
@@ -126,7 +134,8 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
         throw new IOException("no FlowNode in this context");
     }
 
-    @Override public void setProperty(String propertyName, Object newValue) {
+    @Override
+    public void setProperty(String propertyName, Object newValue) {
         env.put(propertyName, String.valueOf(newValue));
         try {
             owner.save();
@@ -135,28 +144,34 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
         }
     }
 
-    @Override public String getIconFileName() {
+    @Override
+    public String getIconFileName() {
         return null;
     }
 
-    @Override public String getDisplayName() {
+    @Override
+    public String getDisplayName() {
         return null;
     }
 
-    @Override public String getUrlName() {
+    @Override
+    public String getUrlName() {
         return null;
     }
 
-    @Override public void onAttached(Run<?,?> r) {
+    @Override
+    public void onAttached(Run<?, ?> r) {
         owner = r;
     }
 
-    @Override public void onLoad(Run<?,?> r) {
+    @Override
+    public void onLoad(Run<?, ?> r) {
         owner = r;
     }
 
     private Object readResolve() {
-        // We need to restore the transient MetaClass field when this class is deserialized by XStream to prevent NPEs in Groovy code that calls methods on this class.
+        // We need to restore the transient MetaClass field when this class is deserialized by XStream to prevent NPEs
+        // in Groovy code that calls methods on this class.
         setMetaClass(null);
         return this;
     }
@@ -164,7 +179,7 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
     /**
      * Gets the singleton instance for a given build, creating it on demand.
      */
-    public static @NonNull EnvActionImpl forRun(@NonNull Run<?,?> run) throws IOException {
+    public static @NonNull EnvActionImpl forRun(@NonNull Run<?, ?> run) throws IOException {
         synchronized (run) {
             EnvActionImpl action = run.getAction(EnvActionImpl.class);
             if (action == null) {
@@ -176,18 +191,23 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
         }
     }
 
-    @Extension public static class Binder extends GlobalVariable {
-        @Override public String getName() {
+    @Extension
+    public static class Binder extends GlobalVariable {
+        @Override
+        public String getName() {
             return "env";
         }
-        @Override public EnvActionImpl getValue(CpsScript script) throws Exception {
-            Run<?,?> run = script.$build();
+
+        @Override
+        public EnvActionImpl getValue(CpsScript script) throws Exception {
+            Run<?, ?> run = script.$build();
             if (run != null) {
                 return EnvActionImpl.forRun(run);
             } else {
                 throw new IllegalStateException("no associated build");
             }
         }
+
         @Restricted(DoNotUse.class)
         public Collection<EnvironmentContributor> getEnvironmentContributors() {
             return EnvironmentContributor.all();
@@ -195,21 +215,25 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
     }
 
     @Restricted(DoNotUse.class)
-    @Extension public static class Copier extends FlowCopier.ByRun {
+    @Extension
+    public static class Copier extends FlowCopier.ByRun {
 
-        @Override public void copy(Run<?,?> original, Run<?,?> copy, TaskListener listener) throws IOException, InterruptedException {
+        @Override
+        public void copy(Run<?, ?> original, Run<?, ?> copy, TaskListener listener)
+                throws IOException, InterruptedException {
             EnvActionImpl orig = original.getAction(EnvActionImpl.class);
             if (orig != null) {
                 EnvActionImpl nue = EnvActionImpl.forRun(copy);
-                for (Map.Entry<String,String> entry : orig.getOverriddenEnvironment().entrySet()) {
+                for (Map.Entry<String, String> entry :
+                        orig.getOverriddenEnvironment().entrySet()) {
                     nue.setProperty(entry.getKey(), entry.getValue());
                 }
             }
         }
-
     }
 
-    @Extension public static class EnvActionImplPickleFactory extends SingleTypedPickleFactory<EnvActionImpl> {
+    @Extension
+    public static class EnvActionImplPickleFactory extends SingleTypedPickleFactory<EnvActionImpl> {
         @Override
         protected Pickle pickle(EnvActionImpl object) {
             return new EnvActionImplPickle();
@@ -226,9 +250,10 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
             try {
                 Queue.Executable executable = owner.getExecutable();
                 if (executable instanceof Run) {
-                    return Futures.immediateFuture(EnvActionImpl.forRun((Run)executable));
+                    return Futures.immediateFuture(EnvActionImpl.forRun((Run) executable));
                 } else {
-                    return Futures.immediateFailedFuture(new IllegalStateException("Invalid executable: " + executable));
+                    return Futures.immediateFailedFuture(
+                            new IllegalStateException("Invalid executable: " + executable));
                 }
             } catch (IOException e) {
                 return Futures.immediateFailedFuture(e);

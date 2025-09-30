@@ -20,7 +20,7 @@ public class SequenceBlock implements Block {
     }
 
     public Next eval(final Env e, final Continuation k) {
-        return new Next(exp1,e, new ContinuationImpl(e, k, exp2));
+        return new Next(exp1, e, new ContinuationImpl(e, k, exp2));
     }
 
     private static class ContinuationImpl implements Continuation {

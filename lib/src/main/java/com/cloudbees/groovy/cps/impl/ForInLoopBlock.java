@@ -4,9 +4,8 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
-
 import java.util.Iterator;
+import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
 /**
  * for (Type var in col) { ... }
@@ -42,14 +41,14 @@ public class ForInLoopBlock implements Block {
         Iterator itr;
 
         ContinuationImpl(Env _e, Continuation loopEnd) {
-            this.e = new LoopBlockScopeEnv(_e,label,loopEnd,increment.bind(this),1);
-            this.e.declareVariable(type,variable);
+            this.e = new LoopBlockScopeEnv(_e, label, loopEnd, increment.bind(this), 1);
+            this.e.declareVariable(type, variable);
             this.loopEnd = loopEnd;
         }
 
         public Next loopHead(Object col) {
             try {
-                itr = (Iterator) ScriptBytecodeAdapter.invokeMethod0(null/*unused*/, col, "iterator");
+                itr = (Iterator) ScriptBytecodeAdapter.invokeMethod0(null /*unused*/, col, "iterator");
             } catch (Throwable t) {
                 return throwException(e, t, loc, new ReferenceStackTrace());
             }
@@ -60,8 +59,8 @@ public class ForInLoopBlock implements Block {
         public Next increment(Object unused) {
             if (itr.hasNext()) {
                 // one more iteration
-                e.setLocalVariable(variable,itr.next());
-                return then(body,e,increment);
+                e.setLocalVariable(variable, itr.next());
+                return then(body, e, increment);
             } else {
                 // exit loop
                 return loopEnd.receive(null);
@@ -71,8 +70,8 @@ public class ForInLoopBlock implements Block {
         private static final long serialVersionUID = 1L;
     }
 
-    static final ContinuationPtr loopHead = new ContinuationPtr(ContinuationImpl.class,"loopHead");
-    static final ContinuationPtr increment = new ContinuationPtr(ContinuationImpl.class,"increment");
+    static final ContinuationPtr loopHead = new ContinuationPtr(ContinuationImpl.class, "loopHead");
+    static final ContinuationPtr increment = new ContinuationPtr(ContinuationImpl.class, "increment");
 
     private static final long serialVersionUID = 1L;
 }

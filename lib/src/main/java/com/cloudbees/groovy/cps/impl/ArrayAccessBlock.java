@@ -3,7 +3,6 @@ package com.cloudbees.groovy.cps.impl;
 import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
-
 import java.util.Collection;
 
 /**

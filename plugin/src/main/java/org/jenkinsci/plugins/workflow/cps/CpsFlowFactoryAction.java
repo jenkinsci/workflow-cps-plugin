@@ -24,16 +24,16 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import hudson.model.Action;
-
 import java.io.IOException;
 import java.util.List;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 
 /**
  * @deprecated Use {@link CpsFlowFactoryAction2} instead.
  */
 @Deprecated
 public interface CpsFlowFactoryAction extends Action {
-    CpsFlowExecution create(CpsFlowDefinition def, FlowExecutionOwner owner, List<? extends Action> actions) throws IOException;
+    CpsFlowExecution create(CpsFlowDefinition def, FlowExecutionOwner owner, List<? extends Action> actions)
+            throws IOException;
 }

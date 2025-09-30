@@ -3,17 +3,15 @@ package com.cloudbees.groovy.cps;
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.SuspendBlock;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
+import groovy.lang.Closure;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
-
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-
-import groovy.lang.Closure;
 import org.codehaus.groovy.runtime.GroovyCategorySupport;
 
 /**
@@ -27,10 +25,8 @@ public class Continuable implements Serializable {
      * Users of this library must pass (at least) these to {@link GroovyCategorySupport#use(List, Closure)} during all operations.
      */
     @SuppressWarnings("rawtypes")
-    public static final List<Class> categories = List.of(
-        CpsDefaultGroovyMethods.class,
-        CpsDefaultGroovyStaticMethods.class,
-        CpsStringGroovyMethods.class);
+    public static final List<Class> categories =
+            List.of(CpsDefaultGroovyMethods.class, CpsDefaultGroovyStaticMethods.class, CpsStringGroovyMethods.class);
 
     /**
      * When the program resumes with a value (in particular an exception thrown), what environment
@@ -65,7 +61,7 @@ public class Continuable implements Serializable {
      */
     public Continuable(Block block, Env e) {
         this.e = e;
-        this.k = new Next(block,e,Continuation.HALT);
+        this.k = new Next(block, e, Continuation.HALT);
     }
 
     /**
@@ -73,7 +69,7 @@ public class Continuable implements Serializable {
      * wraps that into a {@link Continuable}.
      */
     public Continuable(Script cpsTransformedScript) {
-        this(cpsTransformedScript,null);
+        this(cpsTransformedScript, null);
     }
 
     /**
@@ -84,7 +80,7 @@ public class Continuable implements Serializable {
      * of exceptions, and/or providing custom {@link Invoker}
      */
     public Continuable(Script cpsTransformedScript, Env env) {
-        this(cpsTransformedScript,env, Continuation.HALT);
+        this(cpsTransformedScript, env, Continuation.HALT);
     }
 
     /**
@@ -95,14 +91,14 @@ public class Continuable implements Serializable {
      * when the script has finished executing.
      */
     public Continuable(Script cpsTransformedScript, Env env, Continuation k) {
-        this(wrap(cpsTransformedScript,env,k));
+        this(wrap(cpsTransformedScript, env, k));
     }
 
     private static Next wrap(Script s, Env env, Continuation k) {
         try {
             Method m = s.getClass().getMethod("run");
             if (!m.isAnnotationPresent(WorkflowTransformed.class))
-                throw new IllegalArgumentException(s+" is not CPS-transformed");
+                throw new IllegalArgumentException(s + " is not CPS-transformed");
             s.run();
             throw new AssertionError("I'm confused if Script is CPS-transformed or not!");
         } catch (CpsCallableInvocation e) {
@@ -116,8 +112,7 @@ public class Continuable implements Serializable {
      * Prints the stack trace into the given writer, much like {@link Throwable#printStackTrace(PrintWriter)}
      */
     public void printStackTrace(PrintWriter s) {
-        for (StackTraceElement t : getStackTrace())
-            s.println("\tat " + t);
+        for (StackTraceElement t : getStackTrace()) s.println("\tat " + t);
     }
 
     /**
@@ -128,12 +123,12 @@ public class Continuable implements Serializable {
      */
     @Deprecated
     public Object run(Object arg) throws InvocationTargetException {
-        return run0(new Outcome(arg,null)).wrapReplay();
+        return run0(new Outcome(arg, null)).wrapReplay();
     }
 
     @Deprecated
     public Object runByThrow(Throwable arg) throws InvocationTargetException {
-        return run0(new Outcome(null,arg)).wrapReplay();
+        return run0(new Outcome(null, arg)).wrapReplay();
     }
 
     /**
@@ -141,9 +136,9 @@ public class Continuable implements Serializable {
      * throwing an exception
      */
     public Outcome run0(final Outcome cn) {
-        Next n = cn.resumeFrom(e,k);
+        Next n = cn.resumeFrom(e, k);
 
-        while(n.yield==null) {
+        while (n.yield == null) {
             n = n.step();
         }
 
@@ -158,7 +153,7 @@ public class Continuable implements Serializable {
      * be resumed.
      */
     public boolean isResumable() {
-        return k!=Continuation.HALT || e!=null;
+        return k != Continuation.HALT || e != null;
     }
 
     /**
@@ -178,7 +173,7 @@ public class Continuable implements Serializable {
     }
 
     public static Object suspend(String methodName, Object v) {
-        throw new CpsCallableInvocation(methodName, SuspendBlock.SUSPEND,null,v);
+        throw new CpsCallableInvocation(methodName, SuspendBlock.SUSPEND, null, v);
     }
 
     /**
@@ -187,8 +182,7 @@ public class Continuable implements Serializable {
      */
     public List<StackTraceElement> getStackTrace() {
         List<StackTraceElement> r = new ArrayList<>();
-        if (e!=null)
-            e.buildStackTraceElements(r,Integer.MAX_VALUE);
+        if (e != null) e.buildStackTraceElements(r, Integer.MAX_VALUE);
         return r;
     }
 
@@ -207,5 +201,6 @@ public class Continuable implements Serializable {
      * the stack trace. This separator separates the regular call stack that tracks the actual call stack
      * JVM executes and the synthesized CPS call stack that CPS-transformed program is logically executing.
      */
-    public static final StackTraceElement SEPARATOR_STACK_ELEMENT = new StackTraceElement("___cps", "transform___", null, -2);
+    public static final StackTraceElement SEPARATOR_STACK_ELEMENT =
+            new StackTraceElement("___cps", "transform___", null, -2);
 }

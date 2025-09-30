@@ -1,24 +1,14 @@
 package org.jenkinsci.plugins.workflow.cps.steps;
 
-import com.cloudbees.groovy.cps.Outcome;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
 
+import com.cloudbees.groovy.cps.Outcome;
 import groovy.lang.Closure;
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.model.Result;
 import hudson.model.TaskListener;
 import java.io.IOException;
-import jenkins.model.CauseOfInterruption;
-
-import org.jenkinsci.plugins.workflow.cps.CpsVmThreadOnly;
-import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
-import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
-import org.jenkinsci.plugins.workflow.steps.Step;
-import org.jenkinsci.plugins.workflow.steps.StepContext;
-import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
-import org.jenkinsci.plugins.workflow.steps.StepExecution;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,8 +23,15 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
+import jenkins.model.CauseOfInterruption;
+import org.jenkinsci.plugins.workflow.cps.CpsVmThreadOnly;
+import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
 
 /**
  * CPS-specific {@link Step} implementation that executes multiple closures in parallel.
@@ -53,9 +50,9 @@ public class ParallelStep extends Step {
     /**
      * All the sub-workflows as {@link Closure}s, keyed by their names.
      */
-    /*package*/ final transient Map<String,Closure> closures;
+    /*package*/ final transient Map<String, Closure> closures;
 
-    public ParallelStep(Map<String,Closure> closures, boolean failFast) {
+    public ParallelStep(Map<String, Closure> closures, boolean failFast) {
         this.closures = closures;
         this.failFast = failFast;
     }
@@ -89,7 +86,7 @@ public class ParallelStep extends Step {
          * Collect the results of sub-workflows as they complete.
          * The key set is fully populated from the beginning.
          */
-        private final Map<String,Outcome> outcomes = new HashMap<>();
+        private final Map<String, Outcome> outcomes = new HashMap<>();
 
         ResultHandler(StepContext context, ParallelStepExecution parallelStepExecution, boolean failFast) {
             this.context = context;
@@ -139,16 +136,17 @@ public class ParallelStep extends Step {
             }
 
             private void checkAllDone(boolean stepFailed) {
-                Map<String,Object> success = new HashMap<>();
-                for (Entry<String,Outcome> e : handler.outcomes.entrySet()) {
+                Map<String, Object> success = new HashMap<>();
+                for (Entry<String, Outcome> e : handler.outcomes.entrySet()) {
                     Outcome o = e.getValue();
 
-                    if (o==null) {
+                    if (o == null) {
                         // some of the results are not yet ready
-                        if (stepFailed && handler.failFast && ! handler.isStopSent()) {
+                        if (stepFailed && handler.failFast && !handler.isStopSent()) {
                             handler.stopSent();
                             // TODO consider actualInterruption=false
-                            handler.stepExecution.stop(new FlowInterruptedException(Result.ABORTED, true, new FailFastCause(name)));
+                            handler.stepExecution.stop(
+                                    new FlowInterruptedException(Result.ABORTED, true, new FailFastCause(name)));
                         }
                         return;
                     }
@@ -178,7 +176,7 @@ public class ParallelStep extends Step {
                 }
                 // TODO should this also bodies.clear()?
             }
-            
+
             private static final long serialVersionUID = 1L;
         }
 
@@ -202,12 +200,10 @@ public class ParallelStep extends Step {
 
             @Override
             public int compare(Throwable t1, Throwable t2) {
-                if (!(t1 instanceof FlowInterruptedException)
-                        && t2 instanceof FlowInterruptedException) {
+                if (!(t1 instanceof FlowInterruptedException) && t2 instanceof FlowInterruptedException) {
                     // FlowInterruptedException is always less severe than any other exception.
                     return -1;
-                } else if (t1 instanceof FlowInterruptedException
-                        && !(t2 instanceof FlowInterruptedException)) {
+                } else if (t1 instanceof FlowInterruptedException && !(t2 instanceof FlowInterruptedException)) {
                     // FlowInterruptedException is always less severe than any other exception.
                     return 1;
                 } else if (!(t1 instanceof AbortException) && t2 instanceof AbortException) {
@@ -218,8 +214,7 @@ public class ParallelStep extends Step {
                     // AbortException is always less severe than any exception other than
                     // FlowInterruptedException.
                     return 1;
-                } else if (t1 instanceof FlowInterruptedException
-                        && t2 instanceof FlowInterruptedException) {
+                } else if (t1 instanceof FlowInterruptedException && t2 instanceof FlowInterruptedException) {
                     // Two FlowInterruptedExceptions are compared by their results.
                     FlowInterruptedException fie1 = (FlowInterruptedException) t1;
                     FlowInterruptedException fie2 = (FlowInterruptedException) t2;
@@ -258,10 +253,10 @@ public class ParallelStep extends Step {
             this.failingBranch = failingBranch;
         }
 
-        @Override public String getShortDescription() {
-            return "Failed in branch "+ failingBranch;
+        @Override
+        public String getShortDescription() {
+            return "Failed in branch " + failingBranch;
         }
-
     }
 
     /** @deprecated no longer used, just here for serial compatibility */
@@ -272,7 +267,7 @@ public class ParallelStep extends Step {
 
     @Extension
     public static class DescriptorImpl extends StepDescriptor {
-        private final static String FAIL_FAST_FLAG = "failFast";
+        private static final String FAIL_FAST_FLAG = "failFast";
 
         @Override
         public String getFunctionName() {
@@ -280,26 +275,26 @@ public class ParallelStep extends Step {
         }
 
         @Override
-        public Step newInstance(Map<String,Object> arguments) {
+        public Step newInstance(Map<String, Object> arguments) {
             boolean failFast = false;
-            Map<String,Closure<?>> closures = new LinkedHashMap<>();
-            for (Entry<String,Object> e : arguments.entrySet()) {
+            Map<String, Closure<?>> closures = new LinkedHashMap<>();
+            for (Entry<String, Object> e : arguments.entrySet()) {
                 if ((e.getValue() instanceof Closure)) {
-                    closures.put(e.getKey(), (Closure<?>)e.getValue());
-                }
-                else if (FAIL_FAST_FLAG.equals(e.getKey()) && e.getValue() instanceof Boolean) {
-                    failFast = (Boolean)e.getValue();
-                }
-                else {
-                    throw new IllegalArgumentException("Expected a closure or failFast but found "+e.getKey()+"="+e.getValue());
+                    closures.put(e.getKey(), (Closure<?>) e.getValue());
+                } else if (FAIL_FAST_FLAG.equals(e.getKey()) && e.getValue() instanceof Boolean) {
+                    failFast = (Boolean) e.getValue();
+                } else {
+                    throw new IllegalArgumentException(
+                            "Expected a closure or failFast but found " + e.getKey() + "=" + e.getValue());
                 }
             }
-            return new ParallelStep((Map)closures, failFast);
+            return new ParallelStep((Map) closures, failFast);
         }
 
-        @Override public Map<String,Object> defineArguments(Step step) throws UnsupportedOperationException {
+        @Override
+        public Map<String, Object> defineArguments(Step step) throws UnsupportedOperationException {
             ParallelStep ps = (ParallelStep) step;
-            Map<String,Object> retVal = new TreeMap<>(ps.closures);
+            Map<String, Object> retVal = new TreeMap<>(ps.closures);
             if (ps.failFast) {
                 retVal.put(FAIL_FAST_FLAG, Boolean.TRUE);
             }
