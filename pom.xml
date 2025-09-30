@@ -45,6 +45,7 @@
         <jenkins.baseline>2.504</jenkins.baseline>
         <jenkins.version>${jenkins.baseline}.3</jenkins.version>
         <groovy.version>2.4.21</groovy.version> <!-- TODO: Add org.codehaus.groovy:groovy and org.codehaus.groovy:groovy:sources to Jenkins core BOM so this can be deleted? (currently it only specifies groovy-all) -->
+        <spotless.check.skip>false</spotless.check.skip>
     </properties>
     <modules>
         <module>dgm-builder</module>
