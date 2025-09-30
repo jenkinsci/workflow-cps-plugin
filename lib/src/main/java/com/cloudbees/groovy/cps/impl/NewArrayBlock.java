@@ -4,7 +4,6 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-
 import java.lang.reflect.Array;
 
 /**
@@ -24,7 +23,7 @@ public class NewArrayBlock implements Block {
     }
 
     public Next eval(Env e, Continuation k) {
-        return new ContinuationImpl(e,k).dispatchOrArg();
+        return new ContinuationImpl(e, k).dispatchOrArg();
     }
 
     class ContinuationImpl extends ContinuationGroup {
@@ -41,7 +40,7 @@ public class NewArrayBlock implements Block {
 
         public Next fixArg(Object v) {
             try {
-                dimensions[idx++] = (Integer)e.getInvoker().cast(v, int.class, false, false, false);
+                dimensions[idx++] = (Integer) e.getInvoker().cast(v, int.class, false, false, false);
             } catch (Throwable t) {
                 return throwException(e, t, loc, new ReferenceStackTrace());
             }
@@ -52,11 +51,10 @@ public class NewArrayBlock implements Block {
          * If there are more arguments to evaluate, do so. Otherwise evaluate the function.
          */
         private Next dispatchOrArg() {
-            if (dimensions.length>idx)
-                return then(dimensionExps[idx],e,fixArg);
+            if (dimensions.length > idx) return then(dimensionExps[idx], e, fixArg);
             else {
                 // ready to instantiate
-                Object v = Array.newInstance(componentType,dimensions);
+                Object v = Array.newInstance(componentType, dimensions);
                 return k.receive(v);
             }
         }
@@ -64,5 +62,5 @@ public class NewArrayBlock implements Block {
         private static final long serialVersionUID = 1L;
     }
 
-    static final ContinuationPtr fixArg = new ContinuationPtr(ContinuationImpl.class,"fixArg");
+    static final ContinuationPtr fixArg = new ContinuationPtr(ContinuationImpl.class, "fixArg");
 }

@@ -35,7 +35,8 @@ public class MultiShape extends Curve {
     public final String name;
     public int count;
 
-    @DataBoundConstructor public MultiShape(String name) {
+    @DataBoundConstructor
+    public MultiShape(String name) {
         this.name = name;
     }
 
@@ -44,11 +45,12 @@ public class MultiShape extends Curve {
         this.count = count;
     }
 
-    @Override public String getDescription() {
+    @Override
+    public String getDescription() {
         return "group of " + count + " instances of " + name;
     }
 
     @Symbol("multiShape")
-    @Extension public static class DescriptorImpl extends Descriptor<Curve> {}
-
+    @Extension
+    public static class DescriptorImpl extends Descriptor<Curve> {}
 }

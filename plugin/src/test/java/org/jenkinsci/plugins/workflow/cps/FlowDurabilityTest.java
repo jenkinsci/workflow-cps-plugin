@@ -4,11 +4,27 @@ import static org.junit.Assume.assumeFalse;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Item;
 import hudson.model.Result;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.lang.reflect.Field;
+import java.nio.channels.FileChannel;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang3.StringUtils;
 import org.jenkinsci.plugins.workflow.TestDurabilityHintProvider;
@@ -31,11 +47,12 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.job.properties.DurabilityHintJobProperty;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
-import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
 import org.jenkinsci.plugins.workflow.support.storage.BulkFlowNodeStorage;
+import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
 import org.jenkinsci.plugins.workflow.support.storage.SimpleXStreamFlowNodeStorage;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -46,26 +63,8 @@ import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.RestartableJenkinsRule;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-import java.lang.reflect.Field;
-import java.nio.channels.FileChannel;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
-import org.junit.Assume;
 import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.RestartableJenkinsRule;
 
 /**
  * Tests implementations designed to verify handling of the flow durability levels and persistence of pipeline state.
@@ -113,7 +112,7 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 long start = System.currentTimeMillis();
-                while(Math.abs(System.currentTimeMillis()-start)<repeatMillis) {
+                while (Math.abs(System.currentTimeMillis() - start) < repeatMillis) {
                     repeatedStmt.evaluate();
                 }
             }
@@ -130,18 +129,21 @@ public class FlowDurabilityTest {
         }
     }
 
-    static WorkflowRun createAndRunBasicJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint) throws Exception {
+    static WorkflowRun createAndRunBasicJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint)
+            throws Exception {
         return createAndRunBasicJob(jenkins, jobName, durabilityHint, 1);
     }
 
-    static void assertBaseStorageType(FlowExecution exec, Class<? extends FlowNodeStorage> storageClass) throws Exception {
+    static void assertBaseStorageType(FlowExecution exec, Class<? extends FlowNodeStorage> storageClass)
+            throws Exception {
         if (exec instanceof CpsFlowExecution) {
             FlowNodeStorage store = ((CpsFlowExecution) exec).getStorage();
             if (store instanceof CpsFlowExecution.TimingFlowNodeStorage) {
                 Field f = CpsFlowExecution.TimingFlowNodeStorage.class.getDeclaredField("delegate");
                 f.setAccessible(true);
-                FlowNodeStorage delegateStore = (FlowNodeStorage)(f.get(store));
-                Assert.assertEquals(storageClass.toString(), delegateStore.getClass().toString());
+                FlowNodeStorage delegateStore = (FlowNodeStorage) (f.get(store));
+                Assert.assertEquals(
+                        storageClass.toString(), delegateStore.getClass().toString());
             }
         }
     }
@@ -155,36 +157,39 @@ public class FlowDurabilityTest {
                     Assert.assertNotNull("Missing TimingAction on node", node.getPersistentAction(TimingAction.class));
                 }
             } catch (Exception ex) {
-                throw new Exception("Error with node: "+node.getId(), ex);
+                throw new Exception("Error with node: " + node.getId(), ex);
             }
         }
     }
 
     /** Create and run a job with a semaphore and basic steps -- takes a semaphoreIndex in case you have multiple semaphores of the same name in one test.*/
-    static WorkflowRun createAndRunBasicJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint, int semaphoreIndex) throws Exception {
+    static WorkflowRun createAndRunBasicJob(
+            Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint, int semaphoreIndex) throws Exception {
         WorkflowJob job = jenkins.createProject(WorkflowJob.class, jobName);
-        CpsFlowDefinition def = new CpsFlowDefinition("node {\n " +
-                "semaphore 'halt' \n" +
-                "} \n" +
-                "echo 'I like cheese'\n", false);
-        TestDurabilityHintProvider provider = Jenkins.get().getExtensionList(TestDurabilityHintProvider.class).get(0);
+        CpsFlowDefinition def =
+                new CpsFlowDefinition("node {\n " + "semaphore 'halt' \n" + "} \n" + "echo 'I like cheese'\n", false);
+        TestDurabilityHintProvider provider =
+                Jenkins.get().getExtensionList(TestDurabilityHintProvider.class).get(0);
         provider.registerHint(jobName, durabilityHint);
         job.setDefinition(def);
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
-        SemaphoreStep.waitForStart("halt/"+semaphoreIndex, run);
+        SemaphoreStep.waitForStart("halt/" + semaphoreIndex, run);
         Assert.assertEquals(durabilityHint, run.getExecution().getDurabilityHint());
         Assert.assertFalse(run.getExecution().isComplete());
-        Assert.assertFalse(((CpsFlowExecution)(run.getExecution())).done);
+        Assert.assertFalse(((CpsFlowExecution) (run.getExecution())).done);
         if (durabilityHint.isPersistWithEveryStep()) {
             assertBaseStorageType(run.getExecution(), SimpleXStreamFlowNodeStorage.class);
         } else {
             assertBaseStorageType(run.getExecution(), BulkFlowNodeStorage.class);
         }
-        Assert.assertEquals("semaphore", run.getExecution().getCurrentHeads().get(0).getDisplayFunctionName());
+        Assert.assertEquals(
+                "semaphore", run.getExecution().getCurrentHeads().get(0).getDisplayFunctionName());
         return run;
     }
 
-    private WorkflowRun createAndRunSleeperJob(Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint, boolean resumeBlocked) throws Exception {
+    private WorkflowRun createAndRunSleeperJob(
+            Jenkins jenkins, String jobName, FlowDurabilityHint durabilityHint, boolean resumeBlocked)
+            throws Exception {
         Item prev = jenkins.getItemByFullName(jobName);
         if (prev != null) {
             prev.delete();
@@ -192,23 +197,22 @@ public class FlowDurabilityTest {
 
         WorkflowJob job = jenkins.createProject(WorkflowJob.class, jobName);
         job.setResumeBlocked(resumeBlocked);
-        CpsFlowDefinition def = new CpsFlowDefinition("node {\n " +
-                "sleep 30 \n" +
-                "} \n" +
-                "echo 'I like cheese'\n", false);
-        TestDurabilityHintProvider provider = Jenkins.get().getExtensionList(TestDurabilityHintProvider.class).get(0);
+        CpsFlowDefinition def =
+                new CpsFlowDefinition("node {\n " + "sleep 30 \n" + "} \n" + "echo 'I like cheese'\n", false);
+        TestDurabilityHintProvider provider =
+                Jenkins.get().getExtensionList(TestDurabilityHintProvider.class).get(0);
         provider.registerHint(jobName, durabilityHint);
         job.setDefinition(def);
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
         story.j.waitForMessage("Sleeping for", run);
         Assert.assertFalse(run.getExecution().isComplete());
-        Assert.assertFalse(((CpsFlowExecution)(run.getExecution())).done);
+        Assert.assertFalse(((CpsFlowExecution) (run.getExecution())).done);
         Assert.assertEquals(durabilityHint, run.getExecution().getDurabilityHint());
         Assert.assertEquals("sleep", run.getExecution().getCurrentHeads().get(0).getDisplayFunctionName());
         return run;
     }
 
-    private static void verifyExecutionRemoved(WorkflowRun run) throws Exception{
+    private static void verifyExecutionRemoved(WorkflowRun run) throws Exception {
         FlowExecutionList list = FlowExecutionList.get();
         for (FlowExecution fe : list) {
             if (fe == run.getExecution()) {
@@ -232,19 +236,37 @@ public class FlowDurabilityTest {
         Assert.assertEquals(8, allNodes.size());
 
         // Graph structure assertions
-        Assert.assertEquals(2, scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(StepStartNode.class))).size());
-        Assert.assertEquals(2, scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(StepEndNode.class))).size());
-        Assert.assertEquals(1, scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(FlowStartNode.class))).size());
+        Assert.assertEquals(
+                2,
+                scan.filteredNodes(endNode, (Predicate) (Predicates.instanceOf(StepStartNode.class)))
+                        .size());
+        Assert.assertEquals(
+                2,
+                scan.filteredNodes(endNode, (Predicate) (Predicates.instanceOf(StepEndNode.class)))
+                        .size());
+        Assert.assertEquals(
+                1,
+                scan.filteredNodes(endNode, (Predicate) (Predicates.instanceOf(FlowStartNode.class)))
+                        .size());
 
         Predicate<FlowNode> sleepOrSemaphoreMatch = Predicates.or(
-                new NodeStepNamePredicate(StepDescriptor.byFunctionName("semaphore").getId()),
-                new NodeStepNamePredicate(StepDescriptor.byFunctionName("sleep").getId())
-        );
-        Assert.assertEquals(1, scan.filteredNodes(endNode, sleepOrSemaphoreMatch).size());
-        Assert.assertEquals(1, scan.filteredNodes(endNode, new NodeStepNamePredicate(StepDescriptor.byFunctionName("echo").getId())).size());
+                new NodeStepNamePredicate(
+                        StepDescriptor.byFunctionName("semaphore").getId()),
+                new NodeStepNamePredicate(StepDescriptor.byFunctionName("sleep").getId()));
+        Assert.assertEquals(
+                1, scan.filteredNodes(endNode, sleepOrSemaphoreMatch).size());
+        Assert.assertEquals(
+                1,
+                scan.filteredNodes(
+                                endNode,
+                                new NodeStepNamePredicate(
+                                        StepDescriptor.byFunctionName("echo").getId()))
+                        .size());
 
-        for (FlowNode node : (List<FlowNode>)(scan.filteredNodes(endNode, (Predicate)(Predicates.instanceOf(StepNode.class))))) {
-            Assert.assertNotNull("Node: "+node.toString()+" does not have a TimingAction", node.getAction(TimingAction.class));
+        for (FlowNode node :
+                (List<FlowNode>) (scan.filteredNodes(endNode, (Predicate) (Predicates.instanceOf(StepNode.class))))) {
+            Assert.assertNotNull(
+                    "Node: " + node.toString() + " does not have a TimingAction", node.getAction(TimingAction.class));
         }
         assertHasTimingAction(run.getExecution());
     }
@@ -258,12 +280,13 @@ public class FlowDurabilityTest {
         rule.waitForCompletion(run);
         Assert.assertEquals(Result.SUCCESS, run.getResult());
         verifyCompletedCleanly(rule.jenkins, run);
-        //no checking nodes
+        // no checking nodes
         rule.assertLogContains(logStart, run);
     }
 
     /** If it's a {@link SemaphoreStep} we test less rigorously because that blocks async GraphListeners. */
-    private static void verifySafelyResumed(JenkinsRule rule, WorkflowRun run, boolean isSemaphore, String logStart) throws Exception {
+    private static void verifySafelyResumed(JenkinsRule rule, WorkflowRun run, boolean isSemaphore, String logStart)
+            throws Exception {
         Assert.assertTrue(run.isBuilding());
         FlowExecution exec = run.getExecution();
 
@@ -272,8 +295,10 @@ public class FlowDurabilityTest {
         Assert.assertEquals(1, heads.size());
         FlowNode node = heads.get(0);
         String name = node.getDisplayFunctionName();
-        // TODO https://github.com/jenkinsci/workflow-cps-plugin/pull/570#issuecomment-1192679404 Head node not a semaphore step or sleep: {
-        Assume.assumeTrue("Head node not a semaphore step or sleep: "+name, "semaphore".equals(name) || "sleep".equals(name));
+        // TODO https://github.com/jenkinsci/workflow-cps-plugin/pull/570#issuecomment-1192679404
+        // Head node not a semaphore step or sleep: {
+        Assume.assumeTrue(
+                "Head node not a semaphore step or sleep: " + name, "semaphore".equals(name) || "sleep".equals(name));
         if (!isSemaphore) {
             Assert.assertNotNull(node.getPersistentAction(TimingAction.class));
             Assert.assertNotNull(node.getPersistentAction(ArgumentsAction.class));
@@ -289,26 +314,27 @@ public class FlowDurabilityTest {
 
     /** Waits until the build to resume or die. */
     static void waitForBuildToResumeOrFail(WorkflowRun run) throws Exception {
-        CpsFlowExecution execution = (CpsFlowExecution)(run.getExecution());
+        CpsFlowExecution execution = (CpsFlowExecution) (run.getExecution());
         long nanoStartTime = System.nanoTime();
         while (true) {
             if (!run.isBuilding()) {
                 return;
             }
             long currentTime = System.nanoTime();
-            if (TimeUnit.SECONDS.convert(currentTime-nanoStartTime, TimeUnit.NANOSECONDS) > 10) {
+            if (TimeUnit.SECONDS.convert(currentTime - nanoStartTime, TimeUnit.NANOSECONDS) > 10) {
                 StringBuilder builder = new StringBuilder();
-                builder.append("Run result: "+run.getResult());
-                builder.append(" and execution != null:"+(run.getExecution() != null));
+                builder.append("Run result: " + run.getResult());
+                builder.append(" and execution != null:" + (run.getExecution() != null));
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
-                    CpsFlowExecution cpsFlow = (CpsFlowExecution)exec;
-                    builder.append(", FlowExecution is paused: "+cpsFlow.isPaused())
-                            .append(", FlowExecution is complete: "+cpsFlow.isComplete())
-                            .append(", FlowExecution result: "+cpsFlow.getResult())
-                            .append(", FlowExecution PersistedClean: "+cpsFlow.persistedClean).append('\n');
+                    CpsFlowExecution cpsFlow = (CpsFlowExecution) exec;
+                    builder.append(", FlowExecution is paused: " + cpsFlow.isPaused())
+                            .append(", FlowExecution is complete: " + cpsFlow.isComplete())
+                            .append(", FlowExecution result: " + cpsFlow.getResult())
+                            .append(", FlowExecution PersistedClean: " + cpsFlow.persistedClean)
+                            .append('\n');
                 }
-                throw new TimeoutException("Build didn't resume or fail in a timely fashion. "+builder.toString());
+                throw new TimeoutException("Build didn't resume or fail in a timely fashion. " + builder.toString());
             }
             Thread.sleep(100L);
         }
@@ -316,7 +342,7 @@ public class FlowDurabilityTest {
 
     static void verifyFailedCleanly(Jenkins j, WorkflowRun run) throws Exception {
 
-        if (run.isBuilding()) {  // Give the run a little bit of time to see if it can resume or not
+        if (run.isBuilding()) { // Give the run a little bit of time to see if it can resume or not
             FlowExecution exec = run.getExecution();
             if (exec instanceof CpsFlowExecution) {
                 waitForBuildToResumeOrFail(run);
@@ -326,19 +352,20 @@ public class FlowDurabilityTest {
         }
 
         if (run.getExecution() instanceof CpsFlowExecution) {
-            CpsFlowExecution cfe = (CpsFlowExecution)(run.getExecution());
+            CpsFlowExecution cfe = (CpsFlowExecution) (run.getExecution());
             assert cfe.isComplete() || (cfe.programPromise != null && cfe.programPromise.isDone());
         }
 
         assert !run.isBuilding();
 
-        if (run.getExecution() instanceof  CpsFlowExecution) {
+        if (run.getExecution() instanceof CpsFlowExecution) {
             Assert.assertEquals(Result.FAILURE, ((CpsFlowExecution) run.getExecution()).getResult());
         }
 
         Assert.assertEquals(Result.FAILURE, run.getResult());
         assert !run.isBuilding();
-        // TODO verify all blocks cleanly closed out, so Block start and end nodes have same counts and FlowEndNode is last node
+        // TODO verify all blocks cleanly closed out, so Block start and end nodes have same counts
+        // and FlowEndNode is last node
         verifyCompletedCleanly(j, run);
     }
 
@@ -352,7 +379,7 @@ public class FlowDurabilityTest {
         Assert.assertEquals(0, exec.getCurrentExecutions(false).get().size());
 
         if (exec instanceof CpsFlowExecution) {
-            CpsFlowExecution cpsFlow = (CpsFlowExecution)exec;
+            CpsFlowExecution cpsFlow = (CpsFlowExecution) exec;
             assert cpsFlow.getStorage() != null;
             Assert.assertFalse("Should always be able to retrieve script", StringUtils.isEmpty(cpsFlow.getScript()));
             Assert.assertNull("We should have no Groovy shell left or that's a memory leak", cpsFlow.getShell());
@@ -360,9 +387,12 @@ public class FlowDurabilityTest {
             Assert.assertTrue(cpsFlow.done);
             assert cpsFlow.isComplete();
             assert cpsFlow.heads.size() == 1;
-            Map.Entry<Integer, FlowHead> finalHead = cpsFlow.heads.entrySet().iterator().next();
+            Map.Entry<Integer, FlowHead> finalHead =
+                    cpsFlow.heads.entrySet().iterator().next();
             assert finalHead.getValue().get() instanceof FlowEndNode;
-            Assert.assertEquals(cpsFlow.storage.getNode(finalHead.getValue().get().getId()), finalHead.getValue().get());
+            Assert.assertEquals(
+                    cpsFlow.storage.getNode(finalHead.getValue().get().getId()),
+                    finalHead.getValue().get());
         }
 
         verifyExecutionRemoved(run);
@@ -376,7 +406,8 @@ public class FlowDurabilityTest {
             List<Executor> executors = c.getExecutors();
             for (Executor ex : executors) {
                 if (ex.isBusy()) {
-                    Assert.fail("Computer "+c+" has an Executor "+ex+" still running a task: "+ex.getCurrentWorkUnit());
+                    Assert.fail("Computer " + c + " has an Executor " + ex + " still running a task: "
+                            + ex.getCurrentWorkUnit());
                 }
             }
         }
@@ -408,36 +439,37 @@ public class FlowDurabilityTest {
             public void evaluate() throws Throwable {
                 int i = 1;
                 for (FlowDurabilityHint hint : durabilityHints) {
-                    try{
-                        WorkflowRun run = createAndRunBasicJob(story.j.jenkins, "basicJob-"+hint.toString(), hint, i);
-                        jobs[i-1] = run.getParent();
-                        SemaphoreStep.success("halt/"+i++,Result.SUCCESS);
+                    try {
+                        WorkflowRun run = createAndRunBasicJob(story.j.jenkins, "basicJob-" + hint.toString(), hint, i);
+                        jobs[i - 1] = run.getParent();
+                        SemaphoreStep.success("halt/" + i++, Result.SUCCESS);
                         story.j.waitForCompletion(run);
                         story.j.assertBuildStatus(Result.SUCCESS, run);
-                        logOutput[i-2] = JenkinsRule.getLog(run);
+                        logOutput[i - 2] = JenkinsRule.getLog(run);
                         assertHasTimingAction(run.getExecution());
                     } catch (AssertionError ae) {
-                        System.out.println("Error with durability level: "+hint);
+                        System.out.println("Error with durability level: " + hint);
                         throw ae;
                     }
                 }
             }
         });
 
-        //Restart and confirm we can still load them.
+        // Restart and confirm we can still load them.
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                for (int i=0; i<durabilityHints.length; i++) {
-                    WorkflowJob j  = jobs[i];
-                    try{
+                for (int i = 0; i < durabilityHints.length; i++) {
+                    WorkflowJob j = jobs[i];
+                    try {
                         WorkflowRun run = j.getLastBuild();
                         verifySucceededCleanly(story.j.jenkins, run);
-                        Assert.assertEquals(durabilityHints[i], run.getExecution().getDurabilityHint());
+                        Assert.assertEquals(
+                                durabilityHints[i], run.getExecution().getDurabilityHint());
                         Assert.assertEquals(logOutput[i], JenkinsRule.getLog(run));
                         assertHasTimingAction(run.getExecution());
                     } catch (AssertionError ae) {
-                        System.out.println("Error with durability level: "+durabilityHints[i]);
+                        System.out.println("Error with durability level: " + durabilityHints[i]);
                         throw ae;
                     }
                 }
@@ -457,7 +489,8 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED, false);
+                WorkflowRun run = createAndRunSleeperJob(
+                        story.j.jenkins, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED, false);
                 FlowExecution exec = run.getExecution();
                 assertBaseStorageType(exec, BulkFlowNodeStorage.class);
                 logStart[0] = JenkinsRule.getLog(run);
@@ -467,8 +500,13 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                WorkflowRun run = story.j
+                        .jenkins
+                        .getItemByFullName(jobName, WorkflowJob.class)
+                        .getLastBuild();
+                Assert.assertEquals(
+                        FlowDurabilityHint.PERFORMANCE_OPTIMIZED,
+                        run.getExecution().getDurabilityHint());
                 assertBaseStorageType(run.getExecution(), BulkFlowNodeStorage.class);
                 verifySafelyResumed(story.j, run, true, logStart[0]);
             }
@@ -487,15 +525,16 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED, false);
+                WorkflowRun run = createAndRunSleeperJob(
+                        story.j.jenkins, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED, false);
                 FlowExecution exec = run.getExecution();
                 assertBaseStorageType(exec, BulkFlowNodeStorage.class);
                 logStart[0] = JenkinsRule.getLog(run);
                 if (run.getExecution() instanceof CpsFlowExecution) {
-                    CpsFlowExecution cpsFlow = (CpsFlowExecution)(run.getExecution());
+                    CpsFlowExecution cpsFlow = (CpsFlowExecution) (run.getExecution());
                     cpsFlow.pause(true);
-                    long timeout = System.nanoTime()+TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS);
-                    while(System.nanoTime() < timeout && !cpsFlow.isPaused()) {
+                    long timeout = System.nanoTime() + TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS);
+                    while (System.nanoTime() < timeout && !cpsFlow.isPaused()) {
                         Thread.sleep(100L);
                     }
                 }
@@ -505,16 +544,21 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                WorkflowRun run = story.j
+                        .jenkins
+                        .getItemByFullName(jobName, WorkflowJob.class)
+                        .getLastBuild();
                 if (run.getExecution() instanceof CpsFlowExecution) {
-                    CpsFlowExecution cpsFlow = (CpsFlowExecution)(run.getExecution());
+                    CpsFlowExecution cpsFlow = (CpsFlowExecution) (run.getExecution());
                     cpsFlow.pause(false);
-                    long timeout = System.nanoTime()+TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS);
-                    while(System.nanoTime() < timeout && cpsFlow.isPaused()) {
+                    long timeout = System.nanoTime() + TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS);
+                    while (System.nanoTime() < timeout && cpsFlow.isPaused()) {
                         Thread.sleep(100L);
                     }
                 }
-                Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                Assert.assertEquals(
+                        FlowDurabilityHint.PERFORMANCE_OPTIMIZED,
+                        run.getExecution().getDurabilityHint());
                 assertBaseStorageType(run.getExecution(), BulkFlowNodeStorage.class);
                 verifySafelyResumed(story.j, run, false, logStart[0]);
             }
@@ -530,27 +574,33 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 WorkflowJob job = story.j.jenkins.createProject(WorkflowJob.class, jobName);
-                CpsFlowDefinition def = new CpsFlowDefinition("node {\n " +
-                        "  sleep 30 \n" +
-                        "  dir('nothing'){sleep 30;}\n"+
-                        "} \n" +
-                        "echo 'I like chese'\n", false);
-                TestDurabilityHintProvider provider = Jenkins.get().getExtensionList(TestDurabilityHintProvider.class).get(0);
+                CpsFlowDefinition def = new CpsFlowDefinition(
+                        "node {\n " + "  sleep 30 \n"
+                                + "  dir('nothing'){sleep 30;}\n"
+                                + "} \n"
+                                + "echo 'I like chese'\n",
+                        false);
+                TestDurabilityHintProvider provider = Jenkins.get()
+                        .getExtensionList(TestDurabilityHintProvider.class)
+                        .get(0);
                 provider.registerHint(jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
                 job.setDefinition(def);
                 WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
-                Thread.sleep(2000L);  // Hacky but we just need to ensure this can start up
+                Thread.sleep(2000L); // Hacky but we just need to ensure this can start up
             }
         });
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                WorkflowRun run = story.j
+                        .jenkins
+                        .getItemByFullName(jobName, WorkflowJob.class)
+                        .getLastBuild();
                 assert run.isBuilding();
                 assert run.getResult() != Result.FAILURE;
-                Thread.sleep(35000);  // Step completes
-                if (run.getExecution() instanceof  CpsFlowExecution) {
-                    CpsFlowExecution exec = (CpsFlowExecution)run.getExecution();
+                Thread.sleep(35000); // Step completes
+                if (run.getExecution() instanceof CpsFlowExecution) {
+                    CpsFlowExecution exec = (CpsFlowExecution) run.getExecution();
                     assert exec.persistedClean == null;
                 }
             }
@@ -558,12 +608,16 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                Thread.sleep(2000L);  // Just to allow time for basic async processes to finish.
-               verifyFailedCleanly(story.j.jenkins, story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild());
+                Thread.sleep(2000L); // Just to allow time for basic async processes to finish.
+                verifyFailedCleanly(
+                        story.j.jenkins,
+                        story.j
+                                .jenkins
+                                .getItemByFullName(jobName, WorkflowJob.class)
+                                .getLastBuild());
             }
         });
     }
-
 
     /** Verify that if the controller dies messily and we're not durable against that, build fails cleanly.
      */
@@ -573,8 +627,11 @@ public class FlowDurabilityTest {
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED, false);
-                Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                WorkflowRun run = createAndRunSleeperJob(
+                        story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED, false);
+                Assert.assertEquals(
+                        FlowDurabilityHint.PERFORMANCE_OPTIMIZED,
+                        run.getExecution().getDurabilityHint());
                 logStart[0] = JenkinsRule.getLog(run);
             }
         });
@@ -582,8 +639,15 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
-                if (run == null) { return; } //there is a small chance due to non atomic write that build.xml will be empty and the run won't load at all
+                WorkflowRun run = story.j
+                        .jenkins
+                        .getItemByFullName("durableAgainstClean", WorkflowJob.class)
+                        .getLastBuild();
+                if (run == null) {
+                    // there is a small chance due to non atomic write that build.xml will be empty
+                    // and the run won't load at all
+                    return;
+                }
                 verifyFailedCleanly(story.j.jenkins, run);
                 story.j.assertLogContains(logStart[0], run);
             }
@@ -599,13 +663,17 @@ public class FlowDurabilityTest {
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED, false);
-                Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                WorkflowRun run = createAndRunSleeperJob(
+                        story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED, false);
+                Assert.assertEquals(
+                        FlowDurabilityHint.PERFORMANCE_OPTIMIZED,
+                        run.getExecution().getDurabilityHint());
                 logStart[0] = JenkinsRule.getLog(run);
-                CpsFlowExecution exec = (CpsFlowExecution)(run.getExecution());
+                CpsFlowExecution exec = (CpsFlowExecution) (run.getExecution());
 
                 // Ensure the storage file is unreadable
-                try (FileChannel fis = new FileOutputStream(new File(exec.getStorageDir(), "flowNodeStore.xml")).getChannel()) {
+                try (FileChannel fis =
+                        new FileOutputStream(new File(exec.getStorageDir(), "flowNodeStore.xml")).getChannel()) {
                     fis.truncate(5); // Leave a tiny bit just to make things more interesting
                 }
             }
@@ -614,8 +682,15 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
-                if (run == null) { return; } //there is a small chance due to non atomic write that build.xml will be empty and the run won't load at all
+                WorkflowRun run = story.j
+                        .jenkins
+                        .getItemByFullName("durableAgainstClean", WorkflowJob.class)
+                        .getLastBuild();
+                if (run == null) {
+                    // there is a small chance due to non atomic write that build.xml will be empty
+                    // and the run won't load at all
+                    return;
+                }
                 verifyFailedCleanly(story.j.jenkins, run);
                 story.j.assertLogContains(logStart[0], run);
             }
@@ -632,22 +707,25 @@ public class FlowDurabilityTest {
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED, false);
-                Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                WorkflowRun run = createAndRunSleeperJob(
+                        story.j.jenkins, "durableAgainstClean", FlowDurabilityHint.PERFORMANCE_OPTIMIZED, false);
+                Assert.assertEquals(
+                        FlowDurabilityHint.PERFORMANCE_OPTIMIZED,
+                        run.getExecution().getDurabilityHint());
                 logStart[0] = JenkinsRule.getLog(run);
                 if (run.getExecution() instanceof CpsFlowExecution) {
                     // Pause and unPause to force persistence
-                    CpsFlowExecution cpsFlow = (CpsFlowExecution)(run.getExecution());
+                    CpsFlowExecution cpsFlow = (CpsFlowExecution) (run.getExecution());
                     cpsFlow.pause(true);
-                    long timeout = System.nanoTime()+TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS);
-                    while(System.nanoTime() < timeout && !cpsFlow.isPaused()) {
+                    long timeout = System.nanoTime() + TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS);
+                    while (System.nanoTime() < timeout && !cpsFlow.isPaused()) {
                         Thread.sleep(100L);
                     }
                     nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
                     nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
                     cpsFlow.pause(false);
-                    timeout = System.nanoTime()+TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS);
-                    while(System.nanoTime() < timeout && cpsFlow.isPaused()) {
+                    timeout = System.nanoTime() + TimeUnit.NANOSECONDS.convert(5, TimeUnit.SECONDS);
+                    while (System.nanoTime() < timeout && cpsFlow.isPaused()) {
                         Thread.sleep(100L);
                     }
 
@@ -661,7 +739,10 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName("durableAgainstClean", WorkflowJob.class).getLastBuild();
+                WorkflowRun run = story.j
+                        .jenkins
+                        .getItemByFullName("durableAgainstClean", WorkflowJob.class)
+                        .getLastBuild();
                 verifyFailedCleanly(story.j.jenkins, run);
                 story.j.assertLogContains(logStart[0], run);
                 assertIncludesNodes(nodesOut, run);
@@ -676,13 +757,13 @@ public class FlowDurabilityTest {
 
         // Make sure we have the starting nodes at least
         assert prefixNodes.size() <= nodes.size();
-        for (int i=0; i<prefixNodes.size(); i++) {
+        for (int i = 0; i < prefixNodes.size(); i++) {
             try {
                 FlowNode match = prefixNodes.get(i);
                 FlowNode after = nodes.get(i);
                 Assert.assertEquals(match.getDisplayFunctionName(), after.getDisplayFunctionName());
             } catch (Exception ex) {
-                throw new Exception("Error with flownode at index="+i, ex);
+                throw new Exception("Error with flownode at index=" + i, ex);
             }
         }
     }
@@ -709,7 +790,10 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                WorkflowRun run = story.j
+                        .jenkins
+                        .getItemByFullName(jobName, WorkflowJob.class)
+                        .getLastBuild();
                 verifySafelyResumed(story.j, run, true, logStart[0]);
             }
         });
@@ -728,7 +812,8 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY, false);
+                WorkflowRun run =
+                        createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY, false);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
@@ -740,7 +825,10 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                WorkflowRun run = story.j
+                        .jenkins
+                        .getItemByFullName(jobName, WorkflowJob.class)
+                        .getLastBuild();
                 verifyDirtyResumed(story.j, run, logStart[0]);
             }
         });
@@ -756,13 +844,15 @@ public class FlowDurabilityTest {
             @Override
             public void evaluate() throws Throwable {
                 Jenkins jenkins = story.j.jenkins;
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY, true);
+                WorkflowRun run =
+                        createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY, true);
                 FlowExecution exec = run.getExecution();
                 Assert.assertTrue(((CpsFlowExecution) exec).isResumeBlocked());
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully();
                 }
-                Assert.assertFalse(((CpsFlowExecution) exec).getProgramDataFile().exists());
+                Assert.assertFalse(
+                        ((CpsFlowExecution) exec).getProgramDataFile().exists());
                 logStart[0] = JenkinsRule.getLog(run);
                 nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
                 nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
@@ -772,7 +862,10 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                WorkflowRun run = story.j
+                        .jenkins
+                        .getItemByFullName(jobName, WorkflowJob.class)
+                        .getLastBuild();
                 verifyFailedCleanly(story.j.jenkins, run);
             }
         });
@@ -788,7 +881,8 @@ public class FlowDurabilityTest {
         story.addStepWithDirtyShutdown(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY, false);
+                WorkflowRun run =
+                        createAndRunSleeperJob(story.j.jenkins, jobName, FlowDurabilityHint.MAX_SURVIVABILITY, false);
                 FlowExecution exec = run.getExecution();
                 if (exec instanceof CpsFlowExecution) {
                     assert ((CpsFlowExecution) exec).getStorage().isPersistedFully(); // single node xmls written
@@ -802,13 +896,17 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                WorkflowRun run = story.j
+                        .jenkins
+                        .getItemByFullName(jobName, WorkflowJob.class)
+                        .getLastBuild();
                 verifyFailedCleanly(story.j.jenkins, run);
             }
         });
     }
 
-    private static void assertBuildNotHung(@NonNull RestartableJenkinsRule story, @NonNull  WorkflowRun run, int timeOutMillis) throws Exception {
+    private static void assertBuildNotHung(
+            @NonNull RestartableJenkinsRule story, @NonNull WorkflowRun run, int timeOutMillis) throws Exception {
         if (run.isBuilding()) {
             story.j.waitUntilNoActivityUpTo(timeOutMillis);
         }
@@ -818,43 +916,44 @@ public class FlowDurabilityTest {
     private WorkflowRun runFuzzerJob(JenkinsRule jrule, String jobName, FlowDurabilityHint hint) throws Exception {
         Jenkins jenkins = jrule.jenkins;
         WorkflowJob job = jenkins.getItemByFullName(jobName, WorkflowJob.class);
-        if (job == null) {  // Job may already have been created
+        if (job == null) { // Job may already have been created
             job = jenkins.createProject(WorkflowJob.class, jobName);
             job.addProperty(new DurabilityHintJobProperty(hint));
+            // First we need to build the job to get an appropriate estimate for how long we need to wait
+            // before hard-restarting Jenkins in order to catch it in the middle
             job.setDefinition(new CpsFlowDefinition(
-                    "echo 'first'\n" +
-                            "def steps = [:]\n" +
-                            "steps['1'] = {\n" +
-                            "    echo 'do 1 stuff'\n" +
-                            "}\n" +
-                            "steps['2'] = {\n" +
-                            "    echo '2a'\n" +
-                            "    echo '2b'\n" +
-                            "    def nested = [:]\n" +
-                            "    nested['2-1'] = {\n" +
-                            "        echo 'do 2-1'\n" +
-                            "    } \n" +
-                            "    nested['2-2'] = {\n" +
-                            "        sleep 1\n" +
-                            "        echo '2 section 2'\n" +
-                            "    }\n" +
-                            "    parallel nested\n" +
-                            "}\n" +
-                            "parallel steps\n" +
-                            "echo 'final'", false
-            ));
+                    "echo 'first'\n" + "def steps = [:]\n"
+                            + "steps['1'] = {\n"
+                            + "    echo 'do 1 stuff'\n"
+                            + "}\n"
+                            + "steps['2'] = {\n"
+                            + "    echo '2a'\n"
+                            + "    echo '2b'\n"
+                            + "    def nested = [:]\n"
+                            + "    nested['2-1'] = {\n"
+                            + "        echo 'do 2-1'\n"
+                            + "    } \n"
+                            + "    nested['2-2'] = {\n"
+                            + "        sleep 1\n"
+                            + "        echo '2 section 2'\n"
+                            + "    }\n"
+                            + "    parallel nested\n"
+                            + "}\n"
+                            + "parallel steps\n"
+                            + "echo 'final'",
+                    false));
         }
 
-        // First we need to build the job to get an appropriate estimate for how long we need to wait before hard-restarting Jenkins in order to catch it in the middle
         story.j.buildAndAssertSuccess(job);
         long millisDuration = job.getLastBuild().getDuration();
-        System.out.println("Test fuzzer job in  completed in "+millisDuration+" ms");
+        System.out.println("Test fuzzer job in  completed in " + millisDuration + " ms");
 
-        // Now we run the job again and wait an appropriate amount of time -- but we return the job so tests can grab info before restarting.
+        // Now we run the job again and wait an appropriate amount of time,
+        // but we return the job so tests can grab info before restarting.
         int time = new Random().nextInt((int) millisDuration);
-        System.out.println("Starting fuzzer job and waiting "+time+" ms before restarting.");
+        System.out.println("Starting fuzzer job and waiting " + time + " ms before restarting.");
         WorkflowRun run = job.scheduleBuild2(0).getStartCondition().get();
-        run.getExecutionPromise().get();  // Ensures run has begun so that it *can* complete cleanly.
+        run.getExecutionPromise().get(); // Ensures run has begun so that it *can* complete cleanly.
         Thread.sleep(time);
         return run;
     }
@@ -863,13 +962,13 @@ public class FlowDurabilityTest {
      * May fail rarely due to files being copied in a different order than they are modified as part of simulating a dirty restart.
      * See {@link RestartableJenkinsRule#simulateAbruptShutdown()} for why that copying happens. */
     @Test
-    @Ignore //Too long to run as part of main suite
+    @Ignore // Too long to run as part of main suite
     @TimedRepeatRule.RepeatForTime(repeatMillis = 150_000)
     public void fuzzTimingDurable() throws Exception {
         final String jobName = "NestedParallelDurableJob";
         final String[] logStart = new String[1];
         final List<FlowNode> nodesOut = new ArrayList<>();
-        final int[] buildNumber = new int [1];
+        final int[] buildNumber = new int[1];
 
         // Create thread that eventually interrupts Jenkins with a hard shutdown at a random time interval
         story.addStepWithDirtyShutdown(new Statement() {
@@ -881,19 +980,26 @@ public class FlowDurabilityTest {
                 nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
                 nodesOut.sort(FlowScanningUtils.ID_ORDER_COMPARATOR);
                 if (run.getExecution() != null) {
-                    Assert.assertEquals(FlowDurabilityHint.MAX_SURVIVABILITY, run.getExecution().getDurabilityHint());
+                    Assert.assertEquals(
+                            FlowDurabilityHint.MAX_SURVIVABILITY,
+                            run.getExecution().getDurabilityHint());
                 }
             }
-            });
+        });
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                if (run == null) {   // Build killed so early the Run did not get to persist
+                WorkflowRun run = story.j
+                        .jenkins
+                        .getItemByFullName(jobName, WorkflowJob.class)
+                        .getLastBuild();
+                if (run == null) { // Build killed so early the Run did not get to persist
                     return;
                 }
                 if (run.getExecution() != null) {
-                    Assert.assertEquals(FlowDurabilityHint.MAX_SURVIVABILITY, run.getExecution().getDurabilityHint());
+                    Assert.assertEquals(
+                            FlowDurabilityHint.MAX_SURVIVABILITY,
+                            run.getExecution().getDurabilityHint());
                 }
                 if (run.isBuilding()) {
                     assertBuildNotHung(story, run, 30_000);
@@ -904,14 +1010,13 @@ public class FlowDurabilityTest {
                 story.j.assertLogContains(logStart[0], run);
             }
         });
-
     }
 
     /** Test interrupting build by randomly dying at unpredictable times.
      *  May fail rarely due to files being copied in a different order than they are modified as part of simulating a dirty restart.
      *  See {@link RestartableJenkinsRule#simulateAbruptShutdown()} for why that copying happens. */
     @Test
-    @Ignore //Too long to run as part of main suite
+    @Ignore // Too long to run as part of main suite
     @TimedRepeatRule.RepeatForTime(repeatMillis = 150_000)
     public void fuzzTimingNonDurableWithDirtyRestart() throws Exception {
         final String jobName = "NestedParallelDurableJob";
@@ -924,24 +1029,31 @@ public class FlowDurabilityTest {
                 WorkflowRun run = runFuzzerJob(story.j, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
                 logStart[0] = JenkinsRule.getLog(run);
                 if (run.getExecution() != null) {
-                    Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                    Assert.assertEquals(
+                            FlowDurabilityHint.PERFORMANCE_OPTIMIZED,
+                            run.getExecution().getDurabilityHint());
                 }
                 if (run.isBuilding()) {
-                    Assert.assertNotEquals(Boolean.TRUE, ((CpsFlowExecution)run.getExecution()).persistedClean);
+                    Assert.assertNotEquals(Boolean.TRUE, ((CpsFlowExecution) run.getExecution()).persistedClean);
                 } else {
-                    Assert.assertEquals(Boolean.TRUE, ((CpsFlowExecution)run.getExecution()).persistedClean);
+                    Assert.assertEquals(Boolean.TRUE, ((CpsFlowExecution) run.getExecution()).persistedClean);
                 }
             }
         });
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                if (run == null) {   // Build killed so early the Run did not get to persist
+                WorkflowRun run = story.j
+                        .jenkins
+                        .getItemByFullName(jobName, WorkflowJob.class)
+                        .getLastBuild();
+                if (run == null) { // Build killed so early the Run did not get to persist
                     return;
                 }
                 if (run.getExecution() != null) {
-                    Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                    Assert.assertEquals(
+                            FlowDurabilityHint.PERFORMANCE_OPTIMIZED,
+                            run.getExecution().getDurabilityHint());
                 }
                 assertBuildNotHung(story, run, 30_000);
                 verifyCompletedCleanly(story.j.jenkins, run);
@@ -953,23 +1065,25 @@ public class FlowDurabilityTest {
             public void evaluate() throws Throwable {
                 // Verify build doesn't resume at next restart, see JENKINS-50199
                 Assert.assertFalse(FlowExecutionList.get().iterator().hasNext());
-                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
+                WorkflowRun run = story.j
+                        .jenkins
+                        .getItemByFullName(jobName, WorkflowJob.class)
+                        .getLastBuild();
                 if (run == null) {
                     return;
                 }
                 Assert.assertFalse(run.isBuilding());
                 Assert.assertTrue(run.getExecution().isComplete());
-                if (run.getExecution() instanceof  CpsFlowExecution) {
-                    assert ((CpsFlowExecution)(run.getExecution())).done;
+                if (run.getExecution() instanceof CpsFlowExecution) {
+                    assert ((CpsFlowExecution) (run.getExecution())).done;
                 }
             }
         });
-
     }
 
     /** Test interrupting build by randomly restarting *cleanly* at unpredictable times and verify we stick pick up and resume. */
     @Test
-    @Ignore //Too long to run as part of main suite
+    @Ignore // Too long to run as part of main suite
     @TimedRepeatRule.RepeatForTime(repeatMillis = 150_000)
     public void fuzzTimingNonDurableWithCleanRestart() throws Exception {
 
@@ -984,7 +1098,9 @@ public class FlowDurabilityTest {
                 WorkflowRun run = runFuzzerJob(story.j, jobName, FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
                 logStart[0] = JenkinsRule.getLog(run);
                 if (run.getExecution() != null) {
-                    Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                    Assert.assertEquals(
+                            FlowDurabilityHint.PERFORMANCE_OPTIMIZED,
+                            run.getExecution().getDurabilityHint());
                 }
                 nodesOut.clear();
                 nodesOut.addAll(new DepthFirstScanner().allNodes(run.getExecution()));
@@ -994,12 +1110,17 @@ public class FlowDurabilityTest {
         story.addStep(new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                WorkflowRun run = story.j.jenkins.getItemByFullName(jobName, WorkflowJob.class).getLastBuild();
-                if (run == null) {   // Build killed so early the Run did not get to persist
+                WorkflowRun run = story.j
+                        .jenkins
+                        .getItemByFullName(jobName, WorkflowJob.class)
+                        .getLastBuild();
+                if (run == null) { // Build killed so early the Run did not get to persist
                     return;
                 }
                 if (run.getExecution() != null) {
-                    Assert.assertEquals(FlowDurabilityHint.PERFORMANCE_OPTIMIZED, run.getExecution().getDurabilityHint());
+                    Assert.assertEquals(
+                            FlowDurabilityHint.PERFORMANCE_OPTIMIZED,
+                            run.getExecution().getDurabilityHint());
                 }
                 if (run.isBuilding()) {
                     assertBuildNotHung(story, run, 30_000);
@@ -1010,7 +1131,7 @@ public class FlowDurabilityTest {
                     try {
                         story.j.waitUntilNoActivityUpTo(30_000);
                     } catch (AssertionError ase) {
-                        throw new AssertionError("Build hung: "+run, ase);
+                        throw new AssertionError("Build hung: " + run, ase);
                     }
                 }
                 Assert.assertEquals(Result.SUCCESS, run.getResult());

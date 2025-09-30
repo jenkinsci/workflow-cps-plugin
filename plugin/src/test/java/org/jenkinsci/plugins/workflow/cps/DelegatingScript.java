@@ -13,8 +13,7 @@ public abstract class DelegatingScript extends Script {
      */
     public GroovyObject o;
 
-    public DelegatingScript() {
-    }
+    public DelegatingScript() {}
 
     public DelegatingScript(Binding binding) {
         super(binding);
@@ -22,6 +21,6 @@ public abstract class DelegatingScript extends Script {
 
     @Override
     public final Object invokeMethod(String name, Object args) {
-        return o.invokeMethod(name,args);
+        return o.invokeMethod(name, args);
     }
 }

@@ -2,7 +2,6 @@ package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.ConstantBlock;
 import com.cloudbees.groovy.cps.impl.ThrowBlock;
-
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 
@@ -19,7 +18,7 @@ public final class Outcome implements Serializable {
     private final Throwable abnormal;
 
     public Outcome(Object normal, Throwable abnormal) {
-        assert normal==null || abnormal==null;
+        assert normal == null || abnormal == null;
         this.normal = normal;
         this.abnormal = abnormal;
     }
@@ -28,17 +27,13 @@ public final class Outcome implements Serializable {
      * Like {@link #replay()} but wraps the throwable into {@link InvocationTargetException}.
      */
     public Object wrapReplay() throws InvocationTargetException {
-        if (abnormal!=null)
-            throw new InvocationTargetException(abnormal);
-        else
-            return normal;
+        if (abnormal != null) throw new InvocationTargetException(abnormal);
+        else return normal;
     }
 
     public Object replay() throws Throwable {
-        if (abnormal!=null)
-            throw abnormal;
-        else
-            return normal;
+        if (abnormal != null) throw abnormal;
+        else return normal;
     }
 
     public Object getNormal() {
@@ -50,11 +45,11 @@ public final class Outcome implements Serializable {
     }
 
     public boolean isSuccess() {
-        return abnormal==null;
+        return abnormal == null;
     }
 
     public boolean isFailure() {
-        return abnormal!=null;
+        return abnormal != null;
     }
 
     public Next resumeFrom(Continuable c) {
@@ -62,29 +57,29 @@ public final class Outcome implements Serializable {
     }
 
     public Next resumeFrom(Env e, Continuation k) {
-        if (abnormal!=null) {
+        if (abnormal != null) {
             // resume program by throwing this exception
-            return new Next(new ThrowBlock(new ConstantBlock(abnormal)),e,null/*unused*/);
+            return new Next(new ThrowBlock(new ConstantBlock(abnormal)), e, null /*unused*/);
         } else {
             // resume program by passing the value
             return k.receive(normal);
         }
     }
 
-//    public Block asBlock() {
-//        if (abnormal!=null) {
-//            // resume program by throwing this exception
-//            return new ThrowBlock(new ConstantBlock(abnormal));
-//        } else {
-//            // resume program by passing the value
-//            return new ConstantBlock(normal);
-//        }
-//    }
+    //    public Block asBlock() {
+    //        if (abnormal!=null) {
+    //            // resume program by throwing this exception
+    //            return new ThrowBlock(new ConstantBlock(abnormal));
+    //        } else {
+    //            // resume program by passing the value
+    //            return new ConstantBlock(normal);
+    //        }
+    //    }
 
     @Override
     public String toString() {
-        if (abnormal!=null)     return "abnormal["+abnormal+']';
-        else                    return "normal["+normal+']';
+        if (abnormal != null) return "abnormal[" + abnormal + ']';
+        else return "normal[" + normal + ']';
     }
 
     private static final long serialVersionUID = 1L;

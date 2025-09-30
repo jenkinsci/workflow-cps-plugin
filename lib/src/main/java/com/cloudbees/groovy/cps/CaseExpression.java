@@ -1,7 +1,6 @@
 package com.cloudbees.groovy.cps;
 
 import com.cloudbees.groovy.cps.impl.SourceLocation;
-
 import java.io.Serializable;
 
 /**
@@ -12,6 +11,7 @@ public class CaseExpression implements Serializable {
      * Expression in the case that decides the match.
      */
     public final Block matcher;
+
     public final Block body;
     public final SourceLocation loc;
 

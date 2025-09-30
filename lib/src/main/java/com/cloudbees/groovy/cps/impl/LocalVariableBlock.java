@@ -42,7 +42,8 @@ public class LocalVariableBlock extends LValueBlock {
         public Next set(Object v, Continuation k) {
             Class type = e.getLocalVariableType(name);
             try {
-                // Implicit casts always have coerce = false. For now we do not do anything with ignoreAutoboxing and strict.
+                // Implicit casts always have coerce = false. For now we do not do anything with ignoreAutoboxing and
+                // strict.
                 e.setLocalVariable(name, (type == null) ? v : e.getInvoker().cast(v, type, false, false, false));
             } catch (Throwable t) {
                 return throwException(e, t, loc, new ReferenceStackTrace());

@@ -24,25 +24,28 @@ public class MonomorphicWithSymbolStep extends Step {
         this.data = data;
     }
 
-    @Override public StepExecution start(StepContext context) throws Exception {
-        return StepExecutions.synchronousNonBlockingVoid(context, c -> c.get(TaskListener.class).getLogger().println(data.getArgs()));
+    @Override
+    public StepExecution start(StepContext context) throws Exception {
+        return StepExecutions.synchronousNonBlockingVoid(
+                context, c -> c.get(TaskListener.class).getLogger().println(data.getArgs()));
     }
 
     @Extension
     public static final class DescriptorImpl extends StepDescriptor {
 
-        @Override public String getFunctionName() {
+        @Override
+        public String getFunctionName() {
             return "monomorphWithSymbolStep";
         }
 
-        @Override public String getDisplayName() {
+        @Override
+        public String getDisplayName() {
             return "Testing monomorphic single parameter with a symbol.";
         }
 
-        @Override public Set<? extends Class<?>> getRequiredContext() {
+        @Override
+        public Set<? extends Class<?>> getRequiredContext() {
             return Set.of(TaskListener.class);
         }
-
     }
-
 }

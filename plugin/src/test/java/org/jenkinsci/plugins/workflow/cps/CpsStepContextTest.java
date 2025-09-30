@@ -1,15 +1,24 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.AbortException;
 import hudson.ExtensionList;
 import hudson.model.Result;
+import java.util.Set;
+import java.util.logging.Level;
 import org.jenkinsci.plugins.workflow.flow.GraphListener;
 import org.jenkinsci.plugins.workflow.flow.StepListener;
 import org.jenkinsci.plugins.workflow.graph.FlowEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -24,16 +33,6 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
-
-import java.util.Set;
-import java.util.logging.Level;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.not;
-import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 
 public class CpsStepContextTest {
     @Rule
@@ -90,9 +89,9 @@ public class CpsStepContextTest {
 
         @Override
         public StepExecution start(StepContext context) throws Exception {
-        return StepExecutions.synchronous(context, ctx -> {
-            throw new AbortException("oops");
-        });
+            return StepExecutions.synchronous(context, ctx -> {
+                throw new AbortException("oops");
+            });
         }
 
         @TestExtension("executionStartExceptionNotLeakClosures")
@@ -170,9 +169,12 @@ public class CpsStepContextTest {
             // will have already executed prior to receiving this event
             if (node instanceof FlowEndNode) {
                 try {
-                    closureCount = ((CpsFlowExecution) node.getExecution()).programPromise.get().closures.size();
-                }
-                catch (Exception e) {
+                    closureCount = ((CpsFlowExecution) node.getExecution())
+                            .programPromise
+                            .get()
+                            .closures
+                            .size();
+                } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
             }
@@ -183,15 +185,20 @@ public class CpsStepContextTest {
         }
     }
 
-    @Test public void refersToCycle() throws Exception {
+    @Test
+    public void refersToCycle() throws Exception {
         logger.record(CpsStepContext.class, Level.ALL);
         var p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("refersToCycle()", true));
         r.assertLogNotContains("StackOverflowError", r.buildAndAssertStatus(Result.UNSTABLE, p));
     }
+
     public static final class RefersToCycleStep extends Step {
-        @DataBoundConstructor public RefersToCycleStep() {}
-        @Override public StepExecution start(StepContext context) throws Exception {
+        @DataBoundConstructor
+        public RefersToCycleStep() {}
+
+        @Override
+        public StepExecution start(StepContext context) throws Exception {
             return StepExecutions.synchronousNonBlockingVoid(context, ctx -> {
                 var t1 = new IllegalStateException("extra");
                 var t2 = new FlowInterruptedException(Result.UNSTABLE, false);
@@ -202,14 +209,18 @@ public class CpsStepContextTest {
                 ctx.onFailure(t1);
             });
         }
-        @TestExtension("refersToCycle") public static final class DescriptorImpl extends StepDescriptor {
-            @Override public String getFunctionName() {
+
+        @TestExtension("refersToCycle")
+        public static final class DescriptorImpl extends StepDescriptor {
+            @Override
+            public String getFunctionName() {
                 return "refersToCycle";
             }
-            @Override public Set<? extends Class<?>> getRequiredContext() {
+
+            @Override
+            public Set<? extends Class<?>> getRequiredContext() {
                 return Set.of();
             }
         }
     }
-
 }

@@ -24,17 +24,16 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import groovy.lang.GroovyObject;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
 import hudson.model.Job;
 import hudson.model.Run;
 import hudson.util.Iterators.FlattenIterator;
-import jenkins.model.RunAction2;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Iterator;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
+import jenkins.model.RunAction2;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.steps.Step;
 
@@ -54,7 +53,7 @@ import org.jenkinsci.plugins.workflow.steps.Step;
  * If at all possible, limit your plugin to implementing plain {@link Step}s.
  * <p>
  * Should have a view named {@code help} offering usage.
- * 
+ *
  * @see GlobalVariableSet
  */
 public abstract class GlobalVariable implements ExtensionPoint {
@@ -87,11 +86,14 @@ public abstract class GlobalVariable implements ExtensionPoint {
      * @param run see {@link GlobalVariableSet#forRun}
      * @return a possibly empty list
      */
-    public static @NonNull Iterable<GlobalVariable> forRun(@CheckForNull final Run<?,?> run) {
+    public static @NonNull Iterable<GlobalVariable> forRun(@CheckForNull final Run<?, ?> run) {
         return new Iterable<>() {
-            @Override public Iterator<GlobalVariable> iterator() {
-                return new FlattenIterator<>(ExtensionList.lookup(GlobalVariableSet.class).iterator()) {
-                    @Override protected Iterator<GlobalVariable> expand(GlobalVariableSet vs) {
+            @Override
+            public Iterator<GlobalVariable> iterator() {
+                return new FlattenIterator<>(
+                        ExtensionList.lookup(GlobalVariableSet.class).iterator()) {
+                    @Override
+                    protected Iterator<GlobalVariable> expand(GlobalVariableSet vs) {
                         return vs.forRun(run).iterator();
                     }
                 };
@@ -104,11 +106,14 @@ public abstract class GlobalVariable implements ExtensionPoint {
      * @param job see {@link GlobalVariableSet#forJob}
      * @return a possibly empty list
      */
-    public static @NonNull Iterable<GlobalVariable> forJob(@CheckForNull final Job<?,?> job) {
+    public static @NonNull Iterable<GlobalVariable> forJob(@CheckForNull final Job<?, ?> job) {
         return new Iterable<>() {
-            @Override public Iterator<GlobalVariable> iterator() {
-                return new FlattenIterator<>(ExtensionList.lookup(GlobalVariableSet.class).iterator()) {
-                    @Override protected Iterator<GlobalVariable> expand(GlobalVariableSet vs) {
+            @Override
+            public Iterator<GlobalVariable> iterator() {
+                return new FlattenIterator<>(
+                        ExtensionList.lookup(GlobalVariableSet.class).iterator()) {
+                    @Override
+                    protected Iterator<GlobalVariable> expand(GlobalVariableSet vs) {
                         return vs.forJob(job).iterator();
                     }
                 };
@@ -122,7 +127,7 @@ public abstract class GlobalVariable implements ExtensionPoint {
      * @param run see {@link GlobalVariableSet#forRun}
      * @return the first matching variable, or null if there is none
      */
-    public static @CheckForNull GlobalVariable byName(@NonNull String name, @CheckForNull Run<?,?> run) {
+    public static @CheckForNull GlobalVariable byName(@NonNull String name, @CheckForNull Run<?, ?> run) {
         for (GlobalVariable var : forRun(run)) {
             if (var.getName().equals(name)) {
                 return var;
@@ -130,5 +135,4 @@ public abstract class GlobalVariable implements ExtensionPoint {
         }
         return null;
     }
-
 }

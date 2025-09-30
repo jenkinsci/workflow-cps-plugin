@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.workflow;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.TaskListener;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.flow.StepListener;
@@ -38,8 +39,6 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class StepListenerTest {
     @ClassRule
     public static JenkinsRule r = new JenkinsRule();
@@ -51,9 +50,7 @@ public class StepListenerTest {
     @Test
     public void listener() throws Exception {
         WorkflowJob job = r.createProject(WorkflowJob.class, "listener");
-        job.setDefinition(new CpsFlowDefinition("node {\n" +
-                "  echo 'hi'\n" +
-                "}\n", true));
+        job.setDefinition(new CpsFlowDefinition("node {\n" + "  echo 'hi'\n" + "}\n", true));
         WorkflowRun build = r.buildAndAssertSuccess(job);
         r.assertLogContains("Step listener saw step node", build);
         r.assertLogContains("Step listener saw step echo", build);
@@ -68,7 +65,8 @@ public class StepListenerTest {
                 if (listener == null) {
                     listener = TaskListener.NULL;
                 }
-                listener.getLogger().println("Step listener saw step " + s.getDescriptor().getFunctionName());
+                listener.getLogger()
+                        .println("Step listener saw step " + s.getDescriptor().getFunctionName());
             } catch (Exception e) {
                 // Don't care.
             }

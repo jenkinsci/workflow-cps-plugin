@@ -3,7 +3,6 @@ package com.cloudbees.groovy.cps.impl;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.google.common.collect.Maps;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -14,7 +13,7 @@ import java.util.Map;
 // TODO: should be package local once all the impls move into this class
 public class FunctionCallEnv extends CallEnv {
     /** To conserve memory, lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} */
-    Map<String,Object> locals;
+    Map<String, Object> locals;
 
     /**
      * @param caller
@@ -25,8 +24,10 @@ public class FunctionCallEnv extends CallEnv {
     }
 
     public FunctionCallEnv(Env caller, Continuation returnAddress, SourceLocation loc, Object _this, int localsCount) {
-        super(caller,returnAddress,loc, localsCount);
-        locals = (localsCount <= 0) ? new HashMap<>(2) : Maps.<String,Object>newHashMapWithExpectedSize(localsCount+1);
+        super(caller, returnAddress, loc, localsCount);
+        locals = (localsCount <= 0)
+                ? new HashMap<>(2)
+                : Maps.<String, Object>newHashMapWithExpectedSize(localsCount + 1);
         locals.put("this", _this);
     }
 
@@ -40,7 +41,7 @@ public class FunctionCallEnv extends CallEnv {
     }
 
     public void setLocalVariable(String name, Object value) {
-        locals.put(name,value);
+        locals.put(name, value);
     }
 
     public Object closureOwner() {

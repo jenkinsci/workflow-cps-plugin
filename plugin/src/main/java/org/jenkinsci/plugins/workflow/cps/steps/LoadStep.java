@@ -25,7 +25,7 @@ public class LoadStep extends Step {
     public LoadStep(String path) {
         this.path = path;
     }
-    
+
     public String getPath() {
         return path;
     }
@@ -53,5 +53,4 @@ public class LoadStep extends Step {
             return Set.of(FilePath.class, TaskListener.class);
         }
     }
-
 }

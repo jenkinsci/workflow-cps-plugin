@@ -5,7 +5,6 @@ import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
 import com.google.common.collect.ImmutableList;
-
 import java.io.Serializable;
 import java.util.List;
 
@@ -44,7 +43,7 @@ public abstract class CpsCallable implements Serializable {
 
     protected final void assignArguments(List<?> args, Env e) {
         // TODO: var args
-        for (int i=0; i< Math.min(args.size(),parameters.size()); i++) {
+        for (int i = 0; i < Math.min(args.size(), parameters.size()); i++) {
             e.declareVariable(Object.class, parameters.get(i));
             e.setLocalVariable(parameters.get(i), args.get(i));
         }

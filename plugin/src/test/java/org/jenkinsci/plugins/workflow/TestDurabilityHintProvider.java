@@ -1,14 +1,13 @@
 package org.jenkinsci.plugins.workflow;
 
-import hudson.Extension;
-import hudson.model.Item;
-import org.jenkinsci.plugins.workflow.flow.DurabilityHintProvider;
-import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
-
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.Extension;
+import hudson.model.Item;
 import java.util.HashMap;
 import java.util.Map;
+import org.jenkinsci.plugins.workflow.flow.DurabilityHintProvider;
+import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 
 /**
  * Durability hint provider that can be custom-configured on a per-job basis without requiring downstream logic.

@@ -26,7 +26,6 @@ package org.jenkinsci.plugins.workflow.testMetaStep;
 import hudson.Extension;
 import hudson.model.TaskListener;
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.Locale;
 import java.util.Set;
 import org.jenkinsci.plugins.workflow.steps.Step;

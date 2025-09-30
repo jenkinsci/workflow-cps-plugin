@@ -24,16 +24,15 @@
 
 package org.jenkinsci.plugins.workflow.cps.config;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.ExtensionList;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import jenkins.model.GlobalConfiguration;
 import jenkins.model.GlobalConfigurationCategory;
-import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.Symbol;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 
 /**
  * @deprecated

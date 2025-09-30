@@ -5,9 +5,8 @@ import com.cloudbees.groovy.cps.CaseExpression;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
-
 import java.util.List;
+import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 
 /**
  * switch/case statement.
@@ -32,7 +31,7 @@ public class SwitchBlock implements Block {
     }
 
     public Next eval(Env e, Continuation k) {
-        return new ContinuationImpl(e,k).then(exp, e, test);
+        return new ContinuationImpl(e, k).then(exp, e, test);
     }
 
     class ContinuationImpl extends ContinuationGroup {
@@ -57,7 +56,7 @@ public class SwitchBlock implements Block {
         ContinuationImpl(Env e, Continuation k) {
             this.e = e;
             this.k = k;
-            this.caseEnv = new CaseEnv(e,label,k);
+            this.caseEnv = new CaseEnv(e, label, k);
         }
 
         public Next test(Object value) {
@@ -66,13 +65,10 @@ public class SwitchBlock implements Block {
         }
 
         private Next matcher() {
-            if (index<cases.size())
-                return then(getCase().matcher, e, matcher);
+            if (index < cases.size()) return then(getCase().matcher, e, matcher);
             // run out of all the cases
-            if (default_!=null)
-                return then(default_, caseEnv, k);
-            else
-                return k.receive(null);
+            if (default_ != null) return then(default_, caseEnv, k);
+            else return k.receive(null);
         }
 
         /**
@@ -99,7 +95,7 @@ public class SwitchBlock implements Block {
          * Executes the body and falls through to the next body.
          */
         public Next body(Object unused) {
-            if (index==cases.size()) {
+            if (index == cases.size()) {
                 // that was the last block
                 return k.receive(null);
             } else {
@@ -116,9 +112,9 @@ public class SwitchBlock implements Block {
         private static final long serialVersionUID = 1L;
     }
 
-    static final ContinuationPtr test = new ContinuationPtr(ContinuationImpl.class,"test");
-    static final ContinuationPtr matcher = new ContinuationPtr(ContinuationImpl.class,"matcher");
-    static final ContinuationPtr body = new ContinuationPtr(ContinuationImpl.class,"body");
+    static final ContinuationPtr test = new ContinuationPtr(ContinuationImpl.class, "test");
+    static final ContinuationPtr matcher = new ContinuationPtr(ContinuationImpl.class, "matcher");
+    static final ContinuationPtr body = new ContinuationPtr(ContinuationImpl.class, "body");
 
     private static final long serialVersionUID = 1L;
 }

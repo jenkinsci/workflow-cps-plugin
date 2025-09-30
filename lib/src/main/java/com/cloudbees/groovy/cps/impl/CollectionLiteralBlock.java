@@ -23,7 +23,7 @@ public abstract class CollectionLiteralBlock implements Block {
     }
 
     public Next eval(Env e, Continuation k) {
-        return new ContinuationImpl(e,k).dispatch();
+        return new ContinuationImpl(e, k).dispatch();
     }
 
     protected abstract Object toCollection(Object[] result);
@@ -49,8 +49,7 @@ public abstract class CollectionLiteralBlock implements Block {
          * If there are more arguments to evaluate, do so. Otherwise return the list.
          */
         private Next dispatch() {
-            if (argExps.length>idx)
-                return then(argExps[idx],e,item);
+            if (argExps.length > idx) return then(argExps[idx], e, item);
             else {
                 return k.receive(toCollection(list));
             }
@@ -59,7 +58,7 @@ public abstract class CollectionLiteralBlock implements Block {
         private static final long serialVersionUID = 1L;
     }
 
-    static final ContinuationPtr item = new ContinuationPtr(ContinuationImpl.class,"item");
+    static final ContinuationPtr item = new ContinuationPtr(ContinuationImpl.class, "item");
 
     private static final long serialVersionUID = 1L;
 }

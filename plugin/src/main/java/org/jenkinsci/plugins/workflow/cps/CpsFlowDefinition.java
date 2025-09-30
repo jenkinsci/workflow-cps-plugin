@@ -24,14 +24,14 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.JOB;
+
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import hudson.AbortException;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Action;
 import hudson.model.Descriptor;
-import hudson.model.Failure;
 import hudson.model.Item;
 import hudson.model.Job;
 import hudson.model.Queue;
@@ -39,8 +39,16 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.util.FormValidation;
 import hudson.util.StreamTaskListener;
-import jenkins.model.Jenkins;
+import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
+import net.sf.json.JSON;
+import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+import org.codehaus.groovy.control.CompilationFailedException;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ApprovalContext;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
+import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.flow.DurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
@@ -52,20 +60,6 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Objects;
-
-import net.sf.json.JSON;
-import net.sf.json.JSONArray;
-import org.codehaus.groovy.control.CompilationFailedException;
-import org.jenkinsci.plugins.scriptsecurity.scripts.ApprovalContext;
-import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
-import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
-
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.JOB;
-
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
@@ -92,8 +86,16 @@ public class CpsFlowDefinition extends FlowDefinition {
     public CpsFlowDefinition(String script, boolean sandbox) throws Descriptor.FormException {
         ScriptApproval.validateSandbox(sandbox);
         StaplerRequest2 req = Stapler.getCurrentRequest2();
-        this.script = sandbox ? script : ScriptApproval.get().configuring(script, GroovyLanguage.get(),
-                ApprovalContext.create().withCurrentUser().withItemAsKey(req != null ? req.findAncestorObject(Item.class) : null), req == null);
+        this.script = sandbox
+                ? script
+                : ScriptApproval.get()
+                        .configuring(
+                                script,
+                                GroovyLanguage.get(),
+                                ApprovalContext.create()
+                                        .withCurrentUser()
+                                        .withItemAsKey(req != null ? req.findAncestorObject(Item.class) : null),
+                                req == null);
         this.sandbox = sandbox;
     }
 
@@ -119,18 +121,22 @@ public class CpsFlowDefinition extends FlowDefinition {
 
     @Override
     @SuppressWarnings("deprecation")
-    public CpsFlowExecution create(FlowExecutionOwner owner, TaskListener listener, List<? extends Action> actions) throws IOException {
+    public CpsFlowExecution create(FlowExecutionOwner owner, TaskListener listener, List<? extends Action> actions)
+            throws IOException {
         for (Action a : actions) {
             if (a instanceof CpsFlowFactoryAction) {
                 CpsFlowFactoryAction fa = (CpsFlowFactoryAction) a;
-                return fa.create(this,owner,actions);
+                return fa.create(this, owner, actions);
             } else if (a instanceof CpsFlowFactoryAction2) {
                 return ((CpsFlowFactoryAction2) a).create(this, owner, actions);
             }
         }
         Queue.Executable exec = owner.getExecutable();
-        FlowDurabilityHint hint = (exec instanceof Run) ? DurabilityHintProvider.suggestedFor(((Run)exec).getParent()) : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
-        return new CpsFlowExecution(sandbox ? script : ScriptApproval.get().using(script, GroovyLanguage.get()), sandbox, owner, hint);
+        FlowDurabilityHint hint = (exec instanceof Run)
+                ? DurabilityHintProvider.suggestedFor(((Run) exec).getParent())
+                : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
+        return new CpsFlowExecution(
+                sandbox ? script : ScriptApproval.get().using(script, GroovyLanguage.get()), sandbox, owner, hint);
     }
 
     @Extension
@@ -148,8 +154,14 @@ public class CpsFlowDefinition extends FlowDefinition {
          * @DataBoundSetters have been invoked (rather than in the @DataBoundConstructor), which is why we use Descriptor.newInstance.
          */
         @Override
-        public FlowDefinition newInstance(@NonNull StaplerRequest2 req, @NonNull JSONObject formData) throws FormException {
-            if (Util.isOverridden(FlowDefinitionDescriptor.class, getClass(), "newInstance", StaplerRequest.class, JSONObject.class)) {
+        public FlowDefinition newInstance(@NonNull StaplerRequest2 req, @NonNull JSONObject formData)
+                throws FormException {
+            if (Util.isOverridden(
+                    FlowDefinitionDescriptor.class,
+                    getClass(),
+                    "newInstance",
+                    StaplerRequest.class,
+                    JSONObject.class)) {
                 return newInstance(StaplerRequest.fromStaplerRequest2(req), formData);
             } else {
                 CpsFlowDefinition cpsFlowDefinition = (CpsFlowDefinition) super.newInstance(req, formData);
@@ -162,18 +174,26 @@ public class CpsFlowDefinition extends FlowDefinition {
          */
         @Deprecated
         @Override
-        public FlowDefinition newInstance(@NonNull StaplerRequest req, @NonNull JSONObject formData) throws FormException {
+        public FlowDefinition newInstance(@NonNull StaplerRequest req, @NonNull JSONObject formData)
+                throws FormException {
             CpsFlowDefinition cpsFlowDefinition = (CpsFlowDefinition) super.newInstance(req, formData);
             return newInstanceImpl(cpsFlowDefinition, StaplerRequest.toStaplerRequest2(req), formData);
         }
 
-        private FlowDefinition newInstanceImpl(CpsFlowDefinition cpsFlowDefinition, @NonNull StaplerRequest2 req, @NonNull JSONObject formData) {
+        private FlowDefinition newInstanceImpl(
+                CpsFlowDefinition cpsFlowDefinition, @NonNull StaplerRequest2 req, @NonNull JSONObject formData) {
             if (!cpsFlowDefinition.sandbox && formData.get("oldScript") != null) {
                 String oldScript = formData.getString("oldScript");
                 boolean approveIfAdmin = !Objects.equals(oldScript, cpsFlowDefinition.script);
                 if (approveIfAdmin) {
-                    ScriptApproval.get().configuring(cpsFlowDefinition.script, GroovyLanguage.get(),
-                            ApprovalContext.create().withCurrentUser().withItemAsKey(req.findAncestorObject(Item.class)), true);
+                    ScriptApproval.get()
+                            .configuring(
+                                    cpsFlowDefinition.script,
+                                    GroovyLanguage.get(),
+                                    ApprovalContext.create()
+                                            .withCurrentUser()
+                                            .withItemAsKey(req.findAncestorObject(Item.class)),
+                                    true);
                 }
             }
             return cpsFlowDefinition;
@@ -185,10 +205,11 @@ public class CpsFlowDefinition extends FlowDefinition {
         }
 
         @RequirePOST
-        public FormValidation doCheckScript(@QueryParameter String value, @QueryParameter String oldScript,
-                                            @QueryParameter boolean sandbox) {
-            return sandbox ? FormValidation.ok() :
-                    ScriptApproval.get().checking(value, GroovyLanguage.get(), !Objects.equals(oldScript, value));
+        public FormValidation doCheckScript(
+                @QueryParameter String value, @QueryParameter String oldScript, @QueryParameter boolean sandbox) {
+            return sandbox
+                    ? FormValidation.ok()
+                    : ScriptApproval.get().checking(value, GroovyLanguage.get(), !Objects.equals(oldScript, value));
         }
 
         @RequirePOST
@@ -197,10 +218,17 @@ public class CpsFlowDefinition extends FlowDefinition {
                 return CpsFlowDefinitionValidator.CheckStatus.SUCCESS.asJSON();
             }
             try {
-                CpsGroovyShell trusted = new CpsGroovyShellFactory(null).forTrusted().build();
-                new CpsGroovyShellFactory(null).withParent(trusted).withSandbox(true).build().getClassLoader().parseClass(value);
+                CpsGroovyShell trusted =
+                        new CpsGroovyShellFactory(null).forTrusted().build();
+                new CpsGroovyShellFactory(null)
+                        .withParent(trusted)
+                        .withSandbox(true)
+                        .build()
+                        .getClassLoader()
+                        .parseClass(value);
             } catch (CompilationFailedException x) {
-                return JSONArray.fromObject(CpsFlowDefinitionValidator.toCheckStatus(x).toArray());
+                return JSONArray.fromObject(
+                        CpsFlowDefinitionValidator.toCheckStatus(x).toArray());
             }
             return CpsFlowDefinitionValidator.CheckStatus.SUCCESS.asJSON();
             // Approval requirements are managed by regular stapler form validation (via doCheckScript)
@@ -210,6 +238,5 @@ public class CpsFlowDefinition extends FlowDefinition {
         public boolean shouldHideSandbox(@CheckForNull CpsFlowDefinition instance) {
             return ScriptApproval.shouldHideSandbox(instance, CpsFlowDefinition::isSandbox);
         }
-
     }
 }

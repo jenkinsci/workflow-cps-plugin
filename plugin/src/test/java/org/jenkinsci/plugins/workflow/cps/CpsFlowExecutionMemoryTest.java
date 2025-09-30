@@ -24,6 +24,8 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.junit.Assert.assertFalse;
+
 import groovy.lang.MetaClass;
 import hudson.model.Computer;
 import java.lang.ref.WeakReference;
@@ -38,47 +40,65 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.After;
 import org.junit.ClassRule;
-import org.junit.Test;
-
-import static org.junit.Assert.assertFalse;
-
 import org.junit.Ignore;
 import org.junit.Rule;
+import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.For;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.MemoryAssert;
 
-@For(CpsFlowExecution.class) // but kept separate from CpsFlowExecutionTest since it is sensitive to at least a leak from trustedShell()
+// but kept separate from CpsFlowExecutionTest since it is sensitive to at least a leak from trustedShell()
+@For(CpsFlowExecution.class)
 public class CpsFlowExecutionMemoryTest {
 
-    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-    @Rule public JenkinsRule r = new JenkinsRule();
-    @Rule public LoggerRule logger = new LoggerRule().record(CpsFlowExecution.class, Level.FINER);
+    @ClassRule
+    public static BuildWatcher buildWatcher = new BuildWatcher();
 
-    @After public void clearLoaders() {
+    @Rule
+    public JenkinsRule r = new JenkinsRule();
+
+    @Rule
+    public LoggerRule logger = new LoggerRule().record(CpsFlowExecution.class, Level.FINER);
+
+    @After
+    public void clearLoaders() {
         LOADERS.clear();
     }
+
     private static final List<WeakReference<ClassLoader>> LOADERS = new ArrayList<>();
+
     public static void register(Object o) {
         ClassLoader loader = o.getClass().getClassLoader();
         System.err.println("registering " + o + " from " + loader);
         LOADERS.add(new WeakReference<>(loader));
     }
 
-    @Test public void loaderReleased() throws Exception {
-        Computer.threadPoolForRemoting.submit(() -> {}).get(); // do not let it be initialized inside the CpsVmExecutorService thread group
+    @Test
+    public void loaderReleased() throws Exception {
+        // do not let it be initialized inside the CpsVmExecutorService thread group
+        Computer.threadPoolForRemoting.submit(() -> {}).get();
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        r.jenkins.getWorkspaceFor(p).child("lib.groovy").write(CpsFlowExecutionMemoryTest.class.getName() + ".register(this)", null);
-        p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionMemoryTest.class.getName() + ".register(this); node {load 'lib.groovy'; evaluate(readFile('lib.groovy'))}", false));
+        r.jenkins
+                .getWorkspaceFor(p)
+                .child("lib.groovy")
+                .write(CpsFlowExecutionMemoryTest.class.getName() + ".register(this)", null);
+        p.setDefinition(new CpsFlowDefinition(
+                CpsFlowExecutionMemoryTest.class.getName()
+                        + ".register(this); node {load 'lib.groovy'; evaluate(readFile('lib.groovy'))}",
+                false));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         assertFalse(((CpsFlowExecution) b.getExecution()).getProgramDataFile().exists());
         assertFalse(LOADERS.isEmpty());
-        { // TODO it seems that the call to CpsFlowExecutionMemoryTest.register(Object) on a Script1 parameter creates a MetaMethodIndex.Entry.cachedStaticMethod.
-          // In other words any call to a foundational API might leak classes. Why does Groovy need to do this?
-          // Unclear whether this is a problem in a realistic environment; for the moment, suppressing it so the test can run with no SoftReference.
-            MetaClass metaClass = ClassInfo.getClassInfo(CpsFlowExecutionMemoryTest.class).getMetaClass();
+        {
+            // TODO it seems that the call to CpsFlowExecutionMemoryTest.register(Object) on a Script1 parameter
+            // creates a MetaMethodIndex.Entry.cachedStaticMethod.
+            // In other words any call to a foundational API might leak classes. Why does Groovy need to do this?
+            // Unclear whether this is a problem in a realistic environment;
+            // for the moment, suppressing it so the test can run with no SoftReference.
+            MetaClass metaClass =
+                    ClassInfo.getClassInfo(CpsFlowExecutionMemoryTest.class).getMetaClass();
             Method clearInvocationCaches = metaClass.getClass().getDeclaredMethod("clearInvocationCaches");
             clearInvocationCaches.setAccessible(true);
             clearInvocationCaches.invoke(metaClass);
@@ -88,19 +108,26 @@ public class CpsFlowExecutionMemoryTest {
         }
     }
 
-    @Ignore("creates classes such as script1493642504440203321963 in a new GroovyClassLoader.InnerLoader delegating to CleanGroovyClassLoader which are invisible to cleanUpHeap")
-    @Test public void doNotUseConfigSlurper() throws Exception {
+    @Ignore(
+            "creates classes such as script1493642504440203321963 in a new GroovyClassLoader.InnerLoader delegating to CleanGroovyClassLoader which are invisible to cleanUpHeap")
+    @Test
+    public void doNotUseConfigSlurper() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition(CpsFlowExecutionMemoryTest.class.getName() + ".register(this); echo(/parsed ${new ConfigSlurper().parse('foo.bar.baz = 99')}/)", false));
+        p.setDefinition(new CpsFlowDefinition(
+                CpsFlowExecutionMemoryTest.class.getName()
+                        + ".register(this); echo(/parsed ${new ConfigSlurper().parse('foo.bar.baz = 99')}/)",
+                false));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         assertFalse(LOADERS.isEmpty());
         try { // as above
             Field f = ASTTransformationVisitor.class.getDeclaredField("compUnit");
             f.setAccessible(true);
             f.set(null, null);
-        } catch (NoSuchFieldException e) {}
+        } catch (NoSuchFieldException e) {
+        }
         { // TODO as above
-            MetaClass metaClass = ClassInfo.getClassInfo(CpsFlowExecutionMemoryTest.class).getMetaClass();
+            MetaClass metaClass =
+                    ClassInfo.getClassInfo(CpsFlowExecutionMemoryTest.class).getMetaClass();
             Method clearInvocationCaches = metaClass.getClass().getDeclaredMethod("clearInvocationCaches");
             clearInvocationCaches.setAccessible(true);
             clearInvocationCaches.invoke(metaClass);
@@ -109,5 +136,4 @@ public class CpsFlowExecutionMemoryTest {
             MemoryAssert.assertGC(loaderRef, true);
         }
     }
-
 }

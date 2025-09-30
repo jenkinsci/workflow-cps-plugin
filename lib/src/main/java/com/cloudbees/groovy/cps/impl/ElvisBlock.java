@@ -13,14 +13,13 @@ import com.cloudbees.groovy.cps.Next;
 public class ElvisBlock implements Block {
     final Block cond, falseExp;
 
-
     public ElvisBlock(Block cond, Block falseExp) {
         this.cond = cond;
         this.falseExp = falseExp;
     }
 
     public Next eval(Env e, Continuation k) {
-        return new ContinuationImpl(e,k).then(cond,e,jump);
+        return new ContinuationImpl(e, k).then(cond, e, jump);
     }
 
     class ContinuationImpl extends ContinuationGroup {
@@ -45,7 +44,7 @@ public class ElvisBlock implements Block {
         private static final long serialVersionUID = 1L;
     }
 
-    static final ContinuationPtr jump = new ContinuationPtr(ContinuationImpl.class,"jump");
+    static final ContinuationPtr jump = new ContinuationPtr(ContinuationImpl.class, "jump");
 
     private static final long serialVersionUID = 1L;
 }

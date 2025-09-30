@@ -24,8 +24,30 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsStringIgnoringCase;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import hudson.cli.CLICommand;
+import hudson.cli.CLICommandInvoker;
+import hudson.cli.UpdateJobCommand;
+import hudson.model.Item;
+import hudson.model.Job;
 import hudson.model.Result;
+import hudson.model.User;
+import hudson.security.Permission;
 import hudson.util.VersionNumber;
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import jenkins.model.Jenkins;
+import org.apache.tools.ant.filters.StringInputStream;
 import org.htmlunit.FailingHttpStatusCodeException;
 import org.htmlunit.HttpMethod;
 import org.htmlunit.WebRequest;
@@ -33,15 +55,6 @@ import org.htmlunit.html.HtmlCheckBoxInput;
 import org.htmlunit.html.HtmlForm;
 import org.htmlunit.html.HtmlInput;
 import org.htmlunit.html.HtmlTextArea;
-import hudson.cli.CLICommand;
-import hudson.cli.CLICommandInvoker;
-import hudson.cli.UpdateJobCommand;
-import hudson.model.Item;
-import hudson.model.Job;
-import hudson.model.User;
-import hudson.security.Permission;
-import jenkins.model.Jenkins;
-import org.apache.tools.ant.filters.StringInputStream;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
 import org.jenkinsci.plugins.workflow.cps.config.CPSConfiguration;
@@ -54,23 +67,10 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.recipes.LocalData;
 
-import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsStringIgnoringCase;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 public class CpsFlowDefinitionTest {
 
-    @Rule public JenkinsRule jenkins = new JenkinsRule();
+    @Rule
+    public JenkinsRule jenkins = new JenkinsRule();
 
     @Issue("SECURITY-2450")
     @Test
@@ -236,8 +236,12 @@ public class CpsFlowDefinitionTest {
         CLICommand cmd = new UpdateJobCommand();
         cmd.setTransportAuth2(User.getById("admin", true).impersonate2());
         String viaCliScript = "echo configured via CLI";
-        assertThat(new CLICommandInvoker(jenkins, cmd).withStdin(new StringInputStream(xml.replace(preconfiguredScript, viaCliScript))).invokeWithArgs(p.getName()), CLICommandInvoker.Matcher.succeededSilently());
-        assertEquals(viaCliScript, ((CpsFlowDefinition)p.getDefinition()).getScript());
+        assertThat(
+                new CLICommandInvoker(jenkins, cmd)
+                        .withStdin(new StringInputStream(xml.replace(preconfiguredScript, viaCliScript)))
+                        .invokeWithArgs(p.getName()),
+                CLICommandInvoker.Matcher.succeededSilently());
+        assertEquals(viaCliScript, ((CpsFlowDefinition) p.getDefinition()).getScript());
 
         assertThat(ScriptApproval.get().getPendingScripts(), hasSize(1));
         assertFalse(ScriptApproval.get().isScriptApproved(viaCliScript, GroovyLanguage.get()));
@@ -245,8 +249,12 @@ public class CpsFlowDefinitionTest {
         // now with non-admin user, script should end up in pending
         cmd.setTransportAuth2(User.getById("devel", true).impersonate2());
         String viaCliByDevelScript = "echo configured via CLI by devel";
-        assertThat(new CLICommandInvoker(jenkins, cmd).withStdin(new StringInputStream(xml.replace(preconfiguredScript, viaCliByDevelScript))).invokeWithArgs(p.getName()), CLICommandInvoker.Matcher.succeededSilently());
-        assertEquals(viaCliByDevelScript, ((CpsFlowDefinition)p.getDefinition()).getScript());
+        assertThat(
+                new CLICommandInvoker(jenkins, cmd)
+                        .withStdin(new StringInputStream(xml.replace(preconfiguredScript, viaCliByDevelScript)))
+                        .invokeWithArgs(p.getName()),
+                CLICommandInvoker.Matcher.succeededSilently());
+        assertEquals(viaCliByDevelScript, ((CpsFlowDefinition) p.getDefinition()).getScript());
         assertThat(ScriptApproval.get().getPendingScripts(), hasSize(2));
         assertFalse(ScriptApproval.get().isScriptApproved(viaCliByDevelScript, GroovyLanguage.get()));
         wc.close();
@@ -274,21 +282,22 @@ public class CpsFlowDefinitionTest {
         JenkinsRule.WebClient wc = jenkins.createWebClient();
         wc.login("admin");
         String configDotXmlUrl = p.getUrl() + "config.xml";
-        String xml = wc.goTo(configDotXmlUrl, "application/xml").getWebResponse().getContentAsString();
+        String xml =
+                wc.goTo(configDotXmlUrl, "application/xml").getWebResponse().getContentAsString();
 
         WebRequest req = new WebRequest(wc.createCrumbedUrl(configDotXmlUrl), HttpMethod.POST);
         req.setEncodingType(null);
         String configuredViaRestScript = "echo configured via REST";
         req.setRequestBody(xml.replace(preconfiguredScript, configuredViaRestScript));
         wc.getPage(req);
-        assertEquals(configuredViaRestScript, ((CpsFlowDefinition)p.getDefinition()).getScript());
+        assertEquals(configuredViaRestScript, ((CpsFlowDefinition) p.getDefinition()).getScript());
         assertFalse(ScriptApproval.get().isScriptApproved(configuredViaRestScript, GroovyLanguage.get()));
 
         wc.login("devel");
         String configuredViaRestByNonAdmin = "echo configured via REST by devel";
         req.setRequestBody(xml.replace(preconfiguredScript, configuredViaRestByNonAdmin));
         wc.getPage(req);
-        assertEquals(configuredViaRestByNonAdmin, ((CpsFlowDefinition)p.getDefinition()).getScript());
+        assertEquals(configuredViaRestByNonAdmin, ((CpsFlowDefinition) p.getDefinition()).getScript());
         assertFalse(ScriptApproval.get().isScriptApproved(configuredViaRestByNonAdmin, GroovyLanguage.get()));
         wc.close();
     }
@@ -356,7 +365,8 @@ public class CpsFlowDefinitionTest {
             assertFalse("Sandbox is disabled", sandbox.isChecked());
             VersionNumber jenkinsVersion = new VersionNumber(Jenkins.VERSION);
             int expectedStatus = 500;
-            if (jenkinsVersion.isNewerThanOrEqualTo(new VersionNumber("2.470"))) { // TODO pending https://github.com/jenkinsci/jenkins/pull/9495 in baseline
+            // TODO pending https://github.com/jenkinsci/jenkins/pull/9495 in baseline
+            if (jenkinsVersion.isNewerThanOrEqualTo(new VersionNumber("2.470"))) {
                 expectedStatus = 400;
             }
             try {
@@ -366,16 +376,17 @@ public class CpsFlowDefinitionTest {
                 // good, expected
                 assertThat(e.getStatusCode(), equalTo(expectedStatus));
                 if (expectedStatus == 400) {
-                    assertThat(e.getResponse().getContentAsString(StandardCharsets.UTF_8), containsStringIgnoringCase("Sandbox cannot be disabled"));
+                    assertThat(
+                            e.getResponse().getContentAsString(StandardCharsets.UTF_8),
+                            containsStringIgnoringCase("Sandbox cannot be disabled"));
                 }
             }
-
         }
     }
 
     @Test
-    public void cpsConfigurationSandboxToScriptApprovalSandbox() throws Exception{
-        //Deprecated CPSConfiguration should update ScriptApproval forceSandbox logic to keep casc compatibility
+    public void cpsConfigurationSandboxToScriptApprovalSandbox() throws Exception {
+        // Deprecated CPSConfiguration should update ScriptApproval forceSandbox logic to keep casc compatibility
         ScriptApproval.get().setForceSandbox(false);
 
         CPSConfiguration.get().setHideSandbox(true);
@@ -391,27 +402,33 @@ public class CpsFlowDefinitionTest {
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         String script = "jenkins.model.Jenkins.instance";
         p.setDefinition(new CpsFlowDefinition(script, true));
-        WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0).get());
-        jenkins.assertLogContains("Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance. "
-                                  + "Administrators can decide whether to approve or reject this signature.", b);
+        WorkflowRun b =
+                jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0).get());
+        jenkins.assertLogContains(
+                "Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance. "
+                        + "Administrators can decide whether to approve or reject this signature.",
+                b);
 
         ScriptApproval.get().setForceSandbox(true);
         b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0).get());
-        jenkins.assertLogContains("Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance. "
-                                  + "Script signature is not in the default whitelist.", b);
+        jenkins.assertLogContains(
+                "Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance. "
+                        + "Script signature is not in the default whitelist.",
+                b);
     }
 
     @Test
     @LocalData
     public void cpsLoadConfiguration() throws Exception {
-        //CPSConfiguration file containing <hideSandbox>true</hideSandbox>
+        // CPSConfiguration file containing <hideSandbox>true</hideSandbox>
         // should be promoted to ScriptApproval.get().isForceSandbox()
         assertTrue(ScriptApproval.get().isForceSandbox());
 
-        //Once the info is promoted, we are removing the config file, so should no longer exist.
-        //We are checking the injected localData is removed
-        assertFalse(new File(jenkins.jenkins.getRootDir(),
-                             "org.jenkinsci.plugins.workflow.cps.config.CPSConfiguration.xml").exists());
+        // Once the info is promoted, we are removing the config file, so should no longer exist.
+        // We are checking the injected localData is removed
+        assertFalse(
+                new File(jenkins.jenkins.getRootDir(), "org.jenkinsci.plugins.workflow.cps.config.CPSConfiguration.xml")
+                        .exists());
     }
 
     @Test
@@ -427,12 +444,14 @@ public class CpsFlowDefinitionTest {
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("echo 'Hello'", true));
 
-        WorkflowJob roundTrip =  jenkins.configRoundtrip(p);
+        WorkflowJob roundTrip = jenkins.configRoundtrip(p);
 
-        assertEquals(((CpsFlowDefinition)p.getDefinition()).isSandbox(),
-                     ((CpsFlowDefinition)roundTrip.getDefinition()).isSandbox());
+        assertEquals(
+                ((CpsFlowDefinition) p.getDefinition()).isSandbox(),
+                ((CpsFlowDefinition) roundTrip.getDefinition()).isSandbox());
 
-        assertEquals(((CpsFlowDefinition)p.getDefinition()).getScript(),
-                     ((CpsFlowDefinition)roundTrip.getDefinition()).getScript());
+        assertEquals(
+                ((CpsFlowDefinition) p.getDefinition()).getScript(),
+                ((CpsFlowDefinition) roundTrip.getDefinition()).getScript());
     }
 }

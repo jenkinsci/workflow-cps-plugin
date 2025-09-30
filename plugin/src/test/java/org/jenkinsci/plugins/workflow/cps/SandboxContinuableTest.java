@@ -24,8 +24,9 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.junit.Assert.assertEquals;
+
 import hudson.model.Result;
-import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException;
@@ -33,30 +34,35 @@ import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.ClassRule;
-import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-
 import org.junit.Rule;
+import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 public class SandboxContinuableTest {
 
-    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
+    @ClassRule
+    public static BuildWatcher buildWatcher = new BuildWatcher();
 
-    @Rule public JenkinsRule r = new JenkinsRule();
+    @Rule
+    public JenkinsRule r = new JenkinsRule();
 
     @Issue("JENKINS-34973")
-    @Test public void scriptApproval() throws Exception {
+    @Test
+    public void scriptApproval() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("catchError {Jenkins.instance}", true));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
-        r.assertLogContains(RejectedAccessException.class.getName() + ": Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance", b);
-        assertEquals(Set.of("staticMethod jenkins.model.Jenkins getInstance"),
-            ScriptApproval.get().getPendingSignatures().stream().map(ps -> ps.signature).collect(Collectors.toSet()));
+        r.assertLogContains(
+                RejectedAccessException.class.getName()
+                        + ": Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance",
+                b);
+        assertEquals(
+                Set.of("staticMethod jenkins.model.Jenkins getInstance"),
+                ScriptApproval.get().getPendingSignatures().stream()
+                        .map(ps -> ps.signature)
+                        .collect(Collectors.toSet()));
         r.assertLogContains(org.jenkinsci.plugins.scriptsecurity.scripts.Messages.ScriptApprovalNote_message(), b);
     }
-
 }

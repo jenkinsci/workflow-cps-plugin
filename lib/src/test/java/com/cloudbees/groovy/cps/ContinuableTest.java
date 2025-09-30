@@ -1,11 +1,5 @@
 package com.cloudbees.groovy.cps;
 
-import groovy.lang.Script;
-import org.junit.Test;
-
-import java.lang.reflect.InvocationTargetException;
-import java.util.stream.Collectors;
-
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -14,6 +8,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
+import groovy.lang.Script;
+import java.lang.reflect.InvocationTargetException;
+import java.util.stream.Collectors;
+import org.junit.Test;
 
 /**
  *
@@ -24,9 +23,11 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
     @Test
     public void resumeAndSuspend() throws Throwable {
         Script s = getCsh().parse(
-            "int x = 1;\n" +
-            "x = Continuable.suspend(x+1)\n" +
-            "return x+1;\n");
+                        """
+                                  int x = 1;
+                                  x = Continuable.suspend(x+1)
+                                  return x+1;
+                                  """);
 
         Continuable c = new Continuable(s);
         assertTrue(c.isResumable());
@@ -43,28 +44,31 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
     @Test
     public void serializeComplexContinuable() throws Throwable {
         Script s = getCsh().parse(
-            "def foo(int x) {\n" +
-            "    return Continuable.suspend(x);\n" +
-            "}\n" +
-            "def plus3(int x) {\n" +
-            "    return x+3;\n" +
-            "}\n" +
-            "try {\n" +
-            "    for (int x=0; x<1; x++) {\n" +
-            "        while (true) {\n" +
-            "            y = plus3(foo(5))\n" +
-            "            break;\n" +
-            "        }\n" +
-            "    }\n" +
-            "} catch (ClassCastException e) {\n" +
-            "    y = e;\n" +
-            "}\n" +
-            "return y;\n");
+                        """
+                                  def foo(int x) {
+                                      return Continuable.suspend(x);
+                                  }
+                                  def plus3(int x) {
+                                      return x+3;
+                                  }
+                                  try {
+                                      for (int x=0; x<1; x++) {
+                                          while (true) {
+                                              y = plus3(foo(5))
+                                              break;
+                                          }
+                                      }
+                                  } catch (ClassCastException e) {
+                                      y = e;
+                                  }
+                                  return y;
+                                  """);
 
         Continuable c = new Continuable(s);
         assertEquals("suspension within a subroutine", 5, c.run(null));
 
-        c = roundtripSerialization(c);  // at this point there's a fairly non-trivial Continuation, so try to serialize it
+        c = roundtripSerialization(
+                c); // at this point there's a fairly non-trivial Continuation, so try to serialize it
 
         assertTrue(c.isResumable());
         assertEquals(9, c.run(6));
@@ -73,9 +77,11 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
     @Test
     public void howComeBindingIsSerializable() throws Throwable {
         Script s = getCsh().parse(
-                "Continuable.suspend(42);\n" +
-                "return value;\n");
-        s.setProperty("value",15);
+                        """
+                                  Continuable.suspend(42);
+                                  return value;
+                                  """);
+        s.setProperty("value", 15);
         Continuable c = new Continuable(s);
         assertEquals(42, c.run(null));
 
@@ -138,23 +144,23 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
     @Test
     public void stackTrace() throws Throwable {
         Script s = getCsh().parse(
-            "\n" +
-            "\n" +
-            "def x(i,v) {\n" +
-            "  if (i>0)\n" +
-            "    y(i-1,v);\n" +       // line 5
-            "  else\n" +
-            "    Continuable.suspend(v);\n" + // line 7
-            "}\n" +
-            "\n" +
-            "def y(i,v) {\n" +
-            "  if (i>0)\n" +
-            "    x(i-1,v);\n" +   // line 12
-            "  else\n" +
-            "    Continuable.suspend(v);\n" + // line 14
-            "}\n" +
-            "\n" +
-            "x(5,3); // line 17\n");
+                        """
+                        def x(i,v) {
+                          if (i>0)
+                            y(i-1,v);
+                          else
+                            Continuable.suspend(v);
+                        }
+
+                        def y(i,v) {
+                          if (i>0)
+                            x(i-1,v);
+                          else
+                            Continuable.suspend(v);
+                        }
+
+                        x(5,3);
+                        """);
 
         Continuable c = new Continuable(s);
 
@@ -164,15 +170,16 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
         Object v = c.run(null);
         assertEquals(3, v);
 
-        assertThat(c.getStackTrace().stream().map(Object::toString).collect(Collectors.toList()),
-            hasItems(
-                containsString("Script1.y(Script1.groovy:14)"),
-                containsString("Script1.x(Script1.groovy:5)"),
-                containsString("Script1.y(Script1.groovy:12)"),
-                containsString("Script1.x(Script1.groovy:5)"),
-                containsString("Script1.y(Script1.groovy:12)"),
-                containsString("Script1.x(Script1.groovy:5)"),
-                containsString("Script1.run(Script1.groovy:17)")));
+        assertThat(
+                c.getStackTrace().stream().map(Object::toString).collect(Collectors.toList()),
+                hasItems(
+                        containsString("Script1.y(Script1.groovy:12)"),
+                        containsString("Script1.x(Script1.groovy:3)"),
+                        containsString("Script1.y(Script1.groovy:10)"),
+                        containsString("Script1.x(Script1.groovy:3)"),
+                        containsString("Script1.y(Script1.groovy:10)"),
+                        containsString("Script1.x(Script1.groovy:3)"),
+                        containsString("Script1.run(Script1.groovy:15)")));
 
         c.run(null);
 
@@ -207,7 +214,8 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
      */
     @Test
     public void staticMethod0() throws Throwable {
-        Script s = getCsh().parse("import static com.cloudbees.groovy.cps.ContinuableTest.StaticMethodHost.methodWithNoArgs; methodWithNoArgs()");
+        Script s = getCsh().parse(
+                        "import static com.cloudbees.groovy.cps.ContinuableTest.StaticMethodHost.methodWithNoArgs; methodWithNoArgs()");
         Continuable c = new Continuable(s);
         Object r = c.run(null);
         assertEquals("hello", r);
@@ -225,11 +233,10 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
      */
     @Test
     public void concatenate() throws Throwable {
-        Script s = getCsh().parse(
-            "def plus2(i) { return i+2; }\n" +
-            "def i=1;\n" +
-            "x = Continuable.suspend('pause1');\n" + // this will jump to another script and then come back
-            "return plus2(i+x);\n");
+        Script s = getCsh().parse("def plus2(i) { return i+2; }\n" + "def i=1;\n"
+                + "x = Continuable.suspend('pause1');\n"
+                + // this will jump to another script and then come back
+                "return plus2(i+x);\n");
 
         // let the script run to the suspend point
         Continuable c = new Continuable(s);
@@ -239,18 +246,16 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
 
         // now create a new Continuable that evaluates s2 first, then come back to where we paused in 'c'
         final Continuable pause = c;
-        c = new Continuable(s2,null,new Continuation() {
+        c = new Continuable(s2, null, new Continuation() {
             @Override
             public Next receive(Object o) {
                 // when s2 is done, hand off the value to pause1 to resume execution from there
-                return Next.go0(new Outcome((int)o+64,null),pause);
+                return Next.go0(new Outcome((int) o + 64, null), pause);
             }
         });
 
         // the point of all this trouble is that once the new 'c' is created, the rest of the code
         // doesn't have to know that the new Continuable is a composite of two Continuables.
-
-
 
         assertEquals("pause2", c.run(null));
 
@@ -258,9 +263,8 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
         // and the whole thing completes
         Object r = c.run(128);
 
-        assertFalse(c.isResumable());    // it should have been completed
+        assertFalse(c.isResumable()); // it should have been completed
 
-        assertEquals(1+2 +16+32 +64+128, r);
+        assertEquals(1 + 2 + 16 + 32 + 64 + 128, r);
     }
-
 }

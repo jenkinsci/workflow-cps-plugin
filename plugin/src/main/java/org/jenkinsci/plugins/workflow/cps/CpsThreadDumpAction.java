@@ -13,20 +13,20 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import jenkins.model.Jenkins;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
+import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.kohsuke.stapler.HttpResponses;
@@ -73,18 +73,22 @@ public final class CpsThreadDumpAction extends RunningFlowAction {
         return execution.getThreadDump();
     }
 
-    @WebMethod(name = "program.xml") public void doProgramDotXml(StaplerRequest2 req, StaplerResponse2 rsp) throws Exception {
+    @WebMethod(name = "program.xml")
+    public void doProgramDotXml(StaplerRequest2 req, StaplerResponse2 rsp) throws Exception {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         CompletableFuture<String> f = new CompletableFuture<>();
         execution.runInCpsVmThread(new FutureCallback<>() {
-            @Override public void onSuccess(CpsThreadGroup g) {
+            @Override
+            public void onSuccess(CpsThreadGroup g) {
                 try {
                     f.complete(g.asXml());
                 } catch (Throwable t) {
                     f.completeExceptionally(t);
                 }
             }
-            @Override public void onFailure(Throwable t) {
+
+            @Override
+            public void onFailure(Throwable t) {
                 f.completeExceptionally(t);
             }
         });
@@ -101,23 +105,29 @@ public final class CpsThreadDumpAction extends RunningFlowAction {
         pw.flush();
     }
 
-    @Extension(optional=true) public static class PipelineThreadDump extends Component {
+    @Extension(optional = true)
+    public static class PipelineThreadDump extends Component {
 
-        @Override public Set<Permission> getRequiredPermissions() {
+        @Override
+        public Set<Permission> getRequiredPermissions() {
             return Set.of(Jenkins.ADMINISTER);
         }
 
-        @Override public String getDisplayName() {
+        @Override
+        public String getDisplayName() {
             return "Running Pipeline builds";
         }
 
-        @Override public ComponentCategory getCategory() {
+        @Override
+        public ComponentCategory getCategory() {
             return ComponentCategory.BUILDS;
         }
 
-        @Override public void addContents(Container container) {
+        @Override
+        public void addContents(Container container) {
             container.add(new Content("nodes/master/pipeline-running-builds.txt") {
-                @Override public void writeTo(OutputStream outputStream) {
+                @Override
+                public void writeTo(OutputStream outputStream) {
                     PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
                     for (FlowExecution flow : FlowExecutionList.get()) {
                         if (flow instanceof CpsFlowExecution) {
@@ -146,16 +156,21 @@ public final class CpsThreadDumpAction extends RunningFlowAction {
                             var cpsFlow = (CpsFlowExecution) flow;
                             Map<String, LongAdder> sortedTimings = new TreeMap<>(cpsFlow.liveTimings);
                             pw.println("Timings:");
-                            sortedTimings.forEach((k, v) -> pw.println("  " + k + "\t" + v.longValue() / 1000 / 1000 + "ms"));
+                            sortedTimings.forEach(
+                                    (k, v) -> pw.println("  " + k + "\t" + v.longValue() / 1000 / 1000 + "ms"));
                             pw.println("Active operations:");
                             long nanos = System.nanoTime();
-                            Map<String, Optional<CountAndDuration>> sortedIncompleteTimings = new HashSet<>(cpsFlow.liveIncompleteTimings).stream()
-                                    .collect(Collectors.groupingBy(t -> t.getKind().name(), TreeMap::new,
-                                            Collectors.mapping(t -> new CountAndDuration(nanos - t.getStartNanos()),
-                                                    Collectors.reducing(CountAndDuration::new))));
-                            sortedIncompleteTimings.forEach((k, optional) ->
-                                    optional.ifPresent(cd ->
-                                            pw.println("  " + k + "\t" + cd.count + "\t" + cd.duration / 1000 / 1000 + "ms")));
+                            Map<String, Optional<CountAndDuration>> sortedIncompleteTimings = new HashSet<>(
+                                            cpsFlow.liveIncompleteTimings)
+                                    .stream()
+                                            .collect(Collectors.groupingBy(
+                                                    t -> t.getKind().name(),
+                                                    TreeMap::new,
+                                                    Collectors.mapping(
+                                                            t -> new CountAndDuration(nanos - t.getStartNanos()),
+                                                            Collectors.reducing(CountAndDuration::new))));
+                            sortedIncompleteTimings.forEach((k, optional) -> optional.ifPresent(cd ->
+                                    pw.println("  " + k + "\t" + cd.count + "\t" + cd.duration / 1000 / 1000 + "ms")));
                             pw.println("Approximate graph size: " + cpsFlow.approximateNodeCount());
                             cpsFlow.getThreadDump().print(pw);
                             pw.println();
@@ -169,16 +184,16 @@ public final class CpsThreadDumpAction extends RunningFlowAction {
         private static class CountAndDuration {
             private final int count;
             private final long duration;
+
             CountAndDuration(long duration) {
                 this.count = 1;
                 this.duration = duration;
             }
+
             CountAndDuration(CountAndDuration a, CountAndDuration b) {
                 this.count = a.count + b.count;
                 this.duration = a.duration + b.duration;
             }
         }
-
     }
-
 }

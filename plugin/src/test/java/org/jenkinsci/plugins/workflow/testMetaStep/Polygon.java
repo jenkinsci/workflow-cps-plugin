@@ -33,15 +33,17 @@ public class Polygon extends Curve {
 
     public final int n;
 
-    @DataBoundConstructor public Polygon(int n) {
+    @DataBoundConstructor
+    public Polygon(int n) {
         this.n = n;
     }
 
-    @Override public String getDescription() {
+    @Override
+    public String getDescription() {
         return n + "-gon";
     }
 
     @Symbol("polygon")
-    @Extension public static class DescriptorImpl extends Descriptor<Curve> {}
-
+    @Extension
+    public static class DescriptorImpl extends Descriptor<Curve> {}
 }

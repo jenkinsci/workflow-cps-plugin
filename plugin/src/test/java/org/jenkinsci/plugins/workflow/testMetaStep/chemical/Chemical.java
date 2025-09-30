@@ -5,5 +5,4 @@ import hudson.model.AbstractDescribableImpl;
 /**
  * @author Kohsuke Kawaguchi
  */
-public abstract class Chemical extends AbstractDescribableImpl<Chemical> {
-}
+public abstract class Chemical extends AbstractDescribableImpl<Chemical> {}

@@ -1,14 +1,12 @@
 package org.jenkinsci.plugins.workflow.cps.nodes;
 
 import hudson.model.Action;
+import java.util.Collections;
+import java.util.List;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.graph.BlockEndNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * Pairs up with {@link StepStartNode} to designate the end of a step execution
@@ -33,7 +31,7 @@ public class StepEndNode extends BlockEndNode<StepStartNode> implements StepNode
     @Override
     protected String getTypeDisplayName() {
         boolean isBody = getStartNode().isBody();
-        return getStartNode().getStepName() + (isBody?" : Body":"") + " : End";
+        return getStartNode().getStepName() + (isBody ? " : Body" : "") + " : End";
     }
 
     @Override

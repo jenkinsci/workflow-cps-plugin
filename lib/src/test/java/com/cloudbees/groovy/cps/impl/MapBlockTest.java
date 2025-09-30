@@ -11,11 +11,10 @@ import org.junit.Test;
 public class MapBlockTest extends AbstractGroovyCpsTest {
     @Test
     public void mapLiteral() throws Throwable {
-        
+
         assertEvaluate(
-            InvokerHelper.createMap(new Object[] { "foo", "hello", "bar", 6, "zot", null }),
-            "def x=[foo:'hello', bar:2+2+2, zot:null]\n" +
-            "return x\n");
+                InvokerHelper.createMap(new Object[] {"foo", "hello", "bar", 6, "zot", null}),
+                "def x=[foo:'hello', bar:2+2+2, zot:null]\n" + "return x\n");
     }
 
     @Test

@@ -1,5 +1,7 @@
 package com.cloudbees.groovy.cps;
 
+import static com.cloudbees.groovy.cps.Block.*;
+
 import com.cloudbees.groovy.cps.impl.ArrayAccessBlock;
 import com.cloudbees.groovy.cps.impl.AssertBlock;
 import com.cloudbees.groovy.cps.impl.AssignmentBlock;
@@ -45,12 +47,9 @@ import com.cloudbees.groovy.cps.impl.YieldBlock;
 import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
 import groovy.lang.Closure;
+import java.util.*;
 import org.codehaus.groovy.runtime.GStringImpl;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
-
-import java.util.*;
-
-import static com.cloudbees.groovy.cps.Block.*;
 
 /**
  * Builder pattern for constructing {@link Block}s into a tree.
@@ -72,12 +71,12 @@ public class Builder {
     private Builder(Builder parent, Collection<CallSiteTag> newTags) {
         this.loc = parent.loc;
         this.closureType = parent.closureType;
-        this.tags = combine(parent.tags,newTags);
+        this.tags = combine(parent.tags, newTags);
     }
 
     private Collection<CallSiteTag> combine(Collection<CallSiteTag> a, Collection<CallSiteTag> b) {
-        if (a.isEmpty())    return b;
-        if (b.isEmpty())    return a;
+        if (a.isEmpty()) return b;
+        if (b.isEmpty()) return a;
         Collection<CallSiteTag> all = new ArrayList<>(a);
         all.addAll(b);
         return all;
@@ -99,7 +98,7 @@ public class Builder {
      * @see Invoker#contextualize(CallSiteBlock)
      */
     public Builder contextualize(CallSiteTag... tags) {
-        return new Builder(this,List.of(tags));
+        return new Builder(this, List.of(tags));
     }
 
     /**
@@ -127,7 +126,7 @@ public class Builder {
     }
 
     public Block methodPointer(int line, Block lhs, Block methodName) {
-        return new MethodPointerBlock(loc(line),lhs,methodName, tags);
+        return new MethodPointerBlock(loc(line), lhs, methodName, tags);
     }
 
     public Block zero() {
@@ -154,11 +153,10 @@ public class Builder {
      * {@code { ... }}
      */
     public Block block(Block... bodies) {
-        if (bodies.length==0)   return NULL;
+        if (bodies.length == 0) return NULL;
 
         Block e = bodies[0];
-        for (int i=1; i<bodies.length; i++)
-            e = sequence(e,bodies[i]);
+        for (int i = 1; i < bodies.length; i++) e = sequence(e, bodies[i]);
 
         return blockScoped(e);
     }
@@ -175,11 +173,10 @@ public class Builder {
      *
      */
     public Block sequence(Block... bodies) {
-        if (bodies.length==0)   return NULL;
+        if (bodies.length == 0) return NULL;
 
         Block e = bodies[0];
-        for (int i=1; i<bodies.length; i++)
-            e = sequence(e,bodies[i]);
+        for (int i = 1; i < bodies.length; i++) e = sequence(e, bodies[i]);
 
         return e;
     }
@@ -193,7 +190,7 @@ public class Builder {
     }
 
     public Block closure(int line, List<Class> parameterTypes, List<String> parameters, Block body) {
-        return new ClosureBlock(loc(line),parameterTypes,parameters,body,closureType);
+        return new ClosureBlock(loc(line), parameterTypes, parameters, body, closureType);
     }
 
     public LValueBlock localVariable(String name) {
@@ -205,7 +202,7 @@ public class Builder {
     }
 
     public Block setLocalVariable(int line, final String name, final Block rhs) {
-        return assign(line,localVariable(line, name),rhs);
+        return assign(line, localVariable(line, name), rhs);
     }
 
     public Block declareVariable(final Class type, final String name) {
@@ -213,9 +210,7 @@ public class Builder {
     }
 
     public Block declareVariable(int line, Class type, String name, Block init) {
-        return sequence(
-            declareVariable(type,name),
-            setLocalVariable(line,name, init));
+        return sequence(declareVariable(type, name), setLocalVariable(line, name, init));
     }
 
     public Block this_() {
@@ -248,7 +243,7 @@ public class Builder {
      * {@code if (...) { ... } else { ... }}
      */
     public Block if_(Block cond, Block then, Block els) {
-        return new IfBlock(cond,then,els);
+        return new IfBlock(cond, then, els);
     }
 
     public Block if_(Block cond, Block then) {
@@ -259,38 +254,37 @@ public class Builder {
      * {@code for (e1; e2; e3) { ... }}
      */
     public Block forLoop(String label, Block e1, Block e2, Block e3, Block body) {
-        return new ForLoopBlock(label, e1,e2,e3,body);
+        return new ForLoopBlock(label, e1, e2, e3, body);
     }
 
     /**
      * {@code for (x in col) { ... }}
      */
     public Block forInLoop(int line, String label, Class type, String variable, Block collection, Block body) {
-        return new ForInLoopBlock(loc(line), label,type,variable,collection,body);
+        return new ForInLoopBlock(loc(line), label, type, variable, collection, body);
     }
 
     public Block break_(String label) {
-        if (label==null)    return BreakBlock.INSTANCE;
+        if (label == null) return BreakBlock.INSTANCE;
         return new BreakBlock(label);
     }
 
     public Block continue_(String label) {
-        if (label==null)    return ContinueBlock.INSTANCE;
+        if (label == null) return ContinueBlock.INSTANCE;
         return new ContinueBlock(label);
     }
 
     public Block while_(String label, Block cond, Block body) {
-        return new WhileBlock(label,cond,body);
+        return new WhileBlock(label, cond, body);
     }
 
     public Block doWhile(String label, Block body, Block cond) {
-        return new DoWhileBlock(label,body,cond);
+        return new DoWhileBlock(label, body, cond);
     }
 
     public Block tryCatch(Block body, Block finally_, CatchExpression... catches) {
         return tryCatch(body, List.of(catches), finally_);
     }
-
 
     /**
      * <pre>{@code
@@ -315,7 +309,7 @@ public class Builder {
      * {@code throw exp;}
      */
     public Block throw_(int line, final Block exp) {
-        return new ThrowBlock(loc(line),exp,false);
+        return new ThrowBlock(loc(line), exp, false);
     }
 
     /**
@@ -352,7 +346,7 @@ public class Builder {
     }
 
     public Block multiply(int line, Block lhs, Block rhs) {
-        return functionCall(line,lhs,"multiply",rhs);
+        return functionCall(line, lhs, "multiply", rhs);
     }
 
     public Block multiplyEqual(int line, LValueBlock lhs, Block rhs) {
@@ -360,7 +354,7 @@ public class Builder {
     }
 
     public Block div(int line, Block lhs, Block rhs) {
-        return functionCall(line,lhs,"div",rhs);
+        return functionCall(line, lhs, "div", rhs);
     }
 
     public Block divEqual(int line, LValueBlock lhs, Block rhs) {
@@ -368,7 +362,7 @@ public class Builder {
     }
 
     public Block intdiv(int line, Block lhs, Block rhs) {
-        return functionCall(line,lhs,"intdiv",rhs);
+        return functionCall(line, lhs, "intdiv", rhs);
     }
 
     public Block intdivEqual(int line, LValueBlock lhs, Block rhs) {
@@ -384,7 +378,7 @@ public class Builder {
     }
 
     public Block power(int line, Block lhs, Block rhs) {
-        return functionCall(line,lhs, "power", rhs);
+        return functionCall(line, lhs, "power", rhs);
     }
 
     public Block powerEqual(int line, LValueBlock lhs, Block rhs) {
@@ -396,7 +390,7 @@ public class Builder {
     }
 
     public Block unaryPlus(int line, Block lhs) {
-        return staticCall(line,ScriptBytecodeAdapter.class, "unaryPlus", lhs);
+        return staticCall(line, ScriptBytecodeAdapter.class, "unaryPlus", lhs);
     }
 
     public Block ternaryOp(Block cond, Block trueExp, Block falseExp) {
@@ -407,7 +401,7 @@ public class Builder {
      * {@code x ?: y}
      */
     public Block elvisOp(Block cond, Block falseExp) {
-        return new ElvisBlock(cond,falseExp);
+        return new ElvisBlock(cond, falseExp);
     }
 
     public Block compareEqual(int line, Block lhs, Block rhs) {
@@ -427,11 +421,11 @@ public class Builder {
     }
 
     public Block lessThanEqual(int line, Block lhs, Block rhs) {
-        return staticCall(line,ScriptBytecodeAdapter.class,"compareLessThanEqual",lhs,rhs);
+        return staticCall(line, ScriptBytecodeAdapter.class, "compareLessThanEqual", lhs, rhs);
     }
 
     public Block greaterThan(int line, Block lhs, Block rhs) {
-        return staticCall(line,ScriptBytecodeAdapter.class,"compareGreaterThan",lhs,rhs);
+        return staticCall(line, ScriptBytecodeAdapter.class, "compareGreaterThan", lhs, rhs);
     }
 
     public Block greaterThanEqual(int line, Block lhs, Block rhs) {
@@ -463,14 +457,14 @@ public class Builder {
      * {@code lhs && rhs}
      */
     public Block logicalAnd(int line, Block lhs, Block rhs) {
-        return new LogicalOpBlock(lhs,rhs,true);
+        return new LogicalOpBlock(lhs, rhs, true);
     }
 
     /**
      * {@code lhs || rhs}
      */
     public Block logicalOr(int line, Block lhs, Block rhs) {
-        return new LogicalOpBlock(lhs,rhs,false);
+        return new LogicalOpBlock(lhs, rhs, false);
     }
 
     /**
@@ -523,7 +517,7 @@ public class Builder {
     }
 
     public Block bitwiseAnd(int line, Block lhs, Block rhs) {
-        return functionCall(line,lhs,"and",rhs);
+        return functionCall(line, lhs, "and", rhs);
     }
 
     public Block bitwiseAndEqual(int line, LValueBlock lhs, Block rhs) {
@@ -531,7 +525,7 @@ public class Builder {
     }
 
     public Block bitwiseOr(int line, Block lhs, Block rhs) {
-        return functionCall(line,lhs,"or",rhs);
+        return functionCall(line, lhs, "or", rhs);
     }
 
     public Block bitwiseOrEqual(int line, LValueBlock lhs, Block rhs) {
@@ -539,7 +533,7 @@ public class Builder {
     }
 
     public Block bitwiseXor(int line, Block lhs, Block rhs) {
-        return functionCall(line,lhs,"xor",rhs);
+        return functionCall(line, lhs, "xor", rhs);
     }
 
     public Block bitwiseXorEqual(int line, LValueBlock lhs, Block rhs) {
@@ -547,35 +541,35 @@ public class Builder {
     }
 
     public Block bitwiseNegation(int line, Block b) {
-        return staticCall(line,ScriptBytecodeAdapter.class,"bitwiseNegate",b);
+        return staticCall(line, ScriptBytecodeAdapter.class, "bitwiseNegate", b);
     }
 
     /**
      * {@code ++x}
      */
     public Block prefixInc(int line, LValueBlock body) {
-        return new ExcrementOperatorBlock(loc(line),tags,"next",true,body);
+        return new ExcrementOperatorBlock(loc(line), tags, "next", true, body);
     }
 
     /**
      * {@code --x}
      */
     public Block prefixDec(int line, LValueBlock body) {
-        return new ExcrementOperatorBlock(loc(line),tags,"previous",true,body);
+        return new ExcrementOperatorBlock(loc(line), tags, "previous", true, body);
     }
 
     /**
      * {@code x++}
      */
     public Block postfixInc(int line, LValueBlock body) {
-        return new ExcrementOperatorBlock(loc(line),tags,"next",false,body);
+        return new ExcrementOperatorBlock(loc(line), tags, "next", false, body);
     }
 
     /**
      * {@code x--}
      */
     public Block postfixDec(int line, LValueBlock body) {
-        return new ExcrementOperatorBlock(loc(line),tags,"previous",false,body);
+        return new ExcrementOperatorBlock(loc(line), tags, "previous", false, body);
     }
 
     /**
@@ -603,12 +597,13 @@ public class Builder {
      * @deprecated Just for compatibility with old scripts; prefer {@link #cast}
      */
     @Deprecated
-    public Block sandboxCastOrCoerce(int line, Block block, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict) {
+    public Block sandboxCastOrCoerce(
+            int line, Block block, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict) {
         return cast(line, block, type, coerce);
     }
 
     public Block instanceOf(int line, Block value, Block type) {
-        return functionCall(line,type,"isInstance",value);
+        return functionCall(line, type, "isInstance", value);
     }
 
     /**
@@ -623,7 +618,7 @@ public class Builder {
     }
 
     public Block assign(int line, LValueBlock lhs, Block rhs) {
-        return new AssignmentBlock(loc(line),tags,lhs,rhs, null);
+        return new AssignmentBlock(loc(line), tags, lhs, rhs, null);
     }
 
     public LValueBlock property(int line, Block lhs, String property) {
@@ -635,7 +630,7 @@ public class Builder {
     }
 
     public LValueBlock array(int line, Block lhs, Block index) {
-        return new ArrayAccessBlock(loc(line),tags,lhs,index);
+        return new ArrayAccessBlock(loc(line), tags, lhs, index);
     }
 
     public LValueBlock attribute(int line, Block lhs, Block property, boolean safe) {
@@ -643,7 +638,7 @@ public class Builder {
     }
 
     public LValueBlock staticField(int line, Class type, String name) {
-        return new StaticFieldBlock(loc(line),type,name);
+        return new StaticFieldBlock(loc(line), type, name);
     }
 
     public Block setProperty(int line, Block lhs, String property, Block rhs) {
@@ -658,7 +653,7 @@ public class Builder {
      * Object instantiation.
      */
     public Block new_(int line, Class type, Block... argExps) {
-        return new_(line,constant(type),argExps);
+        return new_(line, constant(type), argExps);
     }
 
     public Block new_(int line, Block type, Block... argExps) {
@@ -669,7 +664,7 @@ public class Builder {
      * Array instantiation like {@code new String[1][5]}
      */
     public Block newArray(int line, Class type, Block... argExps) {
-        return new NewArrayBlock(loc(line),type,argExps);
+        return new NewArrayBlock(loc(line), type, argExps);
     }
 
     /**
@@ -698,24 +693,26 @@ public class Builder {
      * {@code x..y} or {@code x..>y} to create a range
      */
     public Block range(int line, Block from, Block to, boolean inclusive) {
-        return staticCall(line,ScriptBytecodeAdapter.class,"createRange",from,to,constant(inclusive));
+        return staticCall(line, ScriptBytecodeAdapter.class, "createRange", from, to, constant(inclusive));
     }
 
     public Block assert_(Block cond, Block msg, String sourceText) {
-        return new AssertBlock(cond,msg,sourceText);
+        return new AssertBlock(cond, msg, sourceText);
     }
 
     public Block assert_(Block cond, String sourceText) {
-        return assert_(cond,null_(),sourceText);
+        return assert_(cond, null_(), sourceText);
     }
 
     /**
      * {@code "Foo bar zot ${x}"} kind of string
      */
     public Block gstring(int line, Block listOfValues, Block listOfStrings) {
-        return new_(line, GStringImpl.class,
-                cast(line,listOfValues, Object[].class,true),
-                cast(line,listOfStrings,String[].class,true));
+        return new_(
+                line,
+                GStringImpl.class,
+                cast(line, listOfValues, Object[].class, true),
+                cast(line, listOfStrings, String[].class, true));
     }
 
     /**
@@ -742,6 +739,6 @@ public class Builder {
     }
 
     private SourceLocation loc(int line) {
-        return new SourceLocation(loc,line);
+        return new SourceLocation(loc, line);
     }
 }

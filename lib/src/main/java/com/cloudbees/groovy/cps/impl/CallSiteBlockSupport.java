@@ -1,7 +1,6 @@
 package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
-
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Collection;
 import java.util.Collections;
@@ -19,13 +18,13 @@ public abstract class CallSiteBlockSupport implements CallSiteBlock {
     private final Collection<CallSiteTag> tags;
 
     public CallSiteBlockSupport(Collection<CallSiteTag> tags) {
-        if (tags.isEmpty())     tags = null;
+        if (tags.isEmpty()) tags = null;
         this.tags = tags;
     }
 
     @NonNull
     public Collection<CallSiteTag> getTags() {
-        if (tags==null) return Collections.emptySet();
+        if (tags == null) return Collections.emptySet();
         return Collections.unmodifiableCollection(tags);
     }
 

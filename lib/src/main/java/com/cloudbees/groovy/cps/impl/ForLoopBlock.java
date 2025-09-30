@@ -44,7 +44,7 @@ public class ForLoopBlock implements Block {
             return castToBoolean(cond, e, b -> {
                 if (b) {
                     // loop
-                    return then(body,e,increment);
+                    return then(body, e, increment);
                 } else {
                     // exit loop
                     return loopEnd.receive(null);
@@ -53,15 +53,15 @@ public class ForLoopBlock implements Block {
         }
 
         public Next increment(Object unused) {
-            return then(e3,e,loopHead);
+            return then(e3, e, loopHead);
         }
 
         private static final long serialVersionUID = 1L;
     }
 
-    static final ContinuationPtr loopHead = new ContinuationPtr(ContinuationImpl.class,"loopHead");
-    static final ContinuationPtr loopCond = new ContinuationPtr(ContinuationImpl.class,"loopCond");
-    static final ContinuationPtr increment = new ContinuationPtr(ContinuationImpl.class,"increment");
+    static final ContinuationPtr loopHead = new ContinuationPtr(ContinuationImpl.class, "loopHead");
+    static final ContinuationPtr loopCond = new ContinuationPtr(ContinuationImpl.class, "loopCond");
+    static final ContinuationPtr increment = new ContinuationPtr(ContinuationImpl.class, "increment");
 
     private static final long serialVersionUID = 1L;
 }

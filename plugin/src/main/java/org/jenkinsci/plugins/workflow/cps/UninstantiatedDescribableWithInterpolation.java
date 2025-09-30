@@ -1,11 +1,10 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import java.util.Map;
+import java.util.Set;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Some steps have complex argument types (e.g. `checkout` takes {@link hudson.scm.SCM}). When user use symbol-based
@@ -19,7 +18,8 @@ public class UninstantiatedDescribableWithInterpolation extends UninstantiatedDe
     private static final long serialVersionUID = 1L;
     private final Set<String> interpolatedStrings;
 
-    public UninstantiatedDescribableWithInterpolation(String symbol, String klass, Map<String, ?> arguments, Set<String> interpolatedStrings) {
+    public UninstantiatedDescribableWithInterpolation(
+            String symbol, String klass, Map<String, ?> arguments, Set<String> interpolatedStrings) {
         super(symbol, klass, arguments);
         this.interpolatedStrings = interpolatedStrings;
     }

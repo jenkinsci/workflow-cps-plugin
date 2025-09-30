@@ -1,6 +1,8 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import com.google.common.collect.Lists;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
@@ -9,14 +11,12 @@ import hudson.model.Job;
 import hudson.model.Run;
 import java.util.Collection;
 import java.util.Iterator;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 /**
  * Extension point that defines a collection of global variables.
- * 
+ *
  * @author Kohsuke Kawaguchi
  * @see GlobalVariable#ALL
  */
@@ -27,7 +27,7 @@ public abstract class GlobalVariableSet implements ExtensionPoint, Iterable<Glob
      * @param run a build, which may or may not still be running; or may be left null to look for variables that exist without any context
      * @return a possibly empty set
      */
-    public /* abstract */ @NonNull Collection<GlobalVariable> forRun(@CheckForNull Run<?,?> run) {
+    public /* abstract */ @NonNull Collection<GlobalVariable> forRun(@CheckForNull Run<?, ?> run) {
         return Lists.newArrayList(iterator());
     }
 
@@ -36,13 +36,14 @@ public abstract class GlobalVariableSet implements ExtensionPoint, Iterable<Glob
      * @param job a job; or may be left null to look for variables that exist without any context
      * @return a possibly empty set; by default delegates to {@link #forRun} on {@link Job#getLastSuccessfulBuild}
      */
-    public @NonNull Collection<GlobalVariable> forJob(@CheckForNull Job<?,?> job) {
+    public @NonNull Collection<GlobalVariable> forJob(@CheckForNull Job<?, ?> job) {
         return forRun(job != null ? job.getLastSuccessfulBuild() : null);
     }
 
     /** @deprecated implement {@link #forRun} instead */
     @Deprecated
-    @Override public Iterator<GlobalVariable> iterator() {
+    @Override
+    public Iterator<GlobalVariable> iterator() {
         if (Util.isOverridden(GlobalVariableSet.class, getClass(), "forRun", Run.class)) {
             return forRun(null).iterator();
         } else {
@@ -58,7 +59,7 @@ public abstract class GlobalVariableSet implements ExtensionPoint, Iterable<Glob
     @Restricted(NoExternalUse.class)
     public static class GlobalVariableProvider extends GlobalVariableSet {
         @Override
-        public Collection<GlobalVariable> forRun(Run<?,?> run) {
+        public Collection<GlobalVariable> forRun(Run<?, ?> run) {
             return ExtensionList.lookup(GlobalVariable.class);
         }
     }

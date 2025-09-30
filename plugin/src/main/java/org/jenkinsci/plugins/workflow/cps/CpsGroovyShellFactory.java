@@ -4,16 +4,15 @@ import com.cloudbees.groovy.cps.CpsTransformer;
 import com.cloudbees.groovy.cps.NonCPS;
 import com.cloudbees.groovy.cps.SandboxCpsTransformer;
 import com.cloudbees.groovy.cps.TransformerConfiguration;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import groovy.lang.GroovyShell;
+import java.util.ArrayList;
+import java.util.List;
 import jenkins.model.Jenkins;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.customizers.ImportCustomizer;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.GroovySandbox;
-
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Instantiates {@link CpsGroovyShell}.
@@ -32,11 +31,12 @@ class CpsGroovyShellFactory {
      */
     public CpsGroovyShellFactory(@Nullable CpsFlowExecution execution) {
         this.execution = execution;
-        this.sandbox = execution!=null && execution.isSandbox();
+        this.sandbox = execution != null && execution.isSandbox();
         this.decorators = GroovyShellDecorator.all();
     }
 
-    private CpsGroovyShellFactory(CpsFlowExecution execution, boolean sandbox, ClassLoader parent, List<GroovyShellDecorator> decorators) {
+    private CpsGroovyShellFactory(
+            CpsFlowExecution execution, boolean sandbox, ClassLoader parent, List<GroovyShellDecorator> decorators) {
         this.execution = execution;
         this.sandbox = sandbox;
         this.parent = parent;
@@ -79,12 +79,13 @@ class CpsGroovyShellFactory {
         CpsTransformer t = sandbox ? new SandboxCpsTransformer() : new CpsTransformer();
         t.setConfiguration(new TransformerConfiguration()
                 .withClosureType(CpsClosure2.class)
-                .withSafepoint(Safepoint.class,"safepoint"));
+                .withSafepoint(Safepoint.class, "safepoint"));
         return t;
     }
 
     private CompilerConfiguration makeConfig() {
-        CompilerConfiguration cc = sandbox ? GroovySandbox.createBaseCompilerConfiguration() : new CompilerConfiguration();
+        CompilerConfiguration cc =
+                sandbox ? GroovySandbox.createBaseCompilerConfiguration() : new CompilerConfiguration();
 
         cc.addCompilationCustomizers(makeImportCustomizer());
         cc.addCompilationCustomizers(makeCpsTransformer());
@@ -92,7 +93,7 @@ class CpsGroovyShellFactory {
         cc.setScriptBaseClass(CpsScript.class.getName());
 
         for (GroovyShellDecorator d : decorators) {
-            d.configureCompiler(execution,cc);
+            d.configureCompiler(execution, cc);
         }
 
         return cc;
@@ -101,10 +102,10 @@ class CpsGroovyShellFactory {
     private ImportCustomizer makeImportCustomizer() {
         ImportCustomizer ic = new ImportCustomizer();
         ic.addStarImports(NonCPS.class.getPackage().getName());
-        ic.addStarImports("hudson.model","jenkins.model");
+        ic.addStarImports("hudson.model", "jenkins.model");
 
         for (GroovyShellDecorator d : decorators) {
-            d.customizeImports(execution,ic);
+            d.customizeImports(execution, ic);
         }
         return ic;
     }
@@ -116,13 +117,12 @@ class CpsGroovyShellFactory {
 
     public CpsGroovyShell build() {
         ClassLoader parent = this.parent;
-        if (parent==null)
-            parent = makeClassLoader();
+        if (parent == null) parent = makeClassLoader();
 
         CpsGroovyShell shell = new CpsGroovyShell(parent, execution, makeConfig());
 
         for (GroovyShellDecorator d : decorators) {
-            d.configureShell(execution,shell);
+            d.configureShell(execution, shell);
         }
 
         return shell;

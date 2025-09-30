@@ -35,7 +35,7 @@ public interface Env extends Serializable {
      *      Name of the local variable.
      * @see VariableDeclBlock
      */
-    void declareVariable(@NonNull Class type, @NonNull  String name);
+    void declareVariable(@NonNull Class type, @NonNull String name);
 
     /**
      * Obtains the current value of a local variable in the current environment.
@@ -60,16 +60,15 @@ public interface Env extends Serializable {
 
     /**
      * Closure instance or 'this' object that surrounds the currently executing code.
-     * 
-     * <p> 
+     *
+     * <p>
      * If a new closure instantiation is encountered, this is the object that becomes
      * {@linkplain Closure#getOwner() the owner} of that closure.
-     * 
+     *
      * <p>
      * Dynamic property access inside closures are also resolved against this instance.
      */
     Object closureOwner();
-
 
     /**
      * Where should the return statement return to?

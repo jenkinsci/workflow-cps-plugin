@@ -17,5 +17,6 @@ public interface CallSiteBlock extends Serializable, Block {
     /**
      * Tags associated with this call site.
      */
-    @NonNull Collection<CallSiteTag> getTags();
+    @NonNull
+    Collection<CallSiteTag> getTags();
 }

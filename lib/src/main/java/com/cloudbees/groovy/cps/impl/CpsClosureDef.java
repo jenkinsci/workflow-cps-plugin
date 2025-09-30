@@ -5,7 +5,6 @@ import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.DepthTrackingEnv;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-
 import java.util.List;
 
 /**
@@ -38,9 +37,12 @@ class CpsClosureDef extends CpsCallable {
         if (e.getDepth() > DepthTrackingEnv.MAX_LEGAL_DEPTH) {
             StackOverflowError err;
             if (loc != null) {
-                err = new StackOverflowError("Excessively nested closures/functions at "+loc+" - look for unbounded recursion - call depth: "+e.getDepth());
+                err = new StackOverflowError("Excessively nested closures/functions at " + loc
+                        + " - look for unbounded recursion - call depth: " + e.getDepth());
             } else {
-                err = new StackOverflowError("Excessively nested closures/functions - look for unbounded recursion - call depth: "+e.getDepth());
+                err = new StackOverflowError(
+                        "Excessively nested closures/functions - look for unbounded recursion - call depth: "
+                                + e.getDepth());
             }
             return e.getExceptionHandler(StackOverflowError.class).receive(err);
         }

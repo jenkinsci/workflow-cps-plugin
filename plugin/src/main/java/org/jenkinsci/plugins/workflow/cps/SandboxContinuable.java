@@ -42,9 +42,8 @@ class SandboxContinuable extends Continuable {
         } catch (IOException x) {
             LOGGER.log(Level.WARNING, null, x);
         }
-        sandbox.withWhitelist(new GroovyClassLoaderWhitelist(CpsWhitelist.get(),
-            trustedShell.getClassLoader(),
-            shell.getClassLoader()));
+        sandbox.withWhitelist(new GroovyClassLoaderWhitelist(
+                CpsWhitelist.get(), trustedShell.getClassLoader(), shell.getClassLoader()));
         try (GroovySandbox.Scope scope = sandbox.enter()) {
             return SandboxContinuable.super.run0(cn);
         }
@@ -55,7 +54,9 @@ class SandboxContinuable extends Continuable {
     /** @deprecated Only here for serial compatibility. */
     private static final class ScriptApprovalNote extends ConsoleNote {
         private int length;
-        @Override public ConsoleAnnotator annotate(Object context, MarkupText text, int charPos) {
+
+        @Override
+        public ConsoleAnnotator annotate(Object context, MarkupText text, int charPos) {
             return null;
         }
     }

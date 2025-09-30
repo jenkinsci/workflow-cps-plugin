@@ -18,8 +18,7 @@ public class Island extends AbstractDescribableImpl<Island> {
     private Island rhs;
 
     @DataBoundConstructor
-    public Island() {
-    }
+    public Island() {}
 
     public Island(Island lhs, Island rhs) {
         this.lhs = lhs;
@@ -46,6 +45,5 @@ public class Island extends AbstractDescribableImpl<Island> {
 
     @Extension
     @Symbol("island")
-    public static class DescriptorImpl extends Descriptor<Island> {
-    }
+    public static class DescriptorImpl extends Descriptor<Island> {}
 }

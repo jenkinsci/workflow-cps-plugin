@@ -5,5 +5,4 @@ package com.cloudbees.groovy.cps.impl;
  *
  * @author Kohsuke Kawaguchi
  */
-class ReferenceStackTrace extends Throwable {
-}
+class ReferenceStackTrace extends Throwable {}
