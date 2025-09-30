@@ -85,7 +85,7 @@ public class SnippetizerTester {
         List<NameValuePair> params = new ArrayList<>();
         params.add(new NameValuePair("json", json));
         // WebClient.addCrumb *replaces* rather than *adds*:
-        params.add(new NameValuePair(r.jenkins.getCrumbIssuer().getDescriptor().getCrumbRequestField(), r.jenkins.getCrumbIssuer().getCrumb(null)));
+        params.add(new NameValuePair(r.jenkins.getCrumbIssuer().getDescriptor().getCrumbRequestField(), r.jenkins.getCrumbIssuer().getCrumb()));
         wrs.setRequestParameters(params);
         WebResponse response = wc.getPage(wrs).getWebResponse();
         assertEquals("text/plain", response.getContentType());

@@ -1,8 +1,13 @@
 package org.jenkinsci.plugins.workflow.cps.steps;
 
 import hudson.Extension;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
+import hudson.FilePath;
+import hudson.model.TaskListener;
+import java.util.Set;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
@@ -10,7 +15,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
  *
  * @author Kohsuke Kawaguchi
  */
-public class LoadStep extends AbstractStepImpl {
+public class LoadStep extends Step {
     /**
      * Relative path of the script within the current workspace.
      */
@@ -25,11 +30,13 @@ public class LoadStep extends AbstractStepImpl {
         return path;
     }
 
+    @Override
+    public StepExecution start(StepContext context) throws Exception {
+        return new LoadStepExecution(this, context);
+    }
+
     @Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl {
-        public DescriptorImpl() {
-            super(LoadStepExecution.class);
-        }
+    public static class DescriptorImpl extends StepDescriptor {
 
         @Override
         public String getFunctionName() {
@@ -39,6 +46,11 @@ public class LoadStep extends AbstractStepImpl {
         @Override
         public String getDisplayName() {
             return "Evaluate a Groovy source file into the Pipeline script";
+        }
+
+        @Override
+        public Set<? extends Class<?>> getRequiredContext() {
+            return Set.of(FilePath.class, TaskListener.class);
         }
     }
 

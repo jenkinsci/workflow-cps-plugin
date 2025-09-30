@@ -1,16 +1,18 @@
 package org.jenkinsci.plugins.workflow.cps;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Sets;
 import groovy.lang.Closure;
 import hudson.model.Result;
 import hudson.slaves.DumbSlave;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
@@ -24,14 +26,17 @@ import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.BodyExecution;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.steps.StepExecutions;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
-import org.jvnet.hudson.test.RestartableJenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
 
@@ -39,14 +44,16 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.Matchers.not;
+import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import org.jvnet.hudson.test.JenkinsSessionRule;
 
 public class CpsBodyExecutionTest {
 
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-    @Rule public RestartableJenkinsRule rr = new RestartableJenkinsRule();
+    @Rule public JenkinsSessionRule rr = new JenkinsSessionRule();
 
     /**
      * When the body of a step is synchronous and explodes, the failure should be recorded and the pipeline job
@@ -60,7 +67,7 @@ public class CpsBodyExecutionTest {
      * never arrives.
      */
     @Test
-    public void synchronousExceptionInBody() throws Exception {
+    public void synchronousExceptionInBody() throws Throwable {
         rr.then(jenkins -> {
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("synchronousExceptionInBody()",true));
@@ -138,7 +145,7 @@ public class CpsBodyExecutionTest {
     }
 
     @Issue("JENKINS-34637")
-    @Test public void currentExecutions() throws Exception {
+    @Test public void currentExecutions() throws Throwable {
         rr.then(jenkins -> {
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("parallel main: {retainsBody {parallel a: {retainsBody {semaphore 'a'}}, b: {retainsBody {semaphore 'b'}}}}, aside: {semaphore 'c'}", true));
@@ -147,22 +154,14 @@ public class CpsBodyExecutionTest {
         SemaphoreStep.waitForStart("b/1", b);
         SemaphoreStep.waitForStart("c/1", b);
         final RetainsBodyStep.Execution[] execs = new RetainsBodyStep.Execution[3];
-        StepExecution.applyAll(RetainsBodyStep.Execution.class, new Function<>() {
-            @Override public Void apply(RetainsBodyStep.Execution exec) {
-                execs[exec.count] = exec;
-                return null;
-            }
-        }).get();
+        StepExecution.acceptAll(RetainsBodyStep.Execution.class, exec -> execs[exec.count] = exec).get();
         assertNotNull(execs[0]);
         assertNotNull(execs[1]);
         assertNotNull(execs[2]);
         final Set<SemaphoreStep.Execution> semaphores = new HashSet<>();
-        StepExecution.applyAll(SemaphoreStep.Execution.class, new Function<>() {
-            @Override public Void apply(SemaphoreStep.Execution exec) {
-                if (exec.getStatus().matches("waiting on [ab]/1")) {
-                    semaphores.add(exec);
-                }
-                return null;
+        StepExecution.acceptAll(SemaphoreStep.Execution.class, exec -> {
+            if (exec.getStatus().matches("waiting on [ab]/1")) {
+                semaphores.add(exec);
             }
         }).get();
         assertThat(semaphores, iterableWithSize(2));
@@ -200,7 +199,7 @@ public class CpsBodyExecutionTest {
     }
 
     @Issue({"JENKINS-53709", "JENKINS-41791"})
-    @Test public void popContextVarsOnBodyCompletion() {
+    @Test public void popContextVarsOnBodyCompletion() throws Throwable {
         rr.then(r -> {
             DumbSlave s = r.createOnlineSlave();
             WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "demo");
@@ -226,7 +225,7 @@ public class CpsBodyExecutionTest {
     }
 
     @Issue("JENKINS-63164")
-    @Test public void closureCapturesCpsBodyExecution() {
+    @Test public void closureCapturesCpsBodyExecution() throws Throwable {
         rr.then(r -> {
             DumbSlave s = r.createOnlineSlave();
             WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "demo");
@@ -251,6 +250,62 @@ public class CpsBodyExecutionTest {
             r.assertBuildStatusSuccess(r.waitForCompletion(b));
             r.assertLogContains("this closure captures CpsBodyExecution", b);
         });
+    }
+
+    @Test public void capturedBodies() throws Throwable {
+        var semaphores = List.of("y1", "y2");
+        AtomicReference<Path> buildXml = new AtomicReference<>();
+        rr.then(r -> {
+            WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("parallel x1: {}, x2: {g = {x -> x + 1}; echo(/${g(1)}/)}; parallel y1: {semaphore 'y1'}, y2: {semaphore 'y2'}", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            for (var semaphore : semaphores) {
+                SemaphoreStep.waitForStart(semaphore + "/1", b);
+            }
+            buildXml.set(b.getRootDir().toPath().resolve("build.xml"));
+        });
+        Files.copy(buildXml.get(), System.out);
+        rr.then(r -> {
+            WorkflowJob p = r.jenkins.getItemByFullName("p", WorkflowJob.class);
+            WorkflowRun b = p.getLastBuild();
+            for (var semaphore : semaphores) {
+                SemaphoreStep.success(semaphore + "/1", null);
+            }
+            r.assertBuildStatusSuccess(r.waitForCompletion(b));
+            new DepthFirstScanner().allNodes(b.getExecution()).stream().sorted(Comparator.comparing(n -> Integer.valueOf(n.getId()))).forEach(n -> System.out.println(n.getId() + " " + n.getDisplayName()));
+            r.assertLogContains(Messages.LoggingInvoker_field_set("WorkflowScript", "g", "CpsClosure2"), b);
+        });
+    }
+
+    @Test public void failureWithNoContextVars() throws Throwable {
+        rr.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("noOpBlock { throw new Exception('oops') }", true));
+            var b = r.buildAndAssertStatus(Result.FAILURE, p);
+            r.assertLogNotContains("java.lang.NullPointerException: Cannot invoke \"org.jenkinsci.plugins.workflow.cps.ContextVariableSet.get", b);
+        });
+    }
+
+    public static class NoOpBlockStep extends Step {
+        @DataBoundConstructor
+        public NoOpBlockStep() {}
+        @Override
+        public StepExecution start(StepContext context) throws Exception {
+            return StepExecutions.block(context, (ctx, inv) -> {});
+        }
+        @TestExtension("failureWithNoContextVars") public static class DescriptorImpl extends StepDescriptor {
+            @Override public String getFunctionName() {
+                return "noOpBlock";
+            }
+            @Override
+            public boolean takesImplicitBlockArgument() {
+                return true;
+            }
+            @Override
+            public Set<? extends Class<?>> getRequiredContext() {
+                return Set.of();
+            }
+        }
     }
 
 }

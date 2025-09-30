@@ -12,7 +12,7 @@ import hudson.Functions;
 import hudson.XmlFile;
 import hudson.model.Action;
 import hudson.tasks.ArtifactArchiver;
-import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsMapContaining;
 import org.jenkinsci.plugins.credentialsbinding.impl.BindingStep;
@@ -70,6 +70,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -567,6 +568,14 @@ public class ArgumentsActionImplTest {
     }
 
     @Test
+    public void nul() throws Exception {
+        var job = r.createProject(WorkflowJob.class);
+        job.setDefinition(new CpsFlowDefinition("echo 'one\\0two'; echo 'this part is fine'", true));
+        var store = r.buildAndAssertSuccess(job).getRootDir().toPath().resolve("workflow-completed/flowNodeStore.xml");
+        assertThat(store + " was written", Files.readString(store), containsString("this part is fine"));
+    }
+
+    @Test
     public void testArgumentDescriptions() throws Exception {
         WorkflowJob job = r.createProject(WorkflowJob.class);
         job.setDefinition(new CpsFlowDefinition(
@@ -700,7 +709,7 @@ public class ArgumentsActionImplTest {
         public NopStep(Object value) {}
         @Override
         public StepExecution start(StepContext context) throws Exception {
-            return StepExecutions.synchronous(context, unused -> null);
+            return StepExecutions.synchronousVoid(context, c -> {});
         }
         @TestExtension
         public static class DescriptorImpl extends StepDescriptor {

@@ -1,6 +1,5 @@
 package org.jenkinsci.plugins.workflow.cps.steps;
 
-import com.google.inject.Inject;
 import groovy.lang.Script;
 import hudson.FilePath;
 import hudson.model.TaskListener;
@@ -12,7 +11,7 @@ import org.jenkinsci.plugins.workflow.cps.CpsThread;
 import org.jenkinsci.plugins.workflow.cps.replay.ReplayAction;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.BodyExecutionCallback;
-import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
 
 /**
  * Loads another Groovy script file and executes it.
@@ -20,18 +19,19 @@ import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
  * @author Kohsuke Kawaguchi
  */
 public class LoadStepExecution extends AbstractStepExecutionImpl {
-    @StepContextParameter
-    private transient FilePath cwd;
 
-    @Inject(optional=true)
     private transient LoadStep step;
 
-    @StepContextParameter
-    private transient TaskListener listener;
+    LoadStepExecution(LoadStep step, StepContext context) {
+        super(context);
+        this.step = step;
+    }
 
     @Override
     public boolean start() throws Exception {
         CpsStepContext cps = (CpsStepContext) getContext();
+        FilePath cwd = cps.get(FilePath.class);
+        TaskListener listener = cps.get(TaskListener.class);
         CpsThread t = CpsThread.current();
 
         CpsFlowExecution execution = t.getExecution();
@@ -60,6 +60,11 @@ public class LoadStepExecution extends AbstractStepExecutionImpl {
                 .start(); // when the body is done, the load step is done
 
         return false;
+    }
+
+    @Override
+    public void onResume() {
+        // do nothing
     }
 
     private static final long serialVersionUID = 1L;

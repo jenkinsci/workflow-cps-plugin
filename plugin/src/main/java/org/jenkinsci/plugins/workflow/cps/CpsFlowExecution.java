@@ -69,7 +69,7 @@ import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
-import org.jenkinsci.plugins.workflow.support.concurrent.Timeout;
+import org.jenkinsci.plugins.workflow.support.concurrent.WithThreadName;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.PickleResolver;
 import org.jenkinsci.plugins.workflow.support.pickles.serialization.RiverReader;
 import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
@@ -80,18 +80,21 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Stack;
 import java.util.TreeMap;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -126,10 +129,11 @@ import java.io.PrintWriter;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.TreeSet;
@@ -137,13 +141,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import net.jcip.annotations.GuardedBy;
 
-import org.acegisecurity.Authentication;
-import org.acegisecurity.userdetails.UsernameNotFoundException;
 import java.nio.charset.StandardCharsets;
 import jenkins.util.SystemProperties;
 import org.codehaus.groovy.GroovyBugError;
@@ -155,6 +158,8 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 /**
  * {@link FlowExecution} implemented with Groovy CPS.
@@ -254,7 +259,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * Any additional scripts {@linkplain CpsGroovyShell#parse(GroovyCodeSource) parsed} afterward, keyed by
      * their FQCN.
      */
-    /*package*/ /*final*/ Map<String,String> loadedScripts = new HashMap<>();
+    /*package*/ /*final*/ Map<String,String> loadedScripts = new LinkedHashMap<>();
 
     private final boolean sandbox;
     private transient /*almost final*/ FlowExecutionOwner owner;
@@ -267,6 +272,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      *
      * @see #runInCpsVmThread(FutureCallback)
      */
+    @SuppressFBWarnings(value = "PA_PUBLIC_PRIMITIVE_ATTRIBUTE", justification = "TODO clean up")
     public transient volatile ListenableFuture<CpsThreadGroup> programPromise;
     private transient volatile Collection<ListenableFuture<?>> pickleFutures;
 
@@ -299,13 +305,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      */
     @GuardedBy("this")
     /*package*/ /* almost final*/ Stack<BlockStartNode> startNodes = new Stack<>();
-    @SuppressFBWarnings({"IS_FIELD_NOT_GUARDED", "IS2_INCONSISTENT_SYNC"}) // irrelevant here
     private transient List<String> startNodesSerial; // used only between unmarshal and onLoad
 
     @GuardedBy("this")
     /* almost final*/ NavigableMap<Integer,FlowHead> heads = new TreeMap<>(); // Non-private for unit tests
 
-    @SuppressFBWarnings({"IS_FIELD_NOT_GUARDED", "IS2_INCONSISTENT_SYNC"}) // irrelevant here
     private transient Map<Integer,String> headsSerial; // used only between unmarshal and onLoad
 
     private final AtomicInteger iota = new AtomicInteger();
@@ -322,6 +326,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
+    /**
+     * Holds listeners added via {@link #addListener} in the reverse order that they were added.
+     */
     private transient List<GraphListener> listeners;
 
     /**
@@ -387,6 +394,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
          */
         run,
         /**
+         * Time spent waiting in the queue for {@link CpsVmExecutorService}.
+         */
+        runQueue,
+        /**
          * Saving the program state.
          * @see CpsThreadGroup#saveProgram(File)
          */
@@ -400,6 +411,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     /** accumulated time in ns of a given {@link TimingKind#name}; {@link String} key for pretty XStream form */
     transient @NonNull Map<String, LongAdder> liveTimings = new ConcurrentHashMap<>();
+    /** instances of {@link Timing} which have not yet completed for reporting counts and durations in support bundles. Never persisted. */
+    transient @NonNull Set<Timing> liveIncompleteTimings = ConcurrentHashMap.newKeySet();
     /** XStream simplified form of {@link #liveTimings} */
     private Map<String, Long> timings;
 
@@ -415,8 +428,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         this.script = script;
         this.sandbox = sandbox;
         this.durabilityHint = durabilityHint;
-        Authentication auth = Jenkins.getAuthentication();
-        this.user = auth.equals(ACL.SYSTEM) ? null : auth.getName();
+        Authentication auth = Jenkins.getAuthentication2();
+        this.user = auth.equals(ACL.SYSTEM2) ? null : auth.getName();
         this.storage = createStorage();
         this.storage.setAvoidAtomicWrite(!this.getDurabilityHint().isAtomicWrite());
     }
@@ -433,7 +446,16 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             start = System.nanoTime();
         }
 
+        TimingKind getKind() {
+            return kind;
+        }
+
+        long getStartNanos() {
+            return start;
+        }
+
         @Override public void close() {
+            liveIncompleteTimings.remove(this);
             liveTimings.computeIfAbsent(kind.name(), k -> new LongAdder()).add(System.nanoTime() - start);
         }
     }
@@ -444,7 +466,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * @return something to {@link Timing#close} when finished
      */
     Timing time(TimingKind kind) {
-        return new Timing(kind);
+        var timing = new Timing(kind);
+        liveIncompleteTimings.add(timing);
+        return timing;
     }
 
     static final Logger TIMING_LOGGER = Logger.getLogger(CpsFlowExecution.class.getName() + ".timing");
@@ -466,7 +490,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     @NonNull Set<String> getInternalCalls() {
-        return new TreeSet<>(internalCalls);
+        return internalCalls;
     }
 
     /**
@@ -550,8 +574,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 LOGGER.log(Level.FINE, () -> "Copied nodes to " + newStorageDir);
                 File oldStorageDir = getStorageDir();
                 this.storageDir = newStorageDir;
-                storage.readWriteLock.writeLock().lock();
-                try {
+                storage.withWriteLock(() -> {
                     storage.delegate = newStorage;
                     try {
                         Util.deleteRecursive(oldStorageDir);
@@ -559,9 +582,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     } catch (IOException e) {
                         LOGGER.log(Level.FINE, e, () -> "Unable to delete unused flow node storage directory " + oldStorageDir + " for " + this);
                     }
-                } finally {
-                    storage.readWriteLock.writeLock().unlock();
-                }
+                });
             } catch (Exception e) {
                 LOGGER.log(Level.WARNING, e, () -> "Unable to migrate " + this + " to BulkFlowNodeStorage");
             }
@@ -643,12 +664,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         s.execution = this;
-        if (false) {
-            System.out.println("scriptName="+s.getClass().getName());
-            System.out.println(List.of(s.getClass().getInterfaces()));
-            System.out.println(List.of(s.getClass().getDeclaredFields()));
-            System.out.println(List.of(s.getClass().getDeclaredMethods()));
-        }
         return s;
     }
 
@@ -760,7 +775,14 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             "This is expected to happen when using the " + durabilitySetting + " durability setting and Jenkins is not shut down cleanly. " +
                             "Consider investigating to understand if Jenkins was not shut down cleanly or switching to the MAX_SURVIVABILITY durability setting which should prevent this issue in most cases.");
                 } else {
-                    throw new AbortException("Cannot resume build because FlowNode " + entry.getValue() + " for FlowHead " + entry.getKey() + " could not be loaded.");
+                    var sd = getStorageDir().toPath();
+                    List<Path> files = null;
+                    try (var walk = Files.walk(sd)) {
+                        files = walk.filter(Files::isRegularFile).map(sd::relativize).sorted().toList();
+                    } catch (/*UncheckedIO*/Exception x) {
+                        LOGGER.log(Level.WARNING, null, x);
+                    }
+                    throw new AbortException("Cannot load build steps because FlowNode " + entry.getValue() + " for FlowHead " + entry.getKey() + " could not be loaded from " + storage + " in " + sd + ": " + files);
                 }
             }
         }
@@ -792,22 +814,31 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     @Override
-    @SuppressFBWarnings(value = "RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN", justification = "We want to explicitly check for boolean not-null and true")
     public void onLoad(FlowExecutionOwner owner) throws IOException {
+        if (this.owner != null) {
+            LOGGER.log(Level.WARNING, new Throwable(), () -> this + " was already loaded");
+            return;
+        }
+
         this.owner = owner;
 
         try {
             try {
                 initializeStorage();  // Throws exception and bombs out if we can't load FlowNodes
             } catch (Exception ex) {
-                LOGGER.log(Level.WARNING, "Error initializing storage and loading nodes, will try to create placeholders for: "+this, ex);
-                createPlaceholderNodes(ex);
-                return;
+                var propName = CpsFlowExecution.class.getName() + ".initializeStorageFromOnLoad";
+                if (SystemProperties.getBoolean(propName, true)) {
+                    LOGGER.log(Level.WARNING, ex, () -> "Error initializing storage and loading nodes, will try to create placeholders for " + this + " (use -D" + propName + "=false to suppress)");
+                    createPlaceholderNodes(ex);
+                    return;
+                } else {
+                    throw ex;
+                }
             }
         } catch (Exception ex) {
             done = true;
             programPromise = Futures.immediateFailedFuture(ex);
-            throw new IOException("Failed to even create placeholder nodes for execution", ex);
+            throw ex instanceof IOException ioe ? ioe : new IOException(ex);
         }
 
         try {
@@ -911,7 +942,19 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /** Report a fatal error in the VM. */
     void croak(Throwable t) {
         setResult(Result.FAILURE);
-        onProgramEnd(new Outcome(null, t));
+        boolean noStartNodes;
+        synchronized (this) {
+            noStartNodes = startNodes == null || startNodes.isEmpty();
+        }
+        if (noStartNodes) {
+            try {
+                createPlaceholderNodes(t);
+            } catch (Exception x) {
+                LOGGER.log(Level.WARNING, "Failed to create placeholder nodes in " + owner, x);
+            }
+        } else {
+            onProgramEnd(new Outcome(null, t), true);
+        }
         cleanUpHeap();
         try {
             saveOwner();
@@ -962,8 +1005,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
         // first we need to wait for programPromise to fullfil CpsThreadGroup, then we need to run in its runner, phew!
         Futures.addCallback(programPromise, new FutureCallback<>() {
-            final Exception source = new Exception();   // call stack of this object captures who called this. useful during debugging.
-
             @Override
             public void onSuccess(final CpsThreadGroup g) {
                 g.runner.submit(new Runnable() {
@@ -1192,7 +1233,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         if (listeners == null) {
             listeners = new CopyOnWriteArrayList<>();
         }
-        listeners.add(listener);
+        listeners.add(0, listener);
     }
 
     @Override public void removeListener(GraphListener listener) {
@@ -1323,7 +1364,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * Record the end of the build.  Note: we should always follow this with a call to {@link #saveOwner()} to persist the result.
      * @param outcome success; or a normal failure (uncaught exception); or a fatal error in VM machinery
      */
-    synchronized void onProgramEnd(Outcome outcome) {
+    synchronized void onProgramEnd(Outcome outcome, boolean asynchNotifications) {
         FlowNode head = new FlowEndNode(this, iotaStr(), (FlowStartNode)startNodes.pop(), result, getCurrentHeads().toArray(new FlowNode[0]));
         if (outcome.isFailure()) {
             head.addAction(new ErrorAction(outcome.getAbnormal()));
@@ -1333,7 +1374,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         try {
             FlowHead first = getFirstHead();
             if (first != null) {
-                first.setNewHead(head);
+                first.setNewHead(head, asynchNotifications);
                 done = true;  // After setting the final head
                 heads.clear();
                 heads.put(first.getId(), first);
@@ -1408,21 +1449,23 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         cleanUpLoader(loader.getParent(), encounteredLoaders, encounteredClasses);
         LOGGER.finer(() -> "found " + loader);
         SerializableClassRegistry.getInstance().release(loader);
-        cleanUpGlobalClassValue(loader);
         GroovyClassLoader gcl = (GroovyClassLoader) loader;
-        for (Class<?> clazz : gcl.getLoadedClasses()) {
+        Set<Class<?>> loadedClasses = new HashSet<>(Arrays.asList((Class<?>[]) gcl.getLoadedClasses()));
+        // GroovyClassLoader.getLoadedClasses() only returns Groovy classes, not Java classes loaded when using `@Grab`
+        cleanUpGlobalClassValue(loader, loadedClasses);
+        cleanUpClassHelperCache(loader, loadedClasses);
+        for (Class<?> clazz : loadedClasses) {
             if (encounteredClasses.add(clazz)) {
                 LOGGER.finer(() -> "found " + clazz.getName());
+                // TODO: Do we also need to do a reverse lookup on the Introspector caches in case they have unique entries?
                 Introspector.flushFromCaches(clazz);
-                cleanUpGlobalClassSet(clazz);
-                cleanUpClassHelperCache(clazz);
                 cleanUpLoader(clazz.getClassLoader(), encounteredLoaders, encounteredClasses);
             }
         }
         gcl.clearCache();
     }
 
-    private static void cleanUpGlobalClassValue(@NonNull ClassLoader loader) throws Exception {
+    private static void cleanUpGlobalClassValue(@NonNull ClassLoader loader, Set<Class<?>> loadedClasses) throws Exception {
         Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo");
         // TODO switch to MethodHandle for speed
         Field globalClassValueF = classInfoC.getDeclaredField("globalClassValue");
@@ -1441,78 +1484,58 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         Class<?> entryC = Class.forName("org.codehaus.groovy.util.AbstractConcurrentMapBase$Entry");
         Method getValueM = entryC.getMethod("getValue");
         List<Class<?>> toRemove = new ArrayList<>(); // not sure if it is safe against ConcurrentModificationException or not
-        try {
-            Field classRefF = classInfoC.getDeclaredField("classRef"); // 2.4.8+
-            classRefF.setAccessible(true);
-            for (Object entry : entries) {
-                Object value = getValueM.invoke(entry);
-                toRemove.add(((WeakReference<Class<?>>) classRefF.get(value)).get());
-            }
-        } catch (NoSuchFieldException x) {
-            Field klazzF = classInfoC.getDeclaredField("klazz"); // 2.4.7-
-            klazzF.setAccessible(true);
-            for (Object entry : entries) {
-                Object value = getValueM.invoke(entry);
-                toRemove.add((Class) klazzF.get(value));
-            }
-        }
-        Iterator<Class<?>> it = toRemove.iterator();
-        while (it.hasNext()) {
-            Class<?> klazz = it.next();
-            ClassLoader encounteredLoader = klazz.getClassLoader();
-            if (encounteredLoader != loader) {
-                it.remove();
-                if (LOGGER.isLoggable(Level.FINEST)) {
-                  LOGGER.finest(() -> "ignoring " + klazz + " with loader " + encounteredLoader);
+        Field classRefF = classInfoC.getDeclaredField("classRef"); // 2.4.8+
+        classRefF.setAccessible(true);
+        for (Object entry : entries) {
+            Object classInfo = getValueM.invoke(entry);
+            if (classInfo != null) {
+                Class<?> clazz = ((WeakReference<Class<?>>) classRefF.get(classInfo)).get();
+                if (clazz != null) {
+                    toRemove.add(clazz);
                 }
             }
         }
+        toRemove.removeIf(isClassFromOtherClassLoader(loader));
         LOGGER.fine(() -> "cleaning up " + toRemove + " associated with " + loader);
         for (Class<?> klazz : toRemove) {
+            loadedClasses.add(klazz);
             removeM.invoke(map, klazz);
         }
     }
 
-    private static void cleanUpGlobalClassSet(@NonNull Class<?> clazz) throws Exception {
-        Class<?> classInfoC = Class.forName("org.codehaus.groovy.reflection.ClassInfo"); // or just ClassInfo.class, but unclear whether this will always be there
-        Field globalClassSetF = classInfoC.getDeclaredField("globalClassSet");
-        globalClassSetF.setAccessible(true);
-        Object globalClassSet = globalClassSetF.get(null);
-        try {
-            classInfoC.getDeclaredField("classRef");
-            return; // 2.4.8+, nothing to do here (classRef is weak anyway)
-        } catch (NoSuchFieldException x2) {} // 2.4.7-
-        // Cannot just call .values() since that returns a copy.
-        Field itemsF = globalClassSet.getClass().getDeclaredField("items");
-        itemsF.setAccessible(true);
-        Object items = itemsF.get(globalClassSet);
-        Method iteratorM = items.getClass().getMethod("iterator");
-        Field klazzF = classInfoC.getDeclaredField("klazz");
-        klazzF.setAccessible(true);
-        synchronized (items) {
-            Iterator<?> iterator = (Iterator) iteratorM.invoke(items);
-            while (iterator.hasNext()) {
-                Object classInfo = iterator.next();
-                if (classInfo == null) {
-                    LOGGER.finer("JENKINS-41945: ignoring null ClassInfo from ManagedLinkedList.Iter.next");
-                    continue;
-                }
-                if (klazzF.get(classInfo) == clazz) {
-                    iterator.remove();
-                    LOGGER.log(Level.FINER, "cleaning up {0} from GlobalClassSet", clazz.getName());
-                }
-            }
-        }
-    }
-
-    private static void cleanUpClassHelperCache(@NonNull Class<?> clazz) throws Exception {
+    private static void cleanUpClassHelperCache(@NonNull ClassLoader loader, Set<Class<?>> loadedClasses) throws Exception {
         Field classCacheF = Class.forName("org.codehaus.groovy.ast.ClassHelper$ClassHelperCache").getDeclaredField("classCache");
         classCacheF.setAccessible(true);
         Object classCache = classCacheF.get(null);
-        if (LOGGER.isLoggable(Level.FINER)) {
-            LOGGER.log(Level.FINER, "cleaning up {0} from ClassHelperCache? {1}", new Object[] {clazz.getName(), classCache.getClass().getMethod("get", Object.class).invoke(classCache, clazz) != null});
+        Class<?> classCacheC = classCache.getClass();
+        Collection entries = (Collection) classCacheC.getMethod("values").invoke(classCache);
+        Class<?> managedRefC = Class.forName("org.codehaus.groovy.util.ManagedReference");
+        var getRefM = managedRefC.getMethod("get");
+        List<Class<?>> toRemove = new ArrayList<>(); // not sure if it is safe against ConcurrentModificationException or not
+        for (Object entry : entries) {
+            Class<?> clazz = (Class<?>) getRefM.invoke(entry);
+            if (clazz != null) {
+                toRemove.add(clazz);
+            }
         }
-        classCache.getClass().getMethod("remove", Object.class).invoke(classCache, clazz);
+        toRemove.removeIf(isClassFromOtherClassLoader(loader));
+        LOGGER.fine(() -> "cleaning up " + toRemove + " associated with " + loader);
+        Method removeM = classCache.getClass().getMethod("remove", Object.class);
+        for (Class<?> klazz : toRemove) {
+            loadedClasses.add(klazz);
+            removeM.invoke(classCache, klazz);
+        }
+    }
+
+    private static Predicate<Class<?>> isClassFromOtherClassLoader(ClassLoader loader) {
+        return klazz -> {
+            ClassLoader encounteredLoader = klazz.getClassLoader();
+            var irrelevant = encounteredLoader != loader;
+            if (irrelevant) {
+                LOGGER.finest(() -> "ignoring " + klazz + " with loader " + encounteredLoader);
+            }
+            return irrelevant;
+        };
     }
 
     synchronized @CheckForNull FlowHead getFirstHead() {
@@ -1527,12 +1550,13 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     List<GraphListener> getListenersToRun() {
-        List<GraphListener> l = new ArrayList<>();
-
+        // Listeners from extensions always come first, ordered by `Extension.ordinal`. Listeners added via
+        // `addListener` are then notified in the reverse order that they were added (see `addListener`) so that the
+        // `build-finalizing WorkflowRun$GraphL` always runs last.
+        List<GraphListener> l = new ArrayList<>(ExtensionList.lookup(GraphListener.class));
         if (listeners != null) {
             l.addAll(listeners);
         }
-        l.addAll(ExtensionList.lookup(GraphListener.class));
 
         return l;
     }
@@ -1556,6 +1580,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     for (GraphListener listener : toRun) {
                         if (listener instanceof GraphListener.Synchronous == synchronous) {
                             try {
+                                LOGGER.fine(() -> "notifying " + listener + " of " + node);
                                 listener.onNewHead(node);
                             } catch (Throwable x) {
                                 LOGGER.log(Level.WARNING, null, x);
@@ -1577,21 +1602,21 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
     }
 
-    @Override public Authentication getAuthentication() {
+    @Override public Authentication getAuthentication2() {
         if (user == null) {
-            return ACL.SYSTEM;
+            return ACL.SYSTEM2;
         }
         try {
             User u = User.getById(user, true);
             if (u == null) {
-                return Jenkins.ANONYMOUS;
+                return Jenkins.ANONYMOUS2;
             } else {
-                return u.impersonate();
+                return u.impersonate2();
             }
         } catch (UsernameNotFoundException x) {
             LOGGER.log(Level.WARNING, "could not restore authentication", x);
             // Should not expose this to callers.
-            return Jenkins.ANONYMOUS;
+            return Jenkins.ANONYMOUS2;
         }
     }
 
@@ -1667,47 +1692,81 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     @Restricted(DoNotUse.class)
     @Terminator(attains = FlowExecutionList.EXECUTIONS_SUSPENDED)
     public static void suspendAll() {
-        try (Timeout t = Timeout.limit(3, TimeUnit.MINUTES)) { // TODO some complicated sequence of calls to Futures could allow all of them to run in parallel
-            LOGGER.fine("starting to suspend all executions");
-            for (FlowExecution execution : FlowExecutionList.get()) {
-                if (execution instanceof CpsFlowExecution) {
-                    CpsFlowExecution cpsExec = (CpsFlowExecution) execution;
-                    try {
-                        cpsExec.checkAndAbortNonresumableBuild();
-
-                        LOGGER.log(Level.FINE, "waiting to suspend {0}", execution);
-                        // Like waitForSuspension but with a timeout:
-                        if (cpsExec.programPromise != null) {
-                            LOGGER.log(Level.FINER, "Waiting for Pipeline to go to sleep for shutdown: "+execution);
-                            try {
-                                cpsExec.programPromise.get(1, TimeUnit.MINUTES).scheduleRun().get(1, TimeUnit.MINUTES);
-                                LOGGER.log(Level.FINER, " Pipeline went to sleep OK: "+execution);
-                            } catch (InterruptedException | TimeoutException ex) {
-                                LOGGER.log(Level.WARNING, "Error waiting for Pipeline to suspend: " + cpsExec, ex);
-                            }
-                        }
-                        cpsExec.checkpoint(true);
-                        if (cpsExec.programPromise != null) {
-                            cpsExec.runInCpsVmThread(new FutureCallback<>() {
-                                @Override public void onSuccess(CpsThreadGroup g) {
-                                    LOGGER.fine(() -> "shutting down CPS VM threadin for " + cpsExec);
-                                    g.shutdown();
-                                }
-                                @Override public void onFailure(Throwable t) {
-                                    LOGGER.log(Level.WARNING, null, t);
-                                }
-                            });
-                        }
-                        if (cpsExec.owner != null) {
-                            cpsExec.owner.getListener().getLogger().close();
-                        }
-                    } catch (Exception ex) {
-                        LOGGER.log(Level.WARNING, "Error persisting Pipeline execution at shutdown: " + cpsExec.owner, ex);
-                    }
+        LOGGER.fine("looking for executions to suspend");
+        var pool = new ForkJoinPool();
+        try {
+            var tasks = new ArrayList<Callable<Boolean>>();
+            for (var fe : FlowExecutionList.get()) {
+                if (fe instanceof CpsFlowExecution cpsExec) {
+                    LOGGER.finer(() -> "will request suspension of " + cpsExec);
+                    tasks.add(cpsExec::suspend);
                 }
             }
-            LOGGER.fine("finished suspending all executions");
+            LOGGER.fine(() -> "waiting for " + tasks.size() + " suspensions");
+            // TODO 2.516.x getDuration
+            var timeout = Duration.ofSeconds(SystemProperties.getLong(CpsFlowExecution.class.getName() + ".suspendTimeout", 10L));
+            var futures = pool.invokeAll(tasks, timeout.toMillis(), TimeUnit.MILLISECONDS);
+            int failed = tasks.size();
+            for (var future : futures) {
+                if (future.isDone() && !future.isCancelled() && future.get()) {
+                    failed--;
+                }
+            }
+            if (failed == 0) {
+                LOGGER.fine("finished suspending all executions");
+            } else {
+                LOGGER.warning(failed + "/" + tasks.size() + " builds did not finish suspending within " + timeout.toSeconds() + " seconds");
+            }
+        } catch (Exception x) {
+            LOGGER.log(Level.WARNING, "Unexpected error suspending pipeline builds; some may not be in a consistent state on resume", x);
+        } finally {
+            pool.shutdown();
         }
+    }
+
+    private boolean suspend() {
+        var steps = new AtomicInteger();
+        try {
+            var nonresumable = checkAndAbortNonresumableBuild();
+            // Like waitForSuspension but with a timeout:
+            if (programPromise != null && programPromise.isDone()) {
+                LOGGER.fine(() -> "waiting to suspend " + this);
+                try {
+                    var program = programPromise.get();
+                    var f = nonresumable ? program.scheduleRun() : program.terminating();
+                    f.get(1, TimeUnit.MINUTES);
+                    LOGGER.finer(() -> " Pipeline went to sleep OK: " + this);
+                    steps.incrementAndGet();
+                } catch (InterruptedException | TimeoutException ex) {
+                    LOGGER.warning(() -> "Timed out waiting for Pipeline to suspend: " + this);
+                    LOGGER.log(Level.FINER, null, ex);
+                    // if helpful, could log CPS VM thread dump (though this itself could be expensive)
+                }
+            } else {
+                LOGGER.fine(() -> "not trying to suspend " + this);
+            }
+            checkpoint(true);
+            if (programPromise != null) {
+                runInCpsVmThread(new FutureCallback<>() {
+                    @Override public void onSuccess(CpsThreadGroup g) {
+                        LOGGER.fine(() -> "shutting down CPS VM for " + CpsFlowExecution.this);
+                        g.shutdown();
+                        steps.incrementAndGet();
+                    }
+                    @Override public void onFailure(Throwable t) {
+                        LOGGER.log(t instanceof RejectedExecutionException ? Level.FINE : Level.WARNING, "failed to shut down " + CpsFlowExecution.this, t);
+                    }
+                });
+            }
+            saveOwner();
+            if (owner != null && !isComplete()) {
+                owner.getListener().getLogger().close();
+                steps.incrementAndGet();
+            }
+        } catch (Exception ex) {
+            LOGGER.log(Level.WARNING, "Failed to persist build at shutdown: " + this, ex);
+        }
+        return steps.get() == 3; // suspended && shut down && closed
     }
 
     // TODO: write a custom XStream Converter so that while we are writing CpsFlowExecution, it holds that lock
@@ -1790,7 +1849,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             w.endNode();
         }
 
-        @SuppressFBWarnings(value = {"BX_UNBOXING_IMMEDIATELY_REBOXED", "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"}, justification = "Nastiness with the impl and timings variable could be null if deserialized from old version")
         public Object unmarshal(HierarchicalStreamReader reader, final UnmarshallingContext context) {
                 CpsFlowExecution result;
 
@@ -1864,7 +1922,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     }
 
                     if (result.loadedScripts == null) {
-                        result.loadedScripts = new HashMap<>();   // field added later
+                        result.loadedScripts = new LinkedHashMap<>(); // field added later
                     }
                     result.liveTimings = result.timings == null ?
                         new ConcurrentHashMap<>() :
@@ -1873,6 +1931,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                             la.add(kv.getValue());
                             return la;
                         }));
+                    result.liveIncompleteTimings = ConcurrentHashMap.newKeySet();
                     return result;
                 } catch (Exception ex) {
                     LOGGER.log(Level.SEVERE, "Failed to even load the FlowExecution", ex);
@@ -1920,93 +1979,90 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         @Override
         public FlowNode getNode(String string) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                readWriteLock.readLock().lock();
-                try {
-                    return delegate.getNode(string);
-                } finally {
-                    readWriteLock.readLock().unlock();
-                }
+                return withReadLock(() -> delegate.getNode(string));
             }
         }
 
         @Override
         public void storeNode(@NonNull FlowNode n) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                readWriteLock.writeLock().lock();
-                try {
-                    delegate.storeNode(n);
-                } finally {
-                    readWriteLock.writeLock().unlock();
-                }
+                withWriteLock(() -> delegate.storeNode(n));
             }
         }
 
         @Override
         public void storeNode(@NonNull FlowNode n, boolean delayWritingActions) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                readWriteLock.writeLock().lock();
-                try {
-                    delegate.storeNode(n, delayWritingActions);
-                } finally {
-                    readWriteLock.writeLock().unlock();
-                }
+                withWriteLock(() -> delegate.storeNode(n, delayWritingActions));
             }
         }
 
         @Override
         public void flush() throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                readWriteLock.writeLock().lock();
-                try {
-                    delegate.flush();
-                } finally {
-                    readWriteLock.writeLock().unlock();
-                }
+                withWriteLock(() -> delegate.flush());
             }
         }
 
         @Override
         public void flushNode(FlowNode node) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                readWriteLock.writeLock().lock();
-                try {
-                    delegate.flushNode(node);
-                } finally {
-                    readWriteLock.writeLock().unlock();
-                }
+                withWriteLock(() -> delegate.flushNode(node));
             }
         }
 
         @Override
         public void autopersist(@NonNull FlowNode n) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                readWriteLock.writeLock().lock();
-                try {
-                    delegate.autopersist(n);
-                }  finally {
-                    readWriteLock.writeLock().unlock();
-                }
+                withWriteLock(() -> delegate.autopersist(n));
             }
         }
 
         @Override public List<Action> loadActions(FlowNode node) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
-                readWriteLock.readLock().lock();
-                try {
-                    return delegate.loadActions(node);
-                } finally {
-                    readWriteLock.readLock().unlock();
-                }
+                return withReadLock(() -> delegate.loadActions(node));
             }
         }
+
         @Override public void saveActions(FlowNode node, List<Action> actions) throws IOException {
             try (Timing t = time(TimingKind.flowNode)) {
+                withWriteLock(() -> delegate.saveActions(node, actions));
+            }
+        }
+
+        @Override public String toString() {
+            return "TimingFlowNodeStorage[" + delegate + "]";
+        }
+
+        @FunctionalInterface
+        private interface SupplierWithEx<T, E extends Exception> {
+            T get() throws E;
+        }
+
+        @FunctionalInterface
+        private interface RunnableWithEx<E extends Exception> {
+            void run() throws E;
+        }
+
+        private <T, E extends Exception> T withReadLock(@NonNull SupplierWithEx<T, E> supplier) throws E {
+            try (var ignored = new WithThreadName(" acquiring read lock on storage of " + CpsFlowExecution.this)) {
+                readWriteLock.readLock().lock();
+            }
+            try (var ignored = new WithThreadName(" with read lock on storage of " + CpsFlowExecution.this)) {
+                return supplier.get();
+            } finally {
+                readWriteLock.readLock().unlock();
+            }
+        }
+
+        private <E extends Exception> void withWriteLock(@NonNull RunnableWithEx<E> runnable) throws E {
+            try (var ignored = new WithThreadName(" acquiring write lock on storage of " + CpsFlowExecution.this)) {
                 readWriteLock.writeLock().lock();
-                try {
-                    delegate.saveActions(node, actions);
-                } finally {
-                    readWriteLock.writeLock().unlock();
-                }
+            }
+            try (var ignored = new WithThreadName(" with write lock on storage of " + CpsFlowExecution.this)) {
+                runnable.run();
+            } finally {
+                readWriteLock.writeLock().unlock();
             }
         }
     }
@@ -2019,7 +2075,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override public String getDisplayName() {
-            return "Timing data about recently completed Pipeline builds";
+            return "Recently completed Pipeline builds";
         }
 
         @Override public ComponentCategory getCategory() {
@@ -2027,7 +2083,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         }
 
         @Override public void addContents(Container container) {
-            container.add(new Content("nodes/master/pipeline-timings.txt") {
+            container.add(new Content("nodes/master/pipeline-recent-builds.txt") {
                 @Override public void writeTo(OutputStream outputStream) throws IOException {
                     PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
                     for (Job<?, ?> job : Jenkins.get().getAllItems(Job.class)) {
@@ -2081,6 +2137,8 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             container.add(new Content("nodes/master/pipeline-internal-calls.txt") {
                 @Override public void writeTo(OutputStream outputStream) throws IOException {
                     PrintWriter pw = new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
+                    pw.println("Internal Jenkins API calls from the last build of any job (plus one example of such a build):");
+                    Map<String, String> internalCallsToExample = new TreeMap<>();
                     for (Job<?, ?> job : Jenkins.get().getAllItems(Job.class)) {
                         // TODO as above
                         if (job instanceof Queue.FlyweightTask) {
@@ -2090,18 +2148,16 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                                 if (owner != null) {
                                     FlowExecution exec = owner.getOrNull();
                                     if (exec instanceof CpsFlowExecution) {
-                                        Set<String> calls = ((CpsFlowExecution) exec).getInternalCalls();
-                                        if (!calls.isEmpty()) {
-                                            pw.println("Internal calls for " + run + ":");
-                                            for (String call : calls) {
-                                                pw.println("  " + call);
-                                            }
-                                            pw.println();
+                                        for (var call : ((CpsFlowExecution) exec).getInternalCalls()) {
+                                            internalCallsToExample.putIfAbsent(call, run.toString());
                                         }
                                     }
                                 }
                             }
                         }
+                    }
+                    for (var entry : internalCallsToExample.entrySet()) {
+                        pw.println(entry.getKey() + " (" + entry.getValue() + ")");
                     }
                     pw.flush();
                 }
@@ -2122,8 +2178,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      *   or pre-emptively lock the run before locking the execution and saving. */
     void saveOwner() {
         try {
-            if (this.owner != null && this.owner.getExecutable() instanceof Saveable) {  // Null-check covers some anomalous cases we've seen
-                Saveable saveable = (Saveable)(this.owner.getExecutable());
+            if (owner != null && owner.getExecutable() instanceof Saveable saveable) {  // Null-check covers some anomalous cases we've seen
                 persistedClean = true;
                 if (storage != null && storage.delegate != null) {
                     // Defensively flush FlowNodes to storage
@@ -2148,7 +2203,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      */
     private void checkpoint(boolean shuttingDown) {
         if (isComplete() || this.getDurabilityHint().isPersistWithEveryStep()) {
-            // Nothing to persist OR we've already persisted it along the way.
+            LOGGER.fine(() -> "Nothing to persist for " + this + " or it has already been persisted along the way");
             return;
         }
         LOGGER.log(Level.INFO, "Attempting to save a checkpoint of all data for {0}{1}", new Object[] {
@@ -2212,6 +2267,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
             persistedClean = persistOk;
             try {
+                LOGGER.fine(() -> "Saving owner for " + this);
                 saveOwner();
             } catch (Exception ex) {
                 persistOk = false;
@@ -2235,9 +2291,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     }
 
     /** Abort any running builds at Jenkins shutdown if they don't support resuming at next startup. */
-    private void checkAndAbortNonresumableBuild() {
+    private boolean checkAndAbortNonresumableBuild() {
         if (isComplete() || this.getDurabilityHint().isPersistWithEveryStep() || !isResumeBlocked()) {
-            return;
+            return false;
         }
         try {
             owner.getListener().getLogger().println("Failing build: shutting down controller and build is marked to not resume");
@@ -2265,6 +2321,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         } catch (IOException ioe) {
             LOGGER.log(Level.WARNING, "Error just doing logging", ioe);
         }
+        return true;
     }
 
 }

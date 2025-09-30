@@ -351,7 +351,7 @@ public class DSLTest {
     * Tests the ability to execute a user defined closure with one arguments
     */
     @Test public void userDefinedClosure1ArgInvocationExecution() throws Exception {
-        p.setDefinition(new CpsFlowDefinition("my_closure = { String message -> \n" +
+        p.setDefinition(new CpsFlowDefinition("def my_closure = { String message -> \n" +
                                               "  echo message \n" +
                                               "}\n" + 
                                               "my_closure(\"my message!\") ", false));
@@ -363,7 +363,7 @@ public class DSLTest {
     * Tests the ability to execute a user defined closure with 2 arguments
     */
     @Test public void userDefinedClosure2ArgInvocationExecution() throws Exception {
-        p.setDefinition(new CpsFlowDefinition("my_closure = { String message1, String message2 -> \n" +
+        p.setDefinition(new CpsFlowDefinition("def my_closure = { String message1, String message2 -> \n" +
                                               "  echo \"my message is ${message1} and ${message2}\" \n" +
                                               "}\n" + 
                                               "my_closure(\"string1\", \"string2\") ", false));
@@ -375,7 +375,7 @@ public class DSLTest {
     * Tests untyped arguments 
     */
     @Test public void userDefinedClosureUntypedArgInvocationExecution() throws Exception {
-        p.setDefinition(new CpsFlowDefinition("my_closure = { a , b -> \n" +
+        p.setDefinition(new CpsFlowDefinition("def my_closure = { a , b -> \n" +
                                                       "  echo \"my message is ${a} and ${b}\" \n" +
                                                       "}\n" +
                                                       "my_closure(\"string1\" ,2)",false));

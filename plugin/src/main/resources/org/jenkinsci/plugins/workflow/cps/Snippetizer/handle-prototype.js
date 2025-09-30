@@ -1,19 +1,15 @@
-function handlePrototype(url, crumb) {
+function handlePrototype(url) {
     buildFormTree(document.forms.config);
-    // TODO JSON.stringify fails in some circumstances: https://gist.github.com/jglick/70ec4b15c1f628fdf2e9 due to Array.prototype.toJSON
-    // TODO simplify when Prototype.js is removed
-    const json = Object.toJSON ? Object.toJSON(JSON.parse(document.forms.config.elements.json.value).prototype) : JSON.stringify(JSON.parse(document.forms.config.elements.json.value).prototype);
+    const json = JSON.stringify(JSON.parse(document.forms.config.elements.json.value).prototype);
     if (!json) {
         return; // just a separator
     }
 
-    const headers = new Headers();
-    headers.append("Content-Type", "application/x-www-form-urlencoded");
-    headers.append("Jenkins-Crumb", crumb);
-
     fetch(url, {
         method: "POST",
-        headers: headers,
+        headers: crumb.wrap({
+            "Content-Type": "application/x-www-form-urlencoded"
+        }),
         body: "json=" + encodeURIComponent(json),
 
     })
@@ -37,9 +33,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const generatePipelineScript = document.getElementById("generatePipelineScript");
     const url = generatePipelineScript.getAttribute("data-url");
-    const crumb = generatePipelineScript.getAttribute("data-crumb");
     generatePipelineScript.onclick = (_) => {
-        handlePrototype(url, crumb);
+        handlePrototype(url);
         return false;
     };
 

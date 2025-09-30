@@ -60,7 +60,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
-import org.apache.commons.lang.StringUtils;
 import org.codehaus.groovy.reflection.CachedClass;
 import org.codehaus.groovy.reflection.ReflectionCache;
 import org.jenkinsci.Symbol;
@@ -138,7 +137,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
 
     private static final String KEEP_STEP_ARGUMENTS_PROPERTYNAME = (DSL.class.getName()+".keepStepArguments");
 
-    private static boolean isKeepStepArguments = StringUtils.isEmpty(System.getProperty(KEEP_STEP_ARGUMENTS_PROPERTYNAME))
+    private static boolean isKeepStepArguments = System.getProperty(KEEP_STEP_ARGUMENTS_PROPERTYNAME) == null || System.getProperty(KEEP_STEP_ARGUMENTS_PROPERTYNAME).isEmpty()
             || Boolean.parseBoolean(System.getProperty(KEEP_STEP_ARGUMENTS_PROPERTYNAME));
 
     /** Tell us if we should store {@link Step} arguments in an {@link org.jenkinsci.plugins.workflow.actions.ArgumentsAction}

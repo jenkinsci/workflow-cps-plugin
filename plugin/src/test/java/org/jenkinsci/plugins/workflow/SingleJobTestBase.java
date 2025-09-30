@@ -27,7 +27,7 @@ package org.jenkinsci.plugins.workflow;
 import hudson.model.queue.QueueTaskFuture;
 import hudson.slaves.DumbSlave;
 import jenkins.model.Jenkins;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;

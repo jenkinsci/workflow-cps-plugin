@@ -1,20 +1,21 @@
 package org.jenkinsci.plugins.workflow.testMetaStep;
 
-import com.google.inject.Inject;
 import hudson.Extension;
 import hudson.model.TaskListener;
+import java.util.Set;
 import org.jenkinsci.plugins.workflow.cps.DSLTest;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousNonBlockingStepExecution;
-import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.steps.StepExecutions;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
  * @author Andrew Bayer
  * @see DSLTest
  */
-public class MonomorphicWithSymbolStep extends AbstractStepImpl {
+public class MonomorphicWithSymbolStep extends Step {
 
     public final MonomorphicDataWithSymbol data;
 
@@ -23,26 +24,12 @@ public class MonomorphicWithSymbolStep extends AbstractStepImpl {
         this.data = data;
     }
 
-    private static final class Execution extends AbstractSynchronousNonBlockingStepExecution<Void> {
-        @Inject
-        private transient MonomorphicWithSymbolStep step;
-        @StepContextParameter
-        private transient TaskListener listener;
-
-        @Override protected Void run() throws Exception {
-            listener.getLogger().println(step.data.getArgs());
-            return null;
-        }
-
-        private static final long serialVersionUID = 1L;
-
+    @Override public StepExecution start(StepContext context) throws Exception {
+        return StepExecutions.synchronousNonBlockingVoid(context, c -> c.get(TaskListener.class).getLogger().println(data.getArgs()));
     }
 
     @Extension
-    public static final class DescriptorImpl extends AbstractStepDescriptorImpl {
-        public DescriptorImpl() {
-            super(Execution.class);
-        }
+    public static final class DescriptorImpl extends StepDescriptor {
 
         @Override public String getFunctionName() {
             return "monomorphWithSymbolStep";
@@ -51,7 +38,11 @@ public class MonomorphicWithSymbolStep extends AbstractStepImpl {
         @Override public String getDisplayName() {
             return "Testing monomorphic single parameter with a symbol.";
         }
-    }
 
+        @Override public Set<? extends Class<?>> getRequiredContext() {
+            return Set.of(TaskListener.class);
+        }
+
+    }
 
 }

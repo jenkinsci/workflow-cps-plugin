@@ -34,6 +34,7 @@ public class NotBlock implements Block {
         return new ContinuationImpl(e, k).then(b, e, cast);
     }
 
+    @SuppressFBWarnings(value = "SIC_INNER_SHOULD_BE_STATIC", justification = "Too late to fix compatibly.")
     class ContinuationImpl extends ContinuationGroup {
         final Continuation k;
         final Env e;

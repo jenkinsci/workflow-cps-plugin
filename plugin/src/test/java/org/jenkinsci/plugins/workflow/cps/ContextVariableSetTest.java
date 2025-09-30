@@ -39,7 +39,6 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.log.TaskListenerDecorator;
-import org.jenkinsci.plugins.workflow.steps.BodyInvoker;
 import org.jenkinsci.plugins.workflow.steps.DynamicContext;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
@@ -155,21 +154,20 @@ public class ContextVariableSetTest {
         }
     }
     private static final class YesPleaseDecorate implements Serializable {}
-    public static final class DecoratorStep extends Step implements Serializable {
+    public static final class DecoratorStep extends Step {
         @DataBoundConstructor public DecoratorStep() {}
         @DataBoundSetter public @CheckForNull String message;
         @Override public StepExecution start(StepContext context) throws Exception {
-            return StepExecutions.block(context, this::start);
-        }
-        private void start(StepContext context, BodyInvoker invoker) throws Exception {
-            if (message != null) {
-                TaskListenerDecorator original = context.get(TaskListenerDecorator.class);
-                DecoratorImpl subsequent = new DecoratorImpl(message);
-                LOGGER.log(Level.INFO, "merging {0} with {1}", new Object[] {original, subsequent});
-                invoker.withContext(TaskListenerDecorator.merge(original, subsequent));
-            } else {
-                invoker.withContext(new YesPleaseDecorate());
-            }
+            return StepExecutions.block(context, (c, invoker) -> {
+                if (message != null) {
+                    TaskListenerDecorator original = c.get(TaskListenerDecorator.class);
+                    DecoratorImpl subsequent = new DecoratorImpl(message);
+                    LOGGER.log(Level.INFO, "merging {0} with {1}", new Object[] {original, subsequent});
+                    invoker.withContext(TaskListenerDecorator.merge(original, subsequent));
+                } else {
+                    invoker.withContext(new YesPleaseDecorate());
+                }
+            });
         }
         @TestExtension("smokes") public static final class DescriptorImpl extends StepDescriptor {
             @Override public String getFunctionName() {
@@ -213,11 +211,10 @@ public class ContextVariableSetTest {
     public static final class GetMessageStep extends Step {
         @DataBoundConstructor public GetMessageStep() {}
         @Override public StepExecution start(StepContext context) throws Exception {
-            return StepExecutions.synchronous(context, GetMessageStep::run);
-        }
-        private static Object run(StepContext context) throws Exception {
-            Message message = context.get(Message.class);
-            return message != null ? message.text : null;
+            return StepExecutions.synchronous(context, c -> {
+                Message message = c.get(Message.class);
+                return message != null ? message.text : null;
+            });
         }
         @TestExtension("dynamicVsStatic") public static final class DescriptorImpl extends StepDescriptor {
             @Override public String getFunctionName() {
@@ -228,7 +225,7 @@ public class ContextVariableSetTest {
             }
         }
     }
-    public static final class WithStaticMessageStep extends Step implements Serializable {
+    public static final class WithStaticMessageStep extends Step {
         public final String text;
         @DataBoundConstructor public WithStaticMessageStep(String text) {
             this.text = text;
@@ -266,7 +263,7 @@ public class ContextVariableSetTest {
             return dynamicMessage != null ? new Message(dynamicMessage.text) : null;
         }
     }
-    public static final class WithDynamicMessageStep extends Step implements Serializable {
+    public static final class WithDynamicMessageStep extends Step {
         public final String text;
         @DataBoundConstructor public WithDynamicMessageStep(String text) {
             this.text = text;

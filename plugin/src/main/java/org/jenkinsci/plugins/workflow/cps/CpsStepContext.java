@@ -43,6 +43,7 @@ import org.jenkinsci.plugins.workflow.graph.AtomNode;
 import org.jenkinsci.plugins.workflow.graph.BlockEndNode;
 import org.jenkinsci.plugins.workflow.graph.BlockStartNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.steps.FailureHandler;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
@@ -57,7 +58,10 @@ import net.jcip.annotations.GuardedBy;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -292,7 +296,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     protected <T> T doGet(Class<T> key) throws IOException, InterruptedException {
         CpsThread t = getThreadSynchronously();
         if (t == null) {
-            throw new IOException("cannot find current thread");
+            throw new IOException("cannot find current thread in " + this);
         }
         return t.getContextVariable(key, this::getExecution, this::getNode);
     }
@@ -301,7 +305,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         if (node == null) {
             node = getExecution().getNode(id);
             if (node == null) {
-                throw new IOException("no node found for " + id);
+                throw new IOException("no node found for " + id + " in " + this);
             }
         }
         return node;
@@ -311,6 +315,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         if (t == null) {
             throw new IllegalArgumentException();
         }
+        t = FailureHandler.apply(this, t);
         completed(new Outcome(null, t));
     }
 
@@ -344,14 +349,14 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                     LOGGER.log(Level.FINE, "earlier success: {0}", outcome.getNormal());
                 }
             }
-            if (failure != null && earlierFailure != null && !refersTo(failure, earlierFailure)) {
+            if (failure != null && earlierFailure != null && !refersTo(failure, earlierFailure, Collections.newSetFromMap(new IdentityHashMap<>()))) {
                 earlierFailure.addSuppressed(failure);
             }
         }
     }
 
-    private static boolean refersTo(Throwable t1, Throwable t2) {
-        return t1 == t2 || t1.getCause() != null && refersTo(t1.getCause(), t2) || Stream.of(t1.getSuppressed()).anyMatch(t3 -> refersTo(t3, t2));
+    private static boolean refersTo(Throwable t1, Throwable t2, Set<Throwable> checked) {
+        return checked.add(t1) && (t1 == t2 || t1.getCause() != null && refersTo(t1.getCause(), t2, checked) || Stream.of(t1.getSuppressed()).anyMatch(t3 -> refersTo(t3, t2, checked)));
     }
 
     /**
@@ -359,6 +364,13 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      */
     private void scheduleNextRun() {
         if (syncMode) {
+            // probably rare for a legit sync step to have a body (unless short-circuiting execution of the body, as
+            // running a body in sync mode is not allowed), but it's possible for a (typically) async step to be
+            // *treated* as sync due to having an outcome set prematurely (e.g. from a StepListener)
+            if (threadGroup != null && body != null) {
+                threadGroup.unexport(body);
+                body = null;
+            }
             // if we get the result set before the start method returned, then DSL.invokeMethod() will
             // plan the next action.
             return;
@@ -435,7 +447,9 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                 }
             });
         } catch (IOException x) {
-            LOGGER.log(Level.FINE, null, x);
+            // TODO: If the problem is with the FlowNode and not the CpsFlowExecution, should we try to call
+            // CpsVmExecutorService.reportProblem or CpsFlowExecution.croak to kill the build right away?
+            LOGGER.log(Level.WARNING, "Unable to load FlowNode or CpsFlowExecution when completing " + this + ", which is likely to cause its execution to hang indefinitely", x);
         }
     }
 

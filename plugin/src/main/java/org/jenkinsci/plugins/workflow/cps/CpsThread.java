@@ -26,7 +26,6 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
-import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import java.io.IOException;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
@@ -43,7 +42,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-import org.jenkinsci.plugins.workflow.cps.persistence.IteratorHack;
 
 import static java.util.logging.Level.FINE;
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
@@ -146,6 +144,7 @@ public final class CpsThread implements Serializable {
         }
     }
 
+    @CheckForNull
     public ContextVariableSet getContextVariables() {
         return contextVariables;
     }
@@ -161,11 +160,6 @@ public final class CpsThread implements Serializable {
     /*package*/ void setStep(StepExecution step) {
         this.step = step;
     }
-
-    private static final List<Class> CATEGORIES = ImmutableList.<Class>builder()
-            .addAll(Continuable.categories)
-            .add(IteratorHack.class)
-            .build();
 
     /**
      * Executes CPS code synchronously a little bit more, until it hits
@@ -184,7 +178,7 @@ public final class CpsThread implements Serializable {
             LOGGER.fine(() -> "runNextChunk on " + resumeValue);
             final Outcome o = resumeValue;
             resumeValue = null;
-            outcome = program.run0(o, CATEGORIES);
+            outcome = program.run0(o);
             if (outcome.getAbnormal() != null) {
                 LOGGER.log(FINE, "ran and produced error", outcome.getAbnormal());
             } else {
@@ -243,6 +237,7 @@ public final class CpsThread implements Serializable {
      * something is unexpectedly holding a reference directly to it (see JENKINS-63164 for an example scenario).
      */
     void cleanUp() {
+        LOGGER.finest(() -> "Cleaning up " + this);
         program = null;
         resumeValue = null;
         step = null;

@@ -42,23 +42,23 @@
     </licenses>
     <properties>
         <no-test-jar>false</no-test-jar>
-        <node.version>18.15.0</node.version>
-        <yarn.version>1.22.19</yarn.version>
+        <node.version>22.14.0</node.version>
+
+        <!-- Opt in to Jenkins handling eslint results -->
+        <maven.test.failure.ignore>false</maven.test.failure.ignore>
+        <frontend.testFailureIgnore>${maven.test.failure.ignore}</frontend.testFailureIgnore>
+        <useBeta>true</useBeta> <!-- FailureHandler -->
+        <hpi.bundledArtifacts>diff4j,groovy-cps</hpi.bundledArtifacts>
+        <hpi.strictBundledArtifacts>true</hpi.strictBundledArtifacts>
     </properties>
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.387.x</artifactId>
-                <version>2378.v3e03930028f2</version>
+                <artifactId>bom-${jenkins.baseline}.x</artifactId>
+                <version>5294.va_d2e144c80e1</version>
                 <scope>import</scope>
                 <type>pom</type>
-            </dependency>
-            <!-- TODO until in BOM: -->
-            <dependency>
-              <groupId>org.jenkins-ci.plugins</groupId>
-              <artifactId>support-core</artifactId>
-              <version>1366.v9d076592655d</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -109,12 +109,6 @@
                     <artifactId>support-log-formatter</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.plugins.workflow</groupId>
-            <artifactId>workflow-step-api</artifactId>
-            <classifier>tests</classifier>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -236,37 +230,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>subversion</artifactId>
-            <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.sshd</groupId>
-                    <artifactId>sshd-common</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.sshd</groupId>
-                    <artifactId>sshd-core</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>subversion</artifactId>
-            <classifier>tests</classifier>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.19.3</version>
+            <version>1.21.3</version>
             <scope>test</scope>
             <exclusions>
                 <!-- Provided by Jenkins core -->
-                <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-compress</artifactId>
-                </exclusion>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>slf4j-api</artifactId>
@@ -274,9 +243,24 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.tmatesoft.svnkit</groupId>
-            <artifactId>svnkit-cli</artifactId>
-            <version>1.10.10</version>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <version>4.3.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jenkins</groupId>
+            <artifactId>configuration-as-code</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jenkins.configuration-as-code</groupId>
+            <artifactId>test-harness</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jenkins.plugins</groupId>
+            <artifactId>commons-lang3-api</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

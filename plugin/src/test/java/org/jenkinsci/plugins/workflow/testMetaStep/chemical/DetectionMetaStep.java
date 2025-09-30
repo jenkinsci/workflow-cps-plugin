@@ -1,12 +1,13 @@
 package org.jenkinsci.plugins.workflow.testMetaStep.chemical;
 
-import com.google.inject.Inject;
 import hudson.Extension;
 import hudson.model.TaskListener;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousNonBlockingStepExecution;
-import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
+import java.util.Set;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.steps.StepExecutions;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.kohsuke.stapler.DataBoundConstructor;
 
@@ -15,7 +16,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
  *
  * @author Kohsuke Kawaguchi
  */
-public class DetectionMetaStep extends AbstractStepImpl {
+public class DetectionMetaStep extends Step {
 
     public final Chemical compound;
 
@@ -24,26 +25,12 @@ public class DetectionMetaStep extends AbstractStepImpl {
         this.compound = compound;
     }
 
-    private static final class Execution extends AbstractSynchronousNonBlockingStepExecution<Void> {
-        @Inject
-        private transient DetectionMetaStep step;
-        @StepContextParameter
-        private transient TaskListener listener;
-
-        @Override protected Void run() throws Exception {
-            listener.getLogger().println("Detecting "+step.compound.getClass().getName());
-            return null;
-        }
-
-        private static final long serialVersionUID = 1L;
-
+    @Override public StepExecution start(StepContext context) throws Exception {
+        return StepExecutions.synchronousNonBlockingVoid(context, c -> c.get(TaskListener.class).getLogger().println("Detecting " + compound.getClass().getName()));
     }
 
     @Extension(ordinal=100)
-    public static final class DescriptorImpl extends AbstractStepDescriptorImpl {
-        public DescriptorImpl() {
-            super(Execution.class);
-        }
+    public static final class DescriptorImpl extends StepDescriptor {
 
         @Override public String getFunctionName() {
             return "detect";
@@ -57,5 +44,10 @@ public class DetectionMetaStep extends AbstractStepImpl {
         @Override public String getDisplayName() {
             return "Detect a chemical compound";
         }
+
+        @Override public Set<? extends Class<?>> getRequiredContext() {
+            return Set.of(TaskListener.class);
+        }
+
     }
 }
