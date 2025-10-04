@@ -680,7 +680,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         Throwable mtlEx = null;
         int ecCount = 0;
         String xStr = Functions.printThrowable(x); // includes x.getMessage() contents
-        final Pattern LINE_SEP_PATTERN = Pattern.compile("\\R");
+        final Pattern LINE_SEP_PATTERN = Pattern.compile("\r?\n");
         String[] xLines = LINE_SEP_PATTERN.split(xStr);
 
         if (x.getClass().getSimpleName().equals("MethodTooLargeException")) {
