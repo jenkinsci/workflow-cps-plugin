@@ -1,13 +1,12 @@
 package org.jenkinsci.plugins.workflow.cps.persistence;
 
-import hudson.model.Run;
+import static java.lang.annotation.ElementType.TYPE;
+import static java.lang.annotation.RetentionPolicy.SOURCE;
 
+import hudson.model.Run;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
-
-import static java.lang.annotation.ElementType.TYPE;
-import static java.lang.annotation.RetentionPolicy.SOURCE;
 
 /**
  * Indicates that this class gets persisted in the {@code build.xml} as a part of

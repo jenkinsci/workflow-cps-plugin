@@ -3,11 +3,10 @@ package org.jenkinsci.plugins.workflow.cps;
 import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.impl.CpsClosure;
+import java.util.List;
 import org.codehaus.groovy.runtime.DefaultGroovyStaticMethods;
 import org.codehaus.groovy.runtime.InvokerHelper;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
-
-import java.util.List;
 
 /**
  * {@link CpsClosure} that intercepts the {@code sleep} call so that it gets handled via SleepStep,
@@ -35,17 +34,17 @@ public class CpsClosure2 extends CpsClosure {
         return InvokerHelper.invokeMethod(getOwner(), "sleep", arg);
     }
 
-/* Overriding methods defined in DefaultGroovyMethods
-        if we don't do this, definitions in DefaultGroovyMethods get called. One problem
-        is that most of them are not whitelisted, and the other problem is that they don't
-        always forward the call to the closure owner.
+    /* Overriding methods defined in DefaultGroovyMethods
+           if we don't do this, definitions in DefaultGroovyMethods get called. One problem
+           is that most of them are not whitelisted, and the other problem is that they don't
+           always forward the call to the closure owner.
 
-        In CpsScript we override these methods and redefine them as variants of the 'echo' step,
-        so for this to work the same from closure body, we need to redefine them.
- */
+           In CpsScript we override these methods and redefine them as variants of the 'echo' step,
+           so for this to work the same from closure body, we need to redefine them.
+    */
     @Whitelisted
     public void println(Object arg) {
-        InvokerHelper.invokeMethod(getOwner(), "println", new Object[]{arg});
+        InvokerHelper.invokeMethod(getOwner(), "println", new Object[] {arg});
     }
 
     @Whitelisted
@@ -55,11 +54,11 @@ public class CpsClosure2 extends CpsClosure {
 
     @Whitelisted
     public void print(Object arg) {
-        InvokerHelper.invokeMethod(getOwner(), "print", new Object[]{arg});
+        InvokerHelper.invokeMethod(getOwner(), "print", new Object[] {arg});
     }
 
     @Whitelisted
     public void printf(String format, Object value) {
-        InvokerHelper.invokeMethod(getOwner(), "printf", new Object[]{format,value});
+        InvokerHelper.invokeMethod(getOwner(), "printf", new Object[] {format, value});
     }
 }

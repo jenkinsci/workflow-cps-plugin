@@ -4,10 +4,9 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Env;
 import groovy.lang.Closure;
 import groovy.lang.MetaClassImpl;
+import java.util.List;
 import org.codehaus.groovy.classgen.asm.ClosureWriter;
 import org.codehaus.groovy.runtime.CurriedClosure;
-
-import java.util.List;
 
 /**
  * {@link Closure} whose code is CPS-transformed.
@@ -19,7 +18,7 @@ public class CpsClosure extends Closure {
 
     public CpsClosure(Object owner, Object thisObject, List<String> parameters, Block body, Env capture) {
         super(owner, thisObject);
-        this.def = new CpsClosureDef(parameters,body,capture,this);
+        this.def = new CpsClosureDef(parameters, body, capture, this);
     }
 
     /*package*/ void setParameterTypes(List<Class> types) {

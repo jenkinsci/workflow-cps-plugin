@@ -30,7 +30,6 @@ import hudson.ExtensionPoint;
 import hudson.model.RootAction;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.IOUtils;
@@ -50,80 +49,93 @@ public interface GroovySample extends ExtensionPoint {
     String script();
 
     @Restricted(DoNotUse.class)
-    @Extension final class Registry implements RootAction {
+    @Extension
+    final class Registry implements RootAction {
 
-        @Override public String getIconFileName() {
+        @Override
+        public String getIconFileName() {
             return null;
         }
 
-        @Override public String getDisplayName() {
+        @Override
+        public String getDisplayName() {
             return null;
         }
 
-        @Override public String getUrlName() {
+        @Override
+        public String getUrlName() {
             return "workflow-cps-samples";
         }
 
         public JSONObject doIndex() {
             JSONArray samples = new JSONArray();
-            ExtensionList.lookup(GroovySample.class).forEach(gs -> samples.add(new JSONObject().accumulate("name", gs.name()).accumulate("title", gs.title()).accumulate("script", gs.script())));
+            ExtensionList.lookup(GroovySample.class)
+                    .forEach(gs -> samples.add(new JSONObject()
+                            .accumulate("name", gs.name())
+                            .accumulate("title", gs.title())
+                            .accumulate("script", gs.script())));
             return new JSONObject().accumulate("samples", samples);
         }
-
     }
 
     @Restricted(NoExternalUse.class)
     abstract class Static implements GroovySample {
-        
-        @Override public String script() {
+
+        @Override
+        public String script() {
             try {
-                return IOUtils.toString(GroovySample.class.getResource("samples/" + name() + ".groovy"), StandardCharsets.UTF_8);
+                return IOUtils.toString(
+                        GroovySample.class.getResource("samples/" + name() + ".groovy"), StandardCharsets.UTF_8);
             } catch (IOException x) {
                 throw new AssertionError(x);
             }
         }
-
     }
 
     // TODO move to pipeline-model-definition
     @Restricted(DoNotUse.class)
-    @Extension(ordinal = 300) final class Hello extends Static {
+    @Extension(ordinal = 300)
+    final class Hello extends Static {
 
-        @Override public String name() {
+        @Override
+        public String name() {
             return "hello";
         }
 
-        @Override public String title() {
+        @Override
+        public String title() {
             return "Hello World";
         }
-
     }
 
     // TODO move to pipeline-model-definition
     @Restricted(DoNotUse.class)
-    @Extension(ordinal = 200) final class GitHubMaven extends Static {
+    @Extension(ordinal = 200)
+    final class GitHubMaven extends Static {
 
-        @Override public String name() {
+        @Override
+        public String name() {
             return "github-maven";
         }
 
-        @Override public String title() {
+        @Override
+        public String title() {
             return "GitHub + Maven";
         }
-
     }
 
     @Restricted(DoNotUse.class)
-    @Extension(ordinal = 100) final class Scripted extends Static {
+    @Extension(ordinal = 100)
+    final class Scripted extends Static {
 
-        @Override public String name() {
+        @Override
+        public String name() {
             return "scripted";
         }
 
-        @Override public String title() {
+        @Override
+        public String title() {
             return "Scripted Pipeline";
         }
-
     }
-
 }

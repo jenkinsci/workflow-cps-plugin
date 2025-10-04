@@ -10,6 +10,7 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
  *  {@link org.jenkinsci.plugins.workflow.graph.StepNode} interface in workflow-api plugin to allow broader access.
  */
 @Deprecated
-@SuppressFBWarnings(value="NM_SAME_SIMPLE_NAME_AS_INTERFACE", justification="We want to keep the SimpleName the same, to make it easy to replace usages")
-public interface StepNode extends org.jenkinsci.plugins.workflow.graph.StepNode {
-}
+@SuppressFBWarnings(
+        value = "NM_SAME_SIMPLE_NAME_AS_INTERFACE",
+        justification = "We want to keep the SimpleName the same, to make it easy to replace usages")
+public interface StepNode extends org.jenkinsci.plugins.workflow.graph.StepNode {}

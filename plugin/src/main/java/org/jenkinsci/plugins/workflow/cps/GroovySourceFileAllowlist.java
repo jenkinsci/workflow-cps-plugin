@@ -36,7 +36,6 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
@@ -74,17 +73,19 @@ public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
     }
 
     /**
-    * {@link ClassLoader} that acts normally except for returning {@code null} from {@link #getResource} and
-    * {@link #getResources} when looking up Groovy source files if the files are not allowed by
-    * {@link GroovySourceFileAllowlist}.
-    */
+     * {@link ClassLoader} that acts normally except for returning {@code null} from {@link #getResource} and
+     * {@link #getResources} when looking up Groovy source files if the files are not allowed by
+     * {@link GroovySourceFileAllowlist}.
+     */
     static class ClassLoaderImpl extends ClassLoader {
         private static final String LOG_MESSAGE_TEMPLATE =
-                "Preventing {0} from being loaded without sandbox protection in {1}. " +
-                "To allow access to this file, add any suffix of its URL to the system property ‘" +
-                DefaultAllowlist.ALLOWED_SOURCE_FILES_PROPERTY + "’ (use commas to separate multiple files). If you " +
-                "want to allow any Groovy file on the Jenkins classpath to be accessed, you may set the system " +
-                "property ‘" + DISABLED_PROPERTY + "’ to true.";
+                "Preventing {0} from being loaded without sandbox protection in {1}. "
+                        + "To allow access to this file, add any suffix of its URL to the system property ‘"
+                        + DefaultAllowlist.ALLOWED_SOURCE_FILES_PROPERTY
+                        + "’ (use commas to separate multiple files). If you "
+                        + "want to allow any Groovy file on the Jenkins classpath to be accessed, you may set the system "
+                        + "property ‘"
+                        + DISABLED_PROPERTY + "’ to true.";
 
         private final String owner;
 
@@ -110,8 +111,9 @@ public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
             if (DISABLED || url == null || !endsWithIgnoreCase(name, ".groovy") || isAllowed(url)) {
                 return url;
             }
-            // Note: This message gets printed twice because of https://github.com/apache/groovy/blob/41b990d0a20e442f29247f0e04cbed900f3dcad4/src/main/org/codehaus/groovy/control/ClassNodeResolver.java#L184-L186.
-            LOGGER.log(Level.WARNING, LOG_MESSAGE_TEMPLATE, new Object[] { url, owner });
+            // Note: This message gets printed twice because of
+            // https://github.com/apache/groovy/blob/41b990d0a20e442f29247f0e04cbed900f3dcad4/src/main/org/codehaus/groovy/control/ClassNodeResolver.java#L184-L186.
+            LOGGER.log(Level.WARNING, LOG_MESSAGE_TEMPLATE, new Object[] {url, owner});
             return null;
         }
 
@@ -127,7 +129,7 @@ public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
                 if (isAllowed(url)) {
                     filteredUrls.add(url);
                 } else {
-                    LOGGER.log(Level.WARNING, LOG_MESSAGE_TEMPLATE, new Object[] { url, owner });
+                    LOGGER.log(Level.WARNING, LOG_MESSAGE_TEMPLATE, new Object[] {url, owner});
                 }
             }
             return Collections.enumeration(filteredUrls);
@@ -156,7 +158,8 @@ public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
     @Extension
     public static class DefaultAllowlist extends GroovySourceFileAllowlist {
         private static final Logger LOGGER = Logger.getLogger(DefaultAllowlist.class.getName());
-        private static final String ALLOWED_SOURCE_FILES_PROPERTY = DefaultAllowlist.class.getCanonicalName() + ".ALLOWED_SOURCE_FILES";
+        private static final String ALLOWED_SOURCE_FILES_PROPERTY =
+                DefaultAllowlist.class.getCanonicalName() + ".ALLOWED_SOURCE_FILES";
         /**
          * A list containing suffixes of known-good Groovy source file URLs that need to be accessible to Pipeline code.
          */
@@ -187,17 +190,18 @@ public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
             loadDefaultAllowlist(ALLOWED_SOURCE_FILES);
             // Some plugins use test-specific Groovy DSLs.
             if (Main.isUnitTest) {
-                ALLOWED_SOURCE_FILES.addAll(List.of(
-                        // pipeline-model-definition
-                        "/org/jenkinsci/plugins/pipeline/modeldefinition/agent/impl/LabelAndOtherFieldAgentScript.groovy",
-                        "/org/jenkinsci/plugins/pipeline/modeldefinition/parser/GlobalStageNameTestConditionalScript.groovy",
-                        "/org/jenkinsci/plugins/pipeline/modeldefinition/parser/GlobalStepCountTestConditionalScript.groovy"
-                ));
+                ALLOWED_SOURCE_FILES.addAll(
+                        List.of(
+                                // pipeline-model-definition
+                                "/org/jenkinsci/plugins/pipeline/modeldefinition/agent/impl/LabelAndOtherFieldAgentScript.groovy",
+                                "/org/jenkinsci/plugins/pipeline/modeldefinition/parser/GlobalStageNameTestConditionalScript.groovy",
+                                "/org/jenkinsci/plugins/pipeline/modeldefinition/parser/GlobalStepCountTestConditionalScript.groovy"));
             }
         }
 
         private static void loadDefaultAllowlist(List<String> allowlist) throws IOException {
-            try (InputStream is = GroovySourceFileAllowlist.class.getResourceAsStream("GroovySourceFileAllowlist/default-allowlist");
+            try (InputStream is = GroovySourceFileAllowlist.class.getResourceAsStream(
+                            "GroovySourceFileAllowlist/default-allowlist");
                     BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -219,5 +223,4 @@ public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
             return false;
         }
     }
-
 }

@@ -1,5 +1,7 @@
 package com.cloudbees.groovy.cps;
 
+import static org.codehaus.groovy.syntax.Types.*;
+
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import com.cloudbees.groovy.cps.impl.CpsFunction;
 import com.cloudbees.groovy.cps.sandbox.Trusted;
@@ -35,7 +37,6 @@ import org.codehaus.groovy.control.customizers.CompilationCustomizer;
 import org.codehaus.groovy.runtime.powerassert.SourceText;
 import org.codehaus.groovy.syntax.SyntaxException;
 import org.codehaus.groovy.syntax.Token;
-import static org.codehaus.groovy.syntax.Types.*;
 import org.kohsuke.groovy.sandbox.SandboxTransformer;
 import org.kohsuke.groovy.sandbox.SandboxTransformer.InitialExpressionExpander;
 
@@ -153,7 +154,10 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
             // timestamp in the field name
             // see http://stackoverflow.com/questions/15310136/neverhappen-variable-in-compiled-classes
             if (classNode.getField(Verifier.__TIMESTAMP) == null) {
-                classNode.addField(Verifier.__TIMESTAMP, Modifier.STATIC | Modifier.PRIVATE, ClassHelper.long_TYPE,
+                classNode.addField(
+                        Verifier.__TIMESTAMP,
+                        Modifier.STATIC | Modifier.PRIVATE,
+                        ClassHelper.long_TYPE,
                         new ConstantExpression(0L));
             }
 
@@ -181,10 +185,10 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
      * Should this method be transformed?
      */
     protected boolean shouldBeTransformed(MethodNode node) {
-        return !node.isSynthetic() &&
-                !hasAnnotation(node, NonCPS.class) &&
-                !hasAnnotation(node, WorkflowTransformed.class) &&
-                !node.isAbstract();
+        return !node.isSynthetic()
+                && !hasAnnotation(node, NonCPS.class)
+                && !hasAnnotation(node, WorkflowTransformed.class)
+                && !node.isAbstract();
     }
 
     boolean hasAnnotation(MethodNode node, Class<? extends Annotation> a) {
@@ -236,23 +240,36 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         }
 
         /*
-              CpsFunction ___cps___N() {
-                Builder b = new Builder(...);
-                return new CpsFunction( << parameters >>, << body: AST tree building code >>);
-              }
-         */
+             CpsFunction ___cps___N() {
+               Builder b = new Builder(...);
+               return new CpsFunction( << parameters >>, << body: AST tree building code >>);
+             }
+        */
         String cpsName = "___cps___" + iota.getAndIncrement();
 
-        DeclarationExpression builderDeclaration = new DeclarationExpression(BUILDER, new Token(ASSIGN, "=", -1, -1), makeBuilder(m));
-        ReturnStatement returnStatement = new ReturnStatement(new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body.get())));
-        MethodNode builderMethod = m.getDeclaringClass().addMethod(cpsName, PRIVATE_STATIC_FINAL, FUNCTION_TYPE, new Parameter[0], new ClassNode[0],
-                new BlockStatement(Arrays.asList(new ExpressionStatement(builderDeclaration), returnStatement), new VariableScope())
-        );
+        DeclarationExpression builderDeclaration =
+                new DeclarationExpression(BUILDER, new Token(ASSIGN, "=", -1, -1), makeBuilder(m));
+        ReturnStatement returnStatement = new ReturnStatement(
+                new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body.get())));
+        MethodNode builderMethod = m.getDeclaringClass()
+                .addMethod(
+                        cpsName,
+                        PRIVATE_STATIC_FINAL,
+                        FUNCTION_TYPE,
+                        new Parameter[0],
+                        new ClassNode[0],
+                        new BlockStatement(
+                                Arrays.asList(new ExpressionStatement(builderDeclaration), returnStatement),
+                                new VariableScope()));
         builderMethod.addAnnotation(new AnnotationNode(WORKFLOW_TRANSFORMED_TYPE));
 
-        FieldNode f = m.getDeclaringClass().addField(cpsName, PRIVATE_STATIC_FINAL, FUNCTION_TYPE,
-                new StaticMethodCallExpression(m.getDeclaringClass(), cpsName, new TupleExpression()));
-//                new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body)));
+        FieldNode f = m.getDeclaringClass()
+                .addField(
+                        cpsName,
+                        PRIVATE_STATIC_FINAL,
+                        FUNCTION_TYPE,
+                        new StaticMethodCallExpression(m.getDeclaringClass(), cpsName, new TupleExpression()));
+        //                new ConstructorCallExpression(FUNCTION_TYPE, new TupleExpression(params, body)));
 
         Parameter[] pms = m.getParameters();
         List<Expression> paramExpressions = new ArrayList<>(pms.length);
@@ -260,7 +277,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
             paramExpressions.add(new VariableExpression(p));
         }
         ArrayExpression paramArray = new ArrayExpression(ClassHelper.OBJECT_TYPE, paramExpressions);
-        TupleExpression args = new TupleExpression(Arrays.asList(new ConstantExpression(m.getName()), new VariableExpression(f), THIS, paramArray));
+        TupleExpression args = new TupleExpression(
+                Arrays.asList(new ConstantExpression(m.getName()), new VariableExpression(f), THIS, paramArray));
 
         ConstructorCallExpression cce = new ConstructorCallExpression(CPSCALLINVK_TYPE, args);
         m.setCode(new ThrowStatement(cce));
@@ -269,11 +287,15 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
         if (LOGGER.isLoggable(Level.FINEST)) {
             LOGGER.log(Level.FINEST, "in {0} transformed {1} to {2}: throw {3} plus {4}: {5}; {6}", new Object[] {
-                classNode.getName(), m.getTypeDescriptor(),
+                classNode.getName(),
+                m.getTypeDescriptor(),
                 // TODO https://github.com/apache/groovy/pull/574 m.getCode().getText() does not work well
-                m.getText(), cce.getText(),
+                m.getText(),
+                cce.getText(),
                 // TODO ditto for builderMethod.getCode().getText()
-                builderMethod.getText(), builderDeclaration.getText(), returnStatement.getText()
+                builderMethod.getText(),
+                builderDeclaration.getText(),
+                returnStatement.getText()
             });
         }
     }
@@ -294,20 +316,24 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
      */
     protected Expression makeBuilder(MethodNode m) {
         String sourceName = sourceUnit.getName();
-        sourceName = sourceName.substring(Math.max(sourceName.lastIndexOf('\\'), sourceName.lastIndexOf('/')) + 1); // JENKINS-57085
-        Expression b = new ConstructorCallExpression(BUIDER_TYPE, new TupleExpression(
-                new ConstructorCallExpression(METHOD_LOCATION_TYPE, new TupleExpression(
-                        new ConstantExpression(m.getDeclaringClass().getName()),
-                        new ConstantExpression(m.getName()),
-                        new ConstantExpression(sourceName)
-                ))
-        ));
-        b = new MethodCallExpression(b, "withClosureType",
-                new TupleExpression(new ClassExpression(config.getClosureType())));
+        sourceName = sourceName.substring(
+                Math.max(sourceName.lastIndexOf('\\'), sourceName.lastIndexOf('/')) + 1); // JENKINS-57085
+        Expression b = new ConstructorCallExpression(
+                BUIDER_TYPE,
+                new TupleExpression(new ConstructorCallExpression(
+                        METHOD_LOCATION_TYPE,
+                        new TupleExpression(
+                                new ConstantExpression(m.getDeclaringClass().getName()),
+                                new ConstantExpression(m.getName()),
+                                new ConstantExpression(sourceName)))));
+        b = new MethodCallExpression(
+                b, "withClosureType", new TupleExpression(new ClassExpression(config.getClosureType())));
 
         Class tag = getTrustTag();
         if (tag != null) {
-            b = new MethodCallExpression(b, "contextualize",
+            b = new MethodCallExpression(
+                    b,
+                    "contextualize",
                     new PropertyExpression(new ClassExpression(ClassHelper.makeCached(tag)), "INSTANCE"));
         }
         return b;
@@ -325,14 +351,11 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
     /**
      * For methods that are not CPS-transformed.
      */
-    protected void visitNontransformedMethod(MethodNode m) {
-    }
+    protected void visitNontransformedMethod(MethodNode m) {}
 
-    protected void visitNontransformedField(FieldNode f) {
-    }
+    protected void visitNontransformedField(FieldNode f) {}
 
-    protected void visitNontransformedStatement(Statement s) {
-    }
+    protected void visitNontransformedStatement(Statement s) {}
 
     // TODO Java 8 @FunctionalInterface, or switch to Consumer<Expression>
     protected interface ParentClosure {
@@ -369,7 +392,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
      */
     protected void visitWithSafepoint(final Statement st) {
         if (config.getSafepoints().isEmpty()) {
-            visit(st);  // common case optimization
+            visit(st); // common case optimization
         } else {
             makeNode("block", new Runnable() {
                 @Override
@@ -492,8 +515,10 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                     visit(call.getObjectExpression());
                 }
                 if (call.isSpreadSafe()) {
-                    sourceUnit.addError(new SyntaxException("spread not yet supported for CPS transformation",
-                            call.getLineNumber(), call.getColumnNumber()));
+                    sourceUnit.addError(new SyntaxException(
+                            "spread not yet supported for CPS transformation",
+                            call.getLineNumber(),
+                            call.getColumnNumber()));
                 }
                 visit(call.getMethod());
                 literal(call.isSafe());
@@ -670,8 +695,10 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void visitSynchronizedStatement(SynchronizedStatement statement) {
-        sourceUnit.addError(new SyntaxException("synchronized is unsupported for CPS transformation",
-                statement.getLineNumber(), statement.getColumnNumber()));
+        sourceUnit.addError(new SyntaxException(
+                "synchronized is unsupported for CPS transformation",
+                statement.getLineNumber(),
+                statement.getColumnNumber()));
     }
 
     @Override
@@ -736,6 +763,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     // Constants from Token.type to a method on Builder
     private static final Map<Integer, String> BINARY_OP_TO_BUILDER_METHOD = new HashMap<>();
+
     static {
         BINARY_OP_TO_BUILDER_METHOD.put(COMPARE_EQUAL, "compareEqual");
         BINARY_OP_TO_BUILDER_METHOD.put(COMPARE_NOT_EQUAL, "compareNotEqual");
@@ -782,9 +810,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         BINARY_OP_TO_BUILDER_METHOD.put(KEYWORD_IN, "isCase");
     }
 
-    private void multipleAssignment(final Expression parentExpression,
-                                    final TupleExpression tuple,
-                                    final Expression rhs) {
+    private void multipleAssignment(
+            final Expression parentExpression, final TupleExpression tuple, final Expression rhs) {
         List<Expression> tupleExpressions = tuple.getExpressions();
 
         final VariableExpression rhsTmpVar = new VariableExpression("___cpsTmpVar___" + iota.getAndIncrement());
@@ -803,13 +830,14 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                 public void run() {
                     loc(parentExpression);
                     visit(tupleExpression);
-                    getMultipleAssignmentValueOrCast((VariableExpression)tupleExpression, rhsTmpVar, index);
+                    getMultipleAssignmentValueOrCast((VariableExpression) tupleExpression, rhsTmpVar, index);
                 }
             });
         }
     }
 
-    protected void getMultipleAssignmentValueOrCast(final VariableExpression varExp, final Expression rhs, final Expression index) {
+    protected void getMultipleAssignmentValueOrCast(
+            final VariableExpression varExp, final Expression rhs, final Expression index) {
         makeNode("cast", new Runnable() {
             @Override
             public void run() {
@@ -839,11 +867,10 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         if (name != null) {
             if (name.equals("assign")) {
                 if (exp.getLeftExpression() instanceof TupleExpression) {
-                    multipleAssignment(exp,
-                        (TupleExpression)exp.getLeftExpression(),
-                        exp.getRightExpression());
+                    multipleAssignment(exp, (TupleExpression) exp.getLeftExpression(), exp.getRightExpression());
                     return;
-                } else if (exp.getLeftExpression() instanceof VariableExpression || exp.getLeftExpression() instanceof FieldExpression) {
+                } else if (exp.getLeftExpression() instanceof VariableExpression
+                        || exp.getLeftExpression() instanceof FieldExpression) {
                     final Expression lhs = exp.getLeftExpression();
                     makeNode(name, new Runnable() {
                         @Override
@@ -869,8 +896,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
             return;
         }
 
-        sourceUnit.addError(new SyntaxException("Unsupported operation in this context",
-                exp.getLineNumber(), exp.getColumnNumber()));
+        sourceUnit.addError(new SyntaxException(
+                "Unsupported operation in this context", exp.getLineNumber(), exp.getColumnNumber()));
     }
 
     @Override
@@ -897,12 +924,12 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     protected String prepostfixOperatorSuffix(Token operation) {
         switch (operation.getType()) {
-        case PLUS_PLUS:
-            return "Inc";
-        case MINUS_MINUS:
-            return "Dec";
-        default:
-            throw new UnsupportedOperationException("Unknown operator:" + operation.getText());
+            case PLUS_PLUS:
+                return "Inc";
+            case MINUS_MINUS:
+                return "Dec";
+            default:
+                throw new UnsupportedOperationException("Unknown operator:" + operation.getText());
         }
     }
 
@@ -954,15 +981,17 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void visitTupleExpression(TupleExpression expression) {
-        sourceUnit.addError(new SyntaxException("Unsupported tuple expression in this context",
-                expression.getLineNumber(), expression.getColumnNumber()));
+        sourceUnit.addError(new SyntaxException(
+                "Unsupported tuple expression in this context",
+                expression.getLineNumber(),
+                expression.getColumnNumber()));
     }
 
     @Override
     public void visitMapExpression(final MapExpression exp) {
         if (exp.getMapEntryExpressions().size() > 125) {
-            sourceUnit.addError(new SyntaxException("Map expressions can only contain up to 125 entries",
-                    exp.getLineNumber(), exp.getColumnNumber()));
+            sourceUnit.addError(new SyntaxException(
+                    "Map expressions can only contain up to 125 entries", exp.getLineNumber(), exp.getColumnNumber()));
         } else {
             makeNode("map", new Runnable() {
                 @Override
@@ -978,15 +1007,19 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void visitMapEntryExpression(MapEntryExpression expression) {
-        sourceUnit.addError(new SyntaxException("Unsupported map entry expression for CPS transformation in this context",
-                expression.getLineNumber(), expression.getColumnNumber()));
+        sourceUnit.addError(new SyntaxException(
+                "Unsupported map entry expression for CPS transformation in this context",
+                expression.getLineNumber(),
+                expression.getColumnNumber()));
     }
 
     @Override
     public void visitListExpression(final ListExpression exp) {
         if (exp.getExpressions().size() > 250) {
-            sourceUnit.addError(new SyntaxException("List expressions can only contain up to 250 elements",
-                    exp.getLineNumber(), exp.getColumnNumber()));
+            sourceUnit.addError(new SyntaxException(
+                    "List expressions can only contain up to 250 elements",
+                    exp.getLineNumber(),
+                    exp.getColumnNumber()));
         } else {
             makeNode("list", new Runnable() {
                 @Override
@@ -1013,8 +1046,15 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
     @Override
     public void visitPropertyExpression(final PropertyExpression exp) {
         // TODO: spread
-        if (exp.getObjectExpression() instanceof VariableExpression && ((VariableExpression) exp.getObjectExpression()).isThisExpression() &&
-                exp.getProperty() instanceof ConstantExpression && classNode.getSetterMethod("set" + Verifier.capitalize((String) ((ConstantExpression) exp.getProperty()).getValue()), false) != null) {
+        if (exp.getObjectExpression() instanceof VariableExpression
+                && ((VariableExpression) exp.getObjectExpression()).isThisExpression()
+                && exp.getProperty() instanceof ConstantExpression
+                && classNode.getSetterMethod(
+                                "set"
+                                        + Verifier.capitalize(
+                                                (String) ((ConstantExpression) exp.getProperty()).getValue()),
+                                false)
+                        != null) {
             makeNode("attribute", new Runnable() {
                 @Override
                 public void run() {
@@ -1104,8 +1144,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
     @Override
     public void visitVariableExpression(final VariableExpression exp) {
         Variable ref = exp.getAccessedVariable();
-        if (ref instanceof VariableExpression /* local variable */ ||
-                 ref instanceof Parameter) {
+        if (ref instanceof VariableExpression /* local variable */ || ref instanceof Parameter) {
             makeNode("localVariable", new Runnable() {
                 @Override
                 public void run() {
@@ -1113,10 +1152,9 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                     literal(exp.getName());
                 }
             });
-        } else if (ref instanceof DynamicVariable ||
-                 ref instanceof PropertyNode ||
-                 ref instanceof FieldNode) {
-            if (ref instanceof FieldNode && classNode.getGetterMethod("get" + Verifier.capitalize(exp.getName())) != null) {
+        } else if (ref instanceof DynamicVariable || ref instanceof PropertyNode || ref instanceof FieldNode) {
+            if (ref instanceof FieldNode
+                    && classNode.getGetterMethod("get" + Verifier.capitalize(exp.getName())) != null) {
                 makeNode("attribute", new Runnable() {
                     @Override
                     public void run() {
@@ -1139,13 +1177,13 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
         } else if ("this".equals(exp.getName())) {
             // DN: Groovy allows you to use `this` in static methods and blocks to refer to the current class.
             /* Kohsuke: TODO: I don't really understand the 'true' block of the code, so I'm missing something
-                if (controller.isStaticMethod() || (!controller.getCompileStack().isImplicitThis() && controller.isStaticContext())) {
-                    if (controller.isInClosure()) classNode = controller.getOutermostClass();
-                    visitClassExpression(new ClassExpression(classNode));
-                } else {
-                    loadThis();
-                }
-             */
+               if (controller.isStaticMethod() || (!controller.getCompileStack().isImplicitThis() && controller.isStaticContext())) {
+                   if (controller.isInClosure()) classNode = controller.getOutermostClass();
+                   visitClassExpression(new ClassExpression(classNode));
+               } else {
+                   loadThis();
+               }
+            */
             makeNode("this_");
         } else if ("super".equals(exp.getName())) {
             makeNode("super_", new Runnable() {
@@ -1155,7 +1193,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                 }
             });
         } else {
-            sourceUnit.addError(new SyntaxException("Unsupported expression for CPS transformation", exp.getLineNumber(), exp.getColumnNumber()));
+            sourceUnit.addError(new SyntaxException(
+                    "Unsupported expression for CPS transformation", exp.getLineNumber(), exp.getColumnNumber()));
         }
     }
 
@@ -1176,10 +1215,7 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
                             }
                         });
                     }
-                    multipleAssignment(exp,
-                            exp.getTupleExpression(),
-                            exp.getRightExpression());
-
+                    multipleAssignment(exp, exp.getTupleExpression(), exp.getRightExpression());
                 }
             });
         } else if (exp.getRightExpression() instanceof EmptyExpression) {
@@ -1260,8 +1296,10 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
             });
         } else {
             // Note - it does not appear this path is actually reachable.
-            sourceUnit.addError(new SyntaxException("Unsupported array expression for CPS transformation in this context",
-                    exp.getLineNumber(), exp.getColumnNumber()));
+            sourceUnit.addError(new SyntaxException(
+                    "Unsupported array expression for CPS transformation in this context",
+                    exp.getLineNumber(),
+                    exp.getColumnNumber()));
         }
     }
 
@@ -1347,23 +1385,31 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void visitArgumentlistExpression(ArgumentListExpression expression) {
-        // This should not be reachable since ArgumentListExpression only shows up in contexts where we already handle it directly.
-        sourceUnit.addError(new SyntaxException("Unsupported argument list expression for CPS transformation in this context",
-                expression.getLineNumber(), expression.getColumnNumber()));
+        // This should not be reachable since ArgumentListExpression only shows up
+        // in contexts where we already handle it directly.
+        sourceUnit.addError(new SyntaxException(
+                "Unsupported argument list expression for CPS transformation in this context",
+                expression.getLineNumber(),
+                expression.getColumnNumber()));
     }
 
     @Override
     public void visitClosureListExpression(ClosureListExpression closureListExpression) {
-        // This should not be reachable since ClosureListExpression only shows up in context where we already handle it directly.
-        sourceUnit.addError(new SyntaxException("Unsupported closure list expression for CPS transformation in this context",
-                closureListExpression.getLineNumber(), closureListExpression.getColumnNumber()));
+        // This should not be reachable since ClosureListExpression only shows up
+        // in contexts where we already handle it directly.
+        sourceUnit.addError(new SyntaxException(
+                "Unsupported closure list expression for CPS transformation in this context",
+                closureListExpression.getLineNumber(),
+                closureListExpression.getColumnNumber()));
     }
 
     @Override
     public void visitBytecodeExpression(BytecodeExpression expression) {
         // This can't be encountered in a source file.
-        sourceUnit.addError(new SyntaxException("Unsupported expression for CPS transformation",
-                expression.getLineNumber(), expression.getColumnNumber()));
+        sourceUnit.addError(new SyntaxException(
+                "Unsupported expression for CPS transformation",
+                expression.getLineNumber(),
+                expression.getColumnNumber()));
     }
 
     private static final ClassNode OBJECT_TYPE = ClassHelper.makeCached(Object.class);
@@ -1384,7 +1430,8 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     private static final ClassNode SERIALIZABLE_TYPE = ClassHelper.makeCached(Serializable.class);
 
-    private static final VariableExpression BUILDER = new VariableExpression("b", BUILDER_TYPE); // new PropertyExpression(new ClassExpression(BUILDER_TYPE), "INSTANCE")
+    private static final VariableExpression BUILDER = new VariableExpression(
+            "b", BUILDER_TYPE); // new PropertyExpression(new ClassExpression(BUILDER_TYPE), "INSTANCE")
 
     private static final VariableExpression THIS = new VariableExpression("this");
 

@@ -24,26 +24,25 @@
 
 package org.jenkinsci.plugins.workflow.cps.nodes;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.Action;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
-import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
-import org.jenkinsci.plugins.workflow.graph.AtomNode;
-import org.jenkinsci.plugins.workflow.graph.FlowNode;
-import org.jenkinsci.plugins.workflow.steps.Step;
-import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
-
 import java.io.ObjectStreamException;
 import java.util.Collections;
 import java.util.Set;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.structs.SymbolLookup;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.actions.ArgumentsAction;
+import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
+import org.jenkinsci.plugins.workflow.graph.AtomNode;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 
 /**
  * {@link AtomNode} for executing {@link Step} without body closure.
@@ -60,7 +59,7 @@ public class StepAtomNode extends AtomNode implements StepNode {
 
     public StepAtomNode(CpsFlowExecution exec, StepDescriptor d, FlowNode parent) {
         super(exec, exec.iotaStr(), parent);
-        this.descriptorId = d!=null ? d.getId().intern() : null;
+        this.descriptorId = d != null ? d.getId().intern() : null;
 
         // we use SimpleXStreamFlowNodeStorage, which uses XStream, so
         // constructor call is always for brand-new FlowNode that has not existed anywhere.
@@ -68,7 +67,8 @@ public class StepAtomNode extends AtomNode implements StepNode {
         setActions(Collections.<Action>emptyList());
     }
 
-    @Override public StepDescriptor getDescriptor() {
+    @Override
+    public StepDescriptor getDescriptor() {
         if (descriptor == null && descriptorId != null) {
             descriptor = StepDescriptorCache.getPublicCache().getDescriptor(descriptorId);
         }
@@ -142,5 +142,4 @@ public class StepAtomNode extends AtomNode implements StepNode {
         }
         return null;
     }
-
 }

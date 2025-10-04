@@ -4,7 +4,6 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -28,7 +27,7 @@ import java.lang.reflect.Method;
  * @author Kohsuke Kawaguchi
  */
 class ContinuationPtr implements Serializable {
-    private transient  /*final except serialization*/ Method m;
+    private transient /*final except serialization*/ Method m;
 
     ContinuationPtr(Class<?> type, String methodName) {
         resolveMethod(type, methodName);
@@ -36,7 +35,7 @@ class ContinuationPtr implements Serializable {
 
     private void resolveMethod(Class<?> type, String methodName) {
         try {
-            m = type.getMethod(methodName,Object.class);
+            m = type.getMethod(methodName, Object.class);
         } catch (NoSuchMethodException e) {
             throw new AssertionError(e);
         }
@@ -50,9 +49,9 @@ class ContinuationPtr implements Serializable {
     }
 
     private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-        Class c = (Class)ois.readObject();
+        Class c = (Class) ois.readObject();
         String methodName = ois.readUTF();
-        resolveMethod(c,methodName);
+        resolveMethod(c, methodName);
     }
 
     private void writeObject(ObjectOutputStream oos) throws IOException {
@@ -69,15 +68,13 @@ class ContinuationPtr implements Serializable {
 
         public Next receive(Object o) {
             try {
-                return (Next)m.invoke(target,o);
+                return (Next) m.invoke(target, o);
             } catch (IllegalAccessException e) {
-                throw (IllegalAccessError)new IllegalAccessError().initCause(e);
+                throw (IllegalAccessError) new IllegalAccessError().initCause(e);
             } catch (InvocationTargetException e) {
                 Throwable t = e.getTargetException();
-                if (t instanceof Error)
-                    throw (Error) t;
-                if (t instanceof RuntimeException)
-                    throw (RuntimeException) t;
+                if (t instanceof Error) throw (Error) t;
+                if (t instanceof RuntimeException) throw (RuntimeException) t;
                 throw new Error(e);
             }
         }

@@ -4,7 +4,6 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-
 import java.lang.reflect.Constructor;
 import java.util.List;
 
@@ -21,7 +20,12 @@ public class ClosureBlock implements Block {
     private final Class<? extends CpsClosure> closureType;
     private final SourceLocation loc;
 
-    public ClosureBlock(SourceLocation loc, List<Class> parameterTypes, List<String> parameters, Block body, Class<? extends CpsClosure> closureType) {
+    public ClosureBlock(
+            SourceLocation loc,
+            List<Class> parameterTypes,
+            List<String> parameters,
+            Block body,
+            Class<? extends CpsClosure> closureType) {
         this.loc = loc;
         this.parameterTypes = parameterTypes;
         this.parameters = parameters;
@@ -30,23 +34,21 @@ public class ClosureBlock implements Block {
     }
 
     private Class<? extends CpsClosure> closureType() {
-        if (closureType==null)  return CpsClosure.class; // backward compatibility with persisted form
+        if (closureType == null) return CpsClosure.class; // backward compatibility with persisted form
         return closureType;
     }
 
     public Next eval(Env e, Continuation k) {
         try {
-            Constructor<? extends CpsClosure> c = closureType().getConstructor(
-                Object.class, Object.class, List.class, Block.class, Env.class
-            );
+            Constructor<? extends CpsClosure> c =
+                    closureType().getConstructor(Object.class, Object.class, List.class, Block.class, Env.class);
             CpsClosure closure = c.newInstance(e.closureOwner(), e.getLocalVariable("this"), parameters, body, e);
-            if (parameterTypes!=null) { // backward compatibility with persisted form
+            if (parameterTypes != null) { // backward compatibility with persisted form
                 closure.setParameterTypes(parameterTypes);
             }
             return k.receive(closure);
         } catch (Exception x) {
-            return new ContinuationGroup() {}.
-                throwException(e, x, loc, new ReferenceStackTrace());
+            return new ContinuationGroup() {}.throwException(e, x, loc, new ReferenceStackTrace());
         }
     }
 

@@ -24,6 +24,9 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import hudson.AbortException;
 import hudson.model.Result;
 import hudson.security.ACL;
@@ -37,13 +40,9 @@ import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
-import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-
 import org.junit.ClassRule;
 import org.junit.Rule;
+import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
@@ -51,10 +50,14 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 public class CpsThreadTest {
 
-    @ClassRule public static BuildWatcher watcher = new BuildWatcher();
-    @Rule public JenkinsRule r = new JenkinsRule();
+    @ClassRule
+    public static BuildWatcher watcher = new BuildWatcher();
 
-    @Test public void stop() throws Exception {
+    @Rule
+    public JenkinsRule r = new JenkinsRule();
+
+    @Test
+    public void stop() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("unkillable()", true));
         final WorkflowRun b = p.scheduleBuild2(0).waitForStart();
@@ -69,29 +72,38 @@ public class CpsThreadTest {
         List<CauseOfInterruption> causes = iba.getCauses();
         assertEquals(1, causes.size());
         assertEquals(CauseOfInterruption.UserInterruption.class, causes.get(0).getClass());
-        r.waitForMessage("Finished: ABORTED", b); // TODO JENKINS-46076 WorkflowRun.isBuilding() can go to false before .finish has completed
+        // TODO JENKINS-46076 WorkflowRun.isBuilding() can go to false before .finish has completed
+        r.waitForMessage("Finished: ABORTED", b);
         r.assertLogContains("never going to stop", b);
         r.assertLogNotContains("\tat ", b);
     }
 
     public static class UnkillableStep extends AbstractStepImpl {
-        @DataBoundConstructor public UnkillableStep() {}
+        @DataBoundConstructor
+        public UnkillableStep() {}
+
         public static class Execution extends AbstractStepExecutionImpl {
-            @Override public boolean start() throws Exception {
+            @Override
+            public boolean start() throws Exception {
                 return false;
             }
-            @Override public void stop(Throwable cause) throws Exception {
+
+            @Override
+            public void stop(Throwable cause) throws Exception {
                 throw new AbortException("never going to stop");
             }
         }
-        @TestExtension public static class DescriptorImpl extends AbstractStepDescriptorImpl {
+
+        @TestExtension
+        public static class DescriptorImpl extends AbstractStepDescriptorImpl {
             public DescriptorImpl() {
                 super(Execution.class);
             }
-            @Override public String getFunctionName() {
+
+            @Override
+            public String getFunctionName() {
                 return "unkillable";
             }
         }
     }
-
 }

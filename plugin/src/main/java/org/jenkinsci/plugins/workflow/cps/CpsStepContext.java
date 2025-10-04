@@ -24,37 +24,20 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.ANYWHERE;
+
 import com.cloudbees.groovy.cps.Outcome;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
 import hudson.model.Descriptor;
 import hudson.model.Result;
 import hudson.util.DaemonThreadFactory;
 import hudson.util.NamingThreadFactory;
-import jenkins.model.Jenkins;
-import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
-import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
-import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
-import org.jenkinsci.plugins.workflow.graph.AtomNode;
-import org.jenkinsci.plugins.workflow.graph.BlockEndNode;
-import org.jenkinsci.plugins.workflow.graph.BlockStartNode;
-import org.jenkinsci.plugins.workflow.graph.FlowNode;
-import org.jenkinsci.plugins.workflow.steps.FailureHandler;
-import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
-import org.jenkinsci.plugins.workflow.steps.Step;
-import org.jenkinsci.plugins.workflow.steps.StepContext;
-import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
-import org.jenkinsci.plugins.workflow.steps.StepExecution;
-import org.jenkinsci.plugins.workflow.support.DefaultStepContext;
-import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
-
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import net.jcip.annotations.GuardedBy;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -71,11 +54,27 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 import jenkins.model.CauseOfInterruption;
+import jenkins.model.Jenkins;
 import jenkins.util.ContextResettingExecutorService;
+import net.jcip.annotations.GuardedBy;
 import org.codehaus.groovy.runtime.InvokerInvocationException;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepNode;
-
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.ANYWHERE;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
+import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
+import org.jenkinsci.plugins.workflow.graph.AtomNode;
+import org.jenkinsci.plugins.workflow.graph.BlockEndNode;
+import org.jenkinsci.plugins.workflow.graph.BlockStartNode;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.steps.FailureHandler;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
+import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.jenkinsci.plugins.workflow.support.DefaultStepContext;
+import org.jenkinsci.plugins.workflow.support.concurrent.Futures;
 
 /**
  * {@link StepContext} implementation for CPS.
@@ -105,6 +104,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     @GuardedBy("this")
     private transient Outcome outcome;
+
     private transient Throwable whenOutcomeDelivered;
 
     // see class javadoc.
@@ -134,11 +134,11 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     /*
 
-        TODO: parallel step implementation
+       TODO: parallel step implementation
 
-        when forking off another branch of parallel, call the 3-arg version of the start() method,
-        and have its callback insert the ID of the new head at the end of the thread
-     */
+       when forking off another branch of parallel, call the 3-arg version of the start() method,
+       and have its callback insert the ID of the new head at the end of the thread
+    */
     /**
      * {@link FlowHead#getId()} that should become
      * the parents of the {@link BlockEndNode} when we create one. Only used when this context has the body.
@@ -183,10 +183,16 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      * Never null once set (might be overwritten).
      */
     private transient volatile CpsThreadGroup threadGroup;
+
     private transient volatile boolean loadingThreadGroup;
 
     @CpsVmThreadOnly
-    CpsStepContext(StepDescriptor step, CpsThread thread, FlowExecutionOwner executionRef, FlowNode node, @CheckForNull Closure body) {
+    CpsStepContext(
+            StepDescriptor step,
+            CpsThread thread,
+            FlowExecutionOwner executionRef,
+            FlowNode node,
+            @CheckForNull Closure body) {
         this.threadId = thread.id;
         this.executionRef = executionRef;
         this.id = node.getId();
@@ -207,18 +213,18 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         if (j == null) {
             return null;
         }
-        if (stepDescriptor==null)
-            stepDescriptor = (StepDescriptor) j.getDescriptor(stepDescriptorId);
+        if (stepDescriptor == null) stepDescriptor = (StepDescriptor) j.getDescriptor(stepDescriptorId);
         return stepDescriptor;
     }
 
     public String getDisplayName() {
         StepDescriptor d = getStepDescriptor();
-        return d!=null ? d.getDisplayName() : stepDescriptorId;
+        return d != null ? d.getDisplayName() : stepDescriptorId;
     }
 
-    @Override protected CpsFlowExecution getExecution() throws IOException {
-        return (CpsFlowExecution)executionRef.get();
+    @Override
+    protected CpsFlowExecution getExecution() throws IOException {
+        return (CpsFlowExecution) executionRef.get();
     }
 
     /**
@@ -227,7 +233,8 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      * @return
      *      null if the thread has finished executing.
      */
-    @CheckForNull CpsThread getThread(CpsThreadGroup g) {
+    @CheckForNull
+    CpsThread getThread(CpsThreadGroup g) {
         return g.getThread(threadId);
     }
 
@@ -256,14 +263,20 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         return threadGroup;
     }
 
-    // As in c16a522, using jenkins.util.Timer for this could deadlock. TODO would like a standard unbounded executor service.
-    private static final ExecutorService isReadyExecutorService = new ContextResettingExecutorService(Executors.newCachedThreadPool(new NamingThreadFactory(new DaemonThreadFactory(), "CpsStepContext.isReady")));
+    // As in c16a522, using jenkins.util.Timer for this could deadlock.
+    // TODO would like a standard unbounded executor service.
+    private static final ExecutorService isReadyExecutorService =
+            new ContextResettingExecutorService(Executors.newCachedThreadPool(
+                    new NamingThreadFactory(new DaemonThreadFactory(), "CpsStepContext.isReady")));
+
     @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
-    @Override public boolean isReady() {
+    @Override
+    public boolean isReady() {
         if (threadGroup == null) {
             if (!loadingThreadGroup) { // but start computing it
                 isReadyExecutorService.submit(new Callable<Void>() {
-                    @Override public Void call() throws Exception {
+                    @Override
+                    public Void call() throws Exception {
                         getThreadGroupSynchronously();
                         return null;
                     }
@@ -276,7 +289,8 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         }
     }
 
-    @Override public boolean hasBody() {
+    @Override
+    public boolean hasBody() {
         return body != null;
     }
 
@@ -301,7 +315,8 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         return t.getContextVariable(key, this::getExecution, this::getNode);
     }
 
-    @Override protected FlowNode getNode() throws IOException {
+    @Override
+    protected FlowNode getNode() throws IOException {
         if (node == null) {
             node = getExecution().getNode(id);
             if (node == null) {
@@ -311,7 +326,8 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         return node;
     }
 
-    @Override public synchronized void onFailure(Throwable t) {
+    @Override
+    public synchronized void onFailure(Throwable t) {
         if (t == null) {
             throw new IllegalArgumentException();
         }
@@ -319,9 +335,9 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         completed(new Outcome(null, t));
     }
 
-    @Override public synchronized void onSuccess(Object returnValue) {
+    @Override
+    public synchronized void onSuccess(Object returnValue) {
         completed(new Outcome(returnValue, null));
-
     }
 
     private void completed(@NonNull Outcome newOutcome) {
@@ -349,14 +365,19 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                     LOGGER.log(Level.FINE, "earlier success: {0}", outcome.getNormal());
                 }
             }
-            if (failure != null && earlierFailure != null && !refersTo(failure, earlierFailure, Collections.newSetFromMap(new IdentityHashMap<>()))) {
+            if (failure != null
+                    && earlierFailure != null
+                    && !refersTo(failure, earlierFailure, Collections.newSetFromMap(new IdentityHashMap<>()))) {
                 earlierFailure.addSuppressed(failure);
             }
         }
     }
 
     private static boolean refersTo(Throwable t1, Throwable t2, Set<Throwable> checked) {
-        return checked.add(t1) && (t1 == t2 || t1.getCause() != null && refersTo(t1.getCause(), t2, checked) || Stream.of(t1.getSuppressed()).anyMatch(t3 -> refersTo(t3, t2, checked)));
+        return checked.add(t1)
+                && (t1 == t2
+                        || t1.getCause() != null && refersTo(t1.getCause(), t2, checked)
+                        || Stream.of(t1.getSuppressed()).anyMatch(t3 -> refersTo(t3, t2, checked)));
     }
 
     /**
@@ -399,7 +420,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                     CpsThread thread = getThread(g);
                     if (thread != null) {
                         CpsThread nit = thread.getNextInner();
-                        if (nit!=null) {
+                        if (nit != null) {
                             // can't mark this done until the inner thread is done.
                             // defer the processing until the inner thread is done
                             nit.addCompletionHandler(new ScheduleNextRun());
@@ -410,14 +431,19 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                                 if (s != null) {
                                     // TODO: ideally this needs to work like interrupt, in that
                                     // if s==null the next StepExecution gets interrupted when it happen
-                                    FlowInterruptedException cause = new FlowInterruptedException(Result.FAILURE, new BodyFailed());
+                                    FlowInterruptedException cause =
+                                            new FlowInterruptedException(Result.FAILURE, new BodyFailed());
                                     cause.initCause(getOutcome().getAbnormal());
                                     try {
-                                        // TODO JENKINS-26148/JENKINS-34637 this is probably wrong: should interrupt the innermost execution
-                                        // (the “next” one could be block-scoped, and we would want to interrupt all parallel heads)
+                                        // TODO JENKINS-26148/JENKINS-34637 this is probably wrong:
+                                        // should interrupt the innermost execution
+                                        // (the “next” one could be block-scoped,
+                                        // and we would want to interrupt all parallel heads)
                                         s.stop(cause);
                                     } catch (Exception e) {
-                                        LOGGER.log(Level.WARNING, "Failed to stop the body execution in response to the failure of the parent");
+                                        LOGGER.log(
+                                                Level.WARNING,
+                                                "Failed to stop the body execution in response to the failure of the parent");
                                     }
                                 }
                             }
@@ -426,11 +452,10 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
                         if (n instanceof StepStartNode) {
                             // if there's no body to invoke, we want the current thread to be the sole head
-                            if (parents.isEmpty())
-                                parents.add(thread.head.get());
+                            if (parents.isEmpty()) parents.add(thread.head.get());
 
                             // clear all the subsumed heads that are joining. thread that owns parents.get(0) lives on
-                            for (int i=1; i<parents.size(); i++)
+                            for (int i = 1; i < parents.size(); i++)
                                 g.getExecution().subsumeHead(parents.get(i));
                             StepEndNode en = new StepEndNode(flow, (StepStartNode) n, parents);
                             thread.head.setNewHead(en);
@@ -441,6 +466,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                     }
                     outcome = new Outcome(null, new AlreadyCompleted());
                 }
+
                 @Override
                 public void onFailure(Throwable t) {
                     LOGGER.log(Level.WARNING, "Failed to proceed after " + CpsStepContext.this, t);
@@ -449,7 +475,11 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         } catch (IOException x) {
             // TODO: If the problem is with the FlowNode and not the CpsFlowExecution, should we try to call
             // CpsVmExecutorService.reportProblem or CpsFlowExecution.croak to kill the build right away?
-            LOGGER.log(Level.WARNING, "Unable to load FlowNode or CpsFlowExecution when completing " + this + ", which is likely to cause its execution to hang indefinitely", x);
+            LOGGER.log(
+                    Level.WARNING,
+                    "Unable to load FlowNode or CpsFlowExecution when completing " + this
+                            + ", which is likely to cause its execution to hang indefinitely",
+                    x);
         }
     }
 
@@ -462,13 +492,15 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      * If this exception appears in the program, something is wrong.
      */
     private static final class AlreadyCompleted extends AssertionError {
-        @Override public synchronized Throwable fillInStackTrace() {
+        @Override
+        public synchronized Throwable fillInStackTrace() {
             return this;
         }
     }
 
     private static class BodyFailed extends CauseOfInterruption {
-        @Override public String getShortDescription() {
+        @Override
+        public String getShortDescription() {
             return "Body of block-scoped step failed";
         }
     }
@@ -483,7 +515,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     }
 
     synchronized boolean isCompleted() {
-        return outcome!=null;
+        return outcome != null;
     }
 
     synchronized boolean isSyncMode() {
@@ -499,10 +531,12 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
             return getOutcome().replay();
         } catch (Throwable failure) {
             // Cf. CpsBodyExecution.FailureAdapter:
-            if (failure instanceof RuntimeException)
+            if (failure instanceof RuntimeException) {
                 throw (RuntimeException) failure;
-            if (failure instanceof Error)
+            }
+            if (failure instanceof Error) {
                 throw (Error) failure;
+            }
             // Any GroovyRuntimeException is treated magically by ScriptBytecodeAdapter.unwrap (from PogoMetaClassSite):
             throw new InvokerInvocationException(failure);
         }
@@ -523,7 +557,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
      *      false if the result is already available. The caller should use {@link #getOutcome()} to obtain that.
      */
     synchronized boolean switchToAsyncMode() {
-        if (!syncMode)  throw new AssertionError();
+        if (!syncMode) throw new AssertionError();
         syncMode = false;
         return !isCompleted();
     }
@@ -531,7 +565,7 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
     /**
      * Perform an action on {@link #bodyInvokers} while synchronizing on this {@link CpsStepContext}
      * to avoid concurrency issues.
-     * 
+     *
      * In some cases, it may be important for calls to other synchronized methods on {@link CpsStepContext}
      * to happen inside of this action so that they are atomic with respect to any other modifications. For
      * example, when an async step starts, {@code DSL$ThreadTaskImpl.invokeBody} attempts to run any
@@ -548,7 +582,8 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         return action.apply(bodyInvokers);
     }
 
-    @Override public ListenableFuture<Void> saveState() {
+    @Override
+    public ListenableFuture<Void> saveState() {
         try {
             final SettableFuture<Void> f = SettableFuture.create();
             CpsFlowExecution exec = getExecution();
@@ -558,9 +593,12 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
             }
 
             exec.runInCpsVmThread(new FutureCallback<>() {
-                @Override public void onSuccess(CpsThreadGroup result) {
+                @Override
+                public void onSuccess(CpsThreadGroup result) {
                     try {
-                        // TODO keep track of whether the program was saved anyway after saveState was called but before now, and do not bother resaving it in that case
+                        // TODO keep track of whether the program was saved anyway
+                        // after saveState was called but before now,
+                        // and do not bother resaving it in that case
                         if (result.getExecution().getDurabilityHint().isPersistWithEveryStep()) {
                             result.getExecution().getStorage().flush();
                             result.saveProgram();
@@ -570,7 +608,9 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
                         f.setException(x);
                     }
                 }
-                @Override public void onFailure(Throwable t) {
+
+                @Override
+                public void onFailure(Throwable t) {
                     f.setException(t);
                 }
             });
@@ -597,7 +637,8 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
         return result;
     }
 
-    @Override public String toString() {
+    @Override
+    public String toString() {
         String function = null;
         if (node instanceof StepNode) {
             StepDescriptor d = ((StepNode) node).getDescriptor();
@@ -612,8 +653,13 @@ public class CpsStepContext extends DefaultStepContext { // TODO add XStream cla
 
     @SuppressFBWarnings("SE_INNER_CLASS")
     private class ScheduleNextRun implements FutureCallback<Object>, Serializable {
-        public void onSuccess(Object e)    { scheduleNextRun(); }
-        public void onFailure(Throwable e) { scheduleNextRun(); }
+        public void onSuccess(Object e) {
+            scheduleNextRun();
+        }
+
+        public void onFailure(Throwable e) {
+            scheduleNextRun();
+        }
 
         private static final long serialVersionUID = 1L;
     }

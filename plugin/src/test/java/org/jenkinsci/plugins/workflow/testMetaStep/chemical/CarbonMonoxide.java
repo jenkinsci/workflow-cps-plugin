@@ -21,6 +21,5 @@ public class CarbonMonoxide extends Chemical {
 
     @Extension
     @Symbol("CO")
-    public static class DescriptorImpl extends Descriptor<Chemical> {
-    }
+    public static class DescriptorImpl extends Descriptor<Chemical> {}
 }

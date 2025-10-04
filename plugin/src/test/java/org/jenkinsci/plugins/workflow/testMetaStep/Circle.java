@@ -31,13 +31,15 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 public class Circle extends Curve {
 
-    @DataBoundConstructor public Circle() {}
+    @DataBoundConstructor
+    public Circle() {}
 
-    @Override public String getDescription() {
+    @Override
+    public String getDescription() {
         return "circle";
     }
 
     @Symbol("circle")
-    @Extension public static class DescriptorImpl extends Descriptor<Curve> {}
-
+    @Extension
+    public static class DescriptorImpl extends Descriptor<Curve> {}
 }

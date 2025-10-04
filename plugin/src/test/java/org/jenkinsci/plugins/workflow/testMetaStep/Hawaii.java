@@ -22,11 +22,9 @@ public class Hawaii extends State {
     }
 
     @Override
-    public void sayHello(TaskListener hello) {
-    }
+    public void sayHello(TaskListener hello) {}
 
     @Extension
     @Symbol("hawaii")
-    public static class DescriptorImpl extends Descriptor<State> {
-    }
+    public static class DescriptorImpl extends Descriptor<State> {}
 }

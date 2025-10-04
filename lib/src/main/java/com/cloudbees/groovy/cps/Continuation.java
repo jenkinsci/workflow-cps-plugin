@@ -27,8 +27,7 @@ public interface Continuation extends Serializable {
     final class Halt implements Continuation {
         private static final long serialVersionUID = 1996175119530893094L;
 
-        private Halt() {
-        }
+        private Halt() {}
 
         public Next receive(Object o) {
             return Next.terminate(o);

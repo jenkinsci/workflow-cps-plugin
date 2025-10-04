@@ -37,33 +37,48 @@ import org.apache.commons.io.IOUtils;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
-import org.jenkinsci.plugins.workflow.cps.replay.Messages;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.OptionDef;
 import org.kohsuke.args4j.spi.Setter;
 
-@Extension public class ReplayPipelineCommand extends CLICommand {
+@Extension
+public class ReplayPipelineCommand extends CLICommand {
 
-    @Argument(required=true, index=0, metaVar="JOB", usage="Name of the job to replay.", handler=JobHandler.class)
-    public Job<?,?> job;
+    @Argument(
+            required = true,
+            index = 0,
+            metaVar = "JOB",
+            usage = "Name of the job to replay.",
+            handler = JobHandler.class)
+    public Job<?, ?> job;
 
-    @Option(name="-n", aliases="--number", metaVar="BUILD#", usage="Build to replay, if not the last.")
+    @Option(name = "-n", aliases = "--number", metaVar = "BUILD#", usage = "Build to replay, if not the last.")
     public int number;
 
-    @Option(name="-s", aliases="--script", metaVar="SCRIPT", usage="Name of script to edit, such as Script3, if not the main Jenkinsfile.")
+    @Option(
+            name = "-s",
+            aliases = "--script",
+            metaVar = "SCRIPT",
+            usage = "Name of script to edit, such as Script3, if not the main Jenkinsfile.")
     public String script;
 
-    @Option(name = "-a",  aliases="--approve", metaVar="APPROVE", usage ="Approve the main Jenkinsfile if the build is unsandboxed.")
+    @Option(
+            name = "-a",
+            aliases = "--approve",
+            metaVar = "APPROVE",
+            usage = "Approve the main Jenkinsfile if the build is unsandboxed.")
     public boolean approve = false;
 
-    @Override public String getShortDescription() {
+    @Override
+    public String getShortDescription() {
         return Messages.ReplayCommand_shortDescription();
     }
 
-    @Override protected int run() throws Exception {
-        Run<?,?> run = number == 0 ? job.getLastBuild() : job.getBuildByNumber(number);
+    @Override
+    protected int run() throws Exception {
+        Run<?, ?> run = number == 0 ? job.getLastBuild() : job.getBuildByNumber(number);
         if (run == null) {
             throw new AbortException("No such build");
         }
@@ -79,7 +94,7 @@ import org.kohsuke.args4j.spi.Setter;
         }
         String text = IOUtils.toString(stdin, getClientCharset());
         if (script != null) {
-            Map<String,String> replacementLoadedScripts = new HashMap<>(action.getOriginalLoadedScripts());
+            Map<String, String> replacementLoadedScripts = new HashMap<>(action.getOriginalLoadedScripts());
             if (!replacementLoadedScripts.containsKey(script)) {
                 throw new AbortException("Unrecognized script name among " + replacementLoadedScripts.keySet());
             }
@@ -116,10 +131,9 @@ import org.kohsuke.args4j.spi.Setter;
             super(parser, option, setter);
         }
 
-        @Override protected Class<Job> type() {
+        @Override
+        protected Class<Job> type() {
             return Job.class;
         }
-
     }
-
 }

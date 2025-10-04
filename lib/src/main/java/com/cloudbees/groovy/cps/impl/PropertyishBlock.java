@@ -16,7 +16,7 @@ import java.util.Collections;
  *
  * @author Kohsuke Kawaguchi
  */
-abstract class PropertyishBlock extends LValueBlock implements CallSiteBlock,Block {
+abstract class PropertyishBlock extends LValueBlock implements CallSiteBlock, Block {
     private final Collection<CallSiteTag> tags; // can be null for instances deserialized from the old form
     private final Block lhs, property;
     private final SourceLocation loc;
@@ -32,15 +32,16 @@ abstract class PropertyishBlock extends LValueBlock implements CallSiteBlock,Blo
 
     @NonNull
     public Collection<CallSiteTag> getTags() {
-        return tags !=null ? Collections.unmodifiableCollection(tags) : Collections.<CallSiteTag>emptySet();
+        return tags != null ? Collections.unmodifiableCollection(tags) : Collections.<CallSiteTag>emptySet();
     }
 
     public Next evalLValue(final Env e, final Continuation k) {
-        return new ContinuationImpl(e,k).then(lhs,e,fixLhs);
+        return new ContinuationImpl(e, k).then(lhs, e, fixLhs);
     }
 
     // invoke the underlying Groovy object. Main point of attribute/property handling difference.
     protected abstract Object rawGet(Env e, Object lhs, Object property) throws Throwable;
+
     protected abstract void rawSet(Env e, Object lhs, Object property, Object v) throws Throwable;
 
     class ContinuationImpl extends ContinuationGroup implements LValue {
@@ -57,7 +58,7 @@ abstract class PropertyishBlock extends LValueBlock implements CallSiteBlock,Blo
 
         public Next fixLhs(Object lhs) {
             this.lhs = lhs;
-            return then(property,e,fixName);
+            return then(property, e, fixName);
         }
 
         public Next fixName(Object name) {
@@ -70,7 +71,7 @@ abstract class PropertyishBlock extends LValueBlock implements CallSiteBlock,Blo
                 return k.receive(null);
             }
             try {
-                Object v = rawGet(e,lhs,name);
+                Object v = rawGet(e, lhs, name);
                 // if this was a normal property, we get the value as-is.
                 return k.receive(v);
             } catch (CpsCallableInvocation inv) {
@@ -81,10 +82,9 @@ abstract class PropertyishBlock extends LValueBlock implements CallSiteBlock,Blo
             }
         }
 
-
         public Next set(Object v, Continuation k) {
             try {
-                rawSet(e,lhs,name,v);
+                rawSet(e, lhs, name, v);
                 return k.receive(null);
             } catch (CpsCallableInvocation inv) {
                 // if this was a workflow function, execute it in the CPS
@@ -92,7 +92,6 @@ abstract class PropertyishBlock extends LValueBlock implements CallSiteBlock,Blo
             } catch (Throwable t) {
                 return throwException(e, t, loc, new ReferenceStackTrace());
             }
-
         }
 
         private static final long serialVersionUID = 1L;
@@ -100,7 +99,6 @@ abstract class PropertyishBlock extends LValueBlock implements CallSiteBlock,Blo
 
     private static final long serialVersionUID = 1L;
 
-    static final ContinuationPtr fixLhs = new ContinuationPtr(ContinuationImpl.class,"fixLhs");
-    static final ContinuationPtr fixName = new ContinuationPtr(ContinuationImpl.class,"fixName");
+    static final ContinuationPtr fixLhs = new ContinuationPtr(ContinuationImpl.class, "fixLhs");
+    static final ContinuationPtr fixName = new ContinuationPtr(ContinuationImpl.class, "fixName");
 }
-

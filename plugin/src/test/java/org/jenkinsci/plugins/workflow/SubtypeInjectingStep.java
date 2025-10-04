@@ -12,8 +12,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
  */
 public class SubtypeInjectingStep extends AbstractStepImpl {
     @DataBoundConstructor
-    public SubtypeInjectingStep() {
-    }
+    public SubtypeInjectingStep() {}
 
     @Extension
     public static final class DescriptorImpl extends AbstractStepDescriptorImpl {

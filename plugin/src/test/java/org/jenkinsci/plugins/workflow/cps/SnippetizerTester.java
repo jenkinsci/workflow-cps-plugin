@@ -1,14 +1,25 @@
 package org.jenkinsci.plugins.workflow.cps;
 
-import org.htmlunit.HttpMethod;
-import org.htmlunit.WebRequest;
-import org.htmlunit.WebResponse;
-import org.htmlunit.util.NameValuePair;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
 import hudson.model.Describable;
 import hudson.model.Queue;
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import org.codehaus.groovy.control.CompilerConfiguration;
+import org.htmlunit.HttpMethod;
+import org.htmlunit.WebRequest;
+import org.htmlunit.WebResponse;
+import org.htmlunit.util.NameValuePair;
 import org.jenkinsci.plugins.structs.describable.ArrayType;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
@@ -20,21 +31,8 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
-import org.jvnet.hudson.test.JenkinsRule;
-
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
 import org.jenkinsci.plugins.workflow.util.StaplerReferer;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import org.jvnet.hudson.test.JenkinsRule;
 
 /**
  * Test harness to test {@link Snippetizer}.
@@ -60,7 +58,8 @@ public class SnippetizerTester {
      * @param referer
      *      needed because of {@link StaplerReferer}
      */
-    public void assertGenerateSnippet(@NonNull String json, @NonNull String responseText, @CheckForNull String referer) throws Exception {
+    public void assertGenerateSnippet(@NonNull String json, @NonNull String responseText, @CheckForNull String referer)
+            throws Exception {
         assertGenerateSnippet(Snippetizer.GENERATE_URL, json, responseText, referer);
     }
 
@@ -76,7 +75,9 @@ public class SnippetizerTester {
      * @param referer
      *      needed because of {@link StaplerReferer}
      */
-    protected void assertGenerateSnippet(@NonNull String url, @NonNull String json, @NonNull String responseText, @CheckForNull String referer) throws Exception {
+    protected void assertGenerateSnippet(
+            @NonNull String url, @NonNull String json, @NonNull String responseText, @CheckForNull String referer)
+            throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
         WebRequest wrs = new WebRequest(new URL(r.getURL(), url), HttpMethod.POST);
         if (referer != null) {
@@ -85,7 +86,9 @@ public class SnippetizerTester {
         List<NameValuePair> params = new ArrayList<>();
         params.add(new NameValuePair("json", json));
         // WebClient.addCrumb *replaces* rather than *adds*:
-        params.add(new NameValuePair(r.jenkins.getCrumbIssuer().getDescriptor().getCrumbRequestField(), r.jenkins.getCrumbIssuer().getCrumb()));
+        params.add(new NameValuePair(
+                r.jenkins.getCrumbIssuer().getDescriptor().getCrumbRequestField(),
+                r.jenkins.getCrumbIssuer().getCrumb()));
         wrs.setRequestParameters(params);
         WebResponse response = wc.getPage(wrs).getWebResponse();
         assertEquals("text/plain", response.getContentType());
@@ -121,7 +124,7 @@ public class SnippetizerTester {
     public void assertParseStep(Step expectedStep, String script) throws Exception {
         CompilerConfiguration cc = new CompilerConfiguration();
         cc.setScriptBaseClass(DelegatingScript.class.getName());
-        GroovyShell shell = new GroovyShell(r.jenkins.getPluginManager().uberClassLoader,new Binding(),cc);
+        GroovyShell shell = new GroovyShell(r.jenkins.getPluginManager().uberClassLoader, new Binding(), cc);
 
         DelegatingScript s = (DelegatingScript) shell.parse(script);
         s.o = new DSL(new DummyOwner()) {
@@ -155,7 +158,6 @@ public class SnippetizerTester {
         assertNotNull(model);
 
         recurseOnModel(model);
-
     }
 
     private static void recurseOnTypes(DescribableModel<?> model, ParameterType type) throws Exception {
@@ -164,7 +166,7 @@ public class SnippetizerTester {
         }
 
         if (type instanceof ArrayType) {
-            recurseOnTypes(model, ((ArrayType)type).getElementType());
+            recurseOnTypes(model, ((ArrayType) type).getElementType());
         } else if (type instanceof HomogeneousObjectType) {
             recurseOnModel(((HomogeneousObjectType) type).getSchemaType());
         } else if (type instanceof HeterogeneousObjectType) {
@@ -173,7 +175,8 @@ public class SnippetizerTester {
                 System.err.println("Ignoring " + model.getType().getName() + " since a parameter is not enumerable");
                 return;
             }
-            for (Map.Entry<String, DescribableModel<?>> entry : ((HeterogeneousObjectType) type).getTypes().entrySet()) {
+            for (Map.Entry<String, DescribableModel<?>> entry :
+                    ((HeterogeneousObjectType) type).getTypes().entrySet()) {
                 recurseOnModel(entry.getValue());
             }
         }
@@ -185,25 +188,36 @@ public class SnippetizerTester {
         }
     }
 
-
     private static class DummyOwner extends FlowExecutionOwner {
         DummyOwner() {}
-        @Override public FlowExecution get() throws IOException {
+
+        @Override
+        public FlowExecution get() throws IOException {
             return null;
         }
-        @Override public File getRootDir() throws IOException {
+
+        @Override
+        public File getRootDir() throws IOException {
             throw new IOException("not implemented");
         }
-        @Override public Queue.Executable getExecutable() throws IOException {
+
+        @Override
+        public Queue.Executable getExecutable() throws IOException {
             throw new IOException("not implemented");
         }
-        @Override public String getUrl() throws IOException {
+
+        @Override
+        public String getUrl() throws IOException {
             throw new IOException("not implemented");
         }
-        @Override public boolean equals(Object o) {
+
+        @Override
+        public boolean equals(Object o) {
             return true;
         }
-        @Override public int hashCode() {
+
+        @Override
+        public int hashCode() {
             return 0;
         }
     }

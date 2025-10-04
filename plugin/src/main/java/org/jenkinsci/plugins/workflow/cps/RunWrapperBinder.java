@@ -28,19 +28,21 @@ import hudson.Extension;
 import hudson.model.Run;
 import org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper;
 
-@Extension public class RunWrapperBinder extends GlobalVariable {
+@Extension
+public class RunWrapperBinder extends GlobalVariable {
 
-    @Override public String getName() {
+    @Override
+    public String getName() {
         return "currentBuild";
     }
 
-    @Override public Object getValue(CpsScript script) throws Exception {
-        Run<?,?> build = script.$build();
+    @Override
+    public Object getValue(CpsScript script) throws Exception {
+        Run<?, ?> build = script.$build();
         if (build != null) {
             return new RunWrapper(build, true);
         } else {
             throw new IllegalStateException("no associated build");
         }
     }
-
 }

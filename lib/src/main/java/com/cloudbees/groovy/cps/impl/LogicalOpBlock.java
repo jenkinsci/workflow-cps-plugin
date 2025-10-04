@@ -21,7 +21,7 @@ public class LogicalOpBlock implements Block {
     }
 
     public Next eval(Env e, Continuation k) {
-        return new ContinuationImpl(e,k).then(lhs,e,decide);
+        return new ContinuationImpl(e, k).then(lhs, e, decide);
     }
 
     class ContinuationImpl extends ContinuationGroup {
@@ -36,11 +36,11 @@ public class LogicalOpBlock implements Block {
         public Next decide(Object lhs) {
             return castToBoolean(lhs, e, v -> {
                 if (and) {
-                    if (!v)     return k.receive(false);    // false && ...
-                    else        return then(rhs,e,castRhs);
+                    if (!v) return k.receive(false); // false && ...
+                    else return then(rhs, e, castRhs);
                 } else {
-                    if (v)      return k.receive(true);    // true || ...
-                    else        return then(rhs,e,castRhs);
+                    if (v) return k.receive(true); // true || ...
+                    else return then(rhs, e, castRhs);
                 }
             });
         }
@@ -52,8 +52,8 @@ public class LogicalOpBlock implements Block {
         private static final long serialVersionUID = 1L;
     }
 
-    static final ContinuationPtr decide = new ContinuationPtr(ContinuationImpl.class,"decide");
-    static final ContinuationPtr castRhs = new ContinuationPtr(ContinuationImpl.class,"castRhs");
+    static final ContinuationPtr decide = new ContinuationPtr(ContinuationImpl.class, "decide");
+    static final ContinuationPtr castRhs = new ContinuationPtr(ContinuationImpl.class, "castRhs");
 
     private static final long serialVersionUID = 1L;
 }

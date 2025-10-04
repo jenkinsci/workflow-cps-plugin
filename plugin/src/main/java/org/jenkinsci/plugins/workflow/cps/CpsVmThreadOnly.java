@@ -1,9 +1,9 @@
 package org.jenkinsci.plugins.workflow.cps;
 
-import java.lang.annotation.Target;
-
 import static java.lang.annotation.ElementType.CONSTRUCTOR;
 import static java.lang.annotation.ElementType.METHOD;
+
+import java.lang.annotation.Target;
 
 /**
  * Indicates that the method is only meant to be called by

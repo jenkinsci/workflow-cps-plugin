@@ -1,10 +1,10 @@
 package com.cloudbees.groovy.cps;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 
 /**
  * Exclude a marked method from CPS transformation.
@@ -16,5 +16,4 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  */
 @Target(METHOD)
 @Retention(RUNTIME)
-public @interface NonCPS {
-}
+public @interface NonCPS {}

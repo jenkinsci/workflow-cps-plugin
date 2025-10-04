@@ -20,10 +20,14 @@ public class NotBlock implements Block {
     }
 
     @Override
-    @SuppressFBWarnings(value = "DLS_DEAD_LOCAL_STORE", justification = "Unused anonymous class exists to maintain compatibility with classes serialized before ContinuationImpl was introduced.")
+    @SuppressFBWarnings(
+            value = "DLS_DEAD_LOCAL_STORE",
+            justification =
+                    "Unused anonymous class exists to maintain compatibility with classes serialized before ContinuationImpl was introduced.")
     public Next eval(final Env e, final Continuation k) {
         Continuation backwardsCompatibility = new Continuation() {
             private static final long serialVersionUID = -7345620782904277090L;
+
             public Next receive(Object o) {
                 // "e" is null in deserialized instances of this class, so we cannot use `e.getInvoker().cast(...)`.
                 // That said, there are no known security issues with boolean casts, so this should be fine.
@@ -51,7 +55,7 @@ public class NotBlock implements Block {
         private static final long serialVersionUID = 1L;
     }
 
-    static final ContinuationPtr cast = new ContinuationPtr(ContinuationImpl.class,"cast");
+    static final ContinuationPtr cast = new ContinuationPtr(ContinuationImpl.class, "cast");
 
     private static final long serialVersionUID = 1L;
 }

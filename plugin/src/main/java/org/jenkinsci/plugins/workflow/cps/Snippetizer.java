@@ -24,6 +24,8 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.Functions;
@@ -45,8 +47,6 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import javax.lang.model.SourceVersion;
 import jenkins.model.Jenkins;
 import jenkins.model.TransientActionFactory;
@@ -72,7 +72,8 @@ import org.kohsuke.stapler.StaplerRequest2;
 /**
  * Takes a {@link Step} as configured through the UI and tries to produce equivalent Groovy code.
  */
-@Extension public class Snippetizer implements RootAction, DescriptorByNameOwner {
+@Extension
+public class Snippetizer implements RootAction, DescriptorByNameOwner {
 
     /**
      * Short-hand for the top-level invocation.
@@ -112,7 +113,8 @@ import org.kohsuke.stapler.StaplerRequest2;
      *      true if this object is written as a nested expression (in which case we always produce parenthesis for readability)
      * @return  the same object as 'b'
      */
-    static StringBuilder object2Groovy(StringBuilder b, Object o, boolean nestedExp) throws UnsupportedOperationException {
+    static StringBuilder object2Groovy(StringBuilder b, Object o, boolean nestedExp)
+            throws UnsupportedOperationException {
         if (o == null) {
             return b.append("null");
         }
@@ -121,16 +123,24 @@ import org.kohsuke.stapler.StaplerRequest2;
         if (clazz == String.class || clazz == Character.class) {
             String text = String.valueOf(o);
             if (text.contains("\n")) {
-                b.append("'''").append(text.replace("\\", "\\\\").replace("'", "\\'")).append("'''");
+                b.append("'''")
+                        .append(text.replace("\\", "\\\\").replace("'", "\\'"))
+                        .append("'''");
             } else {
-                b.append('\'').append(text.replace("\\", "\\\\").replace("'", "\\'")).append('\'');
+                b.append('\'')
+                        .append(text.replace("\\", "\\\\").replace("'", "\\'"))
+                        .append('\'');
             }
             return b;
         }
 
-        if (clazz == Boolean.class || clazz == Integer.class || clazz == Long.class ||
-                clazz == Float.class || clazz == Double.class ||
-                clazz == Byte.class || clazz == Short.class) {
+        if (clazz == Boolean.class
+                || clazz == Integer.class
+                || clazz == Long.class
+                || clazz == Float.class
+                || clazz == Double.class
+                || clazz == Byte.class
+                || clazz == Short.class) {
             return b.append(o);
         }
 
@@ -143,7 +153,7 @@ import org.kohsuke.stapler.StaplerRequest2;
         }
 
         if (o instanceof UninstantiatedDescribable) {
-            return ud2groovy(b,(UninstantiatedDescribable)o, false, nestedExp);
+            return ud2groovy(b, (UninstantiatedDescribable) o, false, nestedExp);
         }
 
         for (StepDescriptor d : StepDescriptor.all()) {
@@ -157,10 +167,11 @@ import org.kohsuke.stapler.StaplerRequest2;
                     // a more concise form that hides it
                     DescribableModel<?> m = DescribableModel.of(d.clazz);
                     DescribableParameter p = m.getFirstRequiredParameter();
-                    if (p!=null) {
+                    if (p != null) {
                         Object wrapped = uninst.getArguments().get(p.getName());
                         if (wrapped instanceof UninstantiatedDescribable) {
-                            // if we cannot represent this 'o' in a concise syntax that hides meta-step, set this to true
+                            // if we cannot represent this 'o' in a concise syntax that hides meta-step, set this to
+                            // true
                             boolean failSimplification = false;
 
                             UninstantiatedDescribable nested = (UninstantiatedDescribable) wrapped;
@@ -176,13 +187,12 @@ import org.kohsuke.stapler.StaplerRequest2;
                                 }
                             }
 
-                            if (!canUseMetaStep(nested))
-                                failSimplification = true;
+                            if (!canUseMetaStep(nested)) failSimplification = true;
 
                             if (!failSimplification) {
                                 // write out in a short-form
-                                UninstantiatedDescribable combined = new UninstantiatedDescribable(
-                                        nested.getSymbol(), nested.getKlass(), copy);
+                                UninstantiatedDescribable combined =
+                                        new UninstantiatedDescribable(nested.getSymbol(), nested.getKlass(), copy);
                                 combined.setModel(nested.getModel());
 
                                 return ud2groovy(b, combined, blockArgument, nestedExp);
@@ -190,7 +200,7 @@ import org.kohsuke.stapler.StaplerRequest2;
                         }
                     } else {
                         // this can only happen with buggy meta-step
-                        LOGGER.log(Level.WARNING, "Buggy meta-step "+d.clazz+" defines no mandatory parameter");
+                        LOGGER.log(Level.WARNING, "Buggy meta-step " + d.clazz + " defines no mandatory parameter");
                         // use the default code path to write it out as: metaStep(describable(...))
                     }
                 }
@@ -208,7 +218,7 @@ import org.kohsuke.stapler.StaplerRequest2;
      * Can this symbol name be used to produce a short hand?
      */
     private static boolean canUseMetaStep(UninstantiatedDescribable ud) {
-        return canUseSymbol(ud) && StepDescriptor.metaStepsOf(ud.getSymbol()).size()==1;
+        return canUseSymbol(ud) && StepDescriptor.metaStepsOf(ud.getSymbol()).size() == 1;
     }
 
     private static StringBuilder list2groovy(StringBuilder b, List<?> o) {
@@ -225,7 +235,7 @@ import org.kohsuke.stapler.StaplerRequest2;
         return b.append(']');
     }
 
-    private static StringBuilder map2groovy(StringBuilder b, Map<?,?> map) {
+    private static StringBuilder map2groovy(StringBuilder b, Map<?, ?> map) {
         b.append('[');
         mapWithoutBracket2groovy(b, map);
         return b.append(']');
@@ -256,7 +266,8 @@ import org.kohsuke.stapler.StaplerRequest2;
      * @param nested
      *      true if this object is written as a nested expression (in which case we always produce parenthesis for readability
      */
-    private static StringBuilder ud2groovy(StringBuilder b, UninstantiatedDescribable ud, boolean blockArgument, boolean nested) {
+    private static StringBuilder ud2groovy(
+            StringBuilder b, UninstantiatedDescribable ud, boolean blockArgument, boolean nested) {
         if (!canUseSymbol(ud)) {
             // if there's no symbol, we need to write this as [$class:...]
             return map2groovy(b, ud.toShallowMap());
@@ -285,7 +296,8 @@ import org.kohsuke.stapler.StaplerRequest2;
      * @param nested
      *      true if this object is written as a nested expression (in which case we always produce parenthesis for readability
      */
-    private static StringBuilder functionCall(StringBuilder b, UninstantiatedDescribable ud, boolean blockArgument, boolean nested) {
+    private static StringBuilder functionCall(
+            StringBuilder b, UninstantiatedDescribable ud, boolean blockArgument, boolean nested) {
         Map<String, ?> args = ud.getArguments();
 
         // if the whole argument is just one map?
@@ -293,10 +305,11 @@ import org.kohsuke.stapler.StaplerRequest2;
         // the call needs explicit parenthesis sometimes
         //   a block argument normally requires a () around arguments, and if arguments are empty you need explicit (),
         //   but not if both is the case!
-        final boolean needParenthesis = (blockArgument ^ args.isEmpty()) || isSingleMap(args) || isSingleList(args) || nested;
+        final boolean needParenthesis =
+                (blockArgument ^ args.isEmpty()) || isSingleMap(args) || isSingleList(args) || nested;
 
         b.append(ud.getSymbol());
-        b.append(needParenthesis ? '(': ' ');
+        b.append(needParenthesis ? '(' : ' ');
 
         if (ud.hasSoleRequiredArgument()) {
             // lone argument optimization, which gets rid of named arguments and just write one value, like
@@ -305,14 +318,13 @@ import org.kohsuke.stapler.StaplerRequest2;
         } else {
             // usual form, which calls out argument names, like
             // git url:'...', browser:'...'
-            mapWithoutBracket2groovy(b,args);
+            mapWithoutBracket2groovy(b, args);
         }
 
-        if (needParenthesis)
-            b.append(')');
+        if (needParenthesis) b.append(')');
 
         if (blockArgument) {
-            if (!args.isEmpty())    b.append(' ');
+            if (!args.isEmpty()) b.append(' ');
             b.append("{\n    // some block\n}");
         }
 
@@ -325,41 +337,40 @@ import org.kohsuke.stapler.StaplerRequest2;
      * Historically we've disambiguated this by adding (...) around the function call.
      * TODO: I claim removing both () and [] would be better.
      *
-       % groovysh
-       Groovy Shell (2.0.2, JVM: 1.7.0_07)
-       Type 'help' or '\h' for help.
-       ---------------------------------------------------------------------------------------------------------------------------------------------
-       groovy:000> def foo(o) { println o }
-       ===> true
-       groovy:000> foo abc:1, def:2
-       [abc:1, def:2]
-       ===> null
-       groovy:000> foo(abc:1, def:2)
-       [abc:1, def:2]
-       ===> null
-       groovy:000> foo [abc:1,def:2]
-       ERROR org.codehaus.groovy.control.MultipleCompilationErrorsException:
-       startup failed:
-       groovysh_evaluate: 2: No map entry allowed at this place
-       . At [2:9]  @ line 2, column 9.
-          foo [abc:1,def:2]
-                  ^
-
-       1 error
-
-               at java_lang_Runnable$run.call (Unknown Source)
-       groovy:000> foo([abc:1,def:2])
-       [abc:1, def:2]
-       ===> null
+     * % groovysh
+     * Groovy Shell (2.0.2, JVM: 1.7.0_07)
+     * Type 'help' or '\h' for help.
+     * ---------------------------------------------------------------------------------------------------------------------------------------------
+     * groovy:000> def foo(o) { println o }
+     * ===> true
+     * groovy:000> foo abc:1, def:2
+     * [abc:1, def:2]
+     * ===> null
+     * groovy:000> foo(abc:1, def:2)
+     * [abc:1, def:2]
+     * ===> null
+     * groovy:000> foo [abc:1,def:2]
+     * ERROR org.codehaus.groovy.control.MultipleCompilationErrorsException:
+     * startup failed:
+     * groovysh_evaluate: 2: No map entry allowed at this place
+     * . At [2:9]  @ line 2, column 9.
+     * foo [abc:1,def:2]
+     * ^
+     *
+     * 1 error
+     *
+     * at java_lang_Runnable$run.call (Unknown Source)
+     * groovy:000> foo([abc:1,def:2])
+     * [abc:1, def:2]
+     * ===> null
      */
     private static boolean isSingleMap(Map<String, ?> args) {
-        if (args.size()!=1) return false;
+        if (args.size() != 1) return false;
         Object v = args.values().iterator().next();
-        if (v instanceof Map)
-            return true;
+        if (v instanceof Map) return true;
         if (v instanceof UninstantiatedDescribable) {
             // UninstantiatedDescribable can be written out as a Map so treat it as a map
-            return !canUseSymbol((UninstantiatedDescribable)v);
+            return !canUseSymbol((UninstantiatedDescribable) v);
         }
         return false;
     }
@@ -373,22 +384,25 @@ import org.kohsuke.stapler.StaplerRequest2;
      *     True if there's only one argument and it's a list, false otherwise.
      */
     private static boolean isSingleList(Map<String, ?> args) {
-        if (args.size()!=1) return false;
+        if (args.size() != 1) return false;
         Object v = args.values().iterator().next();
         return v instanceof List;
     }
 
     public static final String ACTION_URL = "pipeline-syntax";
 
-    @Override public String getUrlName() {
+    @Override
+    public String getUrlName() {
         return ACTION_URL;
     }
 
-    @Override public String getIconFileName() {
+    @Override
+    public String getIconFileName() {
         return null;
     }
 
-    @Override public String getDisplayName() {
+    @Override
+    public String getDisplayName() {
         // Do not want to add to main Jenkins sidepanel.
         return null;
     }
@@ -406,10 +420,15 @@ import org.kohsuke.stapler.StaplerRequest2;
                         DescribableParameter delegate = parameters.iterator().next();
                         if (delegate.isRequired()) {
                             if (delegate.getType() instanceof HeterogeneousObjectType) {
-                                // TODO HeterogeneousObjectType does not yet expose symbol information, and DescribableModel.symbolOf is private
-                                for (DescribableModel<?> delegateOptionSchema : ((HeterogeneousObjectType) delegate.getType()).getTypes().values()) {
+                                // TODO HeterogeneousObjectType does not yet expose symbol information, and
+                                // DescribableModel.symbolOf is private
+                                for (DescribableModel<?> delegateOptionSchema : ((HeterogeneousObjectType)
+                                                delegate.getType())
+                                        .getTypes()
+                                        .values()) {
                                     Class<?> delegateOptionType = delegateOptionSchema.getType();
-                                    Descriptor<?> delegateDescriptor = Jenkins.get().getDescriptorOrDie(delegateOptionType.asSubclass(Describable.class));
+                                    Descriptor<?> delegateDescriptor = Jenkins.get()
+                                            .getDescriptorOrDie(delegateOptionType.asSubclass(Describable.class));
                                     Set<String> symbols = SymbolLookup.getSymbolValue(delegateDescriptor);
                                     if (!symbols.isEmpty()) {
                                         t.add(new QuasiDescriptor(delegateDescriptor));
@@ -417,7 +436,9 @@ import org.kohsuke.stapler.StaplerRequest2;
                                 }
                             }
                         }
-                    } // TODO currently not handling metasteps with other parameters, either required or (like GenericSCMStep) not
+                    }
+                    // TODO currently not handling metasteps with other parameters,
+                    // either required or (like GenericSCMStep) not
                 }
             }
         }
@@ -455,22 +476,25 @@ import org.kohsuke.stapler.StaplerRequest2;
             }
         }
 
-        @Override public int compareTo(QuasiDescriptor o) {
+        @Override
+        public int compareTo(QuasiDescriptor o) {
             return getSymbol().compareTo(o.getSymbol());
         }
 
-        @Override public boolean equals(Object obj) {
+        @Override
+        public boolean equals(Object obj) {
             return obj instanceof QuasiDescriptor && real == ((QuasiDescriptor) obj).real;
         }
 
-        @Override public int hashCode() {
+        @Override
+        public int hashCode() {
             return real.hashCode();
         }
 
-        @Override public String toString() {
+        @Override
+        public String toString() {
             return getSymbol() + "=" + real.clazz.getSimpleName();
         }
-
     }
 
     @Restricted(DoNotUse.class) // for stapler
@@ -485,7 +509,8 @@ import org.kohsuke.stapler.StaplerRequest2;
 
     @Restricted(DoNotUse.class) // accessed via REST API
     public HttpResponse doGenerateSnippet(StaplerRequest2 req, @QueryParameter String json) throws Exception {
-        // TODO is there not an easier way to do this? Maybe Descriptor.newInstancesFromHeteroList on a one-element JSONArray?
+        // TODO is there not an easier way to do this?
+        // Maybe Descriptor.newInstancesFromHeteroList on a one-element JSONArray?
         JSONObject jsonO = JSONObject.fromObject(json);
         Jenkins j = Jenkins.get();
         Class<?> c = j.getPluginManager().uberClassLoader.loadClass(jsonO.getString("stapler-class"));
@@ -517,7 +542,8 @@ import org.kohsuke.stapler.StaplerRequest2;
                 }
             }
             if (step == null) {
-                return HttpResponses.text("Cannot find a step corresponding to " + o.getClass().getName());
+                return HttpResponses.text(
+                        "Cannot find a step corresponding to " + o.getClass().getName());
             }
             String groovy = step2Groovy(step);
             if (descriptor instanceof StepDescriptor && ((StepDescriptor) descriptor).isAdvanced()) {
@@ -533,7 +559,7 @@ import org.kohsuke.stapler.StaplerRequest2;
 
     @Restricted(DoNotUse.class) // for stapler
     public @CheckForNull Item getItem(StaplerRequest2 req) {
-         return req.findAncestorObject(Item.class);
+        return req.findAncestorObject(Item.class);
     }
 
     /**
@@ -545,21 +571,24 @@ import org.kohsuke.stapler.StaplerRequest2;
     }
 
     @Restricted(NoExternalUse.class)
-    @Extension public static class PerJobAdder extends TransientActionFactory<Job> {
+    @Extension
+    public static class PerJobAdder extends TransientActionFactory<Job> {
 
-        @Override public Class<Job> type() {
+        @Override
+        public Class<Job> type() {
             return Job.class;
         }
 
-        @Override public Collection<? extends Action> createFor(Job target) {
+        @Override
+        public Collection<? extends Action> createFor(Job target) {
             // TODO probably want an API for FlowExecutionContainer or something
-            if (target.getClass().getName().equals("org.jenkinsci.plugins.workflow.job.WorkflowJob") && target.hasPermission(Item.EXTENDED_READ)) {
+            if (target.getClass().getName().equals("org.jenkinsci.plugins.workflow.job.WorkflowJob")
+                    && target.hasPermission(Item.EXTENDED_READ)) {
                 return Set.of(new LocalAction());
             } else {
                 return Collections.emptySet();
             }
         }
-
     }
 
     /**
@@ -570,11 +599,13 @@ import org.kohsuke.stapler.StaplerRequest2;
      */
     public static class LocalAction extends Snippetizer {
 
-        @Override public String getDisplayName() {
+        @Override
+        public String getDisplayName() {
             return Messages.Pipeline_Syntax();
         }
 
-        @Override public String getIconFileName() {
+        @Override
+        public String getIconFileName() {
             return "symbol-help-circle";
         }
     }

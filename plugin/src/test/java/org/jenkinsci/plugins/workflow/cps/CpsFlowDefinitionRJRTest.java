@@ -28,7 +28,9 @@ public class CpsFlowDefinitionRJRTest {
 
     @Test
     public void flushLogsOnShutdown() throws Throwable {
-        Assume.assumeFalse("RealJenkinsRule does not shut down Jenkins cleanly on Windows, see https://github.com/jenkinsci/jenkins-test-harness/pull/559", Functions.isWindows());
+        Assume.assumeFalse(
+                "RealJenkinsRule does not shut down Jenkins cleanly on Windows, see https://github.com/jenkinsci/jenkins-test-harness/pull/559",
+                Functions.isWindows());
         rjr.withLogger(CpsFlowExecution.class, Level.FINER);
         rjr.then(CpsFlowDefinitionRJRTest::flushLogsOnShutdownPreRestart);
         rjr.then(CpsFlowDefinitionRJRTest::flushLogsOnShutdownPostRestart);

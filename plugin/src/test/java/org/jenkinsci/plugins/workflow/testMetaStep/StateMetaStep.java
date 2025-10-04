@@ -38,11 +38,14 @@ public class StateMetaStep extends Step {
         this.moderate = m;
     }
 
-    @Override public StepExecution start(StepContext context) throws Exception {
+    @Override
+    public StepExecution start(StepContext context) throws Exception {
         return StepExecutions.synchronousNonBlockingVoid(context, c -> {
             TaskListener listener = c.get(TaskListener.class);
             if (moderate) {
-                listener.getLogger().println("Introducing " + SymbolLookup.getSymbolValue(state).iterator().next());
+                listener.getLogger()
+                        .println("Introducing "
+                                + SymbolLookup.getSymbolValue(state).iterator().next());
             }
             state.sayHello(listener);
         });
@@ -51,7 +54,8 @@ public class StateMetaStep extends Step {
     @Extension
     public static final class DescriptorImpl extends StepDescriptor {
 
-        @Override public String getFunctionName() {
+        @Override
+        public String getFunctionName() {
             return "state";
         }
 
@@ -60,13 +64,14 @@ public class StateMetaStep extends Step {
             return true;
         }
 
-        @Override public String getDisplayName() {
+        @Override
+        public String getDisplayName() {
             return "Greeting from a state";
         }
 
-        @Override public Set<? extends Class<?>> getRequiredContext() {
+        @Override
+        public Set<? extends Class<?>> getRequiredContext() {
             return Set.of(TaskListener.class);
         }
-
     }
 }

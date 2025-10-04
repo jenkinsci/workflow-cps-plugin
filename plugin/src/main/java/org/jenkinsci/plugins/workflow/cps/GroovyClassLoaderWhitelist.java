@@ -41,35 +41,50 @@ class GroovyClassLoaderWhitelist extends Whitelist {
         return scriptLoaders.contains(cl);
     }
 
-    @Override public boolean permitsMethod(Method method, Object receiver, Object[] args) {
-        return permits(method.getDeclaringClass()) && !isIllegalSyntheticMethod(method) || delegate.permitsMethod(method, receiver, args);
+    @Override
+    public boolean permitsMethod(Method method, Object receiver, Object[] args) {
+        return permits(method.getDeclaringClass()) && !isIllegalSyntheticMethod(method)
+                || delegate.permitsMethod(method, receiver, args);
     }
 
-    @Override public boolean permitsConstructor(Constructor<?> constructor, Object[] args) {
-        return permits(constructor.getDeclaringClass()) && !isIllegalSyntheticConstructor(constructor) || delegate.permitsConstructor(constructor, args);
+    @Override
+    public boolean permitsConstructor(Constructor<?> constructor, Object[] args) {
+        return permits(constructor.getDeclaringClass()) && !isIllegalSyntheticConstructor(constructor)
+                || delegate.permitsConstructor(constructor, args);
     }
 
-    @Override public boolean permitsStaticMethod(Method method, Object[] args) {
-        return permits(method.getDeclaringClass()) && !isIllegalSyntheticMethod(method) || delegate.permitsStaticMethod(method, args);
+    @Override
+    public boolean permitsStaticMethod(Method method, Object[] args) {
+        return permits(method.getDeclaringClass()) && !isIllegalSyntheticMethod(method)
+                || delegate.permitsStaticMethod(method, args);
     }
 
-    @Override public boolean permitsFieldGet(Field field, Object receiver) {
-        return permits(field.getDeclaringClass()) && !isIllegalSyntheticField(field) || delegate.permitsFieldGet(field, receiver);
+    @Override
+    public boolean permitsFieldGet(Field field, Object receiver) {
+        return permits(field.getDeclaringClass()) && !isIllegalSyntheticField(field)
+                || delegate.permitsFieldGet(field, receiver);
     }
 
-    @Override public boolean permitsFieldSet(Field field, Object receiver, Object value) {
-        return permits(field.getDeclaringClass()) && !isIllegalSyntheticField(field) || delegate.permitsFieldSet(field, receiver, value);
+    @Override
+    public boolean permitsFieldSet(Field field, Object receiver, Object value) {
+        return permits(field.getDeclaringClass()) && !isIllegalSyntheticField(field)
+                || delegate.permitsFieldSet(field, receiver, value);
     }
 
-    @Override public boolean permitsStaticFieldGet(Field field) {
-        return permits(field.getDeclaringClass()) && !isIllegalSyntheticField(field) || delegate.permitsStaticFieldGet(field);
+    @Override
+    public boolean permitsStaticFieldGet(Field field) {
+        return permits(field.getDeclaringClass()) && !isIllegalSyntheticField(field)
+                || delegate.permitsStaticFieldGet(field);
     }
 
-    @Override public boolean permitsStaticFieldSet(Field field, Object value) {
-        return permits(field.getDeclaringClass()) && !isIllegalSyntheticField(field) || delegate.permitsStaticFieldSet(field, value);
+    @Override
+    public boolean permitsStaticFieldSet(Field field, Object value) {
+        return permits(field.getDeclaringClass()) && !isIllegalSyntheticField(field)
+                || delegate.permitsStaticFieldSet(field, value);
     }
 
-    @Override public String toString() {
+    @Override
+    public String toString() {
         return super.toString() + "[" + delegate + "]";
     }
 
@@ -86,7 +101,9 @@ class GroovyClassLoaderWhitelist extends Whitelist {
         if (field.getType() == enclosingClass && field.getName().startsWith("this$")) {
             // Synthetic field added to inner classes to reference the outer class.
             return false;
-        } else if (declaringClass.isEnum() && Modifier.isStatic(field.getModifiers()) && field.getName().equals("$VALUES")) {
+        } else if (declaringClass.isEnum()
+                && Modifier.isStatic(field.getModifiers())
+                && field.getName().equals("$VALUES")) {
             // Synthetic field added to enum classes to hold the enum constants.
             return false;
         }
@@ -100,7 +117,9 @@ class GroovyClassLoaderWhitelist extends Whitelist {
     private static boolean isIllegalSyntheticMethod(Method method) {
         if (!method.isSynthetic()) {
             return false;
-        } else if (Modifier.isStatic(method.getModifiers()) && method.getDeclaringClass().isEnum() && method.getName().equals("$INIT")) {
+        } else if (Modifier.isStatic(method.getModifiers())
+                && method.getDeclaringClass().isEnum()
+                && method.getName().equals("$INIT")) {
             // Synthetic method added to enum classes used to initialize the enum constants.
             return false;
         }
@@ -117,7 +136,9 @@ class GroovyClassLoaderWhitelist extends Whitelist {
         }
         Class<?> declaringClass = constructor.getDeclaringClass();
         Class<?> enclosingClass = declaringClass.getEnclosingClass();
-        if (enclosingClass != null && constructor.getParameters().length > 0 && constructor.getParameterTypes()[0] == enclosingClass) {
+        if (enclosingClass != null
+                && constructor.getParameters().length > 0
+                && constructor.getParameterTypes()[0] == enclosingClass) {
             // Synthetic constructor added by Groovy to anonymous classes.
             return false;
         }

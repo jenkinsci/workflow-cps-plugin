@@ -18,11 +18,11 @@ public class CaseEnv extends ProxyEnv {
 
     @Override
     public Continuation getBreakAddress(String label) {
-        if (labelMatch(label))  return break_;
-        else                    return super.getBreakAddress(label);
+        if (labelMatch(label)) return break_;
+        else return super.getBreakAddress(label);
     }
 
     private boolean labelMatch(String given) {
-        return given==null || given.equals(label);
+        return given == null || given.equals(label);
     }
 }

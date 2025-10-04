@@ -2,7 +2,6 @@ package com.cloudbees.groovy.cps.impl;
 
 import com.cloudbees.groovy.cps.Env;
 import com.google.common.collect.Maps;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -15,7 +14,7 @@ import java.util.Map;
 // TODO: should be package local once all the impls move into this class
 public class BlockScopeEnv extends ProxyEnv {
     /** To conserve memory, lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} */
-    private Map<String,Object> locals;
+    private Map<String, Object> locals;
 
     /** To conserve memory, lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} */
     private Map<String, Class> types;
@@ -49,10 +48,8 @@ public class BlockScopeEnv extends ProxyEnv {
     }
 
     public Object getLocalVariable(String name) {
-        if (locals.containsKey(name))
-            return locals.get(name);
-        else
-            return parent.getLocalVariable(name);
+        if (locals.containsKey(name)) return locals.get(name);
+        else return parent.getLocalVariable(name);
     }
 
     /** Because might deserialize old version of class with null value for field */
@@ -68,10 +65,8 @@ public class BlockScopeEnv extends ProxyEnv {
     }
 
     public void setLocalVariable(String name, Object value) {
-        if (locals.containsKey(name))
-            locals.put(name,value);
-        else
-            parent.setLocalVariable(name, value);
+        if (locals.containsKey(name)) locals.put(name, value);
+        else parent.setLocalVariable(name, value);
     }
 
     private static final long serialVersionUID = 1L;

@@ -35,5 +35,4 @@ import org.kohsuke.accmod.restrictions.Beta;
 public interface IgnoredInternalClasses extends ExtensionPoint {
 
     boolean ignore(Class<?> clazz);
-
 }

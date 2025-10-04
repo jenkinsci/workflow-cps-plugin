@@ -3,7 +3,6 @@ package com.cloudbees.groovy.cps.impl;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.google.common.collect.Maps;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -14,8 +13,8 @@ import java.util.Map;
  * @author Kohsuke Kawaguchi
  */
 class ClosureCallEnv extends CallEnv {
-    /** Lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} *//** To conserve memory, lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} */
-    Map<String,Object> locals;
+    /** To conserve memory, lazily declared using {@link Collections#EMPTY_MAP} until we declare variables, then converted to a (small) {@link HashMap} */
+    Map<String, Object> locals;
 
     final CpsClosure closure;
 
@@ -24,12 +23,19 @@ class ClosureCallEnv extends CallEnv {
      */
     final Env captured;
 
-    public ClosureCallEnv(Env caller, Continuation returnAddress, SourceLocation loc, Env captured, CpsClosure closure) {
+    public ClosureCallEnv(
+            Env caller, Continuation returnAddress, SourceLocation loc, Env captured, CpsClosure closure) {
         this(caller, returnAddress, loc, captured, closure, 0);
     }
 
-    public ClosureCallEnv(Env caller, Continuation returnAddress, SourceLocation loc, Env captured, CpsClosure closure, int localsSize) {
-        super(caller,returnAddress,loc, localsSize);
+    public ClosureCallEnv(
+            Env caller,
+            Continuation returnAddress,
+            SourceLocation loc,
+            Env captured,
+            CpsClosure closure,
+            int localsSize) {
+        super(caller, returnAddress, loc, localsSize);
         this.closure = closure;
         this.captured = captured;
         if (localsSize <= 0) {
@@ -48,17 +54,13 @@ class ClosureCallEnv extends CallEnv {
     }
 
     public Object getLocalVariable(String name) {
-        if (locals.containsKey(name))
-            return locals.get(name);
-        else
-            return captured.getLocalVariable(name);
+        if (locals.containsKey(name)) return locals.get(name);
+        else return captured.getLocalVariable(name);
     }
 
     public void setLocalVariable(String name, Object value) {
-        if (locals.containsKey(name))
-            locals.put(name, value);
-        else
-            captured.setLocalVariable(name, value);
+        if (locals.containsKey(name)) locals.put(name, value);
+        else captured.setLocalVariable(name, value);
     }
 
     public Class getLocalVariableType(String name) {

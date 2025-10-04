@@ -5,7 +5,6 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.LValue;
 import com.cloudbees.groovy.cps.LValueBlock;
 import com.cloudbees.groovy.cps.Next;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
@@ -48,30 +47,27 @@ public class StaticFieldBlock extends LValueBlock {
         }
 
         private Next throwNoSuchFieldError() {
-            return throwException(e,new NoSuchFieldError(lhs.getName()+"."+name),
-                    loc,new ReferenceStackTrace());
+            return throwException(e, new NoSuchFieldError(lhs.getName() + "." + name), loc, new ReferenceStackTrace());
         }
 
         public Next get(Continuation k) {
             try {
                 Field r = resolve();
-                if (r==null)
-                    return throwNoSuchFieldError();
+                if (r == null) return throwNoSuchFieldError();
                 return k.receive(r.get(null));
             } catch (IllegalAccessException t) {
-                return throwException(e,t,loc,new ReferenceStackTrace());
+                return throwException(e, t, loc, new ReferenceStackTrace());
             }
         }
 
         public Next set(Object v, Continuation k) {
             try {
                 Field r = resolve();
-                if (r==null)
-                    return throwNoSuchFieldError();
+                if (r == null) return throwNoSuchFieldError();
                 r.set(null, v);
                 return k.receive(null);
             } catch (IllegalAccessException t) {
-                return throwException(e,t,loc,new ReferenceStackTrace());
+                return throwException(e, t, loc, new ReferenceStackTrace());
             }
         }
 

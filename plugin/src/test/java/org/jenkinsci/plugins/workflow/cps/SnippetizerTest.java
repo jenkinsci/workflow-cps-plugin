@@ -24,9 +24,18 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import groovy.lang.GroovyShell;
 import hudson.model.Result;
 import hudson.tasks.ArtifactArchiver;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.logging.Level;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
@@ -66,21 +75,10 @@ import org.junit.Test;
 import org.jvnet.hudson.test.Email;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.logging.Level;
-
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
-
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.MatcherAssert.assertThat;
 
 // TODO these tests would better be moved to the respective plugins
 
@@ -94,7 +92,8 @@ public class SnippetizerTest {
 
     private static SnippetizerTester st = new SnippetizerTester(r);
 
-    @Test public void basics() throws Exception {
+    @Test
+    public void basics() throws Exception {
         st.assertRoundTrip(new EchoStep("hello world"), "echo 'hello world'");
         ReadFileStep s = new ReadFileStep("build.properties");
         st.assertRoundTrip(s, "readFile 'build.properties'");
@@ -103,45 +102,57 @@ public class SnippetizerTest {
     }
 
     @Email("https://groups.google.com/forum/#!topicsearchin/jenkinsci-users/workflow/jenkinsci-users/DJ15tkEQPw0")
-    @Test public void noArgStep() throws Exception {
+    @Test
+    public void noArgStep() throws Exception {
         st.assertRoundTrip(new PwdStep(), "pwd()");
     }
 
-    @Test public void coreStep() throws Exception {
+    @Test
+    public void coreStep() throws Exception {
         ArtifactArchiver aa = new ArtifactArchiver("x.jar");
         aa.setAllowEmptyArchive(true);
         if (ArtifactArchiver.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
             st.assertRoundTrip(new CoreStep(aa), "archiveArtifacts allowEmptyArchive: true, artifacts: 'x.jar'");
         } else { // TODO 2.x delete
-            st.assertRoundTrip(new CoreStep(aa), "step([$class: 'ArtifactArchiver', allowEmptyArchive: true, artifacts: 'x.jar'])");
+            st.assertRoundTrip(
+                    new CoreStep(aa),
+                    "step([$class: 'ArtifactArchiver', allowEmptyArchive: true, artifacts: 'x.jar'])");
         }
     }
 
-    @Test public void coreStep2() throws Exception {
+    @Test
+    public void coreStep2() throws Exception {
         if (ArtifactArchiver.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
             st.assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "archiveArtifacts 'x.jar'");
         } else { // TODO 2.x delete
-            st.assertRoundTrip(new CoreStep(new ArtifactArchiver("x.jar")), "step([$class: 'ArtifactArchiver', artifacts: 'x.jar'])");
+            st.assertRoundTrip(
+                    new CoreStep(new ArtifactArchiver("x.jar")),
+                    "step([$class: 'ArtifactArchiver', artifacts: 'x.jar'])");
         }
     }
 
-    @Test public void recursiveSymbolUse() throws Exception {
-        Island hawaii = new Island(new Island(new Island(),null),new Island());
-        st.assertRoundTrip(new StateMetaStep(new Hawaii(hawaii)), "hawaii island(lhs: island(lhs: island()), rhs: island())");
+    @Test
+    public void recursiveSymbolUse() throws Exception {
+        Island hawaii = new Island(new Island(new Island(), null), new Island());
+        st.assertRoundTrip(
+                new StateMetaStep(new Hawaii(hawaii)), "hawaii island(lhs: island(lhs: island()), rhs: island())");
     }
 
-    @Test public void collisionWithStep() throws Exception {
+    @Test
+    public void collisionWithStep() throws Exception {
         // this cannot use "or()" due to a collision with OrStep
         st.assertRoundTrip(new StateMetaStep(new Oregon()), "state([$class: 'Oregon'])");
     }
 
-    @Test public void collisionWithAnotherMetaStep() throws Exception {
+    @Test
+    public void collisionWithAnotherMetaStep() throws Exception {
         // neither should produce "CO()" because that would prevent disambiguation
         st.assertRoundTrip(new StateMetaStep(new Colorado()), "state CO()");
         st.assertRoundTrip(new DetectionMetaStep(new CarbonMonoxide()), "detect CO()");
     }
 
-    @Test public void blockSteps() throws Exception {
+    @Test
+    public void blockSteps() throws Exception {
         st.assertRoundTrip(new ExecutorStep(null), "node {\n    // some block\n}");
         st.assertRoundTrip(new ExecutorStep("linux"), "node('linux') {\n    // some block\n}");
         st.assertRoundTrip(new WorkspaceStep(null), "ws {\n    // some block\n}");
@@ -149,70 +160,110 @@ public class SnippetizerTest {
     }
 
     @Issue("JENKINS-29922")
-    @Test public void blockMetaSteps() throws Exception {
+    @Test
+    public void blockMetaSteps() throws Exception {
         st.assertRoundTrip(new CurveMetaStep(new Circle()), "circle {\n    // some block\n}");
         st.assertRoundTrip(new CurveMetaStep(new Polygon(5)), "polygon(5) {\n    // some block\n}");
     }
 
-    @Test public void escapes() throws Exception {
+    @Test
+    public void escapes() throws Exception {
         st.assertRoundTrip(new EchoStep("Bob's message \\/ here"), "echo 'Bob\\'s message \\\\/ here'");
     }
 
-    @Test public void multilineStrings() throws Exception {
-        st.assertRoundTrip(new EchoStep("echo hello\necho 1/2 way\necho goodbye"), "echo '''echo hello\necho 1/2 way\necho goodbye'''");
+    @Test
+    public void multilineStrings() throws Exception {
+        st.assertRoundTrip(
+                new EchoStep("echo hello\necho 1/2 way\necho goodbye"),
+                "echo '''echo hello\necho 1/2 way\necho goodbye'''");
     }
 
     @Issue("JENKINS-25779")
-    @Test public void defaultValues() throws Exception {
+    @Test
+    public void defaultValues() throws Exception {
         st.assertRoundTrip(new InputStep("Ready?"), "input 'Ready?'");
     }
 
     @Issue("JENKINS-29922")
-    @Test public void getQuasiDescriptors() throws Exception {
+    @Test
+    public void getQuasiDescriptors() throws Exception {
         String quasiDescriptors = new Snippetizer().getQuasiDescriptors(false).toString();
         assertThat(quasiDescriptors, containsString("circle=Circle"));
         assertThat(quasiDescriptors, containsString("polygon=Polygon"));
         assertThat(quasiDescriptors, containsString("CO=CarbonMonoxide"));
-        assertThat("State.moderate currently disqualifies this metastep", quasiDescriptors, not(containsString("california=California")));
+        assertThat(
+                "State.moderate currently disqualifies this metastep",
+                quasiDescriptors,
+                not(containsString("california=California")));
     }
 
-    @Test public void generateSnippet() throws Exception {
-        st.assertGenerateSnippet("{'stapler-class':'" + EchoStep.class.getName() + "', 'message':'hello world'}", "echo 'hello world'", null);
-        st.assertGenerateSnippet("{'stapler-class':'" + Circle.class.getName() + "'}", "circle {\n    // some block\n}", null);
-        st.assertGenerateSnippet("{'stapler-class':'" + Polygon.class.getName() + "', 'n':5}", "polygon(5) {\n    // some block\n}", null);
+    @Test
+    public void generateSnippet() throws Exception {
+        st.assertGenerateSnippet(
+                "{'stapler-class':'" + EchoStep.class.getName() + "', 'message':'hello world'}",
+                "echo 'hello world'",
+                null);
+        st.assertGenerateSnippet(
+                "{'stapler-class':'" + Circle.class.getName() + "'}", "circle {\n    // some block\n}", null);
+        st.assertGenerateSnippet(
+                "{'stapler-class':'" + Polygon.class.getName() + "', 'n':5}",
+                "polygon(5) {\n    // some block\n}",
+                null);
         st.assertGenerateSnippet("{'stapler-class':'" + CarbonMonoxide.class.getName() + "'}", "detect CO()", null);
     }
 
-    @Test public void generateSnippetAdvancedDeprecated() throws Exception {
-        st.assertGenerateSnippet("{'stapler-class':'" + AdvancedStep.class.getName() + "'}", "// " + Messages.Snippetizer_this_step_should_not_normally_be_used_in() + "\nadvancedStuff {\n    // some block\n}", null);
+    @Test
+    public void generateSnippetAdvancedDeprecated() throws Exception {
+        st.assertGenerateSnippet(
+                "{'stapler-class':'" + AdvancedStep.class.getName() + "'}",
+                "// " + Messages.Snippetizer_this_step_should_not_normally_be_used_in()
+                        + "\nadvancedStuff {\n    // some block\n}",
+                null);
     }
+
     public static final class AdvancedStep extends Step {
-        @DataBoundConstructor public AdvancedStep() {}
-        @Override public StepExecution start(StepContext context) throws Exception {
+        @DataBoundConstructor
+        public AdvancedStep() {}
+
+        @Override
+        public StepExecution start(StepContext context) throws Exception {
             throw new UnsupportedOperationException();
         }
-        @TestExtension/* cannot specify test name when using ClassRule */ public static final class DescriptorImpl extends StepDescriptor {
-            @Override public String getFunctionName() {
+
+        @TestExtension // cannot specify test name when using ClassRule
+        public static final class DescriptorImpl extends StepDescriptor {
+            @Override
+            public String getFunctionName() {
                 return "advancedStuff";
             }
-            @Override public boolean isAdvanced() {
+
+            @Override
+            public boolean isAdvanced() {
                 return true;
             }
-            @Override public boolean takesImplicitBlockArgument() {
+
+            @Override
+            public boolean takesImplicitBlockArgument() {
                 return true;
             }
-            @Override public Set<? extends Class<?>> getRequiredContext() {
+
+            @Override
+            public Set<? extends Class<?>> getRequiredContext() {
                 return Collections.emptySet();
             }
         }
     }
 
     @Issue({"JENKINS-26126", "JENKINS-37215"})
-    @Test public void doDslRef() throws Exception {
+    @Test
+    public void doDslRef() throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
         String html = wc.goTo(Snippetizer.ACTION_URL + "/html").getWebResponse().getContentAsString();
         assertThat("text from LoadStep/help-path.html is included", html, containsString("the Groovy file to load"));
-        assertThat("GitSCM.submoduleCfg is mentioned as an attribute of a value of GenericSCMStep.scm", html, containsString("submoduleCfg"));
+        assertThat(
+                "GitSCM.submoduleCfg is mentioned as an attribute of a value of GenericSCMStep.scm",
+                html,
+                containsString("submoduleCfg"));
         assertThat("CleanBeforeCheckout is mentioned as an option", html, containsString("CleanBeforeCheckout"));
         assertThat("content is written to the end", html, containsString("</body></html>"));
         assertThat("symbols are noted for heterogeneous lists", html, containsString("<code>booleanParam</code>"));
@@ -220,18 +271,29 @@ public class SnippetizerTest {
     }
 
     @Issue({"JENKINS-35395", "JENKINS-38114"})
-    @Test public void doGlobalsRef() throws Exception {
+    @Test
+    public void doGlobalsRef() throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
-        String html = wc.goTo(Snippetizer.ACTION_URL + "/globals").getWebResponse().getContentAsString();
-        assertThat("text from RunWrapperBinder/help.jelly is included", html, containsString("may be used to refer to the currently running build"));
-        assertThat("text from RunWrapperBinder/help.jelly includes text from RunWrapper/help.html", html, containsString("<dt><code>buildVariables</code></dt>"));
+        String html =
+                wc.goTo(Snippetizer.ACTION_URL + "/globals").getWebResponse().getContentAsString();
+        assertThat(
+                "text from RunWrapperBinder/help.jelly is included",
+                html,
+                containsString("may be used to refer to the currently running build"));
+        assertThat(
+                "text from RunWrapperBinder/help.jelly includes text from RunWrapper/help.html",
+                html,
+                containsString("<dt><code>buildVariables</code></dt>"));
         assertThat("content is written to the end", html, containsString("</body></html>"));
     }
 
     @Issue("JENKINS-26126")
-    @Test public void doGdsl() throws Exception {
+    @Test
+    public void doGdsl() throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
-        String gdsl = wc.goTo(Snippetizer.ACTION_URL + "/gdsl", "text/plain").getWebResponse().getContentAsString();
+        String gdsl = wc.goTo(Snippetizer.ACTION_URL + "/gdsl", "text/plain")
+                .getWebResponse()
+                .getContentAsString();
         assertThat("Description is included as doc", gdsl, containsString("Shell Script"));
         assertThat("Timeout step appears", gdsl, containsString("name: 'timeout'"));
 
@@ -241,9 +303,12 @@ public class SnippetizerTest {
     }
 
     @Issue("JENKINS-26126")
-    @Test public void doDsld() throws Exception {
+    @Test
+    public void doDsld() throws Exception {
         JenkinsRule.WebClient wc = r.createWebClient();
-        String dsld = wc.goTo(Snippetizer.ACTION_URL + "/dsld", "text/plain").getWebResponse().getContentAsString();
+        String dsld = wc.goTo(Snippetizer.ACTION_URL + "/dsld", "text/plain")
+                .getWebResponse()
+                .getContentAsString();
         assertThat("Description is included as doc", dsld, containsString("Shell Script"));
         assertThat("Timeout step appears", dsld, containsString("name: 'timeout'"));
 
@@ -266,14 +331,18 @@ public class SnippetizerTest {
         dataList.add(new MonomorphicData("one", "two"));
         dataList.add(new MonomorphicData("three", "four"));
         MonomorphicListStep monomorphicStep = new MonomorphicListStep(dataList);
-        st.assertRoundTrip(monomorphicStep, "monomorphListStep([[firstArg: 'one', secondArg: 'two'], [firstArg: 'three', secondArg: 'four']])");
+        st.assertRoundTrip(
+                monomorphicStep,
+                "monomorphListStep([[firstArg: 'one', secondArg: 'two'], [firstArg: 'three', secondArg: 'four']])");
     }
 
     @Issue("JENKINS-29711")
     @Test
     public void monomorphicSymbol() throws Exception {
-        MonomorphicWithSymbolStep monomorphicStep = new MonomorphicWithSymbolStep(new MonomorphicDataWithSymbol("one", "two"));
-        st.assertRoundTrip(monomorphicStep, "monomorphWithSymbolStep monomorphSymbol(firstArg: 'one', secondArg: 'two')");
+        MonomorphicWithSymbolStep monomorphicStep =
+                new MonomorphicWithSymbolStep(new MonomorphicDataWithSymbol("one", "two"));
+        st.assertRoundTrip(
+                monomorphicStep, "monomorphWithSymbolStep monomorphSymbol(firstArg: 'one', secondArg: 'two')");
     }
 
     @Issue("JENKINS-29711")
@@ -283,7 +352,9 @@ public class SnippetizerTest {
         dataList.add(new MonomorphicDataWithSymbol("one", "two"));
         dataList.add(new MonomorphicDataWithSymbol("three", "four"));
         MonomorphicListWithSymbolStep monomorphicStep = new MonomorphicListWithSymbolStep(dataList);
-        st.assertRoundTrip(monomorphicStep, "monomorphListSymbolStep([monomorphSymbol(firstArg: 'one', secondArg: 'two'), monomorphSymbol(firstArg: 'three', secondArg: 'four')])");
+        st.assertRoundTrip(
+                monomorphicStep,
+                "monomorphListSymbolStep([monomorphSymbol(firstArg: 'one', secondArg: 'two'), monomorphSymbol(firstArg: 'three', secondArg: 'four')])");
     }
 
     @Issue("JENKINS-34464")
@@ -320,9 +391,9 @@ public class SnippetizerTest {
         SnippetizerTester.assertDocGeneration(ParallelStep.class);
     }
 
-
     @Issue("JENKINS-31967")
-    @Test public void testStandardJavaTypes() throws Exception {
+    @Test
+    public void testStandardJavaTypes() throws Exception {
         EchoStringAndDoubleStep a = new EchoStringAndDoubleStep("some string");
         st.assertRoundTrip(a, "echoStringAndDouble 'some string'");
         a.setNumber(0.5);
@@ -334,28 +405,43 @@ public class SnippetizerTest {
         WorkflowJob job = r.jenkins.createProject(WorkflowJob.class, "p");
         JenkinsRule.WebClient wc = r.createWebClient();
         String html = wc.getPage(job, Snippetizer.ACTION_URL).getWebResponse().getContentAsString();
-        assertThat("Snippet Generator link is included", html,
+        assertThat(
+                "Snippet Generator link is included",
+                html,
                 containsString("href=\"" + r.contextPath + "/" + job.getUrl() + Snippetizer.ACTION_URL + "\""));
-        assertThat("Steps Reference link is included", html,
+        assertThat(
+                "Steps Reference link is included",
+                html,
                 containsString("href=\"" + r.contextPath + "/" + job.getUrl() + Snippetizer.ACTION_URL + "/html\""));
-        assertThat("Globals Reference link is included", html,
+        assertThat(
+                "Globals Reference link is included",
+                html,
                 containsString("href=\"" + r.contextPath + "/" + job.getUrl() + Snippetizer.ACTION_URL + "/globals\""));
-        assertThat("Online docs link is included", html,
-                containsString("href=\"https://jenkins.io/doc/pipeline/\""));
-        assertThat("GDSL link is included", html,
+        assertThat("Online docs link is included", html, containsString("href=\"https://jenkins.io/doc/pipeline/\""));
+        assertThat(
+                "GDSL link is included",
+                html,
                 containsString("href=\"" + r.contextPath + "/" + job.getUrl() + Snippetizer.ACTION_URL + "/gdsl\""));
 
         // Now verify that the links are still present and correct when we're not within a job.
         String rootHtml = wc.goTo(Snippetizer.ACTION_URL).getWebResponse().getContentAsString();
-        assertThat("Snippet Generator link is included", rootHtml,
+        assertThat(
+                "Snippet Generator link is included",
+                rootHtml,
                 containsString("href=\"" + r.contextPath + "/" + Snippetizer.ACTION_URL + "\""));
-        assertThat("Steps Reference link is included", rootHtml,
+        assertThat(
+                "Steps Reference link is included",
+                rootHtml,
                 containsString("href=\"" + r.contextPath + "/" + Snippetizer.ACTION_URL + "/html\""));
-        assertThat("Globals Reference link is included", rootHtml,
+        assertThat(
+                "Globals Reference link is included",
+                rootHtml,
                 containsString("href=\"" + r.contextPath + "/" + Snippetizer.ACTION_URL + "/globals\""));
-        assertThat("Online docs link is included", rootHtml,
-                containsString("href=\"https://jenkins.io/doc/pipeline/\""));
-        assertThat("GDSL link is included", rootHtml,
+        assertThat(
+                "Online docs link is included", rootHtml, containsString("href=\"https://jenkins.io/doc/pipeline/\""));
+        assertThat(
+                "GDSL link is included",
+                rootHtml,
                 containsString("href=\"" + r.contextPath + "/" + Snippetizer.ACTION_URL + "/gdsl\""));
     }
 }
