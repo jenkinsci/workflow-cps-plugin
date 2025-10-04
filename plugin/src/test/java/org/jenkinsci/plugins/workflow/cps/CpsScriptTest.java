@@ -105,7 +105,8 @@ public class CpsScriptTest {
                 "Scripts not permitted to use method groovy.lang.Script run java.io.File java.lang.String[]", b);
     }
 
-    @Test public void methodTooLargeExceptionFabricated() throws Exception {
+    @Test
+    public void methodTooLargeExceptionFabricated() throws Exception {
         // Fabricate a MethodTooLargeException which "normally" happens when evaluated
         // groovy script becomes a Java class too large for Java to handle internally.
         // In Jenkins practice this can happen not only due to large singular pipelines
@@ -115,16 +116,19 @@ public class CpsScriptTest {
         WorkflowJob p = r.createProject(WorkflowJob.class);
         // sandbox == false to allow creation of the exception here:
         p.setDefinition(new CpsFlowDefinition(
-                "import groovyjarjarasm.asm.MethodTooLargeException;\n\n" +
-                        "throw new MethodTooLargeException('className', 'methodName', 'methodDescriptor', 65535);"
-                , false));
+                "import groovyjarjarasm.asm.MethodTooLargeException;\n\n"
+                        + "throw new MethodTooLargeException('className', 'methodName', 'methodDescriptor', 65535);",
+                false));
         WorkflowRun b = r.buildAndAssertStatus(Result.FAILURE, p);
-        r.assertLogContains("groovyjarjarasm.asm.MethodTooLargeException: Method too large: className.methodName methodDescriptor", b);
+        r.assertLogContains(
+                "groovyjarjarasm.asm.MethodTooLargeException: Method too large: className.methodName methodDescriptor",
+                b);
         r.assertLogContains("at WorkflowScript.run(WorkflowScript:3)", b);
         r.assertLogContains("at ___cps.transform___(Native Method)", b);
     }
 
-    @Test public void methodTooLargeExceptionRealistic() throws Exception {
+    @Test
+    public void methodTooLargeExceptionRealistic() throws Exception {
         // See comments above. Here we try to really induce a "method too large"
         // condition by abusing the nesting of exception-handling, too many stages
         // or methods, and whatever else we can throw at it.
@@ -158,26 +162,27 @@ public class CpsScriptTest {
         }
         sbMethods.append("}\n");
 
-        p.setDefinition(new CpsFlowDefinition(sbMethods.toString() +
-                "pipeline {\n" +
-                "    agent none;\n" +
-                "    stages {\n" +
-                "        stage ('Test stage') {\n" +
-                "            steps {\n" +
-                "                script {\n" +
-                "                    echo 'BEGINNING TEST IN PIPELINE';\n" +
-                "                    method();\n" +
-                "                    echo 'ENDED TEST IN PIPELINE';\n" +
-                "                }\n" +
-                "            }\n" +
-                "        }\n" +
-                sbStages.toString() +
-                "    }\n" +
-                "}\n" +
-                "echo 'BEGINNING TEST OUT OF PIPELINE';\n" +
-                "method();\n" +
-                "echo 'ENDED TEST OUT OF PIPELINE';\n"
-                , true));
+        p.setDefinition(new CpsFlowDefinition(
+                sbMethods.toString()
+                        + "pipeline {\n"
+                        + "    agent none;\n"
+                        + "    stages {\n"
+                        + "        stage ('Test stage') {\n"
+                        + "            steps {\n"
+                        + "                script {\n"
+                        + "                    echo 'BEGINNING TEST IN PIPELINE';\n"
+                        + "                    method();\n"
+                        + "                    echo 'ENDED TEST IN PIPELINE';\n"
+                        + "                }\n"
+                        + "            }\n"
+                        + "        }\n"
+                        + sbStages.toString()
+                        + "    }\n"
+                        + "}\n"
+                        + "echo 'BEGINNING TEST OUT OF PIPELINE';\n"
+                        + "method();\n"
+                        + "echo 'ENDED TEST OUT OF PIPELINE';\n",
+                true));
 
         WorkflowRun b = p.scheduleBuild2(0).get();
 
@@ -191,33 +196,33 @@ public class CpsScriptTest {
         // "Prettier" explanation added by CpsFlowExecution.parseScript():
         r.assertLogContains("FAILED to parse WorkflowScript (the pipeline script) due to MethodTooLargeException", b);
 
-/*
-    // Report as of release 3880.vb_ef4b_5cfd270 (Feb 2024)
-    // and same pattern seen since at least Jun 2022 (note
-    // that numbers after ___cps___ differ from job to job):
+        /*
+            // Report as of release 3880.vb_ef4b_5cfd270 (Feb 2024)
+            // and same pattern seen since at least Jun 2022 (note
+            // that numbers after ___cps___ differ from job to job):
 
-org.codehaus.groovy.control.MultipleCompilationErrorsException: startup failed:
-General error during class generation: Method too large: WorkflowScript.___cps___1 ()Lcom/cloudbees/groovy/cps/impl/CpsFunction;
+        org.codehaus.groovy.control.MultipleCompilationErrorsException: startup failed:
+        General error during class generation: Method too large: WorkflowScript.___cps___1 ()Lcom/cloudbees/groovy/cps/impl/CpsFunction;
 
-groovyjarjarasm.asm.MethodTooLargeException: Method too large: WorkflowScript.___cps___1 ()Lcom/cloudbees/groovy/cps/impl/CpsFunction;
-	at groovyjarjarasm.asm.MethodWriter.computeMethodInfoSize(MethodWriter.java:2087)
-	at groovyjarjarasm.asm.ClassWriter.toByteArray(ClassWriter.java:447)
-	at org.codehaus.groovy.control.CompilationUnit$17.call(CompilationUnit.java:850)
-	at org.codehaus.groovy.control.CompilationUnit.applyToPrimaryClassNodes(CompilationUnit.java:1087)
-	at org.codehaus.groovy.control.CompilationUnit.doPhaseOperation(CompilationUnit.java:624)
-	at org.codehaus.groovy.control.CompilationUnit.processPhaseOperations(CompilationUnit.java:602)
-	at org.codehaus.groovy.control.CompilationUnit.compile(CompilationUnit.java:579)
-	at groovy.lang.GroovyClassLoader.doParseClass(GroovyClassLoader.java:323)
-	at groovy.lang.GroovyClassLoader.parseClass(GroovyClassLoader.java:293)
-	at org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.GroovySandbox$Scope.parse(GroovySandbox.java:163)
-	at org.jenkinsci.plugins.workflow.cps.CpsGroovyShell.doParse(CpsGroovyShell.java:190)
-	at org.jenkinsci.plugins.workflow.cps.CpsGroovyShell.reparse(CpsGroovyShell.java:175)
-	at org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.parseScript(CpsFlowExecution.java:637)
-	at org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.start(CpsFlowExecution.java:583)
-	at org.jenkinsci.plugins.workflow.job.WorkflowRun.run(WorkflowRun.java:335)
-	at hudson.model.ResourceController.execute(ResourceController.java:101)
-	at hudson.model.Executor.run(Executor.java:442)
-*/
+        groovyjarjarasm.asm.MethodTooLargeException: Method too large: WorkflowScript.___cps___1 ()Lcom/cloudbees/groovy/cps/impl/CpsFunction;
+            at groovyjarjarasm.asm.MethodWriter.computeMethodInfoSize(MethodWriter.java:2087)
+            at groovyjarjarasm.asm.ClassWriter.toByteArray(ClassWriter.java:447)
+            at org.codehaus.groovy.control.CompilationUnit$17.call(CompilationUnit.java:850)
+            at org.codehaus.groovy.control.CompilationUnit.applyToPrimaryClassNodes(CompilationUnit.java:1087)
+            at org.codehaus.groovy.control.CompilationUnit.doPhaseOperation(CompilationUnit.java:624)
+            at org.codehaus.groovy.control.CompilationUnit.processPhaseOperations(CompilationUnit.java:602)
+            at org.codehaus.groovy.control.CompilationUnit.compile(CompilationUnit.java:579)
+            at groovy.lang.GroovyClassLoader.doParseClass(GroovyClassLoader.java:323)
+            at groovy.lang.GroovyClassLoader.parseClass(GroovyClassLoader.java:293)
+            at org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.GroovySandbox$Scope.parse(GroovySandbox.java:163)
+            at org.jenkinsci.plugins.workflow.cps.CpsGroovyShell.doParse(CpsGroovyShell.java:190)
+            at org.jenkinsci.plugins.workflow.cps.CpsGroovyShell.reparse(CpsGroovyShell.java:175)
+            at org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.parseScript(CpsFlowExecution.java:637)
+            at org.jenkinsci.plugins.workflow.cps.CpsFlowExecution.start(CpsFlowExecution.java:583)
+            at org.jenkinsci.plugins.workflow.job.WorkflowRun.run(WorkflowRun.java:335)
+            at hudson.model.ResourceController.execute(ResourceController.java:101)
+            at hudson.model.Executor.run(Executor.java:442)
+        */
 
         r.assertLogContains("Method too large: WorkflowScript.___cps___", b);
         r.assertLogContains("()Lcom/cloudbees/groovy/cps/impl/CpsFunction;", b);
