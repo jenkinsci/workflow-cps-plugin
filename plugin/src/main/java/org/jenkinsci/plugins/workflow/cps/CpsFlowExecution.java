@@ -881,11 +881,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         } else if (overflowedClassName.contains("/")) {
             // quote the step/class name pretty:
             //   FAILED to parse 'stepName' due to...
-            overflowedClassNameReport = "presumed JSL class '" + overflowedClassName + "'";
+            overflowedClassNameReport = "presumed PGL (JSL) class '" + overflowedClassName + "'";
         } else {
             // quote the step/class name pretty:
             //   FAILED to parse 'stepName' due to...
-            overflowedClassNameReport = "presumed JSL step '" + overflowedClassName + "'";
+            overflowedClassNameReport = "presumed PGL (JSL) step '" + overflowedClassName + "'";
         }
 
         // Short message suffices, not much that a pipeline developer
@@ -901,15 +901,16 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         actionableMsg.append("; please refactor to simplify code structure");
         if (overflowedClassNameReport.contains("WorkflowScript")
                 || CLASSNAME_SCRIPTNUM_PATTERN.matcher(overflowedClassName).find()) {
-            actionableMsg.append(" and/or move logic to a Jenkins Shared Library");
+            actionableMsg.append(" and/or move logic to a Pipeline Groovy library"
+                    + "(aka Jenkins Shared Library in some documentation)");
         }
         if (xMsgStart.length() > 0) {
             actionableMsg.append(":\n-----\n").append(xMsgStart.toString());
         }
         if (overflowedClassNameBreadcrumbs.length() > 0) {
             actionableMsg
-                    .append(
-                            "\nGroovy code trail (mentions of pipeline WorkflowScript and/or your JSL in larger stack trace):\n")
+                    .append("\nGroovy code trail (mentions of pipeline WorkflowScript "
+                            + "and/or your PGL (JSL) in larger stack trace):\n")
                     .append(overflowedClassNameBreadcrumbs);
         }
         if (xMsgStart.length() > 0) {
