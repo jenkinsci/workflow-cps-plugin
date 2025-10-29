@@ -797,13 +797,14 @@ public class CpsFlowExecutionTest {
         logger.record(GroovySourceFileAllowlist.class, Level.INFO).capture(100);
         sessions.then(r -> {
             WorkflowJob p = r.createProject(WorkflowJob.class);
-            p.setDefinition(new CpsFlowDefinition("new hudson.model.View.main()", true));
+            p.setDefinition(new CpsFlowDefinition("new untrusted.SomeClass.someView()", true));
             WorkflowRun b = r.buildAndAssertStatus(Result.FAILURE, p);
-            r.assertLogContains("unable to resolve class hudson.model.View.main", b);
+            r.assertLogContains("unable to resolve class untrusted.SomeClass.someView", b);
             assertThat(
                     logger.getMessages(),
                     hasItem(containsString(
-                            "/hudson/model/View/main.groovy from being loaded without sandbox protection in " + b)));
+                            "/untrusted/SomeClass/someView.groovy from being loaded without sandbox protection in "
+                                    + b)));
         });
     }
 
@@ -813,7 +814,7 @@ public class CpsFlowExecutionTest {
         System.setProperty("org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DISABLED", "true");
         sessions.then(r -> {
             WorkflowJob p = r.createProject(WorkflowJob.class);
-            p.setDefinition(new CpsFlowDefinition("new hudson.model.View.main()", true));
+            p.setDefinition(new CpsFlowDefinition("new untrusted.SomeClass.someView()", true));
             WorkflowRun b = r.buildAndAssertSuccess(p);
         });
     }
@@ -823,15 +824,15 @@ public class CpsFlowExecutionTest {
     public void groovySourcesCanBeUsedIfAddedToSystemProperty() throws Throwable {
         System.setProperty(
                 "org.jenkinsci.plugins.workflow.cps.GroovySourceFileAllowlist.DefaultAllowlist.ALLOWED_SOURCE_FILES",
-                "/just/an/example.groovy,/hudson/model/View/main.groovy");
+                "/just/an/example.groovy,/untrusted/SomeClass/someView.groovy");
         logger.record(DefaultAllowlist.class, Level.INFO).capture(100);
         sessions.then(r -> {
             WorkflowJob p = r.createProject(WorkflowJob.class);
-            p.setDefinition(new CpsFlowDefinition("new hudson.model.View.main()", true));
+            p.setDefinition(new CpsFlowDefinition("new untrusted.SomeClass.someView()", true));
             WorkflowRun b = r.buildAndAssertSuccess(p);
             assertThat(
                     logger.getMessages(),
-                    hasItem(containsString("Allowing Pipelines to access /hudson/model/View/main.groovy")));
+                    hasItem(containsString("Allowing Pipelines to access /untrusted/SomeClass/someView.groovy")));
         });
     }
 
