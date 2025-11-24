@@ -101,8 +101,7 @@ public class LoggingInvokerTest {
     @Test
     public void closureToMapDslPattern() throws Exception {
         var p = r.createProject(WorkflowJob.class);
-        p.setDefinition(new CpsFlowDefinition(
-                """
+        p.setDefinition(new CpsFlowDefinition("""
                 def closureToMap(body) {
                   def map = [:]
                   body.resolveStrategy = Closure.DELEGATE_FIRST
@@ -114,8 +113,7 @@ public class LoggingInvokerTest {
                   key1 = 'value1'
                   key2 = 'value2'
                 }
-                """,
-                true));
+                """, true));
         r.assertLogNotContains("`def`", r.buildAndAssertSuccess(p));
     }
 }
