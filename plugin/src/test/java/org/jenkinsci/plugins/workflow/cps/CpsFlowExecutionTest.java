@@ -884,14 +884,12 @@ public class CpsFlowExecutionTest {
     public void envActionImplPickle() throws Throwable {
         sessions.then(r -> {
             WorkflowJob p = r.createProject(WorkflowJob.class, "p");
-            p.setDefinition(new CpsFlowDefinition(
-                    """
+            p.setDefinition(new CpsFlowDefinition("""
                     def e = env
                     semaphore('wait') // An instance of EnvActionImpl is part of the program's state at this point.
                     e.foo = 'bar' // Without EnvActionImplPickle, this throws an NPE in EnvActionImpl.setProperty because owner is null.
                     env.getProperty('foo') // Without EnvActionImpl.readResolve, this throws an NPE in PogoMetaClassSite.call
-                    """,
-                    true));
+                    """, true));
             WorkflowRun b = p.scheduleBuild2(0).waitForStart();
             SemaphoreStep.waitForStart("wait/1", b);
         });

@@ -27,8 +27,7 @@ public class NotBlockTest extends AbstractGroovyCpsTest {
         */
         // We need to define a script class in the current JVM
         // with a serialVersionUID that matches the serialized class.
-        Script s = getCsh().parse(
-                        """
+        Script s = getCsh().parse("""
                                   class Script1 extends SerializableScript {
                                     private static final long serialVersionUID = -2376309021360195963
                                     public Object run() { throw new RuntimeException('unused') }

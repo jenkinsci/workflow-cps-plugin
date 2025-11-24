@@ -22,8 +22,7 @@ import org.junit.Test;
 public class ContinuableTest extends AbstractGroovyCpsTest {
     @Test
     public void resumeAndSuspend() throws Throwable {
-        Script s = getCsh().parse(
-                        """
+        Script s = getCsh().parse("""
                                   int x = 1;
                                   x = Continuable.suspend(x+1)
                                   return x+1;
@@ -43,8 +42,7 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
 
     @Test
     public void serializeComplexContinuable() throws Throwable {
-        Script s = getCsh().parse(
-                        """
+        Script s = getCsh().parse("""
                                   def foo(int x) {
                                       return Continuable.suspend(x);
                                   }
@@ -76,8 +74,7 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
 
     @Test
     public void howComeBindingIsSerializable() throws Throwable {
-        Script s = getCsh().parse(
-                        """
+        Script s = getCsh().parse("""
                                   Continuable.suspend(42);
                                   return value;
                                   """);
@@ -143,8 +140,7 @@ public class ContinuableTest extends AbstractGroovyCpsTest {
      */
     @Test
     public void stackTrace() throws Throwable {
-        Script s = getCsh().parse(
-                        """
+        Script s = getCsh().parse("""
                         def x(i,v) {
                           if (i>0)
                             y(i-1,v);
