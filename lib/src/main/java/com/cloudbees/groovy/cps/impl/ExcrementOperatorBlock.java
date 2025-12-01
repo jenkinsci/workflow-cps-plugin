@@ -7,7 +7,6 @@ import com.cloudbees.groovy.cps.LValue;
 import com.cloudbees.groovy.cps.LValueBlock;
 import com.cloudbees.groovy.cps.Next;
 import com.cloudbees.groovy.cps.sandbox.CallSiteTag;
-
 import java.util.Collection;
 
 /**
@@ -29,11 +28,13 @@ public class ExcrementOperatorBlock extends CallSiteBlockSupport {
      * True if this is a prefix operator, false if it's a postfix.
      */
     private final boolean prefix;
+
     private final Block body;
 
     private final SourceLocation loc;
 
-    public ExcrementOperatorBlock(SourceLocation loc, Collection<CallSiteTag> tags, String operatorMethod, boolean prefix, LValueBlock body) {
+    public ExcrementOperatorBlock(
+            SourceLocation loc, Collection<CallSiteTag> tags, String operatorMethod, boolean prefix, LValueBlock body) {
         super(tags);
         this.loc = loc;
         this.operatorMethod = operatorMethod;
@@ -42,7 +43,7 @@ public class ExcrementOperatorBlock extends CallSiteBlockSupport {
     }
 
     public Next eval(Env e, Continuation k) {
-        return new ContinuationImpl(e,k).then(body,e,fixLhs);
+        return new ContinuationImpl(e, k).then(body, e, fixLhs);
     }
 
     class ContinuationImpl extends ContinuationGroup {
@@ -61,7 +62,7 @@ public class ExcrementOperatorBlock extends CallSiteBlockSupport {
          * LValue evaluated, then get the current value
          */
         public Next fixLhs(Object lhs) {
-            this.lhs = (LValue)lhs;
+            this.lhs = (LValue) lhs;
             return this.lhs.get(fixCur.bind(this));
         }
 
@@ -82,21 +83,21 @@ public class ExcrementOperatorBlock extends CallSiteBlockSupport {
             this.after = v;
 
             // update the value.
-            return this.lhs.set(after,done.bind(this));
+            return this.lhs.set(after, done.bind(this));
         }
 
         /**
          * The result of the evaluation of the entire result depends on whether this is prefix or postfix
          */
         public Next done(Object unused) {
-            return k.receive(prefix?after:before);
+            return k.receive(prefix ? after : before);
         }
     }
 
-    static final ContinuationPtr fixLhs = new ContinuationPtr(ContinuationImpl.class,"fixLhs");
-    static final ContinuationPtr fixCur = new ContinuationPtr(ContinuationImpl.class,"fixCur");
-    static final ContinuationPtr calc = new ContinuationPtr(ContinuationImpl.class,"calc");
-    static final ContinuationPtr done = new ContinuationPtr(ContinuationImpl.class,"done");
+    static final ContinuationPtr fixLhs = new ContinuationPtr(ContinuationImpl.class, "fixLhs");
+    static final ContinuationPtr fixCur = new ContinuationPtr(ContinuationImpl.class, "fixCur");
+    static final ContinuationPtr calc = new ContinuationPtr(ContinuationImpl.class, "calc");
+    static final ContinuationPtr done = new ContinuationPtr(ContinuationImpl.class, "done");
 
     private static final long serialVersionUID = 1L;
 }

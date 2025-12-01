@@ -1,12 +1,14 @@
 package com.cloudbees.groovy.cps.impl;
 
+import static com.cloudbees.groovy.cps.impl.SourceLocation.*;
+
 import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-import static com.cloudbees.groovy.cps.impl.SourceLocation.*;
 import com.cloudbees.groovy.cps.sandbox.Invoker;
+import edu.umd.cs.findbugs.annotations.CheckReturnValue;
 import groovy.lang.GroovyCodeSource;
 import groovy.lang.GroovyShell;
 import groovy.lang.ListWithDefault;
@@ -15,13 +17,10 @@ import groovy.lang.MetaClassImpl;
 import groovy.lang.Script;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import edu.umd.cs.findbugs.annotations.CheckReturnValue;
 import org.codehaus.groovy.runtime.InvokerInvocationException;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.callsite.CallSite;
@@ -37,16 +36,23 @@ import org.codehaus.groovy.runtime.callsite.CallSite;
  */
 abstract class ContinuationGroup implements Serializable {
     public Next then(Block exp, Env e, ContinuationPtr ptr) {
-        return new Next(exp,e,ptr.bind(this));
+        return new Next(exp, e, ptr.bind(this));
     }
 
     public Next then(Block exp, Env e, Continuation k) {
-        return new Next(exp,e,k);
+        return new Next(exp, e, k);
     }
 
     /*TODO: specify the proper owner value (to the script that includes the call site) */
-    protected Next methodCall(Env e, SourceLocation loc, ContinuationPtr k, CallSiteBlock callSite, Object receiver, String methodName, Object... args) {
-        return methodCall(e,loc,k.bind(this),callSite,receiver,methodName,args);
+    protected Next methodCall(
+            Env e,
+            SourceLocation loc,
+            ContinuationPtr k,
+            CallSiteBlock callSite,
+            Object receiver,
+            String methodName,
+            Object... args) {
+        return methodCall(e, loc, k.bind(this), callSite, receiver, methodName, args);
     }
 
     /**
@@ -57,13 +63,20 @@ abstract class ContinuationGroup implements Serializable {
      * @see ListWithDefault#get
      * @see MapWithDefault#get
      */
-    protected Next methodCall(final Env e, final SourceLocation loc, final Continuation k, final CallSiteBlock callSite, final Object receiver, final String methodName, final Object... args) {
+    protected Next methodCall(
+            final Env e,
+            final SourceLocation loc,
+            final Continuation k,
+            final CallSiteBlock callSite,
+            final Object receiver,
+            final String methodName,
+            final Object... args) {
         List<String> expectedMethodNames = new ArrayList<>(2);
         expectedMethodNames.add(methodName);
         boolean laxCall = false;
         Object effectiveReceiver = findEffectiveReceiver(receiver, null);
         try {
-            Caller.record(receiver,methodName,args);
+            Caller.record(receiver, methodName, args);
 
             Invoker inv = e.getInvoker().contextualize(callSite);
             Object v;
@@ -78,12 +91,16 @@ abstract class ContinuationGroup implements Serializable {
                     }
                     // CpsScript.invokeMethod e.g. on a UserDefinedGlobalVariable cannot be predicted from here.
                     expectedMethodNames.add("call");
-                    laxCall = !((Script) effectiveReceiver).getBinding().getVariables().containsKey(methodName); // lax unless like invokePropertyOrMissing
+                    laxCall = !((Script) effectiveReceiver)
+                            .getBinding()
+                            .getVariables()
+                            .containsKey(methodName); // lax unless like invokePropertyOrMissing
                 } else if (effectiveReceiver instanceof GroovyShell && methodName.equals("evaluate")) {
                     expectedMethodNames.add("run");
                 } else if (effectiveReceiver instanceof CpsBooleanClosureWrapper && methodName.equals("callForMap")) {
                     expectedMethodNames.add("call");
-                } else if ((effectiveReceiver instanceof ListWithDefault || effectiveReceiver instanceof MapWithDefault) && methodName.equals("get")) {
+                } else if ((effectiveReceiver instanceof ListWithDefault || effectiveReceiver instanceof MapWithDefault)
+                        && methodName.equals("get")) {
                     expectedMethodNames.add("call");
                 }
                 // TODO: spread
@@ -126,29 +143,29 @@ abstract class ContinuationGroup implements Serializable {
         StackTraceElement[] rs = ref.getStackTrace();
         StackTraceElement[] ts = t.getStackTrace();
 
-        if (!hasSameRoots(rs,ts)) {
+        if (!hasSameRoots(rs, ts)) {
             // this exception doesn't match up with what we expected.
             // maybe it was created elsewhere and thrown here?
             return;
         }
 
         /*
-            SYNC TRACE
-              this section contains the top portion of the actual stack beyond ReferenceStackTrace that led to the
-              instantiation of the exception. This is the synchronous code called from CPS code that created the exception.
-            CPS TRACE
-              this section contains a synthesized fake stack trace that shows the logical stack trace of the CPS code
-            REFERENCE TRACE
-              this section contains the actual stack trace leading up to the point where ReferenceStackTrace is created
-              to show how the actual execution happened on JVM
-         */
+           SYNC TRACE
+             this section contains the top portion of the actual stack beyond ReferenceStackTrace that led to the
+             instantiation of the exception. This is the synchronous code called from CPS code that created the exception.
+           CPS TRACE
+             this section contains a synthesized fake stack trace that shows the logical stack trace of the CPS code
+           REFERENCE TRACE
+             this section contains the actual stack trace leading up to the point where ReferenceStackTrace is created
+             to show how the actual execution happened on JVM
+        */
 
         List<StackTraceElement> orig = List.of(ts);
-        int pos = ts.length-rs.length;
-        List<StackTraceElement> stack = new ArrayList<>(orig.subList(0,pos));
+        int pos = ts.length - rs.length;
+        List<StackTraceElement> stack = new ArrayList<>(orig.subList(0, pos));
 
-        stack.add((loc!=null ? loc : UNKNOWN).toStackTrace());
-        e.buildStackTraceElements(stack,Integer.MAX_VALUE);
+        stack.add((loc != null ? loc : UNKNOWN).toStackTrace());
+        e.buildStackTraceElements(stack, Integer.MAX_VALUE);
         stack.add(Continuable.SEPARATOR_STACK_ELEMENT);
 
         stack.addAll(orig.subList(pos, orig.size()));
@@ -160,30 +177,29 @@ abstract class ContinuationGroup implements Serializable {
      * Returns true if 'rs' is at the bottom of 'ts'.
      */
     private boolean hasSameRoots(StackTraceElement[] rs, StackTraceElement[] ts) {
-        int b = ts.length-rs.length;
-        if (b<0)    return false;
+        int b = ts.length - rs.length;
+        if (b < 0) return false;
 
-        {// the top of the stack will have different line number because ReferenceStackTrace is created in a separate line
+        { // the top of the stack will have different line number because ReferenceStackTrace is created in a separate
+            // line
             StackTraceElement lhs = ts[b];
             StackTraceElement rhs = rs[0];
 
-            if (!eq(lhs.getClassName(),rhs.getClassName())
-             || !eq(lhs.getMethodName(),rhs.getMethodName())
-             || !eq(lhs.getFileName(),rhs.getFileName()))
-                return false;
+            if (!eq(lhs.getClassName(), rhs.getClassName())
+                    || !eq(lhs.getMethodName(), rhs.getMethodName())
+                    || !eq(lhs.getFileName(), rhs.getFileName())) return false;
         }
 
-        for (int i=1; i<rs.length; i++) {
-            if (!ts[b+i].equals(rs[i]))
-                return false;
+        for (int i = 1; i < rs.length; i++) {
+            if (!ts[b + i].equals(rs[i])) return false;
         }
 
         return true;
     }
 
     private boolean eq(Object x, Object y) {
-        if (x==y)   return true;
-        if (x==null || y==null) return false;
+        if (x == y) return true;
+        if (x == null || y == null) return false;
         return x.equals(y);
     }
 
@@ -207,7 +223,7 @@ abstract class ContinuationGroup implements Serializable {
      */
     @CheckReturnValue
     protected Next throwException(Env e, Throwable t, SourceLocation loc, ReferenceStackTrace ref) {
-        fixupStackTrace(e, t,loc, ref);
+        fixupStackTrace(e, t, loc, ref);
         return e.getExceptionHandler(t.getClass()).receive(t);
     }
 
@@ -237,10 +253,11 @@ abstract class ContinuationGroup implements Serializable {
                 // the callable.
                 Throwable cause = t.getCause();
                 if (cause instanceof CpsCallableInvocation) {
-                    CpsCallableInvocation inv = (CpsCallableInvocation)cause;
+                    CpsCallableInvocation inv = (CpsCallableInvocation) cause;
                     inv.checkMismatch(ScriptBytecodeAdapter.class, List.of("castToType"));
                     String classAndMethod = inv.getClassAndMethodForDisplay();
-                    t = new IllegalStateException(classAndMethod + " must be @NonCPS; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/");
+                    t = new IllegalStateException(classAndMethod
+                            + " must be @NonCPS; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/");
                 }
             }
             return throwException(e, t, null, new ReferenceStackTrace());

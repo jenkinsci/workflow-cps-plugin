@@ -17,8 +17,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 public class Oregon extends State {
 
     @DataBoundConstructor
-    public Oregon() {
-    }
+    public Oregon() {}
 
     @Override
     public void sayHello(TaskListener hello) {
@@ -27,6 +26,5 @@ public class Oregon extends State {
 
     @Extension
     @Symbol("or")
-    public static class DescriptorImpl extends Descriptor<State> {
-    }
+    public static class DescriptorImpl extends Descriptor<State> {}
 }

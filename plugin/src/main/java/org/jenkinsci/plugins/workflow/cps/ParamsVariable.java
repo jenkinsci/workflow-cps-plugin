@@ -39,20 +39,23 @@ import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
 /**
  * Allows access to {@link ParametersAction}.
  */
-@Extension public class ParamsVariable extends GlobalVariable {
+@Extension
+public class ParamsVariable extends GlobalVariable {
 
-    @Override public String getName() {
+    @Override
+    public String getName() {
         return "params";
     }
 
     @SuppressWarnings("unchecked")
-    @Override public Object getValue(CpsScript script) throws Exception {
-        Run<?,?> b = script.$build();
+    @Override
+    public Object getValue(CpsScript script) throws Exception {
+        Run<?, ?> b = script.$build();
         if (b == null) {
             throw new IllegalStateException("cannot find owning build");
         }
         // Could extend AbstractMap and make a Serializable lazy wrapper, but getValue impls seem cheap anyway.
-        Map<String,Object> values = new HashMap<>();
+        Map<String, Object> values = new HashMap<>();
         ParametersAction action = b.getAction(ParametersAction.class);
         if (action != null) {
             for (ParameterValue parameterValue : action.getAllParameters()) {
@@ -91,5 +94,4 @@ import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
         }
         values.put(parameterValue.getName(), value);
     }
-
 }

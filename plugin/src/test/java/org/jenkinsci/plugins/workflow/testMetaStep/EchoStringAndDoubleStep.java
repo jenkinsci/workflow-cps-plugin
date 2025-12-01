@@ -2,16 +2,14 @@ package org.jenkinsci.plugins.workflow.testMetaStep;
 
 import hudson.Extension;
 import hudson.model.TaskListener;
+import java.io.Serializable;
+import java.util.Set;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
-
-import java.io.Serializable;
-import java.util.Collections;
-import java.util.Set;
 
 public class EchoStringAndDoubleStep extends Step implements Serializable {
 
@@ -74,5 +72,4 @@ public class EchoStringAndDoubleStep extends Step implements Serializable {
     }
 
     private static final long serialVersionUID = 1L;
-
 }

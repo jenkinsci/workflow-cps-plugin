@@ -1,11 +1,10 @@
 package com.cloudbees.groovy.cps.impl;
 
 import groovy.lang.Closure;
-import org.codehaus.groovy.runtime.callsite.BooleanClosureWrapper;
-import org.codehaus.groovy.runtime.callsite.BooleanReturningMethodInvoker;
-
 import java.io.Serializable;
 import java.util.Map;
+import org.codehaus.groovy.runtime.callsite.BooleanClosureWrapper;
+import org.codehaus.groovy.runtime.callsite.BooleanReturningMethodInvoker;
 
 /**
  * A serializable equivalent of {@link org.codehaus.groovy.runtime.callsite.BooleanClosureWrapper}, where the
@@ -31,7 +30,7 @@ public class CpsBooleanClosureWrapper implements Serializable {
      * taking one argument, then we give in the {@link Map.Entry}, otherwise we will
      * give in the key and value.
      */
-    public <K,V> boolean callForMap(Map.Entry<K, V> entry) {
+    public <K, V> boolean callForMap(Map.Entry<K, V> entry) {
         return new BooleanClosureWrapper(wrapped).callForMap(entry);
     }
 }

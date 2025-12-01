@@ -15,9 +15,11 @@ public class DisplaynameWithEscapeCharState extends AbstractStepImpl {
     public DisplaynameWithEscapeCharState() {}
 
     private static final class Execution extends AbstractSynchronousNonBlockingStepExecution<Void> {
-        @Override protected Void run() throws Exception {
+        @Override
+        protected Void run() throws Exception {
             return null;
         }
+
         private static final long serialVersionUID = 1L;
     }
 
@@ -27,11 +29,13 @@ public class DisplaynameWithEscapeCharState extends AbstractStepImpl {
             super(Execution.class);
         }
 
-        @Override public String getFunctionName() {
+        @Override
+        public String getFunctionName() {
             return "displaynameWithEscapeCharState";
         }
 
-        @Override public String getDisplayName() {
+        @Override
+        public String getDisplayName() {
             return "Testing 'escape characters' are added when needed.";
         }
     }

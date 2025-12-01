@@ -23,6 +23,5 @@ public class MonomorphicDataWithSymbol extends AbstractDescribableImpl<Monomorph
 
     @Extension
     @Symbol("monomorphSymbol")
-    public static class DescriptorImpl extends Descriptor<MonomorphicDataWithSymbol> {
-    }
+    public static class DescriptorImpl extends Descriptor<MonomorphicDataWithSymbol> {}
 }

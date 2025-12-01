@@ -24,12 +24,12 @@
 
 package org.jenkinsci.plugins.workflow.cps.replay;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.console.ModelHyperlinkNote;
 import hudson.model.Cause;
 import hudson.model.Run;
 import hudson.model.TaskListener;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Marker that a run is a replay of an earlier one.
@@ -37,45 +37,48 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class ReplayCause extends Cause {
 
     private final int originalNumber;
-    private transient Run<?,?> run;
+    private transient Run<?, ?> run;
 
-    ReplayCause(@NonNull Run<?,?> original) {
+    ReplayCause(@NonNull Run<?, ?> original) {
         this.originalNumber = original.getNumber();
     }
 
-    @Override public void onAddedTo(Run run) {
+    @Override
+    public void onAddedTo(Run run) {
         super.onAddedTo(run);
         this.run = run;
     }
 
-    @Override public void onLoad(Run<?,?> run) {
+    @Override
+    public void onLoad(Run<?, ?> run) {
         super.onLoad(run);
         this.run = run;
     }
 
-    public Run<?,?> getRun() {
+    public Run<?, ?> getRun() {
         return run;
     }
-    
+
     public int getOriginalNumber() {
         return originalNumber;
     }
 
-    public @CheckForNull Run<?,?> getOriginal() {
+    public @CheckForNull Run<?, ?> getOriginal() {
         return run.getParent().getBuildByNumber(originalNumber);
     }
 
-    @Override public String getShortDescription() {
+    @Override
+    public String getShortDescription() {
         return org.jenkinsci.plugins.workflow.cps.replay.Messages.ReplayCause_shortDescription(originalNumber);
     }
 
-    @Override public void print(TaskListener listener) {
-        Run<?,?> original = getOriginal();
+    @Override
+    public void print(TaskListener listener) {
+        Run<?, ?> original = getOriginal();
         if (original != null) {
             listener.getLogger().println("Replayed " + ModelHyperlinkNote.encodeTo(original));
         } else {
             super.print(listener); // same, without hyperlink
         }
     }
-
 }

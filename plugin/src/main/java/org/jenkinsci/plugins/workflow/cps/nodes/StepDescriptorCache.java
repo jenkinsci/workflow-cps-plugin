@@ -24,18 +24,17 @@
 
 package org.jenkinsci.plugins.workflow.cps.nodes;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Extension;
 import hudson.ExtensionPoint;
 import hudson.init.InitMilestone;
 import hudson.init.Initializer;
 import hudson.model.Descriptor;
+import java.util.concurrent.ConcurrentHashMap;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Shared cacheSingleton for the StepDescriptors, extension-scoped to avoid test issues
@@ -50,7 +49,7 @@ public class StepDescriptorCache implements ExtensionPoint {
 
     public StepDescriptorCache() {}
 
-    @Initializer(after = InitMilestone.EXTENSIONS_AUGMENTED)  // Prevents potential leakage on reload
+    @Initializer(after = InitMilestone.EXTENSIONS_AUGMENTED) // Prevents potential leakage on reload
     public static void invalidateGlobalCache() {
         getPublicCache().invalidateAll();
     }
@@ -74,8 +73,8 @@ public class StepDescriptorCache implements ExtensionPoint {
             Jenkins j = Jenkins.get();
             Descriptor d = j.getDescriptor(descriptorId);
             if (d instanceof StepDescriptor) {
-                store.put(descriptorId, (StepDescriptor)d);
-                return (StepDescriptor)d;
+                store.put(descriptorId, (StepDescriptor) d);
+                return (StepDescriptor) d;
             }
             return null;
         }

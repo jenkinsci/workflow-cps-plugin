@@ -24,24 +24,23 @@
 
 package org.jenkinsci.plugins.workflow.cps.replay;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.ExtensionPoint;
 import java.util.Collections;
 import java.util.Map;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 
 /**
  * Defines which scripts are eligible to be replaced by {@link ReplayAction#run}.
  */
 public abstract class OriginalLoadedScripts implements ExtensionPoint {
-    
+
     /**
      * Finds scripts which are eligible for replacement.
      * @param execution a build
      * @return a map from Groovy class names to their original texts, as in {@link ReplayAction#replace}
      */
-    public @NonNull Map<String,String> loadScripts(@NonNull CpsFlowExecution execution) {
+    public @NonNull Map<String, String> loadScripts(@NonNull CpsFlowExecution execution) {
         return Collections.emptyMap();
     }
-
 }

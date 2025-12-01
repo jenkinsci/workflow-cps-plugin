@@ -3,7 +3,6 @@ package com.cloudbees.groovy.cps.sandbox;
 import com.cloudbees.groovy.cps.Builder;
 import com.cloudbees.groovy.cps.CpsTransformer;
 import com.cloudbees.groovy.cps.impl.CallSiteBlock;
-
 import java.io.Serializable;
 
 /**
@@ -17,5 +16,4 @@ import java.io.Serializable;
  * @see CallSiteBlock
  * @see Builder#contextualize(CallSiteTag...)
  */
-public interface CallSiteTag extends Serializable {
-}
+public interface CallSiteTag extends Serializable {}

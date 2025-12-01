@@ -24,21 +24,22 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
+
 import hudson.model.Node;
 import hudson.model.Slave;
 import hudson.slaves.SlaveComputer;
 import java.net.URL;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.pickles.Pickle;
 import org.junit.AfterClass;
-import org.junit.Test;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Rule;
+import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RealJenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
@@ -57,7 +58,8 @@ public class SerialFormTest {
 
     private static GenericContainer<?> agentContainer;
 
-    @BeforeClass public static void dockerCheck() throws Exception {
+    @BeforeClass
+    public static void dockerCheck() throws Exception {
         try {
             DockerClientFactory.instance().client();
         } catch (Exception x) {
@@ -65,28 +67,37 @@ public class SerialFormTest {
         }
     }
 
-    @AfterClass public static void terminateContainer() throws Exception {
+    @AfterClass
+    public static void terminateContainer() throws Exception {
         if (agentContainer != null && agentContainer.isRunning()) {
             agentContainer.stop();
         }
     }
 
-    @Rule public RealJenkinsRule rr = new RealJenkinsRule();
+    @Rule
+    public RealJenkinsRule rr = new RealJenkinsRule();
 
     @LocalData
-    @Test public void persistence() throws Throwable {
+    @Test
+    public void persistence() throws Throwable {
         rr.startJenkins();
         URL u = rr.getUrl();
         Testcontainers.exposeHostPorts(u.getPort());
-        agentContainer = new GenericContainer<>("jenkins/inbound-agent").
-                withEnv("JENKINS_URL", new URL(u.getProtocol(), "host.testcontainers.internal", u.getPort(), u.getFile()).toString()).
-                withEnv("JENKINS_AGENT_NAME", AGENT_NAME).
-                withEnv("JENKINS_SECRET", AGENT_SECRET).
-                withEnv("JENKINS_WEB_SOCKET", "true");
+        agentContainer = new GenericContainer<>("jenkins/inbound-agent")
+                .withEnv(
+                        "JENKINS_URL",
+                        new URL(u.getProtocol(), "host.testcontainers.internal", u.getPort(), u.getFile()).toString())
+                .withEnv("JENKINS_AGENT_NAME", AGENT_NAME)
+                .withEnv("JENKINS_SECRET", AGENT_SECRET)
+                .withEnv("JENKINS_WEB_SOCKET", "true");
         agentContainer.start();
-        agentContainer.copyFileToContainer(MountableFile.forClasspathResource(SerialFormTest.class.getName().replace('.', '/') + "/persistence-workspace"), "/home/jenkins/agent/workspace");
+        agentContainer.copyFileToContainer(
+                MountableFile.forClasspathResource(
+                        SerialFormTest.class.getName().replace('.', '/') + "/persistence-workspace"),
+                "/home/jenkins/agent/workspace");
         rr.runRemotely(SerialFormTest::_persistence);
     }
+
     private static void _persistence(JenkinsRule r) throws Throwable {
         Node agent = r.jenkins.getNode(AGENT_NAME);
         assertThat(agent, notNullValue());
@@ -96,5 +107,4 @@ public class SerialFormTest {
         WorkflowRun b = p.getBuildByNumber(1);
         r.assertBuildStatusSuccess(r.waitForCompletion(b));
     }
-
 }

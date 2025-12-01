@@ -18,15 +18,12 @@ import org.kohsuke.stapler.DataBoundConstructor;
  */
 public class Colorado extends State {
     @DataBoundConstructor
-    public Colorado() {
-    }
+    public Colorado() {}
 
     @Override
-    public void sayHello(TaskListener hello) {
-    }
+    public void sayHello(TaskListener hello) {}
 
     @Extension
     @Symbol("CO")
-    public static class DescriptorImpl extends Descriptor<State> {
-    }
+    public static class DescriptorImpl extends Descriptor<State> {}
 }

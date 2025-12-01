@@ -24,6 +24,8 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.JOB;
+
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.FilePath;
@@ -40,7 +42,6 @@ import hudson.scm.SCM;
 import hudson.scm.SCMDescriptor;
 import hudson.slaves.WorkspaceList;
 import java.io.File;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
@@ -48,13 +49,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import jenkins.model.Jenkins;
 import jenkins.scm.api.SCMFileSystem;
 import jenkins.security.HMACConfidentialKey;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.JOB;
-
 import org.jenkinsci.plugins.workflow.flow.DurabilityHintProvider;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinition;
 import org.jenkinsci.plugins.workflow.flow.FlowDefinitionDescriptor;
@@ -72,13 +70,15 @@ import org.kohsuke.stapler.StaplerRequest2;
 @PersistIn(JOB)
 public class CpsScmFlowDefinition extends FlowDefinition {
 
-    private static final HMACConfidentialKey CHECKOUT_DIR_KEY = new HMACConfidentialKey(CpsScmFlowDefinition.class, "filePathWithSuffix", 32);
+    private static final HMACConfidentialKey CHECKOUT_DIR_KEY =
+            new HMACConfidentialKey(CpsScmFlowDefinition.class, "filePathWithSuffix", 32);
 
     private final SCM scm;
     private final String scriptPath;
     private boolean lightweight;
 
-    @DataBoundConstructor public CpsScmFlowDefinition(SCM scm, String scriptPath) {
+    @DataBoundConstructor
+    public CpsScmFlowDefinition(SCM scm, String scriptPath) {
         this.scm = scm;
         this.scriptPath = scriptPath.trim();
     }
@@ -89,7 +89,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
 
     @Override
     public Collection<? extends SCM> getSCMs() {
-       return Collections.singletonList(scm);
+        return Collections.singletonList(scm);
     }
 
     public String getScriptPath() {
@@ -100,11 +100,14 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         return lightweight;
     }
 
-    @DataBoundSetter public void setLightweight(boolean lightweight) {
+    @DataBoundSetter
+    public void setLightweight(boolean lightweight) {
         this.lightweight = lightweight;
     }
 
-    @Override public CpsFlowExecution create(FlowExecutionOwner owner, TaskListener listener, List<? extends Action> actions) throws Exception {
+    @Override
+    public CpsFlowExecution create(FlowExecutionOwner owner, TaskListener listener, List<? extends Action> actions)
+            throws Exception {
         for (Action a : actions) {
             if (a instanceof CpsFlowFactoryAction2) {
                 return ((CpsFlowFactoryAction2) a).create(this, owner, actions);
@@ -114,7 +117,7 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         if (!(_build instanceof Run)) {
             throw new IOException("can only check out SCM into a Run");
         }
-        Run<?,?> build = (Run<?,?>) _build;
+        Run<?, ?> build = (Run<?, ?>) _build;
         String expandedScriptPath = build.getEnvironment(listener).expand(scriptPath);
         if (isLightweight()) {
             try (SCMFileSystem fs = SCMFileSystem.of(build.getParent(), scm, null, build)) {
@@ -123,13 +126,16 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                         String script = fs.child(expandedScriptPath).contentAsString();
                         listener.getLogger().println("Obtained " + expandedScriptPath + " from " + scm.getKey());
                         Queue.Executable exec = owner.getExecutable();
-                        FlowDurabilityHint hint = (exec instanceof Run) ? DurabilityHintProvider.suggestedFor(((Run)exec).getParent()) : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
+                        FlowDurabilityHint hint = (exec instanceof Run)
+                                ? DurabilityHintProvider.suggestedFor(((Run) exec).getParent())
+                                : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
                         return new CpsFlowExecution(script, true, owner, hint);
                     } catch (FileNotFoundException e) {
                         throw new AbortException("Unable to find " + expandedScriptPath + " from " + scm.getKey());
                     }
                 } else {
-                    listener.getLogger().println("Lightweight checkout support not available, falling back to full checkout.");
+                    listener.getLogger()
+                            .println("Lightweight checkout support not available, falling back to full checkout.");
                 }
             }
         }
@@ -144,7 +150,8 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         } else { // should not happen, but just in case:
             dir = new FilePath(owner.getRootDir());
         }
-        listener.getLogger().println("Checking out " + scm.getKey() + " into " + dir + " to read " + expandedScriptPath);
+        listener.getLogger()
+                .println("Checking out " + scm.getKey() + " into " + dir + " to read " + expandedScriptPath);
         String script = null;
         Computer computer = node.toComputer();
         if (computer == null) {
@@ -173,15 +180,18 @@ public class CpsScmFlowDefinition extends FlowDefinition {
                     Functions.printStackTrace(e, listener.error("Checkout failed"));
                 }
 
-                if (retryCount == 0)   // all attempts failed
-                    throw new AbortException("Maximum checkout retry attempts reached, aborting");
+                if (retryCount == 0) // all attempts failed
+                throw new AbortException("Maximum checkout retry attempts reached, aborting");
 
                 listener.getLogger().println("Retrying after 10 seconds");
                 Thread.sleep(10000);
             }
 
             FilePath scriptFile = dir.child(expandedScriptPath);
-            if (!new File(scriptFile.getRemote()).getCanonicalFile().toPath().startsWith(new File(dir.getRemote()).getCanonicalPath())) { // TODO JENKINS-26838
+            if (!new File(scriptFile.getRemote())
+                    .getCanonicalFile()
+                    .toPath()
+                    .startsWith(new File(dir.getRemote()).getCanonicalPath())) { // TODO JENKINS-26838
                 throw new IOException(scriptFile + " references a file that is not inside " + dir);
             }
             if (!scriptFile.exists()) {
@@ -191,7 +201,9 @@ public class CpsScmFlowDefinition extends FlowDefinition {
             acquiredDir = lease.path;
         }
         Queue.Executable queueExec = owner.getExecutable();
-        FlowDurabilityHint hint = (queueExec instanceof Run) ? DurabilityHintProvider.suggestedFor(((Run)queueExec).getParent()) : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
+        FlowDurabilityHint hint = (queueExec instanceof Run)
+                ? DurabilityHintProvider.suggestedFor(((Run) queueExec).getParent())
+                : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
         CpsFlowExecution exec = new CpsFlowExecution(script, true, owner, hint);
         exec.flowStartNodeActions.add(new WorkspaceActionImpl(acquiredDir, null));
         return exec;
@@ -205,21 +217,24 @@ public class CpsScmFlowDefinition extends FlowDefinition {
         return System.getProperty(WorkspaceList.class.getName(), "@");
     }
 
-    @Extension public static class DescriptorImpl extends FlowDefinitionDescriptor {
+    @Extension
+    public static class DescriptorImpl extends FlowDefinitionDescriptor {
 
-        @Override public String getDisplayName() {
+        @Override
+        public String getDisplayName() {
             return "Pipeline script from SCM";
         }
 
         public Collection<? extends SCMDescriptor<?>> getApplicableDescriptors() {
             StaplerRequest2 req = Stapler.getCurrentRequest2();
-            Job<?,?> job = req != null ? req.findAncestorObject(Job.class) : null;
-            return SCM._for(job).stream().filter(d -> !"org.jenkinsci.plugins.multiplescms.MultiSCM".equals(d.getId())).collect(Collectors.toList());
-
+            Job<?, ?> job = req != null ? req.findAncestorObject(Job.class) : null;
+            return SCM._for(job).stream()
+                    .filter(d -> !"org.jenkinsci.plugins.multiplescms.MultiSCM".equals(d.getId()))
+                    .collect(Collectors.toList());
         }
 
-        // TODO doCheckLightweight impossible to write even though we have SCMFileSystem.supports(SCM), because form validation cannot pass the SCM object
+        // TODO doCheckLightweight impossible to write even though we have SCMFileSystem.supports(SCM),
+        // because form validation cannot pass the SCM object
 
     }
-
 }

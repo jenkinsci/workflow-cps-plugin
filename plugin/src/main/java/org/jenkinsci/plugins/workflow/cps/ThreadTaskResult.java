@@ -18,10 +18,10 @@ public class ThreadTaskResult {
     }
 
     public static ThreadTaskResult resumeWith(Outcome o) {
-        return new ThreadTaskResult(o,null);
+        return new ThreadTaskResult(o, null);
     }
 
     public static ThreadTaskResult suspendWith(Outcome o) {
-        return new ThreadTaskResult(null,o);
+        return new ThreadTaskResult(null, o);
     }
 }

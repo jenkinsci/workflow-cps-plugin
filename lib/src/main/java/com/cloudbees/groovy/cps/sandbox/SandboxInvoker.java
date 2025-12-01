@@ -14,23 +14,23 @@ import org.kohsuke.groovy.sandbox.impl.SandboxedMethodClosure;
  */
 public class SandboxInvoker implements Invoker {
     public Object methodCall(Object receiver, String method, Object[] args) throws Throwable {
-        return Checker.checkedCall(receiver,false,false,method,args);
+        return Checker.checkedCall(receiver, false, false, method, args);
     }
 
     public Object constructorCall(Class lhs, Object[] args) throws Throwable {
-        return Checker.checkedConstructor(lhs,args);
+        return Checker.checkedConstructor(lhs, args);
     }
 
     public Object superCall(Class senderType, Object receiver, String method, Object[] args) throws Throwable {
-        return Checker.checkedSuperCall(senderType,receiver,method,args);
+        return Checker.checkedSuperCall(senderType, receiver, method, args);
     }
 
     public Object getProperty(Object lhs, String name) throws Throwable {
-        return Checker.checkedGetProperty(lhs,false,false,name);
+        return Checker.checkedGetProperty(lhs, false, false, name);
     }
 
     public void setProperty(Object lhs, String name, Object value) throws Throwable {
-        Checker.checkedSetProperty(lhs,name,false,false, Types.ASSIGN,value);
+        Checker.checkedSetProperty(lhs, name, false, false, Types.ASSIGN, value);
     }
 
     public Object getAttribute(Object lhs, String name) throws Throwable {
@@ -42,11 +42,11 @@ public class SandboxInvoker implements Invoker {
     }
 
     public Object getArray(Object lhs, Object index) throws Throwable {
-        return Checker.checkedGetArray(lhs,index);
+        return Checker.checkedGetArray(lhs, index);
     }
 
     public void setArray(Object lhs, Object index, Object value) throws Throwable {
-        Checker.checkedSetArray(lhs,index,Types.ASSIGN,value);
+        Checker.checkedSetArray(lhs, index, Types.ASSIGN, value);
     }
 
     public Object methodPointer(Object lhs, String name) {
@@ -54,15 +54,14 @@ public class SandboxInvoker implements Invoker {
     }
 
     @Override
-    public Object cast(Object value, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict) throws Throwable {
+    public Object cast(Object value, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict)
+            throws Throwable {
         return Checker.checkedCast(type, value, ignoreAutoboxing, coerce, strict);
     }
 
     public Invoker contextualize(CallSiteBlock tags) {
-        if (tags.getTags().contains(Untrusted.INSTANCE))
-            return this;
-        if (tags.getTags().contains(Trusted.INSTANCE))
-            return DefaultInvoker.INSTANCE;
+        if (tags.getTags().contains(Untrusted.INSTANCE)) return this;
+        if (tags.getTags().contains(Trusted.INSTANCE)) return DefaultInvoker.INSTANCE;
 
         // for compatibility reasons, if the call site doesn't have any tag, we'll assume it's untrusted.
         // this is because we used to not put any tags

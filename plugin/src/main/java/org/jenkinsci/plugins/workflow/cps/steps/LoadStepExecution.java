@@ -68,5 +68,4 @@ public class LoadStepExecution extends AbstractStepExecutionImpl {
     }
 
     private static final long serialVersionUID = 1L;
-
 }

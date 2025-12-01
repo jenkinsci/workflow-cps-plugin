@@ -48,8 +48,11 @@ import org.jvnet.hudson.test.RestartableJenkinsRule;
 @Deprecated
 public abstract class SingleJobTestBase extends Assert {
 
-    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-    @Rule public RestartableJenkinsRule story = new RestartableJenkinsRule();
+    @ClassRule
+    public static BuildWatcher buildWatcher = new BuildWatcher();
+
+    @Rule
+    public RestartableJenkinsRule story = new RestartableJenkinsRule();
 
     // currently executing workflow and its build
     public WorkflowJob p;
@@ -62,11 +65,11 @@ public abstract class SingleJobTestBase extends Assert {
     public void rebuildContext(JenkinsRule j) throws Exception {
         WorkflowJob p2 = (WorkflowJob) j.jenkins.getItem("demo");
         assertNotNull("could not find a job named demo", p2);
-        assert p!=p2;  // make sure Jenkins was restarted
+        assert p != p2; // make sure Jenkins was restarted
         p = p2;
 
         WorkflowRun b2 = p.getLastBuild();
-        assert b!=b2;
+        assert b != b2;
         b = b2;
 
         e = (CpsFlowExecution) b.getExecution();

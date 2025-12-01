@@ -4,13 +4,12 @@ import com.cloudbees.groovy.cps.Block;
 import com.cloudbees.groovy.cps.Continuation;
 import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Next;
-
 import java.util.HashMap;
 import java.util.Map;
 
 /**
-* @author Kohsuke Kawaguchi
-*/
+ * @author Kohsuke Kawaguchi
+ */
 public class VariableDeclBlock implements Block {
     private final Class type;
     private final String name;
@@ -28,13 +27,14 @@ public class VariableDeclBlock implements Block {
 
     private static final long serialVersionUID = 1L;
 
-    private static final Map<Class,Object> defaultPrimitiveValue = new HashMap<>();
+    private static final Map<Class, Object> defaultPrimitiveValue = new HashMap<>();
+
     static {
-        defaultPrimitiveValue.put(boolean.class,false);
-        defaultPrimitiveValue.put(int.class,0);
-        defaultPrimitiveValue.put(long.class,0L);
-        defaultPrimitiveValue.put(float.class,0.0f);
-        defaultPrimitiveValue.put(double.class,0.0d);
+        defaultPrimitiveValue.put(boolean.class, false);
+        defaultPrimitiveValue.put(int.class, 0);
+        defaultPrimitiveValue.put(long.class, 0L);
+        defaultPrimitiveValue.put(float.class, 0.0f);
+        defaultPrimitiveValue.put(double.class, 0.0d);
         // TODO: complete the rest
     }
 }

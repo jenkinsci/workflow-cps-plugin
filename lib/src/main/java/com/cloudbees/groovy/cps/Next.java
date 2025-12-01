@@ -41,7 +41,7 @@ public final class Next implements Serializable, Continuation {
         this.e = e;
         this.k = k;
         this.yield = yield;
-        assert yield!=null;
+        assert yield != null;
     }
 
     /**
@@ -49,7 +49,7 @@ public final class Next implements Serializable, Continuation {
      */
     public Next run() {
         Next n = this;
-        while(n.yield==null) {
+        while (n.yield == null) {
             n = n.step();
         }
         return n;
@@ -63,11 +63,12 @@ public final class Next implements Serializable, Continuation {
                 int remaining = max;
                 List<String> functions = new ArrayList<>();
                 Next n = Next.this;
-                while(n.yield==null) {
+                while (n.yield == null) {
                     functions.add(n.f.getClass().getCanonicalName());
                     if (--remaining == 0) {
                         int len = functions.size();
-                        throw new AssertionError("Did not terminate; ran " + len + " steps ending with: " + functions.subList(len - 20, len));
+                        throw new AssertionError("Did not terminate; ran " + len + " steps ending with: "
+                                + functions.subList(len - 20, len));
                     }
                     n = n.step();
                 }
@@ -110,11 +111,10 @@ public final class Next implements Serializable, Continuation {
         return v.resumeFrom(c.getE(), c.getK());
     }
 
-
     private static Next yield0(Outcome v, Env e, Continuation k) {
-        if (v==null)        throw new IllegalStateException("trying to yield null");
+        if (v == null) throw new IllegalStateException("trying to yield null");
 
-        return new Next(e,k,v);
+        return new Next(e, k, v);
     }
 
     /**

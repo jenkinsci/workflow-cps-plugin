@@ -34,27 +34,32 @@ import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.junit.Test;
 import org.junit.Rule;
+import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 public class ParamsVariableTest {
 
-    @Rule public JenkinsRule r = new JenkinsRule();
+    @Rule
+    public JenkinsRule r = new JenkinsRule();
 
     @Issue("JENKINS-27295")
-    @Test public void smokes() throws Exception {
+    @Test
+    public void smokes() throws Exception {
         WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition("echo(/TEXT=${params.TEXT} FLAG=${params.FLAG ? 'yes' : 'no'} PASS=${params.PASS}/)",true));
+        p.setDefinition(new CpsFlowDefinition(
+                "echo(/TEXT=${params.TEXT} FLAG=${params.FLAG ? 'yes' : 'no'} PASS=${params.PASS}/)", true));
         p.addProperty(new ParametersDefinitionProperty(
-            new StringParameterDefinition("TEXT", ""),
-            new BooleanParameterDefinition("FLAG", false, null),
-            new PasswordParameterDefinition("PASS", "", null)));
-        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0, new ParametersAction(
-            new StringParameterValue("TEXT", "hello"),
-            new BooleanParameterValue("FLAG", true),
-            new PasswordParameterValue("PASS", "s3cr3t"))));
+                new StringParameterDefinition("TEXT", ""),
+                new BooleanParameterDefinition("FLAG", false, null),
+                new PasswordParameterDefinition("PASS", "", null)));
+        WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(
+                0,
+                new ParametersAction(
+                        new StringParameterValue("TEXT", "hello"),
+                        new BooleanParameterValue("FLAG", true),
+                        new PasswordParameterValue("PASS", "s3cr3t"))));
         r.assertLogContains("TEXT=hello", b);
         r.assertLogContains("FLAG=yes", b);
         r.assertLogContains("PASS=s3cr3t", b);

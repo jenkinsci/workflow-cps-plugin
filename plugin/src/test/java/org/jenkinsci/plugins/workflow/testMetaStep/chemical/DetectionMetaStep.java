@@ -25,14 +25,18 @@ public class DetectionMetaStep extends Step {
         this.compound = compound;
     }
 
-    @Override public StepExecution start(StepContext context) throws Exception {
-        return StepExecutions.synchronousNonBlockingVoid(context, c -> c.get(TaskListener.class).getLogger().println("Detecting " + compound.getClass().getName()));
+    @Override
+    public StepExecution start(StepContext context) throws Exception {
+        return StepExecutions.synchronousNonBlockingVoid(context, c -> c.get(TaskListener.class)
+                .getLogger()
+                .println("Detecting " + compound.getClass().getName()));
     }
 
-    @Extension(ordinal=100)
+    @Extension(ordinal = 100)
     public static final class DescriptorImpl extends StepDescriptor {
 
-        @Override public String getFunctionName() {
+        @Override
+        public String getFunctionName() {
             return "detect";
         }
 
@@ -41,13 +45,14 @@ public class DetectionMetaStep extends Step {
             return true;
         }
 
-        @Override public String getDisplayName() {
+        @Override
+        public String getDisplayName() {
             return "Detect a chemical compound";
         }
 
-        @Override public Set<? extends Class<?>> getRequiredContext() {
+        @Override
+        public Set<? extends Class<?>> getRequiredContext() {
             return Set.of(TaskListener.class);
         }
-
     }
 }

@@ -12,9 +12,9 @@ import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.Test;
 import org.junit.runners.model.Statement;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.TestExtension;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.jvnet.hudson.test.Issue;
 
 /**
  * Tests related to serialization of program state.
@@ -48,7 +48,8 @@ public class SerializationTest extends SingleJobTestBase {
                     }
 
                 story.j.assertBuildStatus(Result.FAILURE, b);
-                story.j.assertLogContains("java.lang.RuntimeException: testing the forced persistence failure behaviour", b);
+                story.j.assertLogContains(
+                        "java.lang.RuntimeException: testing the forced persistence failure behaviour", b);
             }
         });
         story.addStep(new Statement() {
@@ -68,15 +69,18 @@ public class SerializationTest extends SingleJobTestBase {
         public PersistenceProblemStep() {
             super();
         }
+
         @TestExtension("stepExecutionFailsToPersist")
         public static final class DescriptorImpl extends AbstractStepDescriptorImpl {
             public DescriptorImpl() {
                 super(PersistenceProblemStepExecution.class);
             }
+
             @Override
             public String getFunctionName() {
                 return "persistenceProblem";
             }
+
             @Override
             public String getDisplayName() {
                 return "Problematic Persistence";
@@ -89,9 +93,11 @@ public class SerializationTest extends SingleJobTestBase {
          */
         public static class PersistenceProblemStepExecution extends AbstractStepExecutionImpl {
             public final Object notSerializable = new Object();
+
             private Object writeReplace() {
                 throw new RuntimeException("testing the forced persistence failure behaviour");
             }
+
             @Override
             public boolean start() throws Exception {
                 return false;
@@ -99,17 +105,20 @@ public class SerializationTest extends SingleJobTestBase {
         }
     }
 
-    @Test public void nonCps() {
+    @Test
+    public void nonCps() {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(
-                    "echo \"first parse: ${parse('foo <version>1.0</version> bar')}\"\n" +
-                    "echo \"second parse: ${parse('foo bar')}\"\n" +
-                    "@NonCPS def parse(text) {\n" +
-                    "  def matcher = text =~ '<version>(.+)</version>'\n" +
-                    "  matcher ? matcher[0][1] : null\n" +
-                    "}\n", true));
+                        "echo \"first parse: ${parse('foo <version>1.0</version> bar')}\"\n"
+                                + "echo \"second parse: ${parse('foo bar')}\"\n"
+                                + "@NonCPS def parse(text) {\n"
+                                + "  def matcher = text =~ '<version>(.+)</version>'\n"
+                                + "  matcher ? matcher[0][1] : null\n"
+                                + "}\n",
+                        true));
                 b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
                 story.j.assertLogContains("first parse: 1.0", b);
                 story.j.assertLogContains("second parse: null", b);
@@ -118,17 +127,19 @@ public class SerializationTest extends SingleJobTestBase {
     }
 
     @Issue("JENKINS-26481")
-    @Test public void eachClosure() {
+    @Test
+    public void eachClosure() {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(
-                    "node {\n" +
-                    "  ['a', 'b', 'c'].each {f -> writeFile file: f, text: f}\n" +
-                    "  def text = ''\n" +
-                    "  ['a', 'b', 'c'].each {f -> semaphore f; text += readFile f}\n" +
-                    "  echo text\n" +
-                    "}\n", true));
+                        "node {\n" + "  ['a', 'b', 'c'].each {f -> writeFile file: f, text: f}\n"
+                                + "  def text = ''\n"
+                                + "  ['a', 'b', 'c'].each {f -> semaphore f; text += readFile f}\n"
+                                + "  echo text\n"
+                                + "}\n",
+                        true));
                 b = p.scheduleBuild2(0).waitForStart();
                 SemaphoreStep.waitForStart("a/1", b);
                 SemaphoreStep.success("a/1", null);
@@ -136,7 +147,8 @@ public class SerializationTest extends SingleJobTestBase {
             }
         });
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 rebuildContext(story.j);
                 SemaphoreStep.success("b/1", null);
                 SemaphoreStep.waitForStart("c/1", b);
@@ -157,30 +169,31 @@ public class SerializationTest extends SingleJobTestBase {
      * </ul>
      */
     @Issue("JENKINS-26481")
-    @Test public void eachClosureNonCps() {
+    @Test
+    public void eachClosureNonCps() {
         story.addStep(new Statement() {
-            @Override public void evaluate() throws Throwable {
+            @Override
+            public void evaluate() throws Throwable {
                 p = jenkins().createProject(WorkflowJob.class, "demo");
                 p.setDefinition(new CpsFlowDefinition(
-                    "@NonCPS def fine() {\n" +
-                    "  def text = ''\n" +
-                    "  ['a', 'b', 'c'].each {it -> text += it}\n" +
-                    "  text\n" +
-                    "}\n" +
-                    "def takesMyOwnClosure(body) {\n" +
-                    "  node {\n" +
-                    "    def list = []\n" +
-                    "    list += body\n" +
-                    "    echo list[0]()\n" +
-                    "  }\n" +
-                    "}\n" +
-                    "takesMyOwnClosure {\n" +
-                    "  fine()\n" +
-                    "}\n", true));
+                        "@NonCPS def fine() {\n" + "  def text = ''\n"
+                                + "  ['a', 'b', 'c'].each {it -> text += it}\n"
+                                + "  text\n"
+                                + "}\n"
+                                + "def takesMyOwnClosure(body) {\n"
+                                + "  node {\n"
+                                + "    def list = []\n"
+                                + "    list += body\n"
+                                + "    echo list[0]()\n"
+                                + "  }\n"
+                                + "}\n"
+                                + "takesMyOwnClosure {\n"
+                                + "  fine()\n"
+                                + "}\n",
+                        true));
                 b = story.j.assertBuildStatusSuccess(p.scheduleBuild2(0));
                 story.j.assertLogContains("abc", b);
             }
         });
     }
-
 }

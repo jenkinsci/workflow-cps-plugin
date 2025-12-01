@@ -12,7 +12,7 @@ import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
  * @author Kohsuke Kawaguchi
  */
 public class AssertBlock implements Block {
-    final Block cond,msg;
+    final Block cond, msg;
     final String sourceText;
 
     public AssertBlock(Block cond, Block msg, String sourceText) {
@@ -22,7 +22,7 @@ public class AssertBlock implements Block {
     }
 
     public Next eval(Env e, Continuation k) {
-        return new ContinuationImpl(e,k).then(cond,e,jump);
+        return new ContinuationImpl(e, k).then(cond, e, jump);
     }
 
     class ContinuationImpl extends ContinuationGroup {
@@ -36,17 +36,15 @@ public class AssertBlock implements Block {
 
         public Next jump(Object cond) {
             return castToBoolean(cond, e, b -> {
-                if (b)
-                    return k.receive(null);
-                else
-                    return then(msg, e, fail);
+                if (b) return k.receive(null);
+                else return then(msg, e, fail);
             });
         }
 
         public Next fail(Object msg) {
             try {
                 ScriptBytecodeAdapter.assertFailed(sourceText, msg);
-                throw new IllegalStateException();  // assertFailed will throw an exception
+                throw new IllegalStateException(); // assertFailed will throw an exception
             } catch (Throwable t) {
                 return e.getExceptionHandler(t.getClass()).receive(t);
             }
@@ -55,8 +53,8 @@ public class AssertBlock implements Block {
         private static final long serialVersionUID = 1L;
     }
 
-    static final ContinuationPtr jump = new ContinuationPtr(ContinuationImpl.class,"jump");
-    static final ContinuationPtr fail = new ContinuationPtr(ContinuationImpl.class,"fail");
+    static final ContinuationPtr jump = new ContinuationPtr(ContinuationImpl.class, "jump");
+    static final ContinuationPtr fail = new ContinuationPtr(ContinuationImpl.class, "fail");
 
     private static final long serialVersionUID = 1L;
 }

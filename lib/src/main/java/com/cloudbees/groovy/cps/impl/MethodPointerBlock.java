@@ -32,11 +32,11 @@ public class MethodPointerBlock implements CallSiteBlock {
     @NonNull
     @Override
     public Collection<CallSiteTag> getTags() {
-        return tags !=null ? Collections.unmodifiableCollection(tags) : Collections.<CallSiteTag>emptySet();
+        return tags != null ? Collections.unmodifiableCollection(tags) : Collections.<CallSiteTag>emptySet();
     }
 
     public Next eval(Env e, Continuation k) {
-        return new ContinuationImpl(e,k).then(lhsExp,e,fixLhs);
+        return new ContinuationImpl(e, k).then(lhsExp, e, fixLhs);
     }
 
     class ContinuationImpl extends ContinuationGroup {
@@ -56,7 +56,7 @@ public class MethodPointerBlock implements CallSiteBlock {
         public Next fixLhs(Object lhs) {
             this.lhs = lhs;
 
-            return then(methodNameExp,e,done);
+            return then(methodNameExp, e, done);
         }
 
         /**
@@ -66,13 +66,13 @@ public class MethodPointerBlock implements CallSiteBlock {
             if (methodName instanceof GString) {
                 methodName = methodName.toString();
             }
-            return k.receive(e.getInvoker().contextualize(MethodPointerBlock.this).methodPointer(lhs, (String)methodName));
+            return k.receive(
+                    e.getInvoker().contextualize(MethodPointerBlock.this).methodPointer(lhs, (String) methodName));
         }
 
         private static final long serialVersionUID = 1L;
     }
 
-    static final ContinuationPtr fixLhs = new ContinuationPtr(ContinuationImpl.class,"fixLhs");
-    static final ContinuationPtr done = new ContinuationPtr(ContinuationImpl.class,"done");
+    static final ContinuationPtr fixLhs = new ContinuationPtr(ContinuationImpl.class, "fixLhs");
+    static final ContinuationPtr done = new ContinuationPtr(ContinuationImpl.class, "done");
 }
-

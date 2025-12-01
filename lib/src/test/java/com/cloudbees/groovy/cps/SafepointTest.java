@@ -1,9 +1,9 @@
 package com.cloudbees.groovy.cps;
 
+import static org.junit.Assert.assertEquals;
+
 import org.junit.Ignore;
 import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
 
 /**
  * Make sure that a safepoint covers all the infinite loops.

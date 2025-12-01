@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Map;
 import org.codehaus.groovy.ast.expr.SpreadExpression;
 import org.codehaus.groovy.ast.expr.SpreadMapExpression;
-import org.codehaus.groovy.classgen.AsmClassGenerator;
 import org.codehaus.groovy.runtime.ScriptBytecodeAdapter;
 import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 
@@ -58,7 +57,8 @@ public class SpreadBlock implements Block {
             }
         }
 
-        // c.f. https://github.com/apache/groovy/blob/bd12deac1d73b036d6bae378b69cfdb2cf692490/src/main/java/org/codehaus/groovy/runtime/ScriptBytecodeAdapter.java#L908-L920
+        // c.f.
+        // https://github.com/apache/groovy/blob/bd12deac1d73b036d6bae378b69cfdb2cf692490/src/main/java/org/codehaus/groovy/runtime/ScriptBytecodeAdapter.java#L908-L920
         private List<Object> despreadList(Object value) {
             if (value == null) {
                 return Collections.singletonList(null);

@@ -36,6 +36,6 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
  */
 public interface CpsFlowFactoryAction2 extends Action {
 
-    CpsFlowExecution create(FlowDefinition def, FlowExecutionOwner owner, List<? extends Action> actions) throws IOException;
-    
+    CpsFlowExecution create(FlowDefinition def, FlowExecutionOwner owner, List<? extends Action> actions)
+            throws IOException;
 }

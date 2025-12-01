@@ -17,8 +17,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 public class OrStep extends AbstractStepImpl {
 
     @DataBoundConstructor
-    public OrStep() {
-    }
+    public OrStep() {}
 
     @Extension
     public static class DescriptorImpl extends AbstractStepDescriptorImpl {
@@ -39,13 +38,11 @@ public class OrStep extends AbstractStepImpl {
     }
 
     public static class Execution extends AbstractSynchronousStepExecution<Void> {
-        @Override protected Void run() throws Exception {
+        @Override
+        protected Void run() throws Exception {
             return null;
         }
 
         private static final long serialVersionUID = 1L;
-
     }
-
 }
-

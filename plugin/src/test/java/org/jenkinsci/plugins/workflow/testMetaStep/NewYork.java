@@ -35,13 +35,11 @@ public class NewYork extends State {
 
     @Override
     public void sayHello(TaskListener hello) {
-        hello.getLogger().println("The "+motto+" State");
-        if (moderate)
-            hello.getLogger().println("New York can be moderate in spring or fall");
+        hello.getLogger().println("The " + motto + " State");
+        if (moderate) hello.getLogger().println("New York can be moderate in spring or fall");
     }
 
     @Extension
     @Symbol("newYork")
-    public static class DescriptorImpl extends Descriptor<State> {
-    }
+    public static class DescriptorImpl extends Descriptor<State> {}
 }

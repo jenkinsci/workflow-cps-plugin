@@ -1,5 +1,8 @@
 package com.cloudbees.groovy.cps;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.junit.Assert.fail;
+
 import com.cloudbees.groovy.cps.impl.CpsCallableInvocation;
 import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
@@ -15,9 +18,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.ErrorCollector;
 import org.kohsuke.groovy.sandbox.impl.GroovyCallSiteSelector;
-
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.fail;
 
 /**
  *
@@ -43,17 +43,18 @@ public abstract class AbstractGroovyCpsTest {
     @Before
     public void setUp() {
         ImportCustomizer imports = new ImportCustomizer();
-        imports.addStarImports("com.cloudbees.groovy.cps", getClass().getPackage().getName());
+        imports.addStarImports(
+                "com.cloudbees.groovy.cps", getClass().getPackage().getName());
 
         CompilerConfiguration cc = new CompilerConfiguration();
         cc.addCompilationCustomizers(imports);
         cc.addCompilationCustomizers(createCpsTransformer());
         cc.setScriptBaseClass(SerializableScript.class.getName());
-        csh = new GroovyShell(binding,cc);
+        csh = new GroovyShell(binding, cc);
 
         cc = new CompilerConfiguration();
         cc.addCompilationCustomizers(imports);
-        sh = new GroovyShell(binding,cc);
+        sh = new GroovyShell(binding, cc);
     }
 
     /**
@@ -81,7 +82,7 @@ public abstract class AbstractGroovyCpsTest {
     /**
      * Use {@code ShouldFail.class} as the expected result for {@link #eval} and similar methods when the expression is expected to throw an exception.
      */
-    public static final class ShouldFail { }
+    public static final class ShouldFail {}
 
     @FunctionalInterface
     public interface ExceptionHandler {
@@ -93,7 +94,11 @@ public abstract class AbstractGroovyCpsTest {
             Object actual = sh.evaluate(script);
             String actualType = GroovyCallSiteSelector.getName(actual);
             String expectedType = GroovyCallSiteSelector.getName(expectedResult);
-            ec.checkThat("Non-CPS-transformed result (" + actualType + ") does not match expected result (" + expectedType + ")", actual, equalTo(expectedResult));
+            ec.checkThat(
+                    "Non-CPS-transformed result (" + actualType + ") does not match expected result (" + expectedType
+                            + ")",
+                    actual,
+                    equalTo(expectedResult));
         } catch (Throwable t) {
             ec.checkSucceeds(() -> {
                 handler.handleException(t);
@@ -104,10 +109,17 @@ public abstract class AbstractGroovyCpsTest {
 
     protected void evalCps(String script, Object expectedResult, ExceptionHandler handler) {
         try {
-            Object actual = parseCps(script).invoke(null, null, Continuation.HALT).run(10000).replay();
+            Object actual = parseCps(script)
+                    .invoke(null, null, Continuation.HALT)
+                    .run(10000)
+                    .replay();
             String actualType = GroovyCallSiteSelector.getName(actual);
             String expectedType = GroovyCallSiteSelector.getName(expectedResult);
-            ec.checkThat("Non-CPS-transformed result (" + actualType + ") does not match expected result (" + expectedType + ")", actual, equalTo(expectedResult));
+            ec.checkThat(
+                    "Non-CPS-transformed result (" + actualType + ") does not match expected result (" + expectedType
+                            + ")",
+                    actual,
+                    equalTo(expectedResult));
         } catch (Throwable t) {
             ec.checkSucceeds(() -> {
                 handler.handleException(t);
@@ -144,10 +156,14 @@ public abstract class AbstractGroovyCpsTest {
         if (cpsException.get() == null || nonCpsException.get() == null) {
             return; // Either evalCps or eval will have already recorded an error because the result was not ShouldFail.
         }
-        ec.checkThat("CPS-transformed and non-CPS-transformed exceptions should have the same type",
-                nonCpsException.get().getClass(), equalTo(cpsException.get().getClass()));
-        ec.checkThat("CPS-transformed and non-CPS-transformed exceptions should have the same message",
-                nonCpsException.get().getMessage(), equalTo(cpsException.get().getMessage()));
+        ec.checkThat(
+                "CPS-transformed and non-CPS-transformed exceptions should have the same type",
+                nonCpsException.get().getClass(),
+                equalTo(cpsException.get().getClass()));
+        ec.checkThat(
+                "CPS-transformed and non-CPS-transformed exceptions should have the same message",
+                nonCpsException.get().getMessage(),
+                equalTo(cpsException.get().getMessage()));
     }
 
     public Object evalCPSonly(String script) throws Throwable {
@@ -170,10 +186,9 @@ public abstract class AbstractGroovyCpsTest {
 
         new ObjectOutputStream(baos).writeObject(cx);
 
-        ObjectInputStreamWithLoader ois = new ObjectInputStreamWithLoader(
-                new ByteArrayInputStream(baos.toByteArray()),
-                csh.getClassLoader());
+        ObjectInputStreamWithLoader ois =
+                new ObjectInputStreamWithLoader(new ByteArrayInputStream(baos.toByteArray()), csh.getClassLoader());
 
-        return (T)ois.readObject();
+        return (T) ois.readObject();
     }
 }

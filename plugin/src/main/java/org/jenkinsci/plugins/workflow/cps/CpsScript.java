@@ -24,7 +24,10 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
+
 import com.cloudbees.groovy.cps.SerializableScript;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import groovy.lang.GroovyShell;
 import groovy.lang.MissingPropertyException;
 import groovy.lang.Script;
@@ -34,7 +37,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
 import org.codehaus.groovy.control.CompilationFailedException;
 import org.codehaus.groovy.runtime.DefaultGroovyMethods;
 import org.codehaus.groovy.runtime.DefaultGroovyStaticMethods;
@@ -42,9 +44,6 @@ import org.codehaus.groovy.runtime.InvokerHelper;
 import org.codehaus.groovy.runtime.InvokerInvocationException;
 import org.jenkinsci.plugins.scriptsecurity.sandbox.whitelists.Whitelisted;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
-
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 
 /**
@@ -69,7 +68,7 @@ public abstract class CpsScript extends SerializableScript {
         // 'execution' object. This allows those scripts to invoke workflow steps without
         // any special setup, making it easy to write reusable functions.
         CpsThread c = CpsThread.current();
-        if (c!=null) {
+        if (c != null) {
             execution = c.getExecution();
             $initialize();
         }
@@ -80,7 +79,6 @@ public abstract class CpsScript extends SerializableScript {
         // TODO JENKINS-33353 could make this a GlobalVariable instead
         getBinding().setVariable(STEPS_VAR, new DSL(execution.getOwner()));
     }
-
 
     /**
      * We use DSL here to try invoke the step implementation, if there is Step implementation found it's handled or
@@ -96,17 +94,19 @@ public abstract class CpsScript extends SerializableScript {
 
         // check for user instantiated objects in the script binding
         // that respond to call.
-        if (getBinding().hasVariable(name)){
+        if (getBinding().hasVariable(name)) {
             Object o = getBinding().getVariable(name);
-            if (!InvokerHelper.getMetaClass(o).respondsTo(o, "call", (Object[]) args).isEmpty()){
-                try{
+            if (!InvokerHelper.getMetaClass(o)
+                    .respondsTo(o, "call", (Object[]) args)
+                    .isEmpty()) {
+                try {
                     return InvokerHelper.getMetaClass(o).invokeMethod(o, "call", args);
                 } catch (Exception x) {
                     throw new InvokerInvocationException(x);
                 }
             }
         }
-        
+
         // if global variables are defined by that name, try to call it.
         // the 'call' convention comes from Closure
         GlobalVariable v = GlobalVariable.byName(name, $buildNoException());
@@ -121,7 +121,7 @@ public abstract class CpsScript extends SerializableScript {
 
         // otherwise try Step impls.
         DSL dsl = (DSL) getBinding().getVariable(STEPS_VAR);
-        return dsl.invokeMethod(name,args);
+        return dsl.invokeMethod(name, args);
     }
 
     @Override
@@ -130,7 +130,7 @@ public abstract class CpsScript extends SerializableScript {
             return super.getProperty(property);
         } catch (MissingPropertyException mpe) {
             // cf. CpsWhitelist.permitsMethod
-            Run<?,?> b = $buildNoException();
+            Run<?, ?> b = $buildNoException();
             GlobalVariable v = GlobalVariable.byName(property, b);
             if (v != null) {
                 try {
@@ -153,7 +153,7 @@ public abstract class CpsScript extends SerializableScript {
         }
     }
 
-    public @CheckForNull Run<?,?> $build() throws IOException {
+    public @CheckForNull Run<?, ?> $build() throws IOException {
         FlowExecutionOwner owner = execution.getOwner();
         Queue.Executable qe = owner.getExecutable();
         if (qe instanceof Run) {
@@ -163,7 +163,7 @@ public abstract class CpsScript extends SerializableScript {
         }
     }
 
-    public @CheckForNull Run<?,?> $buildNoException() {
+    public @CheckForNull Run<?, ?> $buildNoException() {
         if (execution == null) {
             // Still inside the WorkflowScript constructor, e.g. because getProperty is being called from a @Field.
             // In such cases we do not expect to be able to use library variables, so just skip it.
@@ -207,7 +207,7 @@ public abstract class CpsScript extends SerializableScript {
 
     protected Object readResolve() {
         execution = CpsFlowExecution.PROGRAM_STATE_SERIALIZATION.get();
-        assert execution!=null;
+        assert execution != null;
         return this;
     }
 
@@ -229,12 +229,12 @@ public abstract class CpsScript extends SerializableScript {
 
     @Override
     public void printf(String format, Object value) {
-        print(DefaultGroovyMethods.sprintf(this/*not actually used*/, format, value));
+        print(DefaultGroovyMethods.sprintf(this /*not actually used*/, format, value));
     }
 
     @Override
     public void printf(String format, Object[] values) {
-        print(DefaultGroovyMethods.sprintf(this/*not actually used*/, format, values));
+        print(DefaultGroovyMethods.sprintf(this /*not actually used*/, format, values));
     }
 
     /**

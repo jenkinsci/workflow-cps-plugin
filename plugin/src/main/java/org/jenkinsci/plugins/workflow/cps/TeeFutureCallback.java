@@ -1,14 +1,13 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import com.google.common.util.concurrent.FutureCallback;
-
 import java.io.Serializable;
 
 /**
  * @author Kohsuke Kawaguchi
  */
 class TeeFutureCallback implements FutureCallback, Serializable {
-    private final FutureCallback lhs,rhs;
+    private final FutureCallback lhs, rhs;
 
     public TeeFutureCallback(FutureCallback lhs, FutureCallback rhs) {
         this.lhs = lhs;

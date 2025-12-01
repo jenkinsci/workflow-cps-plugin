@@ -24,8 +24,15 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.resumeWith;
+import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.suspendWith;
+import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
+
 import com.cloudbees.groovy.cps.Continuable;
 import com.cloudbees.groovy.cps.Outcome;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Closure;
 import groovy.lang.GString;
@@ -67,17 +74,11 @@ import org.jenkinsci.plugins.structs.SymbolLookup;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableParameter;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
-
 import org.jenkinsci.plugins.workflow.cps.actions.ArgumentsActionImpl;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-
-import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.resumeWith;
-import static org.jenkinsci.plugins.workflow.cps.ThreadTaskResult.suspendWith;
-import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.PROGRAM;
-
 import org.jenkinsci.plugins.workflow.cps.steps.LoadStep;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
 import org.jenkinsci.plugins.workflow.cps.view.InterpolatedSecretsAction;
@@ -96,10 +97,6 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.ClassDescriptor;
 import org.kohsuke.stapler.NoStaplerConstructorException;
 
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 /**
  * Calls {@link Step}s and other DSL objects.
  */
@@ -107,18 +104,19 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class DSL extends GroovyObjectSupport implements Serializable {
     @SuppressFBWarnings("MS_SHOULD_BE_FINAL") // Used to control warning behavior of unsafe Groovy interpolation
     @Restricted(NoExternalUse.class)
-    public static String UNSAFE_GROOVY_INTERPOLATION = System.getProperty(DSL.class.getName() + ".UNSAFE_GROOVY_INTERPOLATION", "warn");
+    public static String UNSAFE_GROOVY_INTERPOLATION =
+            System.getProperty(DSL.class.getName() + ".UNSAFE_GROOVY_INTERPOLATION", "warn");
 
     private final FlowExecutionOwner handle;
     private transient CpsFlowExecution exec;
-    private transient Map<String,StepDescriptor> functions;
+    private transient Map<String, StepDescriptor> functions;
     /**
      * Allows steps to be referenced using their fully qualified class name in case the same
      * function name is used for multiple steps. We keep them separate from {@link #functions} so
      * that they are not included in the error message thrown by {@link #invokeMethod} when a
      * matching DSL method is not found.
      */
-    private transient Map<String,StepDescriptor> stepClassNames;
+    private transient Map<String, StepDescriptor> stepClassNames;
     /**
      * Set of function names that are reused by distinct {@link StepDescriptor}s and for which
      * we have not yet warned the user about the ambiguity.
@@ -135,9 +133,10 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         return this;
     }
 
-    private static final String KEEP_STEP_ARGUMENTS_PROPERTYNAME = (DSL.class.getName()+".keepStepArguments");
+    private static final String KEEP_STEP_ARGUMENTS_PROPERTYNAME = (DSL.class.getName() + ".keepStepArguments");
 
-    private static boolean isKeepStepArguments = System.getProperty(KEEP_STEP_ARGUMENTS_PROPERTYNAME) == null || System.getProperty(KEEP_STEP_ARGUMENTS_PROPERTYNAME).isEmpty()
+    private static boolean isKeepStepArguments = System.getProperty(KEEP_STEP_ARGUMENTS_PROPERTYNAME) == null
+            || System.getProperty(KEEP_STEP_ARGUMENTS_PROPERTYNAME).isEmpty()
             || Boolean.parseBoolean(System.getProperty(KEEP_STEP_ARGUMENTS_PROPERTYNAME));
 
     /** Tell us if we should store {@link Step} arguments in an {@link org.jenkinsci.plugins.workflow.actions.ArgumentsAction}
@@ -157,8 +156,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     @CpsVmThreadOnly
     public Object invokeMethod(String name, Object args) {
         try {
-            if (exec==null)
-                exec = (CpsFlowExecution) handle.get();
+            if (exec == null) exec = (CpsFlowExecution) handle.get();
         } catch (IOException e) {
             throw new GroovyRuntimeException(e);
         }
@@ -188,14 +186,15 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
         final StepDescriptor sd = functions.getOrDefault(name, stepClassNames.get(name));
         if (sd != null) {
-            if (Util.isOverridden(DSL.class, getClass(), "invokeStep", StepDescriptor.class, Object.class) &&
-                    !Util.isOverridden(DSL.class, getClass(), "invokeStep", StepDescriptor.class, String.class, Object.class)) {
+            if (Util.isOverridden(DSL.class, getClass(), "invokeStep", StepDescriptor.class, Object.class)
+                    && !Util.isOverridden(
+                            DSL.class, getClass(), "invokeStep", StepDescriptor.class, String.class, Object.class)) {
                 return invokeStep(sd, args);
             }
             return invokeStep(sd, name, args);
         }
         if (SymbolLookup.get().findDescriptor(Describable.class, name) != null) {
-            return invokeDescribable(name,args);
+            return invokeDescribable(name, args);
         }
 
         Set<String> symbols = new TreeSet<>();
@@ -215,7 +214,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             Logger.getLogger(DSL.class.getName()).log(Level.WARNING, null, x);
         }
         // TODO probably this should be throwing a subtype of groovy.lang.MissingMethodException
-        throw new NoSuchMethodError("No such DSL method '" + name + "' found among steps " + functions.keySet() + " or symbols " + symbols + " or globals " + globals);
+        throw new NoSuchMethodError("No such DSL method '" + name + "' found among steps " + functions.keySet()
+                + " or symbols " + symbols + " or globals " + globals);
     }
 
     /**
@@ -244,7 +244,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         boolean hack = d instanceof ParallelStep.DescriptorImpl || d instanceof LoadStep.DescriptorImpl;
 
         if (ps.body == null && !hack) {
-            if (!(d.getClass().getName().equals("org.jenkinsci.plugins.workflow.support.steps.StageStep$DescriptorImpl"))
+            if (!(d.getClass()
+                            .getName()
+                            .equals("org.jenkinsci.plugins.workflow.support.steps.StageStep$DescriptorImpl"))
                     && d.takesImplicitBlockArgument()) {
                 throw new IllegalStateException(String.format("%s step must be called with a body", name));
             } else {
@@ -269,8 +271,12 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         // Ensure ArgumentsAction is attached before we notify even synchronous listeners:
         ArgumentsActionImpl argumentsAction = null;
         try {
-            // No point storing empty arguments, and ParallelStep is a special case where we can't store its closure arguments
-            if (ps.namedArgs != null && !(ps.namedArgs.isEmpty()) && isKeepStepArguments() && !(d instanceof ParallelStep.DescriptorImpl)) {
+            // No point storing empty arguments,
+            // and ParallelStep is a special case where we can't store its closure arguments
+            if (ps.namedArgs != null
+                    && !(ps.namedArgs.isEmpty())
+                    && isKeepStepArguments()
+                    && !(d instanceof ParallelStep.DescriptorImpl)) {
                 // Get the environment variables to find ones that might be credentials bindings
                 Computer comp = context.get(Computer.class);
                 if (comp != null && allEnv != null) {
@@ -292,7 +298,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         ClassLoader originalLoader = Thread.currentThread().getContextClassLoader();
         try {
             TaskListener listener = context.get(TaskListener.class);
-            logInterpolationWarnings(name, argumentsAction, ps.interpolatedStrings, allEnv, sensitiveVariables, listener);
+            logInterpolationWarnings(
+                    name, argumentsAction, ps.interpolatedStrings, allEnv, sensitiveVariables, listener);
             if (unreportedAmbiguousFunctions.remove(name)) {
                 reportAmbiguousStepInvocation(context, d, listener);
             }
@@ -313,7 +320,11 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 try {
                     sl.notifyOfNewStep(s, context);
                 } catch (Throwable e) {
-                    LOGGER.log(Level.WARNING, "failed to notify step listener before starting " + s.getDescriptor().getFunctionName(), e);
+                    LOGGER.log(
+                            Level.WARNING,
+                            "failed to notify step listener before starting "
+                                    + s.getDescriptor().getFunctionName(),
+                            e);
                 }
             }
             if (!context.isCompleted()) {
@@ -333,10 +344,14 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
 
         if (sync) {
-            assert context.withBodyInvokers(List::isEmpty) : "If a step claims synchronous completion, it shouldn't invoke body";
+            assert context.withBodyInvokers(List::isEmpty)
+                    : "If a step claims synchronous completion, it shouldn't invoke body";
 
-            if (context.getOutcome()==null) {
-                context.onFailure(new AssertionError("Step "+s+" claimed to have ended synchronously, but didn't set the result via StepContext.onSuccess/onFailure"));
+            if (context.getOutcome() == null) {
+                context.onFailure(
+                        new AssertionError(
+                                "Step " + s
+                                        + " claimed to have ended synchronously, but didn't set the result via StepContext.onSuccess/onFailure"));
             }
 
             thread.setStep(null);
@@ -345,7 +360,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // we just move on accordingly
             if (an instanceof StepStartNode) {
                 // no body invoked, so EndNode follows StartNode immediately.
-                thread.head.setNewHead(new StepEndNode(exec, (StepStartNode)an, an));
+                thread.head.setNewHead(new StepEndNode(exec, (StepStartNode) an, an));
             }
 
             thread.head.markIfFail(context.getOutcome());
@@ -363,7 +378,14 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         }
     }
 
-    private void logInterpolationWarnings(String stepName, @CheckForNull ArgumentsActionImpl argumentsAction, Set<String> interpolatedStrings, @CheckForNull EnvVars envVars, @NonNull Set<String> sensitiveVariables, TaskListener listener) throws IOException {
+    private void logInterpolationWarnings(
+            String stepName,
+            @CheckForNull ArgumentsActionImpl argumentsAction,
+            Set<String> interpolatedStrings,
+            @CheckForNull EnvVars envVars,
+            @NonNull Set<String> sensitiveVariables,
+            TaskListener listener)
+            throws IOException {
         if (UNSAFE_GROOVY_INTERPOLATION.equals("ignore")) {
             return;
         }
@@ -374,13 +396,20 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             shouldFail = false;
         }
 
-        if (argumentsAction == null || interpolatedStrings.isEmpty() || envVars == null || envVars.isEmpty() || sensitiveVariables.isEmpty()) {
+        if (argumentsAction == null
+                || interpolatedStrings.isEmpty()
+                || envVars == null
+                || envVars.isEmpty()
+                || sensitiveVariables.isEmpty()) {
             return;
         }
 
-        final EnvVars nonNullEnvVars = envVars; // Workaround for NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE false positive in lambdas: https://github.com/spotbugs/spotbugs/issues/552.
+        // Workaround for NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE false positive in lambdas:
+        // https://github.com/spotbugs/spotbugs/issues/552
+        final EnvVars nonNullEnvVars = envVars;
         List<String> scanResults = sensitiveVariables.stream()
-                .filter(e -> !nonNullEnvVars.get(e, "").isEmpty() && interpolatedStrings.stream().anyMatch(g -> g.contains(nonNullEnvVars.get(e))))
+                .filter(e -> !nonNullEnvVars.get(e, "").isEmpty()
+                        && interpolatedStrings.stream().anyMatch(g -> g.contains(nonNullEnvVars.get(e))))
                 .collect(Collectors.toList());
 
         if (scanResults != null && !scanResults.isEmpty()) {
@@ -390,11 +419,13 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             } else {
                 warningType = "Warning";
             }
-            String warning = String.format("%s: A secret was passed to \"%s\" using Groovy String interpolation, which is insecure.%n\t\t Affected argument(s) used the following variable(s): %s%n\t\t See https://jenkins.io/redirect/groovy-string-interpolation for details.",
+            String warning = String.format(
+                    "%s: A secret was passed to \"%s\" using Groovy String interpolation, which is insecure.%n\t\t Affected argument(s) used the following variable(s): %s%n\t\t See https://jenkins.io/redirect/groovy-string-interpolation for details.",
                     warningType, stepName, scanResults.toString());
             FlowExecutionOwner owner = exec.getOwner();
             if (owner != null && owner.getExecutable() instanceof Run) {
-                InterpolatedSecretsAction runReport = ((Run) owner.getExecutable()).getAction(InterpolatedSecretsAction.class);
+                InterpolatedSecretsAction runReport =
+                        ((Run) owner.getExecutable()).getAction(InterpolatedSecretsAction.class);
                 if (runReport == null) {
                     runReport = new InterpolatedSecretsAction();
                     ((Run) owner.getExecutable()).addAction(runReport);
@@ -426,21 +457,27 @@ public class DSL extends GroovyObjectSupport implements Serializable {
     @SuppressWarnings({"unchecked", "rawtypes"})
     protected Object invokeDescribable(String symbol, Object _args) {
         List<StepDescriptor> metaSteps = StepDescriptor.metaStepsOf(symbol);
-        StepDescriptor metaStep = metaSteps.size()==1 ? metaSteps.get(0) : null;
+        StepDescriptor metaStep = metaSteps.size() == 1 ? metaSteps.get(0) : null;
 
         boolean singleArgumentOnly = false;
         if (metaStep != null) {
-            Descriptor symbolDescriptor = SymbolLookup.get().findDescriptor((Class)(metaStep.getMetaStepArgumentType()), symbol);
+            Descriptor symbolDescriptor =
+                    SymbolLookup.get().findDescriptor((Class) (metaStep.getMetaStepArgumentType()), symbol);
             DescribableModel<?> symbolModel = DescribableModel.of(symbolDescriptor.clazz);
 
-            singleArgumentOnly = symbolModel.hasSingleRequiredParameter() && symbolModel.getParameters().size() == 1;
+            singleArgumentOnly = symbolModel.hasSingleRequiredParameter()
+                    && symbolModel.getParameters().size() == 1;
         }
 
         // The only time a closure is valid is when the resulting Describable is immediately executed via a meta-step
-        NamedArgsAndClosure args = parseArgs(_args, metaStep!=null && metaStep.takesImplicitBlockArgument(),
-                UninstantiatedDescribable.ANONYMOUS_KEY, singleArgumentOnly, new HashSet<>());
+        NamedArgsAndClosure args = parseArgs(
+                _args,
+                metaStep != null && metaStep.takesImplicitBlockArgument(),
+                UninstantiatedDescribable.ANONYMOUS_KEY,
+                singleArgumentOnly,
+                new HashSet<>());
 
-        if (metaStep==null) {
+        if (metaStep == null) {
             // there's no meta-step associated with it, so this symbol is not executable.
             // in this case we assume this is building a nested object used as an eventual
             // parameter of an executable symbol, e.g.,
@@ -451,20 +488,23 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // where this UninstantiatedDescribable is ultimately used, the symbol
             // might be resolved with a specific type.
 
-            // Note: Declarative relies on an instance of UninstantiatedDescribable being returned here in some cases where there is no Pipeline step involved, e.g. for the `triggers` directive.
-            return new UninstantiatedDescribableWithInterpolation(symbol, null, args.namedArgs, args.interpolatedStrings);
+            // Note: Declarative relies on an instance of UninstantiatedDescribable being returned here
+            // in some cases where there is no Pipeline step involved, e.g. for the `triggers` directive.
+            return new UninstantiatedDescribableWithInterpolation(
+                    symbol, null, args.namedArgs, args.interpolatedStrings);
         } else {
             UninstantiatedDescribable ud = new UninstantiatedDescribable(symbol, null, args.namedArgs);
-            Descriptor d = SymbolLookup.get().findDescriptor((Class)(metaStep.getMetaStepArgumentType()), symbol);
+            Descriptor d = SymbolLookup.get().findDescriptor((Class) (metaStep.getMetaStepArgumentType()), symbol);
             try {
                 // execute this Describable through a meta-step
                 // split args between MetaStep (represented by mm) and Describable (represented by dm)
                 DescribableModel<?> mm = DescribableModel.of(metaStep.clazz);
                 DescribableModel<?> dm = DescribableModel.of(d.clazz);
                 DescribableParameter p = mm.getFirstRequiredParameter();
-                if (p==null) {
+                if (p == null) {
                     // meta-step not having a required parameter is a bug in this meta step
-                    throw new IllegalArgumentException("Attempted to use meta-step "+metaStep.getFunctionName()+" to process "+symbol+" but this meta-step is buggy; it has no mandatory parameter");
+                    throw new IllegalArgumentException("Attempted to use meta-step " + metaStep.getFunctionName()
+                            + " to process " + symbol + " but this meta-step is buggy; it has no mandatory parameter");
                 }
 
                 // order of preference:
@@ -474,48 +514,49 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 //      4. other parameters in dm
                 // mm is preferred over dm because that way at least the arguments that mm defines
                 // act consistently
-                Map<String,Object> margs = new TreeMap<>();
-                Map<String,Object> dargs = new TreeMap<>();
+                Map<String, Object> margs = new TreeMap<>();
+                Map<String, Object> dargs = new TreeMap<>();
                 for (Entry<String, ?> e : ud.getArguments().entrySet()) {
                     String n = e.getKey();
                     Object v = e.getValue();
                     DescribableParameter mp = mm.getParameter(n);
                     DescribableParameter dp = dm.getParameter(n);
 
-                    if (mp!=null && mp.isRequired()) {
-                        margs.put(n,v);
-                    } else
-                    if (dp!=null && dp.isRequired()) {
-                        dargs.put(n,v);
-                    } else
-                    if (mp!=null) {
-                        margs.put(n,v);
+                    if (mp != null && mp.isRequired()) {
+                        margs.put(n, v);
+                    } else if (dp != null && dp.isRequired()) {
+                        dargs.put(n, v);
+                    } else if (mp != null) {
+                        margs.put(n, v);
                     } else {
                         // dp might be null, but this error will be caught by UD.instantiate() later
-                        dargs.put(n,v);
+                        dargs.put(n, v);
                     }
                 }
 
                 ud = new UninstantiatedDescribable(symbol, null, dargs);
-                margs.put(p.getName(),ud);
+                margs.put(p.getName(), ud);
 
-                return invokeStep(metaStep, symbol, new NamedArgsAndClosure(margs, args.body, args.interpolatedStrings));
+                return invokeStep(
+                        metaStep, symbol, new NamedArgsAndClosure(margs, args.body, args.interpolatedStrings));
             } catch (Exception e) {
-                throw new IllegalArgumentException("Failed to prepare "+symbol+" step",e);
+                throw new IllegalArgumentException("Failed to prepare " + symbol + " step", e);
             }
         }
     }
 
-    private void reportAmbiguousStepInvocation(CpsStepContext context, StepDescriptor d, @Nullable TaskListener listener) {
+    private void reportAmbiguousStepInvocation(
+            CpsStepContext context, StepDescriptor d, @Nullable TaskListener listener) {
         if (listener != null) {
             List<String> ambiguousClassNames = StepDescriptor.all().stream()
                     .filter(sd -> sd.getFunctionName().equals(d.getFunctionName()))
                     .map(sd -> sd.clazz.getName())
                     .collect(Collectors.toList());
-            String message = String.format("Warning: Invoking ambiguous Pipeline Step ‘%1$s’ (%2$s). " +
-                            "‘%1$s’ could refer to any of the following steps: %3$s. " +
-                            "You can invoke steps by class name instead to avoid ambiguity. " +
-                            "For example: steps.'%2$s'(...)",
+            String message = String.format(
+                    "Warning: Invoking ambiguous Pipeline Step ‘%1$s’ (%2$s). "
+                            + "‘%1$s’ could refer to any of the following steps: %3$s. "
+                            + "You can invoke steps by class name instead to avoid ambiguity. "
+                            + "For example: steps.'%2$s'(...)",
                     d.getFunctionName(), d.clazz.getName(), ambiguousClassNames);
             listener.getLogger().println(message);
             return;
@@ -528,9 +569,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         if (elementsToHold == 0) {
             return 0;
         } else if (elementsToHold < 3) {
-            return elementsToHold+1;
+            return elementsToHold + 1;
         } else {
-            return elementsToHold+elementsToHold/3; // Default load factor is 0.75, so we want to fill that much.
+            return elementsToHold + elementsToHold / 3; // Default load factor is 0.75, so we want to fill that much.
         }
     }
 
@@ -540,19 +581,19 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * <p>Groovy strings that are interpolated are collected to be tested against sensitive environment variables in </p>
      */
     static class NamedArgsAndClosure {
-        final Map<String,Object> namedArgs;
+        final Map<String, Object> namedArgs;
         final Closure body;
         final List<String> msgs;
         final Set<String> interpolatedStrings;
 
-        private NamedArgsAndClosure(Map<?,?> namedArgs, Closure body, @NonNull Set<String> foundInterpolatedStrings) {
+        private NamedArgsAndClosure(Map<?, ?> namedArgs, Closure body, @NonNull Set<String> foundInterpolatedStrings) {
             this.namedArgs = new LinkedHashMap<>(preallocatedHashmapCapacity(namedArgs.size()));
             this.body = body;
             this.msgs = new ArrayList<>();
             this.interpolatedStrings = new HashSet<>(foundInterpolatedStrings);
 
             namedArgs = (Map<?, ?>) collectInterpolatedStrings(namedArgs, interpolatedStrings);
-            for (Map.Entry<?,?> entry : namedArgs.entrySet()) {
+            for (Map.Entry<?, ?> entry : namedArgs.entrySet()) {
                 String k = entry.getKey().toString().intern(); // coerces GString and more
                 Object v = flattenGString(entry.getValue(), interpolatedStrings);
                 this.namedArgs.put(k, v);
@@ -566,7 +607,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
          */
         private static Object collectInterpolatedStrings(Object argValue, Set<String> interpolatedStrings) {
             if (argValue instanceof UninstantiatedDescribableWithInterpolation) {
-                interpolatedStrings.addAll(((UninstantiatedDescribableWithInterpolation) argValue).getInterpolatedStrings());
+                interpolatedStrings.addAll(
+                        ((UninstantiatedDescribableWithInterpolation) argValue).getInterpolatedStrings());
                 return argValue;
             } else if (argValue instanceof Map) {
                 Map<Object, Object> r = new LinkedHashMap<>(preallocatedHashmapCapacity(((Map) argValue).size()));
@@ -632,8 +674,9 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         boolean singleArgumentOnly = false;
         try {
             DescribableModel<?> stepModel = DescribableModel.of(d.clazz);
-            singleArgumentOnly = stepModel.hasSingleRequiredParameter() && stepModel.getParameters().size() == 1;
-            if (singleArgumentOnly) {  // Can fetch the one argument we need
+            singleArgumentOnly = stepModel.hasSingleRequiredParameter()
+                    && stepModel.getParameters().size() == 1;
+            if (singleArgumentOnly) { // Can fetch the one argument we need
                 DescribableParameter dp = stepModel.getSoleRequiredParameter();
                 String paramName = (dp != null) ? dp.getName() : null;
                 return parseArgs(arg, d.takesImplicitBlockArgument(), paramName, singleArgumentOnly, new HashSet<>());
@@ -641,7 +684,8 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         } catch (NoStaplerConstructorException e) {
             // Ignore steps without databound constructors and treat them as normal.
         }
-        return parseArgs(arg,d.takesImplicitBlockArgument(), loadSoleArgumentKey(d), singleArgumentOnly, new HashSet<>());
+        return parseArgs(
+                arg, d.takesImplicitBlockArgument(), loadSoleArgumentKey(d), singleArgumentOnly, new HashSet<>());
     }
 
     /**
@@ -669,7 +713,12 @@ public class DSL extends GroovyObjectSupport implements Serializable {
      * @param interpolatedStrings
      *      The collection of interpolated Groovy strings.
      */
-    static NamedArgsAndClosure parseArgs(Object arg, boolean expectsBlock, String soleArgumentKey, boolean singleRequiredArg, @NonNull Set<String> interpolatedStrings) {
+    static NamedArgsAndClosure parseArgs(
+            Object arg,
+            boolean expectsBlock,
+            String soleArgumentKey,
+            boolean singleRequiredArg,
+            @NonNull Set<String> interpolatedStrings) {
         if (arg instanceof NamedArgsAndClosure) {
             return (NamedArgsAndClosure) arg;
         }
@@ -677,45 +726,47 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             return new NamedArgsAndClosure((Map) arg, null, interpolatedStrings);
         }
         if (arg instanceof Closure && expectsBlock) {
-            return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),(Closure)arg, interpolatedStrings);
+            return new NamedArgsAndClosure(Collections.<String, Object>emptyMap(), (Closure) arg, interpolatedStrings);
         }
 
-        if (arg instanceof Object[]) {// this is how Groovy appears to pack argument list into one Object for invokeMethod
-            List a = Arrays.asList((Object[])arg);
-            if (a.size()==0) {
+        // this is how Groovy appears to pack argument list into one Object for invokeMethod
+        if (arg instanceof Object[]) {
+            List a = Arrays.asList((Object[]) arg);
+            if (a.size() == 0) {
                 return new NamedArgsAndClosure(Collections.<String, Object>emptyMap(), null, interpolatedStrings);
             }
 
-            Closure c=null;
+            Closure c = null;
 
-            Object last = a.get(a.size()-1);
+            Object last = a.get(a.size() - 1);
             if (last instanceof Closure && expectsBlock) {
-                c = (Closure)last;
-                a = a.subList(0,a.size()-1);
+                c = (Closure) last;
+                a = a.subList(0, a.size() - 1);
             }
 
-            if (a.size()==1 && a.get(0) instanceof Map && !((Map) a.get(0)).containsKey("$class")) {
+            if (a.size() == 1 && a.get(0) instanceof Map && !((Map) a.get(0)).containsKey("$class")) {
                 Map mapArg = (Map) a.get(0);
-                if (!singleRequiredArg ||
-                        (soleArgumentKey != null && mapArg.size() == 1 && mapArg.containsKey(soleArgumentKey))) {
+                if (!singleRequiredArg
+                        || (soleArgumentKey != null && mapArg.size() == 1 && mapArg.containsKey(soleArgumentKey))) {
                     // this is how Groovy passes in Map
                     return new NamedArgsAndClosure(mapArg, c, interpolatedStrings);
                 }
             }
 
             switch (a.size()) {
-            case 0:
-                return new NamedArgsAndClosure(Collections.<String,Object>emptyMap(),c, interpolatedStrings);
-            case 1:
-                return new NamedArgsAndClosure(singleParam(soleArgumentKey, a.get(0)), c, interpolatedStrings);
-            default:
-                throw new IllegalArgumentException("Expected named arguments but got "+a);
+                case 0:
+                    return new NamedArgsAndClosure(Collections.<String, Object>emptyMap(), c, interpolatedStrings);
+                case 1:
+                    return new NamedArgsAndClosure(singleParam(soleArgumentKey, a.get(0)), c, interpolatedStrings);
+                default:
+                    throw new IllegalArgumentException("Expected named arguments but got " + a);
             }
         }
 
         return new NamedArgsAndClosure(singleParam(soleArgumentKey, arg), null, interpolatedStrings);
     }
-    private static Map<String,Object> singleParam(String soleArgumentKey, Object arg) {
+
+    private static Map<String, Object> singleParam(String soleArgumentKey, Object arg) {
         if (soleArgumentKey != null) {
             return Collections.singletonMap(soleArgumentKey, arg);
         } else {
@@ -748,7 +799,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 // switchToAsyncMode to happen inside 'synchronized(lock)', so that
                 // the 'executing' variable gets set to null before the scheduleNextChunk call starts going.
 
-                return suspendWith(new Outcome(context,null));
+                return suspendWith(new Outcome(context, null));
             }
         }
 
@@ -769,15 +820,16 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // we want to do this first before starting body so that the order of heads preserve
             // natural ordering.
 
-            // TODO give this javadocs worth a darn, because this is how we create parallel branches and the docs are cryptic as can be!
+            // TODO give this javadocs worth a darn,
+            // because this is how we create parallel branches and the docs are cryptic as can be!
             // Also we need to double-check this logic because this might cause a failure of persistence
             return context.withBodyInvokers(bodyInvokers -> {
                 FlowHead[] heads = new FlowHead[bodyInvokers.size()];
                 for (int i = 0; i < heads.length; i++) {
-                    heads[i] = i==0 ? cur.head : cur.head.fork();
+                    heads[i] = i == 0 ? cur.head : cur.head.fork();
                 }
 
-                int idx=0;
+                int idx = 0;
                 for (CpsBodyInvoker b : bodyInvokers) {
                     // don't collect the first head, which is what we borrowed from our parent.
                     FlowHead h = heads[idx];
@@ -808,8 +860,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 this.head = head;
             }
 
-            private void onEnd() {
-            }
+            private void onEnd() {}
 
             @Override
             public void onSuccess(StepContext context, Object result) {
@@ -821,7 +872,6 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 onEnd();
             }
         }
-
 
         private static final long serialVersionUID = 1L;
     }

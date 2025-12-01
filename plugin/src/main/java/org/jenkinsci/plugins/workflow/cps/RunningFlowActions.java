@@ -39,18 +39,21 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 /**
  * Adds actions to the sidebar of a running Pipeline build.
  */
-@Extension public class RunningFlowActions extends TransientActionFactory<FlowExecutionOwner.Executable> {
+@Extension
+public class RunningFlowActions extends TransientActionFactory<FlowExecutionOwner.Executable> {
 
     @Override
     public Class<? extends Action> actionType() {
         return RunningFlowAction.class;
     }
 
-    @Override public Class<FlowExecutionOwner.Executable> type() {
+    @Override
+    public Class<FlowExecutionOwner.Executable> type() {
         return FlowExecutionOwner.Executable.class;
     }
-    
-    @Override public Collection<? extends Action> createFor(FlowExecutionOwner.Executable executable) {
+
+    @Override
+    public Collection<? extends Action> createFor(FlowExecutionOwner.Executable executable) {
         FlowExecutionOwner owner = executable.asFlowExecutionOwner();
         if (owner != null) {
             FlowExecution exec = owner.getOrNull();
@@ -59,7 +62,8 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
                 List<Action> actions = new ArrayList<>();
                 actions.add(new CpsThreadDumpAction(e));
                 // TODO cf. comment in CpsFlowExecution#pause
-                if (!(executable instanceof AccessControlled) || ((AccessControlled) executable).hasPermission(Item.CANCEL)) {
+                if (!(executable instanceof AccessControlled)
+                        || ((AccessControlled) executable).hasPermission(Item.CANCEL)) {
                     actions.add(new PauseUnpauseAction(e));
                 }
                 return actions;
@@ -67,5 +71,4 @@ import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
         }
         return Collections.emptySet();
     }
-
 }

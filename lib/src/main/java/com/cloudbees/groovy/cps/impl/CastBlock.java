@@ -18,7 +18,14 @@ public class CastBlock extends CallSiteBlockSupport {
     private final boolean coerce;
     private final boolean strict;
 
-    public CastBlock(SourceLocation loc, Collection<CallSiteTag> tags, Block valueExp, Class<?> type, boolean ignoreAutoboxing, boolean coerce, boolean strict) {
+    public CastBlock(
+            SourceLocation loc,
+            Collection<CallSiteTag> tags,
+            Block valueExp,
+            Class<?> type,
+            boolean ignoreAutoboxing,
+            boolean coerce,
+            boolean strict) {
         super(tags);
         this.loc = loc;
         this.valueExp = valueExp;
@@ -44,7 +51,9 @@ public class CastBlock extends CallSiteBlockSupport {
 
         public Next cast(Object value) {
             try {
-                return k.receive(e.getInvoker().contextualize(CastBlock.this).cast(value, type, ignoreAutoboxing, coerce, strict));
+                return k.receive(e.getInvoker()
+                        .contextualize(CastBlock.this)
+                        .cast(value, type, ignoreAutoboxing, coerce, strict));
             } catch (CpsCallableInvocation inv) {
                 // Implementations of asType and other methods used by the Groovy stdlib should be @NonCPS, but we
                 // just log a warning and invoke the callable anyway to maintain the existing behavior.
@@ -58,10 +67,11 @@ public class CastBlock extends CallSiteBlockSupport {
                     // the callable.
                     Throwable cause = t.getCause();
                     if (cause instanceof CpsCallableInvocation) {
-                        CpsCallableInvocation inv = (CpsCallableInvocation)cause;
+                        CpsCallableInvocation inv = (CpsCallableInvocation) cause;
                         inv.checkMismatch(ScriptBytecodeAdapter.class, List.of(coerce ? "asType" : "castToType"));
                         String classAndMethod = inv.getClassAndMethodForDisplay();
-                        t = new IllegalStateException(classAndMethod + " must be @NonCPS; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/");
+                        t = new IllegalStateException(classAndMethod
+                                + " must be @NonCPS; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/");
                     }
                 }
                 return throwException(e, t, loc, new ReferenceStackTrace());

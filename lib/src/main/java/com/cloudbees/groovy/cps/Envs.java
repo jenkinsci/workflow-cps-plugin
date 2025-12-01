@@ -16,7 +16,7 @@ public class Envs {
      * regular Java program.
      */
     public static Env empty() {
-        return new FunctionCallEnv(null,Continuation.HALT,null,null, 0);
+        return new FunctionCallEnv(null, Continuation.HALT, null, null, 0);
     }
 
     /**

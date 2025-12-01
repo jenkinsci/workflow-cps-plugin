@@ -24,19 +24,18 @@
 
 package org.jenkinsci.plugins.workflow.cps.replay;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.InvisibleAction;
 import hudson.model.Queue;
+import hudson.model.Run;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
-
-import hudson.model.Run;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowFactoryAction2;
 import org.jenkinsci.plugins.workflow.flow.DurabilityHintProvider;
@@ -51,24 +50,32 @@ import org.jenkinsci.plugins.workflow.flow.GlobalDefaultFlowDurabilityLevel;
 class ReplayFlowFactoryAction extends InvisibleAction implements CpsFlowFactoryAction2, Queue.QueueAction {
 
     private String replacementMainScript;
-    private final Map<String,String> replacementLoadedScripts;
+    private final Map<String, String> replacementLoadedScripts;
     private final boolean sandbox;
-    
-    ReplayFlowFactoryAction(@NonNull String replacementMainScript, @NonNull Map<String,String> replacementLoadedScripts, boolean sandbox) {
+
+    ReplayFlowFactoryAction(
+            @NonNull String replacementMainScript,
+            @NonNull Map<String, String> replacementLoadedScripts,
+            boolean sandbox) {
         this.replacementMainScript = replacementMainScript;
         this.replacementLoadedScripts = new HashMap<>(replacementLoadedScripts);
         this.sandbox = sandbox;
     }
 
-    @Override public CpsFlowExecution create(FlowDefinition def, FlowExecutionOwner owner, List<? extends Action> actions) throws IOException {
+    @Override
+    public CpsFlowExecution create(FlowDefinition def, FlowExecutionOwner owner, List<? extends Action> actions)
+            throws IOException {
         String script = replacementMainScript;
         replacementMainScript = null; // minimize build.xml size
         Queue.Executable exec = owner.getExecutable();
-        FlowDurabilityHint hint = (exec instanceof Run) ? DurabilityHintProvider.suggestedFor(((Run)exec).getParent()) : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
+        FlowDurabilityHint hint = (exec instanceof Run)
+                ? DurabilityHintProvider.suggestedFor(((Run) exec).getParent())
+                : GlobalDefaultFlowDurabilityLevel.getDefaultDurabilityHint();
         return new CpsFlowExecution(script, sandbox, owner, hint);
     }
 
-    @Override public boolean shouldSchedule(List<Action> actions) {
+    @Override
+    public boolean shouldSchedule(List<Action> actions) {
         return true; // do not coalesce
     }
 
@@ -76,16 +83,17 @@ class ReplayFlowFactoryAction extends InvisibleAction implements CpsFlowFactoryA
         return Set.copyOf(replacementLoadedScripts.keySet());
     }
 
-    @CheckForNull String replace(String clazz) {
+    @CheckForNull
+    String replace(String clazz) {
         return replacementLoadedScripts.remove(clazz);
     }
 
-    @Extension public static class StoredLoadedScripts extends OriginalLoadedScripts {
+    @Extension
+    public static class StoredLoadedScripts extends OriginalLoadedScripts {
 
-        @Override public Map<String, String> loadScripts(CpsFlowExecution execution) {
+        @Override
+        public Map<String, String> loadScripts(CpsFlowExecution execution) {
             return execution.getLoadedScripts();
         }
-
     }
-
 }

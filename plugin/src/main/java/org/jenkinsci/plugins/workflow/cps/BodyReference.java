@@ -24,12 +24,11 @@
 
 package org.jenkinsci.plugins.workflow.cps;
 
-import groovy.lang.Closure;
-import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
-
-import java.io.Serializable;
-
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.ANYWHERE;
+
+import groovy.lang.Closure;
+import java.io.Serializable;
+import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 
 /**
  * Holder of {@link Closure} for {@link CpsStepContext}
@@ -68,15 +67,15 @@ class StaticBodyReference extends BodyReference {
         return new HandleBodyReference(id);
 
         /*
-            TODO: the following check is insufficient, because the pickling persistence
-            also happens in the context of PROGRAM_STATE_SERIALIZATION.
-         */
+           TODO: the following check is insufficient, because the pickling persistence
+           also happens in the context of PROGRAM_STATE_SERIALIZATION.
+        */
 
-//        if (PROGRAM_STATE_SERIALIZATION.get()!=null) {
-//            // serializing in CpsThreadGroup object graph
-//            return this;
-//        } else {
-//        }
+        //        if (PROGRAM_STATE_SERIALIZATION.get()!=null) {
+        //            // serializing in CpsThreadGroup object graph
+        //            return this;
+        //        } else {
+        //        }
     }
 
     private static final long serialVersionUID = 1L;

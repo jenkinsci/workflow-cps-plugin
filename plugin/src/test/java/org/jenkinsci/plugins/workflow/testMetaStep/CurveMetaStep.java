@@ -38,32 +38,39 @@ public class CurveMetaStep extends Step {
 
     public final Curve curve;
 
-    @DataBoundConstructor public CurveMetaStep(Curve curve) {
+    @DataBoundConstructor
+    public CurveMetaStep(Curve curve) {
         this.curve = curve;
     }
 
-    @Override public StepExecution start(StepContext context) throws Exception {
-        return StepExecutions.block(context, (c, invoker) -> c.get(TaskListener.class).getLogger().println("wrapping in a " + curve.getDescription()));
+    @Override
+    public StepExecution start(StepContext context) throws Exception {
+        return StepExecutions.block(context, (c, invoker) -> c.get(TaskListener.class)
+                .getLogger()
+                .println("wrapping in a " + curve.getDescription()));
     }
 
-    @Extension public static class DescriptorImpl extends StepDescriptor {
+    @Extension
+    public static class DescriptorImpl extends StepDescriptor {
 
-        @Override public String getFunctionName() {
+        @Override
+        public String getFunctionName() {
             return "wrapInCurve";
         }
 
-        @Override public boolean takesImplicitBlockArgument() {
+        @Override
+        public boolean takesImplicitBlockArgument() {
             return true;
         }
 
-        @Override public boolean isMetaStep() {
+        @Override
+        public boolean isMetaStep() {
             return true;
         }
 
-        @Override public Set<? extends Class<?>> getRequiredContext() {
+        @Override
+        public Set<? extends Class<?>> getRequiredContext() {
             return Set.of(TaskListener.class);
         }
-
     }
-
 }

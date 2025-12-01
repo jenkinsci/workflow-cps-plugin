@@ -5,7 +5,6 @@ import com.cloudbees.groovy.cps.Env;
 import com.cloudbees.groovy.cps.Envs;
 import com.cloudbees.groovy.cps.impl.CallSiteBlock;
 import groovy.lang.Script;
-
 import java.io.Serializable;
 
 /**

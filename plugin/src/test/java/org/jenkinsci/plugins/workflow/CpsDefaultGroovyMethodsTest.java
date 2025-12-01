@@ -1,5 +1,7 @@
 package org.jenkinsci.plugins.workflow;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.junit.ClassRule;
@@ -10,14 +12,12 @@ import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @RunWith(Parameterized.class)
 @Issue("JENKINS-26481")
 public class CpsDefaultGroovyMethodsTest {
     @ClassRule
     public static JenkinsRule r = new JenkinsRule();
+
     @ClassRule
     public static BuildWatcher buildWatcher = new BuildWatcher();
 
@@ -33,10 +33,10 @@ public class CpsDefaultGroovyMethodsTest {
     public static Iterable<Object[]> generateParameters() {
         List<Object[]> params = new ArrayList<>();
         for (Object[] p : com.cloudbees.groovy.cps.CpsDefaultGroovyMethodsTest.generateParameters()) {
-            String n = (String)p[0];
+            String n = (String) p[0];
             // sum methods require invokeMethod, so blocked.
             if (!n.startsWith("sum")) {
-                params.add(new Object[]{p[0], p[1]});
+                params.add(new Object[] {p[0], p[1]});
             }
         }
         return params;

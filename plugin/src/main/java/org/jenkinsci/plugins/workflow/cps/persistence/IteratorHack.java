@@ -56,13 +56,18 @@ public class IteratorHack {
         final List<E> list;
         int cursor = 0;
         int lastRet = -1;
+
         Itr(List<E> list) {
             this.list = list;
         }
-        @Override public boolean hasNext() {
+
+        @Override
+        public boolean hasNext() {
             return cursor != list.size();
         }
-        @Override public E next() {
+
+        @Override
+        public E next() {
             try {
                 int i = cursor;
                 E next = list.get(i);
@@ -73,7 +78,9 @@ public class IteratorHack {
                 throw new NoSuchElementException();
             }
         }
-        @Override public void remove() {
+
+        @Override
+        public void remove() {
             if (lastRet < 0) {
                 throw new IllegalStateException();
             }
@@ -91,7 +98,8 @@ public class IteratorHack {
 
     /** Serializable replacement for {@link List#iterator}. */
     public static <E> Iterator<E> iterator(List<E> list) {
-        // TODO !Caller.isAsynchronous(list, "iterator") && !Caller.isAsynchronous(IteratorHack.class, "iterator", list) when used from a Java 5-style for-loop, so not sure how to sidestep this when running in @NonCPS
+        // TODO !Caller.isAsynchronous(list, "iterator") && !Caller.isAsynchronous(IteratorHack.class, "iterator", list)
+        // when used from a Java 5-style for-loop, so not sure how to sidestep this when running in @NonCPS
         return new Itr<>(list);
     }
 
@@ -112,14 +120,19 @@ public class IteratorHack {
 
     private static final class ListItr<E> extends Itr<E> implements ListIterator<E> {
         private static final long serialVersionUID = 1;
+
         ListItr(List<E> list, int idx) {
             super(list);
             cursor = idx;
         }
-        @Override public boolean hasPrevious() {
+
+        @Override
+        public boolean hasPrevious() {
             return cursor != 0;
         }
-        @Override public E previous() {
+
+        @Override
+        public E previous() {
             try {
                 if (cursor == 0) {
                     throw new NoSuchElementException();
@@ -131,16 +144,24 @@ public class IteratorHack {
                 throw new NoSuchElementException();
             }
         }
-        @Override public int nextIndex() {
+
+        @Override
+        public int nextIndex() {
             return cursor;
         }
-        @Override public int previousIndex() {
+
+        @Override
+        public int previousIndex() {
             return cursor - 1;
         }
-        @Override public void set(E e) {
+
+        @Override
+        public void set(E e) {
             list.set(lastRet, e);
         }
-        @Override public void add(E e) {
+
+        @Override
+        public void add(E e) {
             list.add(cursor, e);
             cursor++;
             lastRet = -1;
@@ -148,14 +169,16 @@ public class IteratorHack {
     }
 
     public static <E> ListIterator<E> listIterator(List<E> list) {
-        if (!Caller.isAsynchronous(list, "listIterator") && !Caller.isAsynchronous(IteratorHack.class, "listIterator", list)) {
+        if (!Caller.isAsynchronous(list, "listIterator")
+                && !Caller.isAsynchronous(IteratorHack.class, "listIterator", list)) {
             return list.listIterator();
         }
         return new ListItr<>(list, 0);
     }
 
     public static <E> ListIterator<E> listIterator(List<E> list, int idx) {
-        if (!Caller.isAsynchronous(list, "listIterator", idx) && !Caller.isAsynchronous(IteratorHack.class, "listIterator", list, idx)) {
+        if (!Caller.isAsynchronous(list, "listIterator", idx)
+                && !Caller.isAsynchronous(IteratorHack.class, "listIterator", list, idx)) {
             return list.listIterator(idx);
         }
         return new ListItr<>(list, idx);
@@ -176,8 +199,7 @@ public class IteratorHack {
     }
 
     public static <K, V> Set<Map.Entry<K, V>> entrySet(SortedMap<K, V> map) {
-        return entrySet((Map<K,V>)map);
-
+        return entrySet((Map<K, V>) map);
     }
 
     public static <K> Set<K> keySet(Map<K, ?> map) {
@@ -188,7 +210,7 @@ public class IteratorHack {
     }
 
     public static <K> Set<K> keySet(SortedMap<K, ?> map) {
-        return keySet((Map<K,?>)map);
+        return keySet((Map<K, ?>) map);
     }
 
     public static <V> Collection<V> values(Map<?, V> map) {
@@ -199,9 +221,8 @@ public class IteratorHack {
     }
 
     public static <V> Collection<V> values(SortedMap<?, V> map) {
-        return values((Map<?,V>)map);
+        return values((Map<?, V>) map);
     }
 
     private IteratorHack() {}
-
 }
