@@ -2002,10 +2002,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ace-builds@npm:^1.43.4":
-  version: 1.43.4
-  resolution: "ace-builds@npm:1.43.4"
-  checksum: 10c0/5389f4ce025b55198693688f09a8023f8dee69c19d0f451387677ad1c3f93d2f7f3cb60eb4f433f5c4b53783d3d6aa6c2e0d7f22d619335c2ee9b4eeca529708
+"ace-builds@npm:^1.43.5":
+  version: 1.43.5
+  resolution: "ace-builds@npm:1.43.5"
+  checksum: 10c0/ee155b912e177bc37ba619979be08730ed5ed142f5bd6a3ca9ee6359685e5372b6a646625b7a1c2ce31b44ce3b7c0d6a47af3e18c4db1b75e1d892bffc5c3038
   languageName: node
   linkType: hard
 
@@ -5376,7 +5376,7 @@ __metadata:
     "@delucis/if-env": "npm:^1.1.2"
     "@eslint/eslintrc": "npm:^3.3.3"
     "@eslint/js": "npm:^9.39.2"
-    ace-builds: "npm:^1.43.4"
+    ace-builds: "npm:^1.43.5"
     autoprefixer: "npm:^10.4.23"
     babel-loader: "npm:^10.0.0"
     clean-webpack-plugin: "npm:^4.0.0"
