@@ -723,13 +723,11 @@ public class ArgumentsActionImplTest {
     @Test
     public void testReallyUnusualStepInstantiations() throws Exception {
         WorkflowJob job = r.createProject(WorkflowJob.class);
-        job.setDefinition(new CpsFlowDefinition(
-                """
+        job.setDefinition(new CpsFlowDefinition("""
                 node() {
                    writeFile text: 'hello world', file: 'msg.out'
                    step(new hudson.tasks.ArtifactArchiver('msg.out')) // note, not whitelisted
-                }""",
-                false));
+                }""", false));
         WorkflowRun run = r.buildAndAssertSuccess(job);
         LinearScanner scan = new LinearScanner();
 

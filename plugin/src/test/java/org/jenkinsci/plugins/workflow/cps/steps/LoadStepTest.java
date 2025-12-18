@@ -28,14 +28,12 @@ public class LoadStepTest {
     @Test
     public void basics() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class);
-        p.setDefinition(new CpsFlowDefinition(
-                """
+        p.setDefinition(new CpsFlowDefinition("""
                 node {
                   writeFile text: 'println(21*2)', file: 'test.groovy'
                   println 'something printed' // make sure that 'println' in groovy script works
                   load 'test.groovy'
-                }""",
-                true));
+                }""", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("something printed", b);
         r.assertLogContains("42", b);
@@ -47,14 +45,12 @@ public class LoadStepTest {
     @Test
     public void evaluationResult() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class);
-        p.setDefinition(new CpsFlowDefinition(
-                """
+        p.setDefinition(new CpsFlowDefinition("""
                 node {
                   writeFile text: '21*2', file: 'test.groovy'
                   def o = load('test.groovy')
                   println 'output=' + o
-                }""",
-                false));
+                }""", false));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
         r.assertLogContains("output=42", b);
     }
@@ -62,8 +58,7 @@ public class LoadStepTest {
     @Test
     public void compilationErrorsCanBeSerialized() throws Exception {
         WorkflowJob p = r.createProject(WorkflowJob.class);
-        p.setDefinition(new CpsFlowDefinition(
-                """
+        p.setDefinition(new CpsFlowDefinition("""
                 node {
                   writeFile text: 'bad, syntax', file: 'test.groovy'
                   try {
@@ -72,8 +67,7 @@ public class LoadStepTest {
                     sleep(time: 1, unit: 'MILLISECONDS') // Force the exception to be persisted.
                     throw e
                   }
-                }""",
-                true));
+                }""", true));
         WorkflowRun b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         r.assertLogNotContains(NotSerializableException.class.getName(), b);
         r.assertLogNotContains(MultipleCompilationErrorsException.class.getName(), b);
