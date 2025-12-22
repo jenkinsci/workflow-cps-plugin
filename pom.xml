@@ -40,7 +40,7 @@
     <!-- TODO: Add org.codehaus.groovy:groovy and org.codehaus.groovy:groovy:sources to Jenkins core BOM so this can be deleted? (currently it only specifies groovy-all) -->
     <groovy.version>2.4.21</groovy.version>
     <spotless.check.skip>false</spotless.check.skip>
-    <jenkins-test-harness.version>2548.v12d3cc4591c0</jenkins-test-harness.version>
+    <jenkins-test-harness.version>2549.va_d3707a_ff237</jenkins-test-harness.version>
   </properties>
   <repositories>
     <repository>
