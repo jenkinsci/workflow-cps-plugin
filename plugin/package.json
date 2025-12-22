@@ -41,7 +41,7 @@
     "postcss-less": "^6.0.0",
     "postcss-loader": "^8.2.0",
     "style-loader": "^4.0.0",
-    "webpack": "^5.103.0",
+    "webpack": "^5.104.1",
     "webpack-cli": "^6.0.1",
     "webpack-fix-style-only-entries": "^0.6.1",
     "webpack-merge": "^6.0.1"
