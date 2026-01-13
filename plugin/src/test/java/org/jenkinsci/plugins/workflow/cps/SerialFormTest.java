@@ -83,7 +83,7 @@ public class SerialFormTest {
         rr.startJenkins();
         URL u = rr.getUrl();
         Testcontainers.exposeHostPorts(u.getPort());
-        agentContainer = new GenericContainer<>("jenkins/inbound-agent")
+        agentContainer = new GenericContainer<>("jenkins/inbound-agent:latest-jdk21")
                 .withEnv(
                         "JENKINS_URL",
                         new URL(u.getProtocol(), "host.testcontainers.internal", u.getPort(), u.getFile()).toString())
