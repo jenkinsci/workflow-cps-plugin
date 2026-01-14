@@ -1,19 +1,18 @@
 package org.jenkinsci.plugins.workflow.cps.replay;
 
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import hudson.model.CauseAction;
 import hudson.model.TaskListener;
 import hudson.util.StreamTaskListener;
 import hudson.util.XStream2;
-
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.jvnet.hudson.test.JenkinsRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
 
 public class ReplayCauseTest {
 
