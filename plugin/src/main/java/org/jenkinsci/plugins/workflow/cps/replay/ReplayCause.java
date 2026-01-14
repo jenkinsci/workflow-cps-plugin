@@ -69,10 +69,6 @@ public class ReplayCause extends Cause {
         if (run == null) {
             return null;
         }
-        // Run#getParent() is annotated @NonNull, but just to be safe.
-        if (run.getParent() == null) {
-            return null;
-        }
         return run.getParent().getBuildByNumber(originalNumber);
     }
 
