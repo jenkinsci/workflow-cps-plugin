@@ -2002,10 +2002,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ace-builds@npm:^1.43.5":
-  version: 1.43.5
-  resolution: "ace-builds@npm:1.43.5"
-  checksum: 10c0/ee155b912e177bc37ba619979be08730ed5ed142f5bd6a3ca9ee6359685e5372b6a646625b7a1c2ce31b44ce3b7c0d6a47af3e18c4db1b75e1d892bffc5c3038
+"ace-builds@npm:^1.43.6":
+  version: 1.43.6
+  resolution: "ace-builds@npm:1.43.6"
+  checksum: 10c0/33d0159a99650602de83b95766643b8f4f6029fc1ab582e47f7678288cae8e1c89b91747d23be42ec153a88d784fb9488935973f7a100b9093f837ac988f5c96
   languageName: node
   linkType: hard
 
@@ -3563,10 +3563,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jquery@npm:>=1.12.0 <5.0.0, jquery@npm:^3.7.1":
+"jquery@npm:>=1.12.0 <5.0.0":
   version: 3.7.1
   resolution: "jquery@npm:3.7.1"
   checksum: 10c0/808cfbfb758438560224bf26e17fcd5afc7419170230c810dd11f5c1792e2263e2970cca8d659eb84fcd9acc301edb6d310096e450277d54be4f57071b0c82d9
+  languageName: node
+  linkType: hard
+
+"jquery@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "jquery@npm:4.0.0"
+  checksum: 10c0/06d8d0f51121af5a691f8b59c74823157bb5b60eea915b30eaa920d6c0ffd91e60ba81e9b97bd8203f331f9dd8d0ec9a4b010935ea314bdd2f15453c29bc780b
   languageName: node
   linkType: hard
 
@@ -5316,7 +5323,7 @@ __metadata:
     "@delucis/if-env": "npm:^1.1.2"
     "@eslint/eslintrc": "npm:^3.3.3"
     "@eslint/js": "npm:^9.39.2"
-    ace-builds: "npm:^1.43.5"
+    ace-builds: "npm:^1.43.6"
     autoprefixer: "npm:^10.4.23"
     babel-loader: "npm:^10.0.0"
     clean-webpack-plugin: "npm:^4.0.0"
@@ -5325,7 +5332,7 @@ __metadata:
     eslint-formatter-checkstyle: "npm:^9.0.1"
     eslint-plugin-only-warn: "npm:^1.1.0"
     globals: "npm:^16.5.0"
-    jquery: "npm:^3.7.1"
+    jquery: "npm:^4.0.0"
     jquery-ui: "npm:^1.14.1"
     less: "npm:^4.5.1"
     less-loader: "npm:^12.3.0"
