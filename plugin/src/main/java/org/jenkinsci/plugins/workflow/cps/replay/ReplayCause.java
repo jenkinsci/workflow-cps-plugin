@@ -64,6 +64,11 @@ public class ReplayCause extends Cause {
     }
 
     public @CheckForNull Run<?, ?> getOriginal() {
+        // "run" may be null after construction before onAddedTo is called
+        // "run" may be null after deserialization before onLoad is called
+        if (run == null) {
+            return null;
+        }
         return run.getParent().getBuildByNumber(originalNumber);
     }
 
