@@ -17,6 +17,7 @@
                 <div class="editor" style="height: 350px;" samplesUrl="${rootURL}/workflow-cps-samples/" />
             </div>
             <st:adjunct includes="org.jenkinsci.plugins.workflow.cps.workflow-editor"/>
+            <st:adjunct includes="org.jenkinsci.plugins.workflow.cps.ext-searchbox"/>
         </j:otherwise>
     </j:choose>
 </j:jelly>
