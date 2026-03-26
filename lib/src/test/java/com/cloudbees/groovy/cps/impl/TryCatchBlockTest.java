@@ -22,10 +22,7 @@ import org.junit.Test;
 public class TryCatchBlockTest extends AbstractGroovyCpsTest {
     @Test
     public void stackTraceFixup() throws Throwable {
-        List<StackTraceElement> elements = List.of(
-                (StackTraceElement[])
-                        evalCPSonly(
-                                """
+        List<StackTraceElement> elements = List.of((StackTraceElement[]) evalCPSonly("""
                                 def x() {
                                   y();
                                 }

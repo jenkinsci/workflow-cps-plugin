@@ -8,6 +8,6 @@ buildPlugin(
   forkCount: '1C',
   useContainerAgent: true,
   configurations: [
-    [platform: 'linux', jdk: 21],
-    [platform: 'windows', jdk: 17],
+    [platform: 'linux', jdk: 25],
+    [platform: 'windows', jdk: 21],
 ])

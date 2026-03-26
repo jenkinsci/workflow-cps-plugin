@@ -29,7 +29,6 @@ import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
-import hudson.Util;
 import hudson.model.Action;
 import hudson.model.Descriptor;
 import hudson.model.Item;
@@ -62,7 +61,6 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
-import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
@@ -156,32 +154,7 @@ public class CpsFlowDefinition extends FlowDefinition {
         @Override
         public FlowDefinition newInstance(@NonNull StaplerRequest2 req, @NonNull JSONObject formData)
                 throws FormException {
-            if (Util.isOverridden(
-                    FlowDefinitionDescriptor.class,
-                    getClass(),
-                    "newInstance",
-                    StaplerRequest.class,
-                    JSONObject.class)) {
-                return newInstance(StaplerRequest.fromStaplerRequest2(req), formData);
-            } else {
-                CpsFlowDefinition cpsFlowDefinition = (CpsFlowDefinition) super.newInstance(req, formData);
-                return newInstanceImpl(cpsFlowDefinition, req, formData);
-            }
-        }
-
-        /**
-         * @deprecated use {@link #newInstance(StaplerRequest2, JSONObject)}
-         */
-        @Deprecated
-        @Override
-        public FlowDefinition newInstance(@NonNull StaplerRequest req, @NonNull JSONObject formData)
-                throws FormException {
             CpsFlowDefinition cpsFlowDefinition = (CpsFlowDefinition) super.newInstance(req, formData);
-            return newInstanceImpl(cpsFlowDefinition, StaplerRequest.toStaplerRequest2(req), formData);
-        }
-
-        private FlowDefinition newInstanceImpl(
-                CpsFlowDefinition cpsFlowDefinition, @NonNull StaplerRequest2 req, @NonNull JSONObject formData) {
             if (!cpsFlowDefinition.sandbox && formData.get("oldScript") != null) {
                 String oldScript = formData.getString("oldScript");
                 boolean approveIfAdmin = !Objects.equals(oldScript, cpsFlowDefinition.script);

@@ -134,16 +134,14 @@ public class WorkflowTest {
     public void invokeBodyLaterAfterRestart() throws Throwable {
         rr.then(r -> {
             var p = r.createProject(WorkflowJob.class, "demo");
-            p.setDefinition(new CpsFlowDefinition(
-                    """
+            p.setDefinition(new CpsFlowDefinition("""
                 int count=0;
                 retry(3) {
                     semaphore 'wait'
                     if (count++ < 2) { // forcing retry
                         error 'died'
                     }
-                }""",
-                    false));
+                }""", false));
             var b = p.scheduleBuild2(0).waitForStart();
             SemaphoreStep.waitForStart("wait/1", b);
             assertTrue(b.isBuilding());
@@ -343,8 +341,7 @@ public class WorkflowTest {
             agentEnv.put("PERMACHINE", "set");
             createSpecialEnvSlave(r, "agent", null, agentEnv);
             var p = r.createProject(WorkflowJob.class, "demo");
-            p.setDefinition(new CpsFlowDefinition(
-                    """
+            p.setDefinition(new CpsFlowDefinition("""
                 node('agent') {
                   if (isUnix()) {sh 'echo tag=$BUILD_TAG PERMACHINE=$PERMACHINE'} else {bat 'echo tag=%BUILD_TAG% PERMACHINE=%PERMACHINE%'}
                   env.BUILD_TAG='custom'
@@ -357,8 +354,7 @@ public class WorkflowTest {
                   if (isUnix()) {sh 'echo shell PATH=$PATH'} else {bat 'echo shell PATH=%PATH%'}
                   echo "groovy PATH=${env.PATH}"
                   echo "simplified groovy PATH=${PATH}"
-                }""",
-                    true));
+                }""", true));
             var b = p.scheduleBuild2(0).waitForStart();
             SemaphoreStep.waitForStart("env/1", b);
             assertTrue(b.isBuilding());
@@ -391,8 +387,7 @@ public class WorkflowTest {
                             .toString(),
                     containsString("\"STUFF\":\"more\""));
             // Show that EnvActionImpl binding is a fallback only for things which would otherwise have been undefined:
-            p.setDefinition(new CpsFlowDefinition(
-                    """
+            p.setDefinition(new CpsFlowDefinition("""
                 env.env = 'env.env'
                 env.echo = 'env.echo'
                 env.circle = 'env.circle'
@@ -402,8 +397,7 @@ public class WorkflowTest {
                 circle {
                   def var = 'value'
                   echo "${var} vs. ${echo} vs. ${circle} vs. ${global}"
-                }""",
-                    true));
+                }""", true));
             r.assertLogContains("value vs. env.echo vs. env.circle vs. global", r.buildAndAssertSuccess(p));
         });
     }

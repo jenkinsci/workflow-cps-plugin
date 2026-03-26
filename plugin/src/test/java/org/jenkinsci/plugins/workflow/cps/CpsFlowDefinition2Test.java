@@ -703,8 +703,7 @@ public class CpsFlowDefinition2Test {
     @Test
     public void scriptInitializersClassSyntax() throws Exception {
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
-        p.setDefinition(new CpsFlowDefinition(
-                """
+        p.setDefinition(new CpsFlowDefinition("""
                 class MyScript extends org.jenkinsci.plugins.workflow.cps.CpsScript {
                   // The instance initializer seems to be context sensitive, if placed below the field it is treated as a closure…
                   { MyScript.foo++ }
@@ -714,8 +713,7 @@ public class CpsFlowDefinition2Test {
                     echo(/MyScript.foo is ${MyScript.foo}/)
                    }
                 }
-                """,
-                true));
+                """, true));
         WorkflowRun b = jenkins.buildAndAssertSuccess(p);
         jenkins.assertLogContains("MyScript.foo is 2", b);
     }
@@ -761,8 +759,7 @@ public class CpsFlowDefinition2Test {
         // See additional info on this test case in `SandboxTransformerTest.sandboxWillNotCastNonStandardCollections()`
         // over in groovy-sandbox.
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
-        p.setDefinition(new CpsFlowDefinition(
-                """
+        p.setDefinition(new CpsFlowDefinition("""
                 import groovy.transform.Field
                 @Field def i = 0
                 // Using an @NonCPS method instead of a closure to avoid a CpsCallableInvocation being thrown
@@ -775,8 +772,7 @@ public class CpsFlowDefinition2Test {
                     return null
                   }
                 }
-                ((this.&unsafe as Collection) as File) as Object[]""",
-                true));
+                ((this.&unsafe as Collection) as File) as Object[]""", true));
         WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         // Before the security fix, fails with FileNotFoundException, bypassing the sandbox!
         jenkins.assertLogContains("Casting non-standard Collections to a type via constructor is not supported", b);
@@ -786,15 +782,13 @@ public class CpsFlowDefinition2Test {
     @Test
     public void blockCastingSafeUserDefinedImplementationsOfCollection() throws Exception {
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
-        p.setDefinition(new CpsFlowDefinition(
-                """
+        p.setDefinition(new CpsFlowDefinition("""
                 // Using an @NonCPS method instead of a closure to avoid a CpsCallableInvocation being thrown
                 // out of Checker.preCheckedCast() when it invokes a method on the proxied Collection.
                 @NonCPS def safe() {
                   return ['secret.txt'] as Object[]
                 }
-                (this.&safe as Collection) as File""",
-                true));
+                (this.&safe as Collection) as File""", true));
         WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         // Before the security fix, fails because `new File(String)` is not whitelisted, so not a problem, but we have
         // no good way to distinguish this case from the one in

@@ -66,9 +66,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void increment() throws Throwable {
-        assertEvaluate(
-                "2.0.2",
-                """
+        assertEvaluate("2.0.2", """
                                 x=0;
                                 y = x++;
                                 z = ++x;
@@ -78,9 +76,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void decrement() throws Throwable {
-        assertEvaluate(
-                "3.5.3",
-                """
+        assertEvaluate("3.5.3", """
                                 x=5;
                                 y = x--;
                                 z = --x;
@@ -90,9 +86,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void break_() throws Throwable {
-        assertEvaluate(
-                0,
-                """
+        assertEvaluate(0, """
                           x=0;
                           int i=0;
                           for (i=0; i<5; i+=1) {
@@ -105,9 +99,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void globalBreak_() throws Throwable {
-        assertEvaluate(
-                "0.0.0",
-                """
+        assertEvaluate("0.0.0", """
                                 x=0;
                                 int i=0;
                                 int j=0;
@@ -149,16 +141,12 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("https://github.com/cloudbees/groovy-cps/issues/31")
     @Test
     public void constructorList() throws Throwable {
-        assertEvaluate(
-                new File("/parent", "name"),
-                """
+        assertEvaluate(new File("/parent", "name"), """
                                                     File f = ['/parent', 'name']
                                                     return f""");
 
         // Test the closure env
-        assertEvaluate(
-                new File("/parent", "name"),
-                """
+        assertEvaluate(new File("/parent", "name"), """
                                                     def close = {String parent, String name -> [parent, name] as File}
                                                     return close('/parent', 'name')
                                                     """);
@@ -166,9 +154,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void workflowCallingWorkflow() throws Throwable {
-        assertEvaluate(
-                55,
-                """
+        assertEvaluate(55, """
                 def fib(int x) {
                   if (x==0)     return 0;
                   if (x==1)     return 1;
@@ -182,9 +168,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void typeCoercion() throws Throwable {
-        assertEvaluate(
-                Locale.getAvailableLocales(),
-                """
+        assertEvaluate(Locale.getAvailableLocales(), """
                                                      interface I {
                                                          Locale[] getAvailableLocales()
                                                      }
@@ -201,9 +185,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
      */
     @Test
     public void exceptionFromNonCpsCodeShouldBeCaughtByCatchBlockInCpsCode() throws Throwable {
-        String message = (String)
-                evalCPSonly(
-                        """
+        String message = (String) evalCPSonly("""
                                               def foo() {
                                                 'abc'.substring(5);
                                                 // will caught exception
@@ -228,9 +210,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
      */
     @Test
     public void whileLoop() throws Throwable {
-        assertEvaluate(
-                1,
-                """
+        assertEvaluate(1, """
                           int x=1;
                           while (false) {
                               x++;
@@ -244,9 +224,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
      */
     @Test
     public void whileLoop5() throws Throwable {
-        assertEvaluate(
-                5,
-                """
+        assertEvaluate(5, """
                           int x=1;
                           while (x<5) {
                               x++;
@@ -261,9 +239,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     @Ignore("Groovy 2.x does not support do-while loops")
     public void doWhileLoop() throws Throwable {
-        assertEvaluate(
-                2,
-                """
+        assertEvaluate(2, """
                           int x=1;
                           do {
                               x++;
@@ -278,9 +254,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     @Ignore("Groovy 2.x does not support do-while loops")
     public void dowhileLoop5() throws Throwable {
-        assertEvaluate(
-                5,
-                """
+        assertEvaluate(5, """
                           int x=1;
                           do {
                               x++;
@@ -291,9 +265,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void helloClosure() throws Throwable {
-        assertEvaluate(
-                5,
-                """
+        assertEvaluate(5, """
                           x = { -> 5 }
                           return x();
                           """);
@@ -301,9 +273,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void closureShouldCaptureLiveVariables() throws Throwable {
-        assertEvaluate(
-                "0.3.5",
-                """
+        assertEvaluate("0.3.5", """
                                 def c1,c2;
                                 { ->
                                     def x = 0;
@@ -321,9 +291,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void closureHasImplicitItVariable() throws Throwable {
-        assertEvaluate(
-                4,
-                """
+        assertEvaluate(4, """
                           c = { it+1 }
                           c(3);
                           """);
@@ -335,9 +303,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
      */
     @Test
     public void closureDelegateProperty() throws Throwable {
-        assertEvaluate(
-                "3-xyz-xyz-true",
-                """
+        assertEvaluate("3-xyz-xyz-true", """
                                          def config(c) {
                                              def map = [:];
                                              c.resolveStrategy = Closure.DELEGATE_FIRST;
@@ -357,8 +323,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void serialization() throws Throwable {
-        CpsCallableInvocation s = parseCps(
-                """
+        CpsCallableInvocation s = parseCps("""
                                            def plus3(int x) {
                                                return x+3;
                                            }
@@ -381,9 +346,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     public void assertion() throws Throwable {
         // when assertion passes
-        assertEvaluate(
-                3,
-                """
+        assertEvaluate(3, """
                           assert true
                           assert true : 'message'
                           return 3;
@@ -403,9 +366,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void unaryOps() throws Throwable {
-        assertEvaluate(
-                0,
-                """
+        assertEvaluate(0, """
                           def x = 5;
                           def y = -x;
                           def z = +x;
@@ -415,9 +376,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void not() throws Throwable {
-        assertEvaluate(
-                "y=false,z=true",
-                """
+        assertEvaluate("y=false,z=true", """
                                          def x = true;
                                          def y = !x;
                                          def z = !y;
@@ -427,9 +386,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void bitwiseNegative() throws Throwable {
-        assertEvaluate(
-                -33,
-                """
+        assertEvaluate(-33, """
                             int x = 32;
                             return ~x;
                             """);
@@ -437,9 +394,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void gstring() throws Throwable {
-        assertEvaluate(
-                "hello 4=foo",
-                """
+        assertEvaluate("hello 4=foo", """
                                       def x = 'foo';
                                       return "hello ${1+3}=${x}".toString()
                                       """);
@@ -448,8 +403,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("https://github.com/cloudbees/groovy-cps/issues/15")
     @Test
     public void gstringWithStringWriterClosure() throws Throwable {
-        String script =
-                """
+        String script = """
                 String text = 'Foobar';
                 String result = /${ w -> w << text}/.toString();
                 return result;
@@ -485,9 +439,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
         assertEvaluate(false, "false && (true || false)");
         assertEvaluate(true, "false || 'rhs of || must be cast to boolean'");
         assertEvaluate(true, "true && 'rhs of && must be cast to boolean'");
-        assertEvaluate(
-                "[true, false, true, true] [1, 0, 0, 4]",
-                """
+        assertEvaluate("[true, false, true, true] [1, 0, 0, 4]", """
                                                                  x = [0, 0, 0, 0]
                                                                  def set(index) {
                                                                      x[index - 1] = index
@@ -562,9 +514,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void multidimensionalArrayInstantiation() throws Throwable {
-        assertEvaluate(
-                12,
-                """
+        assertEvaluate(12, """
                            def x = new int[3][4];
                            int z = 0;
                            for (int i=0; i<x.length; i++)
@@ -635,9 +585,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("JENKINS-28277")
     @Test
     public void ncurrying_native_closure() throws Throwable {
-        assertEvaluate(
-                List.of(-3, 2),
-                """
+        assertEvaluate(List.of(-3, 2), """
                                        @NonCPS
                                        def makeNativeClosure() {
                                            Collections.&binarySearch
@@ -690,25 +638,19 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     public void method_pointer() throws Throwable {
         // method pointer to a native static method
-        assertEvaluate(
-                List.of(3, 7),
-                """
+        assertEvaluate(List.of(3, 7), """
                                       def add = CpsTransformerTest.&add
                                       return [ add(1,2), add(3,4) ]
                                       """);
 
         // method pointer to a native instance method
-        assertEvaluate(
-                List.of(true, false),
-                """
+        assertEvaluate(List.of(true, false), """
                                              def contains = 'foobar'.&contains
                                              return [ contains('oo'), contains('xyz') ]
                                              """);
 
         // method pointer to a CPS transformed method
-        assertEvaluate(
-                List.of(1101, 10011),
-                """
+        assertEvaluate(List.of(1101, 10011), """
                                              class X {
                                                  int z;
                                                  X(int z) { this.z = z; }
@@ -727,9 +669,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("https://github.com/cloudbees/groovy-cps/issues/26")
     @Test
     public void interfaceDeclaration() throws Throwable {
-        assertEvaluate(
-                true,
-                """
+        assertEvaluate(true, """
                              interface Strategy {
                                  Closure process(Object event)
                              }
@@ -740,9 +680,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("https://github.com/cloudbees/groovy-cps/issues/26")
     @Test
     public void emptyInterfaceDeclaration() throws Throwable {
-        assertEvaluate(
-                true,
-                """
+        assertEvaluate(true, """
                              interface Empty {}
                              return true
                              """);
@@ -752,9 +690,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Ignore
     @Test
     public void overloadedMethods() throws Throwable {
-        assertEvaluate(
-                "iterable",
-                """
+        assertEvaluate("iterable", """
                                    public String bar(List<String> l) {
                                        return bar((Iterable)l)
                                    }
@@ -770,9 +706,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Ignore
     @Test
     public void overloadedMethodsWithRawTypes() throws Throwable {
-        assertEvaluate(
-                "iterable",
-                """
+        assertEvaluate("iterable", """
                                    public String bar(List l) {
                                        return bar((Iterable)l)
                                    }
@@ -788,9 +722,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Ignore
     @Test
     public void overloadedStaticMethods() throws Throwable {
-        assertEvaluate(
-                "iterable",
-                """
+        assertEvaluate("iterable", """
                                    public static String bar(List l) {
                                        return bar((Iterable)l)
                                    }
@@ -811,9 +743,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void superClass() throws Throwable {
-        assertEvaluate(
-                "xbase",
-                """
+        assertEvaluate("xbase", """
                                 class Foo extends CpsTransformerTest.Base {
                                     public String toString() {
                                         return 'x'+super.toString();
@@ -826,9 +756,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("JENKINS-45982")
     @Test
     public void transformedSuperClass() throws Throwable {
-        assertEvaluate(
-                "ybase",
-                """
+        assertEvaluate("ybase", """
                                 class Foo extends CpsTransformerTest.Base {
                                     public String other() {
                                         return 'base'
@@ -846,9 +774,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("JENKINS-52395")
     @Test
     public void transformedSuperSuperClass() throws Throwable {
-        assertEvaluate(
-                "zybase",
-                """
+        assertEvaluate("zybase", """
                                  class Foo extends CpsTransformerTest.Base {
                                      public String other() {
                                          return 'base'
@@ -871,9 +797,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     @Issue("https://github.com/cloudbees/groovy-cps/issues/42")
     public void abstractMethod() throws Throwable {
-        assertEvaluate(
-                123,
-                """
+        assertEvaluate(123, """
                             abstract class Foo {
                                 abstract int val()
                             }
@@ -886,9 +810,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     @Ignore
     public void rehydrateClosure() throws Throwable {
-        assertEvaluate(
-                "from Script instance",
-                """
+        assertEvaluate("from Script instance", """
                                                class MyStrategy {
                                                    Closure<String> process() {
                                                        return {
@@ -908,9 +830,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     @Ignore("cannot easily be supported")
     public void category() throws Throwable {
-        assertEvaluate(
-                "FOO",
-                """
+        assertEvaluate("FOO", """
                               class BarCategory {
                                   static String up(String text) {
                                       text.toUpperCase()
@@ -925,9 +845,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("JENKINS-38268")
     @Test
     public void lexicalScope() throws Throwable {
-        assertEvaluate(
-                List.of(1, 1),
-                """
+        assertEvaluate(List.of(1, 1), """
                                       def a = [id: 'a', count: 0]
                                       def b = [id: 'b', count: 0]
                                       def toRun = [a, b].collect { thing -> return { thing.count = thing.count + 1 } }
@@ -939,9 +857,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("SECURITY-567")
     @Test
     public void methodPointer() throws Throwable {
-        assertEvaluate(
-                "baseClass",
-                """
+        assertEvaluate("baseClass", """
                                     def b = new CpsTransformerTest.Base()
                                     return (b.&toString)() + (String.getClass().&getSimpleName)()
                                     """);
@@ -952,10 +868,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     public void allClassesSerializable() throws Throwable {
         evalCPSonly("class C {}; def c = new C(); assert c instanceof Serializable");
         evalCPSonly("class C implements Serializable {}; def c = new C(); assert c instanceof Serializable");
-        assertTrue(
-                (boolean)
-                        evalCPSonly(
-                                """
+        assertTrue((boolean) evalCPSonly("""
                                          @NonCPS
                                          def anonymousClass() {
                                            def r = new Runnable() {
@@ -971,9 +884,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("JENKINS-44027")
     @Test
     public void multipleAssignment() throws Throwable {
-        assertEvaluate(
-                "firstsecondthirdfourth",
-                """
+        assertEvaluate("firstsecondthirdfourth", """
                                                  def (a, b) = ['first', 'second']
                                                  def c, d
                                                  (c, d) = ['third', 'fourth']
@@ -984,9 +895,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("JENKINS-44027")
     @Test
     public void nonArrayLikeMultipleAssignment() throws Throwable {
-        assertEvaluate(
-                true,
-                """
+        assertEvaluate(true, """
                              try {
                                def (a,b) = 4
                                return false
@@ -999,9 +908,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("JENKINS-44027")
     @Test
     public void arrayLikeMultipleAssignment() throws Throwable {
-        assertEvaluate(
-                "wh",
-                """
+        assertEvaluate("wh", """
                              def (a,b) = 'what'
                              return a + b
                              """);
@@ -1010,9 +917,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("JENKINS-44027")
     @Test
     public void mismatchedSizeMultipleAssignment() throws Throwable {
-        assertEvaluate(
-                "first second fourth null",
-                """
+        assertEvaluate("first second fourth null", """
                                                    def (a, b) = ['first', 'second', 'third']
                                                    def (c, d) = ['fourth']
                                                    return [a, b, c, d].join(' ')
@@ -1047,9 +952,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("JENKINS-49679")
     @Test
     public void multipleAssignmentRunsMethodOnce() throws Throwable {
-        assertEvaluate(
-                "firstsecondthirdfourth",
-                """
+        assertEvaluate("firstsecondthirdfourth", """
                                                  alreadyRun = false
                                                  def getAandB() {
                                                    if (!alreadyRun) {
@@ -1109,14 +1012,11 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                     List.of(1, 2, 3, 4, 5, 6, 7),
                     decl + " x = [2, 3]\n" + decl + " y = [5, 6]\n" + "return [1, *x, 4, *y, 7]\n");
         }
-        assertEvaluate(
-                Collections.singletonList(null),
-                """
+        assertEvaluate(Collections.singletonList(null), """
                                                         def x = null
                                                         return [*x]
                                                         """);
-        assertFailsWithSameException(
-                """
+        assertFailsWithSameException("""
                                      def x = 1
                                      // *x cannot exist outside of list literals and method call arguments.
                                      return *x
@@ -1145,9 +1045,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                     List.of(1, 2, 3),
                     decl + " x = [2]\n" + "def id(a, b, c) { [a, b, c] }\n" + "return id(1, *x, 3)\n");
         }
-        assertEvaluate(
-                Arrays.asList(1, null, 3),
-                """
+        assertEvaluate(Arrays.asList(1, null, 3), """
                                                   def x = null
                                                   def id(a, b, c) { [a, b, c] }
                                                   return id(1, *x, 3)
@@ -1157,61 +1055,46 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("JENKINS-46163")
     @Test
     public void spreadMapExpression() throws Throwable {
-        assertEvaluate(
-                InvokerHelper.createMap(new Object[] {"a", 1, "b", 2, "c", 3, "d", 4, "e", 5}),
-                """
+        assertEvaluate(InvokerHelper.createMap(new Object[] {"a", 1, "b", 2, "c", 3, "d", 4, "e", 5}), """
                                                                                                        def x = [a: 1, b: 2, c: 3]
                                                                                                        return [*:x, d: 4, e: 5]
                                                                                                        """);
-        assertEvaluate(
-                InvokerHelper.createMap(new Object[] {"d", 4, "a", 1, "b", 2, "c", 3, "e", 5}),
-                """
+        assertEvaluate(InvokerHelper.createMap(new Object[] {"d", 4, "a", 1, "b", 2, "c", 3, "e", 5}), """
                                                                                                        def x = [a: 1, b: 2, c: 3]
                                                                                                        return [d: 4, *:x, e: 5]
                                                                                                        """);
-        assertEvaluate(
-                InvokerHelper.createMap(new Object[] {"d", 4, "e", 5, "a", 1, "b", 2, "c", 3, "e", 5}),
-                """
+        assertEvaluate(InvokerHelper.createMap(new Object[] {"d", 4, "e", 5, "a", 1, "b", 2, "c", 3, "e", 5}), """
                                                                                                                def x = [a: 1, b: 2, c: 3]
                                                                                                                return [d: 4, e: 5, *:x]
                                                                                                                """);
-        assertEvaluate(
-                InvokerHelper.createMap(new Object[] {"a", 1, "b", 2, "c", -1}),
-                """
+        assertEvaluate(InvokerHelper.createMap(new Object[] {"a", 1, "b", 2, "c", -1}), """
                                                                                         def x = [a: 1, b: 2, c: 3]
                                                                                         // The final value for a key takes precedence.
                                                                                         return [c: 4, *:x, c: -1]
                                                                                         """);
-        assertEvaluate(
-                InvokerHelper.createMap(new Object[] {"a", 1, "b", 2, "c", 3}),
-                """
+        assertEvaluate(InvokerHelper.createMap(new Object[] {"a", 1, "b", 2, "c", 3}), """
                                                                                        def x = [a: 1, b: 2, c: 3]
                                                                                        return [*:x]
                                                                                        """);
         assertEvaluate(
-                InvokerHelper.createMap(new Object[] {"a", 1, "b", 2, "c", 3, "d", 4, "e", 5, "f", 6, "g", 7}),
-                """
+                InvokerHelper.createMap(new Object[] {"a", 1, "b", 2, "c", 3, "d", 4, "e", 5, "f", 6, "g", 7}), """
                                                                                                                        def x = [b: 2, c: 3]
                                                                                                                        def y = [e: 5, f: 6]
                                                                                                                        return [a: 1, *:x, d: 4, *:y, g: 7]
                                                                                                                        """);
         // When used in method call arguments, *:map is the same as map, except for creating an instance of SpreadMap.
         // IDK why Groovy even allows the spread syntax here.
-        assertEvaluate(
-                Map.of("a", 1),
-                """
+        assertEvaluate(Map.of("a", 1), """
                                        def x = [a: 1]
                                        def id(def m) { m }
                                        return id(*:x)
                                        """);
-        assertFailsWithSameException(
-                """
+        assertFailsWithSameException("""
                                      def x = [a: 1]
                                      def id(String a, int i) { [a, i] }
                                      return id(*:x)
                                      """);
-        assertFailsWithSameException(
-                """
+        assertFailsWithSameException("""
                                      def x = [a: 1]
                                      return *:x // *:x is syntactically invalid outside of map literals and method call arguments.
                                      """);
@@ -1219,9 +1102,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void initialExpressionsInMethodsAreCpsTransformed() throws Throwable {
-        assertEvaluate(
-                Boolean.FALSE,
-                """
+        assertEvaluate(Boolean.FALSE, """
                                       def m1() { true }
                                       def m2(p = m1()){ false }
                                       m2()
@@ -1230,9 +1111,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void methodsWithInitialExpressionsAreExpandedToCorrectOverloads() throws Throwable {
-        assertEvaluate(
-                List.of("abc", "xbc", "xyc", "xyz"),
-                """
+        assertEvaluate(List.of("abc", "xbc", "xyc", "xyz"), """
                                                             def m2(a = 'a', b = 'b', c = 'c') {
                                                                 a + b + c
                                                             }
@@ -1241,9 +1120,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                                                             def r3 = m2('x', 'y')
                                                             def r4 = m2('x', 'y', 'z')
                                                             [r1, r2, r3, r4]""");
-        assertEvaluate(
-                List.of("abc", "xbc", "xby"),
-                """
+        assertEvaluate(List.of("abc", "xbc", "xby"), """
                                                      def m2(a = 'a', b, c = 'c') {
                                                          a + b + c
                                                      }
@@ -1255,9 +1132,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void voidMethodsWithInitialExpressionsAreExpandedToCorrectOverloads() throws Throwable {
-        assertEvaluate(
-                List.of("abc", "xbc", "xyc", "xyz"),
-                """
+        assertEvaluate(List.of("abc", "xbc", "xyc", "xyz"), """
                                                             import groovy.transform.Field
                                                             @Field def r = []
                                                             void m2(a = 'a', b = 'b', c = 'c') {
@@ -1268,9 +1143,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                                                             m2('x', 'y')
                                                             m2('x', 'y', 'z')
                                                             r""");
-        assertEvaluate(
-                List.of("abc", "xbc", "xby"),
-                """
+        assertEvaluate(List.of("abc", "xbc", "xby"), """
                                                      import groovy.transform.Field
                                                      @Field def r = []
                                                      void m2(a = 'a', b, c = 'c') {
@@ -1295,9 +1168,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Ignore("groovy-cps does not cast method return values to the declared type")
     @Test
     public void methodReturnValuesShouldBeCastToDeclaredReturnType() throws Throwable {
-        assertEvaluate(
-                true,
-                """
+        assertEvaluate(true, """
                              Boolean castToBoolean(def o) { o }
                              castToBoolean(123)
                              """);
@@ -1305,9 +1176,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void castToTypeShouldBeUsedForImplicitCasts() throws Throwable {
-        assertEvaluate(
-                List.of("toString", "toString", "toString", "asType"),
-                """
+        assertEvaluate(List.of("toString", "toString", "toString", "asType"), """
                                                                               class Test {
                                                                                 def auditLog = []
                                                                                 @NonCPS
@@ -1334,9 +1203,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Test
     public void castRelatedMethodsShouldBeNonCps() throws Throwable {
         // asType CPS (supported (to the extent possible) for compatibility with existing code)
-        assertEvaluate(
-                List.of(false, "asType class java.lang.Boolean"),
-                """
+        assertEvaluate(List.of(false, "asType class java.lang.Boolean"), """
                                                                          class Test {
                                                                            def auditLog = []
                                                                            def asType(Class c) {
@@ -1347,9 +1214,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                                                                          def t = new Test()
                                                                          [t as Boolean, t.auditLog[0]]""");
         // asType NonCPS (preferred)
-        assertEvaluate(
-                List.of("asType class java.lang.Boolean"),
-                """
+        assertEvaluate(List.of("asType class java.lang.Boolean"), """
                                                                   class Test {
                                                                     def auditLog = []
                                                                     @NonCPS
@@ -1362,8 +1227,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                                                                   t as Boolean
                                                                   t.auditLog""");
         // asBoolean CPS (has never worked, still does not work)
-        evalCps(
-                """
+        evalCps("""
                 class Test {
                   def auditLog = []
                   def asBoolean() {
@@ -1372,18 +1236,14 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
                 }
                 def t = new Test()
                 (Boolean)t
-                t.auditLog""",
-                ShouldFail.class,
-                t -> {
-                    ec.checkThat(
-                            t.toString(),
-                            equalTo(
-                                    "java.lang.IllegalStateException: Test.asBoolean must be @NonCPS; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/"));
-                });
+                t.auditLog""", ShouldFail.class, t -> {
+            ec.checkThat(
+                    t.toString(),
+                    equalTo(
+                            "java.lang.IllegalStateException: Test.asBoolean must be @NonCPS; see: https://jenkins.io/redirect/pipeline-cps-method-mismatches/"));
+        });
         // asBoolean NonCPS (required)
-        assertEvaluate(
-                List.of("asBoolean"),
-                """
+        assertEvaluate(List.of("asBoolean"), """
                                              class Test {
                                                def auditLog = []
                                                @NonCPS
@@ -1404,9 +1264,7 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
 
     @Test
     public void anonymousClass() throws Throwable {
-        assertEvaluate(
-                6,
-                """
+        assertEvaluate(6, """
                           def o = new Object() { def plusOne(x) { x + 1 } }
                           o.plusOne(5)""");
     }
@@ -1414,15 +1272,11 @@ public class CpsTransformerTest extends AbstractGroovyCpsTest {
     @Issue("JENKINS-62064")
     @Test
     public void assignmentExprsEvalToRHS() throws Throwable {
-        assertEvaluate(
-                List.of(1, 1, 1),
-                """
+        assertEvaluate(List.of(1, 1, 1), """
                                          def a = b = c = 1
                                          [a, b, c]
                                          """);
-        assertEvaluate(
-                List.of(2, 3, 4),
-                """
+        assertEvaluate(List.of(2, 3, 4), """
                                          def a = b = c = 1
                                          c += b += a += 1
                                          [a, b, c]
