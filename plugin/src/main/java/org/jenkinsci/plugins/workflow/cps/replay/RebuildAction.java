@@ -49,6 +49,7 @@ public class RebuildAction extends ReplayActionMenuContributor {
                 return "Rebuild";
             }
 
+            @Override
             public String getDescription() {
                 return "Edit parameters and rebuild";
             }

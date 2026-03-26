@@ -49,6 +49,7 @@ public class RestartFromStageAction extends ReplayActionMenuContributor {
                 return "Restart from Stage";
             }
 
+            @Override
             public String getDescription() {
                 return "Restart Pipeline from a specific Stage";
             }
