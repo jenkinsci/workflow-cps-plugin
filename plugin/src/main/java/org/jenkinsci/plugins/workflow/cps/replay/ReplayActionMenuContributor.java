@@ -29,15 +29,14 @@ import hudson.ExtensionList;
 import hudson.ExtensionPoint;
 import hudson.model.Action;
 import hudson.model.Run;
-
-import java.util.Collection;
+import java.util.Set;
 
 /**
  * Allows plugins to contribute additional entries to the {@link ReplayAction} split button.
  */
 public abstract class ReplayActionMenuContributor implements ExtensionPoint {
 
-    public abstract @NonNull Collection<Action> getActions(Run<?, ?> run);
+    public abstract @NonNull Set<Action> getActions(Run<?, ?> run);
 
     public static @NonNull ExtensionList<ReplayActionMenuContributor> all() {
         return ExtensionList.lookup(ReplayActionMenuContributor.class);

@@ -120,22 +120,24 @@ public class ReplayAction implements Action {
         return isEnabled() || isRebuildEnabled() ? "replay" : null;
     }
 
+    @Override
     public Group getGroup() {
         return Group.FIRST_IN_APP_BAR;
     }
 
+    @Override
     public Event getEvent() {
         String urlName = getUrlName();
 
         // Allow for plugins to add additional build options
-        List<Action> actions = ReplayActionMenuContributor.all()
-                .stream()
+        List<Action> actions = ReplayActionMenuContributor.all().stream()
                 .flatMap(e -> e.getActions(run).stream())
                 .toList();
 
-        return SplitButtonEvent.of(LinkEvent.of(urlName, LinkEvent.LinkEventType.POST), actions);
+        return SplitButtonEvent.of(LinkEvent.of(urlName + "/run", LinkEvent.LinkEventType.POST), actions);
     }
 
+    @Override
     public Semantic getSemantic() {
         return Semantic.BUILD;
     }

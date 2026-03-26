@@ -26,19 +26,23 @@ package org.jenkinsci.plugins.workflow.cps.replay;
 
 import hudson.Extension;
 import hudson.model.Action;
+import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Run;
-import org.jspecify.annotations.NonNull;
+import java.util.Set;
 
-import java.util.Collection;
-import java.util.List;
+import org.jspecify.annotations.NonNull;
 
 // TODO - To be moved to the right plugin
 @Extension
 public class RebuildAction extends ReplayActionMenuContributor {
 
     @Override
-    public @NonNull Collection<Action> getActions(Run<?, ?> run) {
-        return List.of(new Action() {
+    public @NonNull Set<Action> getActions(Run<?, ?> run) {
+        if (run.getParent().getProperty(ParametersDefinitionProperty.class) == null) {
+            return Set.of();
+        }
+
+        return Set.of(new Action() {
             @Override
             public String getIconFileName() {
                 return "symbol-play-outline plugin-ionicons-api";

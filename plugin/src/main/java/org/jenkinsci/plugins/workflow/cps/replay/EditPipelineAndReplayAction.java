@@ -27,17 +27,17 @@ package org.jenkinsci.plugins.workflow.cps.replay;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.Run;
-import org.jspecify.annotations.NonNull;
-
-import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+
+import org.jspecify.annotations.NonNull;
 
 @Extension
 public class EditPipelineAndReplayAction extends ReplayActionMenuContributor {
 
     @Override
-    public @NonNull Collection<Action> getActions(Run<?, ?> run) {
-        return List.of(new Action() {
+    public @NonNull Set<Action> getActions(Run<?, ?> run) {
+        return Set.of(new Action() {
             @Override
             public String getIconFileName() {
                 return "symbol-arrow-redo-outline plugin-ionicons-api";
