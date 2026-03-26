@@ -126,26 +126,14 @@ public class ReplayAction implements Action {
 
     public Event getEvent() {
         String urlName = getUrlName();
-        return SplitButtonEvent.of(LinkEvent.of(urlName), List.of(new Action() {
-            @Override
-            public String getIconFileName() {
-                return "symbol-arrow-redo-outline plugin-ionicons-api";
-            }
 
-            @Override
-            public String getDisplayName() {
-                return "Edit Pipeline and replay";
-            }
+        // Allow for plugins to add additional build options
+        List<Action> actions = ReplayActionMenuContributor.all()
+                .stream()
+                .flatMap(e -> e.getActions(run).stream())
+                .toList();
 
-            @Override
-            public String getUrlName() {
-                return "urlName";
-            }
-
-            public Event getEvent() {
-                return LinkEvent.of(urlName);
-            }
-        }));
+        return SplitButtonEvent.of(LinkEvent.of(urlName, LinkEvent.LinkEventType.POST), actions);
     }
 
     public Semantic getSemantic() {
