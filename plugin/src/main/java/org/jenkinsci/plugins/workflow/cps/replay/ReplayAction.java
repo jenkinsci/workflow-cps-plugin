@@ -67,9 +67,9 @@ import jenkins.model.ParameterizedJobMixIn;
 import jenkins.model.TransientActionFactory;
 import jenkins.model.menu.Group;
 import jenkins.model.menu.Semantic;
-import jenkins.model.menu.event.DropdownEvent;
 import jenkins.model.menu.event.Event;
 import jenkins.model.menu.event.LinkEvent;
+import jenkins.model.menu.event.SplitButtonEvent;
 import jenkins.scm.api.SCMRevisionAction;
 import net.sf.json.JSON;
 import net.sf.json.JSONObject;
@@ -126,7 +126,7 @@ public class ReplayAction implements Action {
 
     public Event getEvent() {
         String urlName = getUrlName();
-        return DropdownEvent.of(LinkEvent.of(urlName), List.of(new Action() {
+        return SplitButtonEvent.of(LinkEvent.of(urlName), List.of(new Action() {
             @Override
             public String getIconFileName() {
                 return "symbol-arrow-redo-outline plugin-ionicons-api";
@@ -135,6 +135,11 @@ public class ReplayAction implements Action {
             @Override
             public String getDisplayName() {
                 return "Edit Pipeline and replay";
+            }
+
+            @Override
+            public String getUrlName() {
+                return "urlName";
             }
 
             public Event getEvent() {
