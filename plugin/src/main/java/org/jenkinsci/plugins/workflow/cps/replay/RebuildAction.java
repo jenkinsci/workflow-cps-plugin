@@ -29,7 +29,6 @@ import hudson.model.Action;
 import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Run;
 import java.util.Set;
-
 import org.jspecify.annotations.NonNull;
 
 // TODO - To be moved to the right plugin

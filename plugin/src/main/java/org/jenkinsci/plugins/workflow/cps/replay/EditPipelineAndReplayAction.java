@@ -27,9 +27,7 @@ package org.jenkinsci.plugins.workflow.cps.replay;
 import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.Run;
-import java.util.List;
 import java.util.Set;
-
 import org.jspecify.annotations.NonNull;
 
 @Extension

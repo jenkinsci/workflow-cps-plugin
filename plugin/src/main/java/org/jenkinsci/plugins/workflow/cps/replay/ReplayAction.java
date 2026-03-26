@@ -129,8 +129,16 @@ public class ReplayAction implements Action {
     public Event getEvent() {
         String urlName = getUrlName() + "/rebuild";
 
-        JavaScriptEvent primaryEvent = JavaScriptEvent.of(Map.of("type", "replay", "href", urlName,
-                        "buildSuccess", "Build scheduled", "buildFailure", "Failed to schedule build. Reload the page and try again."),
+        JavaScriptEvent primaryEvent = JavaScriptEvent.of(
+                Map.of(
+                        "type",
+                        "replay",
+                        "href",
+                        urlName,
+                        "buildSuccess",
+                        "Build scheduled",
+                        "buildFailure",
+                        "Failed to schedule build. Reload the page and try again."),
                 "plugin/workflow-cps/js/replay.js");
 
         // Allow for plugins to add additional build options

@@ -28,7 +28,6 @@ import hudson.Extension;
 import hudson.model.Action;
 import hudson.model.Run;
 import java.util.Set;
-
 import org.jspecify.annotations.NonNull;
 
 // TODO - To be moved to the right plugin
@@ -37,10 +36,10 @@ public class RestartFromStageAction extends ReplayActionMenuContributor {
 
     @Override
     public @NonNull Set<Action> getActions(Run<?, ?> run) {
-//        RestartDeclarativePipelineAction action = run.getAction(RestartDeclarativePipelineAction.class);
-//        if (action == null) {
-//            return Set.of();
-//        }
+        //        RestartDeclarativePipelineAction action = run.getAction(RestartDeclarativePipelineAction.class);
+        //        if (action == null) {
+        //            return Set.of();
+        //        }
 
         return Set.of(new Action() {
             @Override
