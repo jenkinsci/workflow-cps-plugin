@@ -45,7 +45,7 @@ public class EditPipelineAndReplayAction extends ReplayActionMenuContributor {
 
             @Override
             public String getDisplayName() {
-                return "Replay";
+                return "Edit and replay";
             }
 
             @Override
