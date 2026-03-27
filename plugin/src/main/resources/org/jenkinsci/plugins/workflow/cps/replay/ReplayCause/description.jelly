@@ -34,7 +34,7 @@ THE SOFTWARE.
                     ${%Replayed_by_build(rootURL + "/" + original.url, it.originalNumber)} (<a href="${rootURL}/${it.run.url}replay/diff">${%diff}</a>)
                 </j:when>
                 <j:otherwise>
-                    ${%Rebuilt_by_build(rootURL + "/" + original.url, it.originalNumber)} (<a href="${rootURL}/${it.run.url}replay/diff">${%diff}</a>)
+                    ${%Rebuilt_by_build(rootURL + "/" + original.url, it.originalNumber)}
                 </j:otherwise>
             </j:choose>
         </j:when>
