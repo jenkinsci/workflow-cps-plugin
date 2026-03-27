@@ -296,7 +296,7 @@ public class ReplayAction implements Action {
 
         actions.add(
                 new ReplayFlowFactoryAction(replacementMainScript, replacementLoadedScripts, execution.isSandbox()));
-        actions.add(new CauseAction(new Cause.UserIdCause(), new ReplayCause(run)));
+        actions.add(new CauseAction(new Cause.UserIdCause(), new ReplayCause(run, isEnabled())));
 
         if (hasPasswordParameter(this.run)) {
             throw new Failure("Replay is not allowed when password parameters are used.");

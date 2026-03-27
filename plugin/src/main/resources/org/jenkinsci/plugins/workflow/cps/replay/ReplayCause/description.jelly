@@ -26,12 +26,13 @@ THE SOFTWARE.
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core">
     <j:set var="original" value="${it.original}"/>
+    <j:set var="isReplayed" value="${it.isReplayed}"/>
     <j:choose>
         <j:when test="${original != null}">
-            ${%Replayed_by_build(rootURL + "/" + original.url,it.originalNumber)} (<a href="${rootURL}/${it.run.url}replay/diff">${%diff}</a>)
+            ${%Replayed_by_build(it.isReplayed() ? "Replayed" : "Rebuilt", rootURL + "/" + original.url, it.originalNumber)} (<a href="${rootURL}/${it.run.url}replay/diff">${%diff}</a>)
         </j:when>
         <j:otherwise>
-            ${%Replayed_by(it.originalNumber)}
+            ${%Replayed_by(it.isReplayed() ? "Replayed" : "Rebuilt", it.originalNumber)}
         </j:otherwise>
     </j:choose>
 </j:jelly>
