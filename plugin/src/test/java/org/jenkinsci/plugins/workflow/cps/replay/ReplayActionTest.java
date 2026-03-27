@@ -119,6 +119,7 @@ public class ReplayActionTest {
                     assertNotNull(b2);
                 } // Subsequently can use the faster whitebox method.
                 story.j.assertLogContains("second script", story.j.assertBuildStatusSuccess(b2));
+                story.j.assertLogContains("Replayed #1", b2);
                 ReplayCause cause = b2.getCause(ReplayCause.class);
                 assertNotNull(cause);
                 assertEquals(1, cause.getOriginalNumber());
@@ -448,6 +449,7 @@ public class ReplayActionTest {
                     assertNotNull(b2);
                 }
                 story.j.assertLogContains("script to rebuild", story.j.assertBuildStatusSuccess(b2));
+                story.j.assertLogContains("Rebuilt #1", b2);
                 ReplayCause cause = b2.getCause(ReplayCause.class);
                 assertNotNull(cause);
                 assertEquals(1, cause.getOriginalNumber());
@@ -511,48 +513,6 @@ public class ReplayActionTest {
                     story.j.waitUntilNoActivity();
                     WorkflowRun b2 = p.getBuildByNumber(2);
                     assertNull(b2);
-                }
-            }
-        });
-    }
-
-    @Test
-    public void causeMessage() throws Exception {
-        story.addStep(new Statement() {
-            @Override
-            public void evaluate() throws Throwable {
-                // assertPermissionId should have been run before we get here
-                story.j.jenkins.setSecurityRealm(story.j.createDummySecurityRealm());
-                // Set up an administrator, and three developer users with varying levels of access.
-                List<Permission> permissions = Run.PERMISSIONS.getPermissions();
-                assertThat(permissions, Matchers.hasItem(ReplayAction.REPLAY));
-                story.j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy()
-                        .grant(Jenkins.ADMINISTER)
-                        .everywhere()
-                        .to("admin")
-                        .grant(Jenkins.READ, /* does not imply REPLAY, does allow rebuilding */ Item.BUILD)
-                        .everywhere()
-                        .to("dev"));
-                WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "p");
-                p.setDefinition(new CpsFlowDefinition("", /* whole-script approval */ false));
-                WorkflowRun b1 = p.scheduleBuild2(0).get();
-
-                assertTrue(canReplay(b1, "admin"));
-                assertFalse(canReplay(b1, "dev"));
-                assertTrue(canRebuild(b1, "dev"));
-
-                try (ACLContext ctx = ACL.as(User.getById("admin", true))) {
-                    ReplayAction action = b1.getAction(ReplayAction.class);
-                    WorkflowRun b2 =
-                            (WorkflowRun) action.run("", Collections.emptyMap()).get();
-                    story.j.assertLogContains("Replayed #1", b2);
-                }
-
-                try (ACLContext ctx = ACL.as(User.getById("dev", true))) {
-                    ReplayAction action = b1.getAction(ReplayAction.class);
-                    WorkflowRun b3 =
-                            (WorkflowRun) action.run("", Collections.emptyMap()).get();
-                    story.j.assertLogContains("Rebuilt #1", b3);
                 }
             }
         });
