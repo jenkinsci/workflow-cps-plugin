@@ -37,12 +37,12 @@ import hudson.model.TaskListener;
 public class ReplayCause extends Cause {
 
     private final int originalNumber;
-    private final boolean replayed;
+    private final boolean rebuilt;
     private transient Run<?, ?> run;
 
-    ReplayCause(@NonNull Run<?, ?> original, boolean replayed) {
+    ReplayCause(@NonNull Run<?, ?> original, boolean rebuilt) {
         this.originalNumber = original.getNumber();
-        this.replayed = replayed;
+        this.rebuilt = rebuilt;
     }
 
     @Override
@@ -65,8 +65,8 @@ public class ReplayCause extends Cause {
         return originalNumber;
     }
 
-    public boolean isReplayed() {
-        return replayed;
+    public boolean isRebuilt() {
+        return rebuilt;
     }
 
     public @CheckForNull Run<?, ?> getOriginal() {
@@ -75,17 +75,17 @@ public class ReplayCause extends Cause {
 
     @Override
     public String getShortDescription() {
-        return isReplayed()
-                ? org.jenkinsci.plugins.workflow.cps.replay.Messages.ReplayCause_shortDescription(originalNumber)
-                : org.jenkinsci.plugins.workflow.cps.replay.Messages.ReplayCause_rebuild_shortDescription(
-                        originalNumber);
+        return isRebuilt()
+                ? org.jenkinsci.plugins.workflow.cps.replay.Messages.ReplayCause_rebuild_shortDescription(
+                        originalNumber)
+                : org.jenkinsci.plugins.workflow.cps.replay.Messages.ReplayCause_shortDescription(originalNumber);
     }
 
     @Override
     public void print(TaskListener listener) {
         Run<?, ?> original = getOriginal();
         if (original != null) {
-            String ctxMessage = isReplayed() ? "Replayed " : "Rebuilt ";
+            String ctxMessage = isRebuilt() ? "Rebuilt " : "Replayed ";
             listener.getLogger().println(ctxMessage + ModelHyperlinkNote.encodeTo(original));
         } else {
             super.print(listener); // same, without hyperlink
