@@ -69,7 +69,7 @@ public class Workflow2Test {
         WorkflowRun b = p.scheduleBuild2(0).waitForStart();
         r.waitForMessage("Waiting for approval", b);
         // Start a replay
-        b.getAction(ReplayAction.class).run("input 'Waiting for approval'", new HashMap<>());
+        b.getAction(ReplayAction.class).run("input 'Waiting for approval'", new HashMap<>(), false);
     }
 
     /**

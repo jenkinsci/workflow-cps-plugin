@@ -127,7 +127,7 @@ public class ReplayActionTest {
                 assertEquals(b2, cause.getRun());
                 // Replay #2 as #3. Note that the diff is going to be from #1 → #3, not #2 → #3.
                 WorkflowRun b3 = (WorkflowRun) b2.getAction(ReplayAction.class)
-                        .run("echo 'third script'", Collections.<String, String>emptyMap())
+                        .run("echo 'third script'", Collections.<String, String>emptyMap(), false)
                         .get();
                 story.j.assertLogContains("third script", story.j.assertBuildStatusSuccess(b3));
                 String diff = b3.getAction(ReplayAction.class).getDiff();
@@ -154,7 +154,7 @@ public class ReplayActionTest {
                 story.j.assertLogContains("run with some value", b1);
                 // When we replay a parameterized build, we expect the original parameter values to be set.
                 WorkflowRun b2 = (WorkflowRun) b1.getAction(ReplayAction.class)
-                        .run("echo \"run again with ${param}\"", Collections.<String, String>emptyMap())
+                        .run("echo \"run again with ${param}\"", Collections.<String, String>emptyMap(), false)
                         .get();
                 story.j.assertLogContains("run again with some value", story.j.assertBuildStatusSuccess(b2));
             }
@@ -174,7 +174,7 @@ public class ReplayActionTest {
 
             // When we replay a build with password parameter it should fail with access denied exception.
             assertThrows(Failure.class, () -> run1.getAction(ReplayAction.class)
-                    .run("echo(/Replaying passwordParam: ${passwordParam}/)", Collections.emptyMap())
+                    .run("echo(/Replaying passwordParam: ${passwordParam}/)", Collections.emptyMap(), false)
                     .get());
         });
     }
@@ -330,7 +330,8 @@ public class ReplayActionTest {
                 WorkflowRun b2 = (WorkflowRun) b1.getAction(ReplayAction.class)
                         .run(
                                 "echo 'trying edits'\nnode {load 'f1.groovy'}; semaphore 'wait'; node {load 'f2.groovy'}",
-                                Map.of("Script2", "echo 'new second part'"))
+                                Map.of("Script2", "echo 'new second part'"),
+                                false)
                         .get();
                 story.j.assertBuildStatusSuccess(b2);
                 story.j.assertLogContains("trying edits", b2);
@@ -352,7 +353,7 @@ public class ReplayActionTest {
                 Map<String, String> replayMap =
                         Map.of("Script1", "echo 'new first part'", "Script2", "echo 'newer second part'");
                 WorkflowRun b3 = (WorkflowRun) b2.getAction(ReplayAction.class)
-                        .run("node {load 'f1.groovy'}; semaphore 'wait'; node {load 'f2.groovy'}", replayMap)
+                        .run("node {load 'f1.groovy'}; semaphore 'wait'; node {load 'f2.groovy'}", replayMap, false)
                         .waitForStart();
                 SemaphoreStep.waitForStart("wait/3", b3);
             }
