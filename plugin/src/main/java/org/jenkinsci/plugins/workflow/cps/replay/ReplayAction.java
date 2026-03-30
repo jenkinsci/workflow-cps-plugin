@@ -263,6 +263,20 @@ public class ReplayAction implements Action {
      * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
      * @return a way to wait for the replayed build to complete
      */
+    @Deprecated
+    public @CheckForNull QueueTaskFuture /*<Run>*/ run(
+            @NonNull String replacementMainScript, @NonNull Map<String, String> replacementLoadedScripts) {
+        return run(replacementMainScript, replacementLoadedScripts, false);
+    }
+
+    /**
+     * For whitebox testing.
+     *
+     * @param replacementMainScript    main script; replacement for {@link #getOriginalScript}
+     * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
+     * @param rebuilt                  true if the run was unmodified, false otherwise
+     * @return a way to wait for the replayed build to complete
+     */
     public @CheckForNull QueueTaskFuture /*<Run>*/ run(
             @NonNull String replacementMainScript,
             @NonNull Map<String, String> replacementLoadedScripts,
@@ -276,6 +290,20 @@ public class ReplayAction implements Action {
      *
      * @param replacementMainScript main script; replacement for {@link #getOriginalScript}
      * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
+     * @return build queue item
+     */
+    @Deprecated
+    public @CheckForNull Queue.Item run2(
+            @NonNull String replacementMainScript, @NonNull Map<String, String> replacementLoadedScripts) {
+        return run2(replacementMainScript, replacementLoadedScripts, false);
+    }
+
+    /**
+     * For use in projects that want initiate a replay via the Java API.
+     *
+     * @param replacementMainScript    main script; replacement for {@link #getOriginalScript}
+     * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
+     * @param rebuilt                  true if the run was unmodified, false otherwise
      * @return build queue item
      */
     public @CheckForNull Queue.Item run2(
