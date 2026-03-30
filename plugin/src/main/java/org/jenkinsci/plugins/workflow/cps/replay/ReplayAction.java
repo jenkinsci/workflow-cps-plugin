@@ -264,7 +264,9 @@ public class ReplayAction implements Action {
      * @return a way to wait for the replayed build to complete
      */
     public @CheckForNull QueueTaskFuture /*<Run>*/ run(
-            @NonNull String replacementMainScript, @NonNull Map<String, String> replacementLoadedScripts, boolean rebuilt) {
+            @NonNull String replacementMainScript,
+            @NonNull Map<String, String> replacementLoadedScripts,
+            boolean rebuilt) {
         Queue.Item item = run2(replacementMainScript, replacementLoadedScripts, rebuilt);
         return item == null ? null : item.getFuture();
     }
@@ -277,7 +279,9 @@ public class ReplayAction implements Action {
      * @return build queue item
      */
     public @CheckForNull Queue.Item run2(
-            @NonNull String replacementMainScript, @NonNull Map<String, String> replacementLoadedScripts, boolean rebuilt) {
+            @NonNull String replacementMainScript,
+            @NonNull Map<String, String> replacementLoadedScripts,
+            boolean rebuilt) {
         List<Action> actions = new ArrayList<>();
         CpsFlowExecution execution = getExecutionBlocking();
         if (execution == null) {
