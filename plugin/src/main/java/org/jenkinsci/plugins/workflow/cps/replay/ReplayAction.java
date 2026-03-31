@@ -262,6 +262,9 @@ public class ReplayAction implements Action {
      * @param replacementMainScript main script; replacement for {@link #getOriginalScript}
      * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
      * @return a way to wait for the replayed build to complete
+     *
+     * @deprecated this method specify that the script might have been modified.
+     * Use {@link #run(String, Map, boolean)}
      */
     @Deprecated
     public @CheckForNull QueueTaskFuture /*<Run>*/ run(
@@ -274,7 +277,7 @@ public class ReplayAction implements Action {
      *
      * @param replacementMainScript    main script; replacement for {@link #getOriginalScript}
      * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
-     * @param rebuilt                  true if the run was unmodified, false otherwise
+     * @param rebuilt                  true if the run was unmodified, false if the script might have been modified
      * @return a way to wait for the replayed build to complete
      */
     public @CheckForNull QueueTaskFuture /*<Run>*/ run(
@@ -291,6 +294,9 @@ public class ReplayAction implements Action {
      * @param replacementMainScript main script; replacement for {@link #getOriginalScript}
      * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
      * @return build queue item
+     *
+     * @deprecated this method specify that the script might have been modified.
+     * Use {@link #run2(String, Map, boolean)}
      */
     @Deprecated
     public @CheckForNull Queue.Item run2(
@@ -303,7 +309,7 @@ public class ReplayAction implements Action {
      *
      * @param replacementMainScript    main script; replacement for {@link #getOriginalScript}
      * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
-     * @param rebuilt                  true if the run was unmodified, false otherwise
+     * @param rebuilt                  true if the run was unmodified, false if the script might have been modified
      * @return build queue item
      */
     public @CheckForNull Queue.Item run2(

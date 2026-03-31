@@ -26,7 +26,7 @@ THE SOFTWARE.
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core">
     <j:set var="original" value="${it.original}"/>
-    <j:set var="isRebuilt" value="${it.isRebuilt()}"/>
+    <j:set var="isRebuilt" value="${it.rebuilt}"/>
     <j:choose>
         <j:when test="${original != null}">
             <j:choose>
