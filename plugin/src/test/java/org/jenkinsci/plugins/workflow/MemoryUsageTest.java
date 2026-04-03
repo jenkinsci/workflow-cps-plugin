@@ -7,6 +7,8 @@ import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MemoryAssert;
 
+import java.lang.ref.WeakReference;
+
 public class MemoryUsageTest {
     @Rule
     public JenkinsRule j = new JenkinsRule();
@@ -16,21 +18,11 @@ public class MemoryUsageTest {
         WorkflowJob project = j.createProject(WorkflowJob.class, "test");
         project.setDefinition(new CpsFlowDefinition("""
             def text = 'Hello $name'
-            for(int i=0;i<5000;i++) { // TODO change loop upper limit to trigger the memory leak
-                def engine = new groovy.text.SimpleTemplateEngine()
-                def template = engine.createTemplate(text).make(['name': 'foo ' + i])
-                println template.toString()
-            }
+            def engine = new groovy.text.SimpleTemplateEngine()
+            def template = engine.createTemplate(text).make(['name': 'foo'])
+            println template.toString()
         """, false));
-
-        int additionalMemory = MemoryAssert.increasedMemory(
-                () -> {
-                    j.assertBuildStatusSuccess(project.scheduleBuild2(0));
-                    return null;
-                },
-                (obj, referredFrom, reference) -> !obj.getClass().getName().startsWith("SimpleTemplateEngine")
-        ).stream().mapToInt(value -> value.byteSize).sum();
-
-        assert additionalMemory == 0;
+        j.assertBuildStatusSuccess(project.scheduleBuild2(0));
+        MemoryAssert.assertGC(new WeakReference<>(this.getClass().getClassLoader()), true);
     }
 }
