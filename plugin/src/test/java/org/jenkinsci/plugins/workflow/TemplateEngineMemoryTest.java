@@ -42,38 +42,39 @@ public class TemplateEngineMemoryTest {
     @After
     public void clearLoaders() {
         LOADERS.clear();
+        STRONG_REFS.clear();
     }
 
     private static final List<WeakReference<ClassLoader>> LOADERS = new ArrayList<>();
-    // strong references to classloaders to prevent GC during the test
+    // prevent GC before we can inspect getLoadedClasses(); clearCache() empties loaded classes even with this held
     private static final List<ClassLoader> STRONG_REFS = new ArrayList<>();
 
-    // registers the GroovyClassLoader created by SimpleTemplateEngine (not the InnerLoader)
+    // walks up from InnerLoader to parent GroovyClassLoader, registering all intermediate loaders
     public static void registerSimpleTemplate(Object template) throws Exception {
         Field scriptField = template.getClass().getDeclaredField("script");
         scriptField.setAccessible(true);
         Object script = scriptField.get(template);
-        ClassLoader loader = script.getClass().getClassLoader();
-        while (loader instanceof GroovyClassLoader.InnerLoader) {
-            loader = loader.getParent();
+        for (ClassLoader loader = script.getClass().getClassLoader(); loader instanceof GroovyClassLoader; loader = loader.getParent()) {
+            System.err.println("registering " + script.getClass().getName() + " from " + loader);
+            LOADERS.add(new WeakReference<>(loader));
+            if (!(loader instanceof GroovyClassLoader.InnerLoader)) {
+                STRONG_REFS.add(loader);
+            }
         }
-        System.err.println("registering " + script.getClass().getName() + " from " + loader);
-        STRONG_REFS.add(loader);
-        LOADERS.add(new WeakReference<>(loader));
     }
 
-    // registers the GroovyClassLoader from GStringTemplate.template Closure
+    // walks up from InnerLoader to parent GroovyClassLoader, registering all intermediate loaders
     public static void registerGStringTemplate(Object template) throws Exception {
         Field templateField = template.getClass().getDeclaredField("template");
         templateField.setAccessible(true);
         Object closure = templateField.get(template);
-        ClassLoader loader = closure.getClass().getClassLoader();
-        while (loader instanceof GroovyClassLoader.InnerLoader) {
-            loader = loader.getParent();
+        for (ClassLoader loader = closure.getClass().getClassLoader(); loader instanceof GroovyClassLoader; loader = loader.getParent()) {
+            System.err.println("registering " + closure.getClass().getName() + " from " + loader);
+            LOADERS.add(new WeakReference<>(loader));
+            if (!(loader instanceof GroovyClassLoader.InnerLoader)) {
+                STRONG_REFS.add(loader);
+            }
         }
-        System.err.println("registering " + closure.getClass().getName() + " from " + loader);
-        STRONG_REFS.add(loader);
-        LOADERS.add(new WeakReference<>(loader));
     }
 
     public static void register(Object o) {
@@ -104,7 +105,6 @@ public class TemplateEngineMemoryTest {
                 .collect(java.util.stream.Collectors.toList());
         // TODO cleanUpHeap should clear this but currently misses it; change to empty() once fixed
         assertThat(leftover, hasItems("SimpleTemplateScript1"));
-        STRONG_REFS.clear();
     }
 
     @Test
@@ -132,7 +132,6 @@ public class TemplateEngineMemoryTest {
                 hasItems(
                         "groovy.tmp.templates.GStringTemplateScript1",
                         "groovy.tmp.templates.GStringTemplateScript1$_getTemplate_closure1"));
-        STRONG_REFS.clear();
     }
 
     // baseline: pipeline classloader itself is released
@@ -188,7 +187,6 @@ public class TemplateEngineMemoryTest {
         assertFalse(
                 "expected template engine GroovyClassLoader to be a child of the pipeline classloader",
                 foundPipelineLoader);
-        STRONG_REFS.clear();
     }
 
     private static void clearInvocationCaches() throws Exception {
