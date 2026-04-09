@@ -21,7 +21,6 @@ import org.jenkinsci.plugins.workflow.libs.LibraryConfiguration;
 import org.jenkinsci.plugins.workflow.libs.SCMSourceRetriever;
 import org.junit.After;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
@@ -89,89 +88,77 @@ public class TemplateEngineMemoryTest {
     // template engines GroovyClassLoader.classCache. Since this classloader is parented
     // to the Jenkins core classloader (not the pipeline classloader), cleanUpHeap never
     // walks into it and never calls clearCache()
-    @Ignore("Fails without fix: cleanUpHeap does not reach template engine classloaders")
     @Test
     public void sharedLibrarySimpleTemplateEngineLoaderCleaned() throws Exception {
         Computer.threadPoolForRemoting.submit(() -> {}).get();
         sampleRepo.init();
-        sampleRepo.write(
-                "vars/simpleTemplate.groovy",
-                """
+        sampleRepo.write("vars/simpleTemplate.groovy", """
                 def call(templateStr, binding) {
                     def engine = new groovy.text.SimpleTemplateEngine()
                     def template = engine.createTemplate(templateStr).make(binding)
                     %s.registerSimpleTemplate(engine.createTemplate(templateStr))
                     return template.toString()
                 }
-                """
-                        .formatted(TemplateEngineMemoryTest.class.getName()));
+                """.formatted(TemplateEngineMemoryTest.class.getName()));
         sampleRepo.git("add", "vars");
         sampleRepo.git("commit", "--message=init");
         GlobalLibraries.get()
                 .setLibraries(List.of(new LibraryConfiguration(
                         "testLib", new SCMSourceRetriever(new GitSCMSource(sampleRepo.toString())))));
         WorkflowJob project = j.createProject(WorkflowJob.class, "test");
-        project.setDefinition(new CpsFlowDefinition(
-                """
+        project.setDefinition(new CpsFlowDefinition("""
                 @Library('testLib@master') _
                 def defaultTemplateStr = 'Hello ${name}!'
                 for (int i = 0; i < 500; i++) {
                     println simpleTemplate(defaultTemplateStr, ["name": "Leak" + i])
                 }
-                """,
-                true));
+                """, true));
         j.assertBuildStatusSuccess(project.scheduleBuild2(0));
 
         assertFalse("expected at least one registered classloader", LOADERS.isEmpty());
         GroovyClassLoader templateGCL = findTemplateEngineGCL();
         assertNotNull("expected to find the template engine's GroovyClassLoader", templateGCL);
         assertFalse(
-                "cleanUpHeap should have cleared SimpleTemplateScript classes from the cache, "
-                        + "but found: " + Arrays.toString(templateGCL.getLoadedClasses()),
+                "cleanUpHeap should have cleared SimpleTemplateScript classes from the cache, " + "but found: "
+                        + Arrays.toString(templateGCL.getLoadedClasses()),
                 Arrays.stream(templateGCL.getLoadedClasses())
                         .anyMatch(c -> c.getName().startsWith("SimpleTemplateScript")));
     }
 
     // Same as sharedLibrarySimpleTemplateEngineLoaderCleaned but for GStringTemplateEngine.
-    @Ignore("Fails without fix: cleanUpHeap does not reach template engine classloaders")
     @Test
     public void sharedLibraryGStringTemplateEngineLoaderCleaned() throws Exception {
         Computer.threadPoolForRemoting.submit(() -> {}).get();
         sampleRepo.init();
-        sampleRepo.write(
-                "vars/gstringTemplate.groovy",
-                """
+        sampleRepo.write("vars/gstringTemplate.groovy", """
                 def call(templateStr, binding) {
                     def engine = new groovy.text.GStringTemplateEngine()
                     def template = engine.createTemplate(templateStr).make(binding)
                     %s.registerGStringTemplate(engine.createTemplate(templateStr))
                     return template.toString()
                 }
-                """
-                        .formatted(TemplateEngineMemoryTest.class.getName()));
+                """.formatted(TemplateEngineMemoryTest.class.getName()));
         sampleRepo.git("add", "vars");
         sampleRepo.git("commit", "--message=init");
         GlobalLibraries.get()
                 .setLibraries(List.of(new LibraryConfiguration(
                         "testLib", new SCMSourceRetriever(new GitSCMSource(sampleRepo.toString())))));
         WorkflowJob project = j.createProject(WorkflowJob.class, "test");
-        project.setDefinition(new CpsFlowDefinition(
-                """
+        project.setDefinition(new CpsFlowDefinition("""
                 @Library('testLib@master') _
                 def defaultTemplateStr = 'Hello ${name}!'
                 for (int i = 0; i < 500; i++) {
                     println gstringTemplate(defaultTemplateStr, ["name": "Leak" + i])
                 }
-                """,
-                true));
+                """, true));
         j.assertBuildStatusSuccess(project.scheduleBuild2(0));
 
         assertFalse("expected at least one registered classloader", LOADERS.isEmpty());
         GroovyClassLoader templateGCL = findTemplateEngineGCL();
         assertNotNull("expected to find the template engine's GroovyClassLoader", templateGCL);
         assertFalse(
-                "cleanUpHeap should have cleared GStringTemplateScript classes from the cache, "
-                        + "but found: " + Arrays.toString(templateGCL.getLoadedClasses()),
+                "cleanUpHeap should have cleared GStringTemplateScript classes from the cache, " + "but found: "
+                        + Arrays.toString(templateGCL.getLoadedClasses()),
                 Arrays.stream(templateGCL.getLoadedClasses())
                         .anyMatch(c -> c.getName().contains("GStringTemplateScript")));
     }

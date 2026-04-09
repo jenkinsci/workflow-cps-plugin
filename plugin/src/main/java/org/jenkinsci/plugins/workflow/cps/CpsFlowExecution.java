@@ -124,6 +124,7 @@ import jenkins.model.Jenkins;
 import jenkins.util.SystemProperties;
 import net.jcip.annotations.GuardedBy;
 import org.codehaus.groovy.GroovyBugError;
+import org.codehaus.groovy.reflection.ClassInfo;
 import org.jboss.marshalling.Unmarshaller;
 import org.jboss.marshalling.reflect.SerializableClassRegistry;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
@@ -1488,6 +1489,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             } catch (Exception x) {
                 LOGGER.log(Level.WARNING, "failed to clean up memory from " + owner, x);
             }
+            try {
+                cleanUpTemplateEngineClassLoaders();
+            } catch (Exception x) {
+                LOGGER.log(Level.WARNING, "failed to clean up template engine classloaders from " + owner, x);
+            }
             scriptClass = null;
         } else {
             LOGGER.fine("no scriptClass");
@@ -1527,6 +1533,27 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
         }
         gcl.clearCache();
+    }
+
+    private static void cleanUpTemplateEngineClassLoaders() throws Exception {
+        Set<GroovyClassLoader> templateEngineLoaders = new HashSet<>();
+        for (ClassInfo ci : ClassInfo.getAllClassInfo()) {
+            Class<?> clazz = ci.getTheClass();
+            if (clazz == null) {
+                continue;
+            }
+            ClassLoader loader = clazz.getClassLoader();
+            while (loader instanceof GroovyClassLoader.InnerLoader) {
+                loader = loader.getParent();
+            }
+            if (loader instanceof GroovyClassLoader && !(loader.getParent() instanceof GroovyClassLoader)) {
+                templateEngineLoaders.add((GroovyClassLoader) loader);
+            }
+        }
+        for (GroovyClassLoader gcl : templateEngineLoaders) {
+            LOGGER.fine(() -> "cleaning up template engine GroovyClassLoader " + gcl);
+            cleanUpLoader(gcl, new HashSet<>(), new HashSet<>());
+        }
     }
 
     private static void cleanUpGlobalClassValue(@NonNull ClassLoader loader, Set<Class<?>> loadedClasses)
