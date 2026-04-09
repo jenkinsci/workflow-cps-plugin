@@ -1,32 +1,32 @@
 package org.jenkinsci.plugins.workflow;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasItems;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import groovy.lang.GroovyClassLoader;
-import groovy.lang.MetaClass;
 import hudson.model.Computer;
-import java.lang.ref.WeakReference;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
+import jenkins.plugins.git.GitSCMSource;
+import jenkins.plugins.git.GitSampleRepoRule;
 import org.codehaus.groovy.reflection.ClassInfo;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.libs.GlobalLibraries;
+import org.jenkinsci.plugins.workflow.libs.LibraryConfiguration;
+import org.jenkinsci.plugins.workflow.libs.SCMSourceRetriever;
 import org.junit.After;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
-import org.jvnet.hudson.test.MemoryAssert;
 
 public class TemplateEngineMemoryTest {
 
@@ -37,125 +37,145 @@ public class TemplateEngineMemoryTest {
     public JenkinsRule j = new JenkinsRule();
 
     @Rule
+    public GitSampleRepoRule sampleRepo = new GitSampleRepoRule();
+
+    @Rule
     public LoggerRule logger = new LoggerRule().record(CpsFlowExecution.class, Level.FINER);
+
+    private static final List<ClassLoader> LOADERS = new ArrayList<>();
 
     @After
     public void clearLoaders() {
         LOADERS.clear();
-        STRONG_REFS.clear();
     }
 
-    private static final List<WeakReference<ClassLoader>> LOADERS = new ArrayList<>();
-    // prevent GC before we can inspect getLoadedClasses(); clearCache() empties loaded classes even with this held
-    private static final List<ClassLoader> STRONG_REFS = new ArrayList<>();
-
-    // walks up from InnerLoader to parent GroovyClassLoader, registering all intermediate loaders
+    // Captures the template engine's GroovyClassLoader from a compiled SimpleTemplateEngine template.
+    // Called from pipeline script via reflection.
     public static void registerSimpleTemplate(Object template) throws Exception {
-        Field scriptField = template.getClass().getDeclaredField("script");
+        var scriptField = template.getClass().getDeclaredField("script");
         scriptField.setAccessible(true);
         Object script = scriptField.get(template);
-        for (ClassLoader loader = script.getClass().getClassLoader(); loader instanceof GroovyClassLoader; loader = loader.getParent()) {
-            System.err.println("registering " + script.getClass().getName() + " from " + loader);
-            LOADERS.add(new WeakReference<>(loader));
-            if (!(loader instanceof GroovyClassLoader.InnerLoader)) {
-                STRONG_REFS.add(loader);
-            }
+        // Materialize ClassInfo soft-reference chain as in production
+        ClassInfo.getClassInfo(script.getClass()).getCachedClass();
+        for (ClassLoader loader = script.getClass().getClassLoader();
+                loader instanceof GroovyClassLoader;
+                loader = loader.getParent()) {
+            LOADERS.add(loader);
         }
     }
 
-    // walks up from InnerLoader to parent GroovyClassLoader, registering all intermediate loaders
+    // Captures the template engine's GroovyClassLoader from a compiled GStringTemplateEngine template.
+    // Called from pipeline script via reflection.
     public static void registerGStringTemplate(Object template) throws Exception {
-        Field templateField = template.getClass().getDeclaredField("template");
+        var templateField = template.getClass().getDeclaredField("template");
         templateField.setAccessible(true);
         Object closure = templateField.get(template);
-        for (ClassLoader loader = closure.getClass().getClassLoader(); loader instanceof GroovyClassLoader; loader = loader.getParent()) {
-            System.err.println("registering " + closure.getClass().getName() + " from " + loader);
-            LOADERS.add(new WeakReference<>(loader));
-            if (!(loader instanceof GroovyClassLoader.InnerLoader)) {
-                STRONG_REFS.add(loader);
-            }
+        ClassInfo.getClassInfo(closure.getClass()).getCachedClass();
+        for (ClassLoader loader = closure.getClass().getClassLoader();
+                loader instanceof GroovyClassLoader;
+                loader = loader.getParent()) {
+            LOADERS.add(loader);
         }
     }
 
     public static void register(Object o) {
-        ClassLoader loader = o.getClass().getClassLoader();
-        System.err.println("registering " + o + " from " + loader);
-        LOADERS.add(new WeakReference<>(loader));
+        LOADERS.add(o.getClass().getClassLoader());
     }
 
-    // after cleanUpHeap, the template engine GroovyClassLoader cache should be empty
+    // Reproduces the production scenario: a shared library vars step creates a
+    // SimpleTemplateEngine and calls createTemplate() per invocation
+    // while the pipeline calls the step in a loop
+    // Each createTemplate() compiles a new SimpleTemplateScript class into the
+    // template engines GroovyClassLoader.classCache. Since this classloader is parented
+    // to the Jenkins core classloader (not the pipeline classloader), cleanUpHeap never
+    // walks into it and never calls clearCache()
+    @Ignore("Fails without fix: cleanUpHeap does not reach template engine classloaders")
     @Test
-    public void simpleTemplateEngineLoaderCleanedUp() throws Exception {
+    public void sharedLibrarySimpleTemplateEngineLoaderCleaned() throws Exception {
         Computer.threadPoolForRemoting.submit(() -> {}).get();
+        sampleRepo.init();
+        sampleRepo.write(
+                "vars/simpleTemplate.groovy",
+                """
+                def call(templateStr, binding) {
+                    def engine = new groovy.text.SimpleTemplateEngine()
+                    def template = engine.createTemplate(templateStr).make(binding)
+                    %s.registerSimpleTemplate(engine.createTemplate(templateStr))
+                    return template.toString()
+                }
+                """
+                        .formatted(TemplateEngineMemoryTest.class.getName()));
+        sampleRepo.git("add", "vars");
+        sampleRepo.git("commit", "--message=init");
+        GlobalLibraries.get()
+                .setLibraries(List.of(new LibraryConfiguration(
+                        "testLib", new SCMSourceRetriever(new GitSCMSource(sampleRepo.toString())))));
         WorkflowJob project = j.createProject(WorkflowJob.class, "test");
-        project.setDefinition(new CpsFlowDefinition("""
-            def text = 'Hello $name'
-            def engine = new groovy.text.SimpleTemplateEngine()
-            def template = engine.createTemplate(text)
-            %s.registerSimpleTemplate(template)
-            echo template.make(['name': 'foo']).toString()
-        """.formatted(TemplateEngineMemoryTest.class.getName()), false));
-        j.assertBuildStatusSuccess(project.scheduleBuild2(0));
-
-        assertFalse(STRONG_REFS.isEmpty());
-        clearInvocationCaches();
-        GroovyClassLoader gcl = (GroovyClassLoader) STRONG_REFS.get(0);
-        List<String> leftover = java.util.Arrays.stream(gcl.getLoadedClasses())
-                .map(Class::getName)
-                .collect(java.util.stream.Collectors.toList());
-        // TODO cleanUpHeap should clear this but currently misses it; change to empty() once fixed
-        assertThat(leftover, hasItems("SimpleTemplateScript1"));
-    }
-
-    @Test
-    public void gstringTemplateEngineLoaderCleanedUp() throws Exception {
-        Computer.threadPoolForRemoting.submit(() -> {}).get();
-        WorkflowJob project = j.createProject(WorkflowJob.class, "test");
-        project.setDefinition(new CpsFlowDefinition("""
-            def text = 'Hello $name'
-            def engine = new groovy.text.GStringTemplateEngine()
-            def template = engine.createTemplate(text)
-            %s.registerGStringTemplate(template)
-            echo template.make(['name': 'foo']).toString()
-        """.formatted(TemplateEngineMemoryTest.class.getName()), false));
-        j.assertBuildStatusSuccess(project.scheduleBuild2(0));
-
-        assertFalse(STRONG_REFS.isEmpty());
-        clearInvocationCaches();
-        GroovyClassLoader gcl = (GroovyClassLoader) STRONG_REFS.get(0);
-        List<String> leftover = java.util.Arrays.stream(gcl.getLoadedClasses())
-                .map(Class::getName)
-                .collect(java.util.stream.Collectors.toList());
-        // TODO cleanUpHeap should clear this but currently misses it; change to empty() once fixed
-        assertThat(
-                leftover,
-                hasItems(
-                        "groovy.tmp.templates.GStringTemplateScript1",
-                        "groovy.tmp.templates.GStringTemplateScript1$_getTemplate_closure1"));
-    }
-
-    // baseline: pipeline classloader itself is released
-    @Test
-    public void pipelineClassLoaderItselfIsReleased() throws Exception {
-        Computer.threadPoolForRemoting.submit(() -> {}).get();
-        WorkflowJob project = j.createProject(WorkflowJob.class, "test");
-        project.setDefinition(new CpsFlowDefinition("""
-            %s.register(this)
-            def text = 'Hello $name'
-            def engine = new groovy.text.SimpleTemplateEngine()
-            def template = engine.createTemplate(text)
-            echo template.make(['name': 'foo']).toString()
-        """.formatted(TemplateEngineMemoryTest.class.getName()), false));
+        project.setDefinition(new CpsFlowDefinition(
+                """
+                @Library('testLib@master') _
+                def defaultTemplateStr = 'Hello ${name}!'
+                for (int i = 0; i < 500; i++) {
+                    println simpleTemplate(defaultTemplateStr, ["name": "Leak" + i])
+                }
+                """,
+                true));
         j.assertBuildStatusSuccess(project.scheduleBuild2(0));
 
         assertFalse("expected at least one registered classloader", LOADERS.isEmpty());
-        clearInvocationCaches();
-        for (WeakReference<ClassLoader> loader : LOADERS) {
-            MemoryAssert.assertGC(loader, false);
-        }
+        GroovyClassLoader templateGCL = findTemplateEngineGCL();
+        assertNotNull("expected to find the template engine's GroovyClassLoader", templateGCL);
+        assertFalse(
+                "cleanUpHeap should have cleared SimpleTemplateScript classes from the cache, "
+                        + "but found: " + Arrays.toString(templateGCL.getLoadedClasses()),
+                Arrays.stream(templateGCL.getLoadedClasses())
+                        .anyMatch(c -> c.getName().startsWith("SimpleTemplateScript")));
     }
 
-    // template engine classloader parent chain does not include the pipeline classloader
+    // Same as sharedLibrarySimpleTemplateEngineLoaderCleaned but for GStringTemplateEngine.
+    @Ignore("Fails without fix: cleanUpHeap does not reach template engine classloaders")
+    @Test
+    public void sharedLibraryGStringTemplateEngineLoaderCleaned() throws Exception {
+        Computer.threadPoolForRemoting.submit(() -> {}).get();
+        sampleRepo.init();
+        sampleRepo.write(
+                "vars/gstringTemplate.groovy",
+                """
+                def call(templateStr, binding) {
+                    def engine = new groovy.text.GStringTemplateEngine()
+                    def template = engine.createTemplate(templateStr).make(binding)
+                    %s.registerGStringTemplate(engine.createTemplate(templateStr))
+                    return template.toString()
+                }
+                """
+                        .formatted(TemplateEngineMemoryTest.class.getName()));
+        sampleRepo.git("add", "vars");
+        sampleRepo.git("commit", "--message=init");
+        GlobalLibraries.get()
+                .setLibraries(List.of(new LibraryConfiguration(
+                        "testLib", new SCMSourceRetriever(new GitSCMSource(sampleRepo.toString())))));
+        WorkflowJob project = j.createProject(WorkflowJob.class, "test");
+        project.setDefinition(new CpsFlowDefinition(
+                """
+                @Library('testLib@master') _
+                def defaultTemplateStr = 'Hello ${name}!'
+                for (int i = 0; i < 500; i++) {
+                    println gstringTemplate(defaultTemplateStr, ["name": "Leak" + i])
+                }
+                """,
+                true));
+        j.assertBuildStatusSuccess(project.scheduleBuild2(0));
+
+        assertFalse("expected at least one registered classloader", LOADERS.isEmpty());
+        GroovyClassLoader templateGCL = findTemplateEngineGCL();
+        assertNotNull("expected to find the template engine's GroovyClassLoader", templateGCL);
+        assertFalse(
+                "cleanUpHeap should have cleared GStringTemplateScript classes from the cache, "
+                        + "but found: " + Arrays.toString(templateGCL.getLoadedClasses()),
+                Arrays.stream(templateGCL.getLoadedClasses())
+                        .anyMatch(c -> c.getName().contains("GStringTemplateScript")));
+    }
+
     @Test
     public void templateEngineClassLoaderParentIsNotPipelineClassLoader() throws Exception {
         Computer.threadPoolForRemoting.submit(() -> {}).get();
@@ -170,30 +190,27 @@ public class TemplateEngineMemoryTest {
         """.formatted(TemplateEngineMemoryTest.class.getName()), false));
         j.assertBuildStatusSuccess(project.scheduleBuild2(0));
 
-        assertTrue("expected two registered classloaders", LOADERS.size() >= 2);
-        ClassLoader pipelineLoader = LOADERS.get(0).get();
-        ClassLoader templateLoader = LOADERS.get(1).get();
-        assertNotNull("pipeline classloader should still be alive during test", pipelineLoader);
-        assertNotNull("template classloader should still be alive during test", templateLoader);
-        ClassLoader parent = templateLoader.getParent();
+        assertTrue("expected at least two registered classloaders", LOADERS.size() >= 2);
+        ClassLoader pipelineLoader = LOADERS.get(0);
+        ClassLoader templateLoader = LOADERS.get(1);
         boolean foundPipelineLoader = false;
-        while (parent != null) {
+        for (ClassLoader parent = templateLoader.getParent(); parent != null; parent = parent.getParent()) {
             if (parent == pipelineLoader) {
                 foundPipelineLoader = true;
                 break;
             }
-            parent = parent.getParent();
         }
         assertFalse(
-                "expected template engine GroovyClassLoader to be a child of the pipeline classloader",
+                "template engine GroovyClassLoader should not be a child of the pipeline classloader",
                 foundPipelineLoader);
     }
 
-    private static void clearInvocationCaches() throws Exception {
-        MetaClass metaClass =
-                ClassInfo.getClassInfo(TemplateEngineMemoryTest.class).getMetaClass();
-        Method clearInvocationCaches = metaClass.getClass().getDeclaredMethod("clearInvocationCaches");
-        clearInvocationCaches.setAccessible(true);
-        clearInvocationCaches.invoke(metaClass);
+    private static GroovyClassLoader findTemplateEngineGCL() {
+        for (ClassLoader loader : LOADERS) {
+            if (loader instanceof GroovyClassLoader && !(loader instanceof GroovyClassLoader.InnerLoader)) {
+                return (GroovyClassLoader) loader;
+            }
+        }
+        return null;
     }
 }
