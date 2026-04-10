@@ -1,12 +1,12 @@
 package org.jenkinsci.plugins.workflow;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.emptyArray;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 
 import groovy.lang.GroovyClassLoader;
+import groovy.lang.MetaClass;
 import hudson.model.Computer;
+import java.lang.ref.WeakReference;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -21,6 +21,7 @@ import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.MemoryAssert;
 
 public class TemplateEngineMemoryTest {
 
@@ -33,30 +34,23 @@ public class TemplateEngineMemoryTest {
     @Rule
     public LoggerRule logger = new LoggerRule().record(CpsFlowExecution.class, Level.FINER);
 
-    private static final List<GroovyClassLoader> TEMPLATE_LOADERS = new ArrayList<>();
+    private static final List<WeakReference<ClassLoader>> LOADERS = new ArrayList<>();
 
     @After
     public void clearLoaders() {
-        TEMPLATE_LOADERS.clear();
+        LOADERS.clear();
     }
 
-    // Called from pipeline with the template's compiled script object.
-    // Captures the template engine's GroovyClassLoader (walking past
-    // InnerLoaders) so the test can verify cleanUpHeap cleared its cache.
-    // Materializes ClassInfo soft-reference chain as in production.
     public static void register(Object scriptObject) {
-        ClassInfo.getClassInfo(scriptObject.getClass()).getCachedClass();
         ClassLoader loader = scriptObject.getClass().getClassLoader();
         while (loader instanceof GroovyClassLoader.InnerLoader) {
             loader = loader.getParent();
         }
-        if (loader instanceof GroovyClassLoader gcl) {
-            TEMPLATE_LOADERS.add(gcl);
-        }
+        LOADERS.add(new WeakReference<>(loader));
     }
 
     @Test
-    public void simpleTemplateEngineLoaderCleaned() throws Exception {
+    public void simpleTemplateEngineLoaderReleased() throws Exception {
         Computer.threadPoolForRemoting.submit(() -> {}).get();
         WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("""
@@ -68,17 +62,15 @@ public class TemplateEngineMemoryTest {
                 echo template.make([name: 'world']).toString()
                 """.formatted(TemplateEngineMemoryTest.class.getName()), false));
         j.assertBuildStatusSuccess(p.scheduleBuild2(0));
-        assertFalse("expected at least one registered loader", TEMPLATE_LOADERS.isEmpty());
-        GroovyClassLoader gcl = TEMPLATE_LOADERS.get(0);
-        assertNotNull(gcl);
-        assertThat(
-                "cleanUpHeap should have cleared SimpleTemplateScript classes from the template engine's cache",
-                gcl.getLoadedClasses(),
-                emptyArray());
+        assertFalse(LOADERS.isEmpty());
+        clearMetaClassInvocationCaches();
+        for (WeakReference<ClassLoader> loaderRef : LOADERS) {
+            MemoryAssert.assertGC(loaderRef, false);
+        }
     }
 
     @Test
-    public void gstringTemplateEngineLoaderCleaned() throws Exception {
+    public void gstringTemplateEngineLoaderReleased() throws Exception {
         Computer.threadPoolForRemoting.submit(() -> {}).get();
         WorkflowJob p = j.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("""
@@ -90,12 +82,18 @@ public class TemplateEngineMemoryTest {
                 echo template.make([name: 'world']).toString()
                 """.formatted(TemplateEngineMemoryTest.class.getName()), false));
         j.assertBuildStatusSuccess(p.scheduleBuild2(0));
-        assertFalse("expected at least one registered loader", TEMPLATE_LOADERS.isEmpty());
-        GroovyClassLoader gcl = TEMPLATE_LOADERS.get(0);
-        assertNotNull(gcl);
-        assertThat(
-                "cleanUpHeap should have cleared GStringTemplateScript classes from the template engine's cache",
-                gcl.getLoadedClasses(),
-                emptyArray());
+        assertFalse(LOADERS.isEmpty());
+        clearMetaClassInvocationCaches();
+        for (WeakReference<ClassLoader> loaderRef : LOADERS) {
+            MemoryAssert.assertGC(loaderRef, false);
+        }
+    }
+
+    private static void clearMetaClassInvocationCaches() throws Exception {
+        MetaClass metaClass =
+                ClassInfo.getClassInfo(TemplateEngineMemoryTest.class).getMetaClass();
+        Method clearInvocationCaches = metaClass.getClass().getDeclaredMethod("clearInvocationCaches");
+        clearInvocationCaches.setAccessible(true);
+        clearInvocationCaches.invoke(metaClass);
     }
 }
