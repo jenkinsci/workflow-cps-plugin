@@ -59,8 +59,7 @@ public class TemplateEngineMemoryTest {
     public void simpleTemplateEngineLoaderCleaned() throws Exception {
         Computer.threadPoolForRemoting.submit(() -> {}).get();
         WorkflowJob p = j.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition(
-                """
+        p.setDefinition(new CpsFlowDefinition("""
                 def engine = new groovy.text.SimpleTemplateEngine()
                 def template = engine.createTemplate('Hello $name')
                 def scriptField = template.getClass().getDeclaredField('script')
@@ -74,15 +73,15 @@ public class TemplateEngineMemoryTest {
         assertNotNull(gcl);
         assertThat(
                 "cleanUpHeap should have cleared SimpleTemplateScript classes from the template engine's cache",
-                gcl.getLoadedClasses(), emptyArray());
+                gcl.getLoadedClasses(),
+                emptyArray());
     }
 
     @Test
     public void gstringTemplateEngineLoaderCleaned() throws Exception {
         Computer.threadPoolForRemoting.submit(() -> {}).get();
         WorkflowJob p = j.createProject(WorkflowJob.class, "p");
-        p.setDefinition(new CpsFlowDefinition(
-                """
+        p.setDefinition(new CpsFlowDefinition("""
                 def engine = new groovy.text.GStringTemplateEngine()
                 def template = engine.createTemplate('Hello $name')
                 def templateField = template.getClass().getDeclaredField('template')
@@ -96,6 +95,7 @@ public class TemplateEngineMemoryTest {
         assertNotNull(gcl);
         assertThat(
                 "cleanUpHeap should have cleared GStringTemplateScript classes from the template engine's cache",
-                gcl.getLoadedClasses(), emptyArray());
+                gcl.getLoadedClasses(),
+                emptyArray());
     }
 }
