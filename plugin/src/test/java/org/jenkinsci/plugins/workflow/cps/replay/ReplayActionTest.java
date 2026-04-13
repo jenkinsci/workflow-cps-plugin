@@ -173,9 +173,11 @@ public class ReplayActionTest {
                     0, new ParametersAction(new PasswordParameterValue("passwordParam", "confidential"))));
 
             // When we replay a build with password parameter it should fail with access denied exception.
-            assertThrows(Failure.class, () -> run1.getAction(ReplayAction.class)
-                    .run("echo(/Replaying passwordParam: ${passwordParam}/)", Collections.emptyMap(), false)
-                    .get());
+            assertThrows(
+                    Failure.class,
+                    () -> run1.getAction(ReplayAction.class)
+                            .run("echo(/Replaying passwordParam: ${passwordParam}/)", Collections.emptyMap(), false)
+                            .get());
         });
     }
 
