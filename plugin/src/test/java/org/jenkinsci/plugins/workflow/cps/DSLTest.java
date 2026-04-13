@@ -29,6 +29,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
@@ -724,6 +725,15 @@ public class DSLTest {
     public void standardStage() throws Exception {
         p.setDefinition(new CpsFlowDefinition("stage('Build'){\n" + "  echo('building')\n" + "}\n", true));
         WorkflowRun b = r.assertBuildStatusSuccess(p.scheduleBuild2(0));
+    }
+
+    @Issue("https://github.com/jenkinsci/workflow-cps-plugin/issues/1740")
+    @Test
+    public void declarativeMissing() throws Exception {
+        assertThat(r.jenkins.getPlugin("pipeline-model-definition"), nullValue());
+        p.setDefinition(new CpsFlowDefinition("pipeline {stages {stage('x') {steps {echo 'hi'}}}}", true));
+        var b = r.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
+        r.assertLogContains("No such DSL method 'pipeline'", b);
     }
 
     @Issue("JENKINS-47101")
