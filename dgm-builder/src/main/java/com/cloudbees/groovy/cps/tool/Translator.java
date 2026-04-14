@@ -160,12 +160,13 @@ public class Translator {
 
     private String mangledName(ExecutableElement e) {
         StringBuilder overloadResolved = new StringBuilder("$").append(n(e));
-        e.getParameters().forEach(ve -> overloadResolved
-                .append("__")
-                .append(types.erasure(ve.asType())
-                        .toString()
-                        .replace("[]", "_array")
-                        .replaceAll("[^\\p{javaJavaIdentifierPart}]+", "_")));
+        e.getParameters()
+                .forEach(ve -> overloadResolved
+                        .append("__")
+                        .append(types.erasure(ve.asType())
+                                .toString()
+                                .replace("[]", "_array")
+                                .replaceAll("[^\\p{javaJavaIdentifierPart}]+", "_")));
         return overloadResolved.toString();
     }
 
@@ -328,8 +329,10 @@ public class Translator {
         JInvocation f = JExpr._new($CpsFunction);
 
         // parameter names
-        f.arg(codeModel.ref(Arrays.class).staticInvoke("asList").tap(inv -> e.getParameters()
-                .forEach(p -> inv.arg(n(p)))));
+        f.arg(codeModel
+                .ref(Arrays.class)
+                .staticInvoke("asList")
+                .tap(inv -> e.getParameters().forEach(p -> inv.arg(n(p)))));
 
         // translate the method body into an expression that invokes Builder
         f.arg(trees.getTree(e)
@@ -738,11 +741,12 @@ public class Translator {
                                 return $b.invoke("tryCatch")
                                         .arg(visit(tt.getBlock()))
                                         .arg(visit(tt.getFinallyBlock()))
-                                        .tap(inv -> tt.getCatches().forEach(ct -> JExpr._new($CatchExpression)
-                                                .arg(t(trees.getPath(cut, ct.getParameter()))
-                                                        .dotclass())
-                                                .arg(n(ct.getParameter()))
-                                                .arg(visit(ct.getBlock()))));
+                                        .tap(inv -> tt.getCatches()
+                                                .forEach(ct -> JExpr._new($CatchExpression)
+                                                        .arg(t(trees.getPath(cut, ct.getParameter()))
+                                                                .dotclass())
+                                                        .arg(n(ct.getParameter()))
+                                                        .arg(visit(ct.getBlock()))));
                             }
 
                             @Override

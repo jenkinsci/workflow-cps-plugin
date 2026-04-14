@@ -1894,8 +1894,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     w,
                     context,
                     "timings",
-                    e.liveTimings.entrySet().stream().collect(Collectors.toMap(kv -> kv.getKey(), kv -> kv.getValue()
-                            .longValue())),
+                    e.liveTimings.entrySet().stream()
+                            .collect(Collectors.toMap(
+                                    kv -> kv.getKey(), kv -> kv.getValue().longValue())),
                     Map.class);
             writeChild(w, context, "internalCalls", new TreeSet<>(e.internalCalls), Set.class);
             writeChild(w, context, "sandbox", e.sandbox, Boolean.class);
