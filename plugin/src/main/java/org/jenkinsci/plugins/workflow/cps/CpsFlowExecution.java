@@ -1490,9 +1490,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 LOGGER.log(Level.WARNING, "failed to clean up memory from " + owner, x);
             }
             try {
-                cleanUpTemplateEngineClassLoaders();
+                cleanUpTemplateEngineClasses();
             } catch (Exception x) {
-                LOGGER.log(Level.WARNING, "failed to clean up template engine classloaders from " + owner, x);
+                LOGGER.log(Level.WARNING, "failed to clean up template engine classes from " + owner, x);
             }
             scriptClass = null;
         } else {
@@ -1535,24 +1535,32 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         gcl.clearCache();
     }
 
-    private static void cleanUpTemplateEngineClassLoaders() throws Exception {
-        Set<GroovyClassLoader> templateEngineLoaders = new HashSet<>();
+    private static void cleanUpTemplateEngineClasses() throws Exception {
+        // collect all template engine classloaders from ClassInfo.
+        Set<ClassLoader> templateEngineLoaders = new HashSet<>();
         for (ClassInfo ci : ClassInfo.getAllClassInfo()) {
             Class<?> clazz = ci.getTheClass();
             if (clazz == null) {
                 continue;
             }
             ClassLoader loader = clazz.getClassLoader();
-            while (loader instanceof GroovyClassLoader.InnerLoader) {
-                loader = loader.getParent();
+            ClassLoader parent = loader;
+            while (parent instanceof GroovyClassLoader.InnerLoader) {
+                parent = parent.getParent();
             }
-            if (loader instanceof GroovyClassLoader && !(loader.getParent() instanceof GroovyClassLoader)) {
-                templateEngineLoaders.add((GroovyClassLoader) loader);
+            if (parent instanceof GroovyClassLoader && !(parent.getParent() instanceof GroovyClassLoader)) {
+                templateEngineLoaders.add(loader);
             }
         }
-        for (GroovyClassLoader gcl : templateEngineLoaders) {
-            LOGGER.fine(() -> "cleaning up template engine GroovyClassLoader " + gcl);
-            cleanUpLoader(gcl, new HashSet<>(), new HashSet<>());
+        // now clean up each classloaders entries
+        for (ClassLoader loader : templateEngineLoaders) {
+            LOGGER.fine(() -> "cleaning up template engine classes from " + loader);
+            Set<Class<?>> loadedClasses = new HashSet<>();
+            cleanUpGlobalClassValue(loader, loadedClasses);
+            cleanUpClassHelperCache(loader, loadedClasses);
+            for (Class<?> clazz : loadedClasses) {
+                Introspector.flushFromCaches(clazz);
+            }
         }
     }
 
