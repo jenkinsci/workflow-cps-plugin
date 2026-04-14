@@ -473,15 +473,13 @@ public class ReplayActionTest {
                         .to("dev1"));
 
                 WorkflowJob p = story.j.jenkins.createProject(WorkflowJob.class, "SECURITY-3362");
-                String script = """
-                    println "Jobs: ${Jenkins.instance.getItemByFullName(env.JOB_NAME)?.parent?.items*.fullName.join(', ')}!"
-                    """;
+                String script = "echo(/Jobs: ${Jenkins.instance.items*.fullName}!/)";
                 p.setDefinition(new CpsFlowDefinition(script, false));
 
                 ScriptApproval.get().preapprove(script, GroovyLanguage.get());
 
                 WorkflowRun b1 = story.j.buildAndAssertSuccess(p);
-                story.j.assertLogContains("Jobs: SECURITY-3362!", b1);
+                story.j.assertLogContains("Jobs: [SECURITY-3362]!", b1);
 
                 ScriptApproval.get().clearApprovedScripts();
 
