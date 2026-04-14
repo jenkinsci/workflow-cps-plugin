@@ -145,6 +145,11 @@ public class DSL extends GroovyObjectSupport implements Serializable {
         return isKeepStepArguments;
     }
 
+    /** Pending full #1740 impl, particular symbols we know should not be run as functions. */
+    private static final Set<String> BLACKLISTED_SYMBOLS = Set.of(
+            // ignore WorkflowJob.DescriptorImpl; only interpret ModelStepLoader
+            "pipeline");
+
     /**
      * Executes the {@link Step} implementation specified by the name argument.
      *
@@ -193,7 +198,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             }
             return invokeStep(sd, name, args);
         }
-        if (SymbolLookup.get().findDescriptor(Describable.class, name) != null) {
+        if (!BLACKLISTED_SYMBOLS.contains(name) && SymbolLookup.get().findDescriptor(Describable.class, name) != null) {
             return invokeDescribable(name, args);
         }
 
@@ -206,6 +211,7 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                     symbols.addAll(SymbolLookup.getSymbolValue(e));
                 }
             }
+            symbols.removeAll(BLACKLISTED_SYMBOLS);
             Queue.Executable executable = exec.getOwner().getExecutable();
             for (GlobalVariable var : GlobalVariable.forRun(executable instanceof Run ? (Run) executable : null)) {
                 globals.add(var.getName());
