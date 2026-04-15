@@ -1485,20 +1485,45 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         closeShells();
         if (scriptClass != null) {
             try {
-                cleanUpLoader(scriptClass.getClassLoader(), new HashSet<>(), new HashSet<>());
+                Set<ClassLoader> encounteredLoaders = new HashSet<>();
+                Set<Class<?>> encounteredClasses = new HashSet<>();
+                cleanUpLoader(scriptClass.getClassLoader(), encounteredLoaders, encounteredClasses);
+                cleanUpChildLoaders(encounteredLoaders, encounteredClasses);
             } catch (Exception x) {
                 LOGGER.log(Level.WARNING, "failed to clean up memory from " + owner, x);
-            }
-            try {
-                cleanUpTemplateEngineClasses();
-            } catch (Exception x) {
-                LOGGER.log(Level.WARNING, "failed to clean up template engine classes from " + owner, x);
             }
             scriptClass = null;
         } else {
             LOGGER.fine("no scriptClass");
         }
         // perhaps also set programPromise to null or a precompleted failure?
+    }
+
+    // cleans up child GroovyClassLoaders (eg template engine GCLs) that are parented to
+    // the pipeline classloader but not reachable by the main cleanUpLoader parent-chain walk
+    private static void cleanUpChildLoaders(Set<ClassLoader> encounteredLoaders, Set<Class<?>> encounteredClasses)
+            throws Exception {
+        Set<ClassLoader> childLoaders = new HashSet<>();
+        for (ClassInfo ci : ClassInfo.getAllClassInfo()) {
+            Class<?> clazz = ci.getTheClass();
+            if (clazz == null) {
+                continue;
+            }
+            ClassLoader loader = clazz.getClassLoader();
+            if (loader == null || encounteredLoaders.contains(loader)) {
+                continue;
+            }
+            for (ClassLoader parent = loader.getParent(); parent != null; parent = parent.getParent()) {
+                if (encounteredLoaders.contains(parent)) {
+                    childLoaders.add(loader);
+                    break;
+                }
+            }
+        }
+        for (ClassLoader loader : childLoaders) {
+            LOGGER.fine(() -> "cleaning up child classloader " + loader);
+            cleanUpLoader(loader, encounteredLoaders, encounteredClasses);
+        }
     }
 
     private static void cleanUpLoader(
@@ -1533,35 +1558,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
         }
         gcl.clearCache();
-    }
-
-    private static void cleanUpTemplateEngineClasses() throws Exception {
-        // collect all template engine classloaders from ClassInfo.
-        Set<ClassLoader> templateEngineLoaders = new HashSet<>();
-        for (ClassInfo ci : ClassInfo.getAllClassInfo()) {
-            Class<?> clazz = ci.getTheClass();
-            if (clazz == null) {
-                continue;
-            }
-            ClassLoader loader = clazz.getClassLoader();
-            ClassLoader parent = loader;
-            while (parent instanceof GroovyClassLoader.InnerLoader) {
-                parent = parent.getParent();
-            }
-            if (parent instanceof GroovyClassLoader && !(parent.getParent() instanceof GroovyClassLoader)) {
-                templateEngineLoaders.add(loader);
-            }
-        }
-        // now clean up each classloaders entries
-        for (ClassLoader loader : templateEngineLoaders) {
-            LOGGER.fine(() -> "cleaning up template engine classes from " + loader);
-            Set<Class<?>> loadedClasses = new HashSet<>();
-            cleanUpGlobalClassValue(loader, loadedClasses);
-            cleanUpClassHelperCache(loader, loadedClasses);
-            for (Class<?> clazz : loadedClasses) {
-                Introspector.flushFromCaches(clazz);
-            }
-        }
     }
 
     private static void cleanUpGlobalClassValue(@NonNull ClassLoader loader, Set<Class<?>> loadedClasses)

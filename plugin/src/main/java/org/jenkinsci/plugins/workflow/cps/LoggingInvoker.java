@@ -32,9 +32,13 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import groovy.lang.Closure;
 import groovy.lang.GroovyClassLoader;
+import groovy.text.GStringTemplateEngine;
+import groovy.text.SimpleTemplateEngine;
 import hudson.ExtensionList;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jenkins.util.SystemProperties;
 import org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper;
 
@@ -123,7 +127,32 @@ final class LoggingInvoker implements Invoker {
     @Override
     public Object constructorCall(Class lhs, Object[] args) throws Throwable {
         maybeRecord(lhs, () -> lhs.getName() + ".<init>");
+        args = fixTemplateEngineClassLoader(lhs, args);
         return delegate.constructorCall(lhs, args);
+    }
+
+    private static final Logger LOGGER = Logger.getLogger(LoggingInvoker.class.getName());
+
+    private static final Set<Class<?>> TEMPLATE_ENGINE_CLASSES =
+            Set.of(SimpleTemplateEngine.class, GStringTemplateEngine.class);
+
+    // template engine default constructors parent their GCL to Jenkins core classloader
+    // instead of the pipeline classloader, inject the pipeline classloader for zero-arg calls
+    private static Object[] fixTemplateEngineClassLoader(Class<?> lhs, Object[] args) {
+        if (args.length != 0 || !TEMPLATE_ENGINE_CLASSES.contains(lhs)) {
+            return args;
+        }
+        CpsThreadGroup g = CpsThreadGroup.current();
+        if (g == null) {
+            return args;
+        }
+        CpsFlowExecution execution = g.getExecution();
+        if (execution == null) {
+            return args;
+        }
+        ClassLoader classLoader = execution.getShell().getClassLoader();
+        LOGGER.log(Level.FINE, "injecting pipeline classloader into {0} constructor", lhs.getName());
+        return new Object[] {classLoader};
     }
 
     @Override
