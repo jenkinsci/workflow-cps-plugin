@@ -124,6 +124,7 @@ import jenkins.model.Jenkins;
 import jenkins.util.SystemProperties;
 import net.jcip.annotations.GuardedBy;
 import org.codehaus.groovy.GroovyBugError;
+import org.codehaus.groovy.reflection.ClassInfo;
 import org.jboss.marshalling.Unmarshaller;
 import org.jboss.marshalling.reflect.SerializableClassRegistry;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
@@ -1484,7 +1485,10 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         closeShells();
         if (scriptClass != null) {
             try {
-                cleanUpLoader(scriptClass.getClassLoader(), new HashSet<>(), new HashSet<>());
+                Set<ClassLoader> encounteredLoaders = new HashSet<>();
+                Set<Class<?>> encounteredClasses = new HashSet<>();
+                cleanUpLoader(scriptClass.getClassLoader(), encounteredLoaders, encounteredClasses);
+                cleanUpChildLoaders(encounteredLoaders, encounteredClasses);
             } catch (Exception x) {
                 LOGGER.log(Level.WARNING, "failed to clean up memory from " + owner, x);
             }
@@ -1493,6 +1497,33 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             LOGGER.fine("no scriptClass");
         }
         // perhaps also set programPromise to null or a precompleted failure?
+    }
+
+    // cleans up child GroovyClassLoaders (eg template engine GCLs) that are parented to
+    // the pipeline classloader but not reachable by the main cleanUpLoader parent-chain walk
+    private static void cleanUpChildLoaders(Set<ClassLoader> encounteredLoaders, Set<Class<?>> encounteredClasses)
+            throws Exception {
+        Set<ClassLoader> childLoaders = new HashSet<>();
+        for (ClassInfo ci : ClassInfo.getAllClassInfo()) {
+            Class<?> clazz = ci.getTheClass();
+            if (clazz == null) {
+                continue;
+            }
+            ClassLoader loader = clazz.getClassLoader();
+            if (loader == null || encounteredLoaders.contains(loader)) {
+                continue;
+            }
+            for (ClassLoader parent = loader.getParent(); parent != null; parent = parent.getParent()) {
+                if (encounteredLoaders.contains(parent)) {
+                    childLoaders.add(loader);
+                    break;
+                }
+            }
+        }
+        for (ClassLoader loader : childLoaders) {
+            LOGGER.fine(() -> "cleaning up child classloader " + loader);
+            cleanUpLoader(loader, encounteredLoaders, encounteredClasses);
+        }
     }
 
     private static void cleanUpLoader(
