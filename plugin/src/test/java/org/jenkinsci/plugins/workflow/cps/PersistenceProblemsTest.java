@@ -173,7 +173,6 @@ public class PersistenceProblemsTest {
     public void completedFinalFlowNodeNotPersisted() throws Exception {
         CpsFlowExecution.OPTIMIZE_STORAGE_UPON_COMPLETION = false;
         final int[] build = new int[1];
-        final Result[] executionAndBuildResult = new Result[2];
         story.thenWithHardShutdown(j -> {
             WorkflowRun run = runBasicBuild(j, DEFAULT_JOBNAME, build);
             String finalId = run.getExecution().getCurrentHeads().get(0).getId();
@@ -181,14 +180,11 @@ public class PersistenceProblemsTest {
             // Hack but deletes the file from disk
             CpsFlowExecution cpsExec = (CpsFlowExecution) run.getExecution();
             Files.delete(cpsExec.getStorageDir().toPath().resolve(finalId + ".xml"));
-            executionAndBuildResult[0] = ((CpsFlowExecution) run.getExecution()).getResult();
-            executionAndBuildResult[1] = run.getResult();
         });
         story.then(j -> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
             assertCompletedCleanly(run, true);
-            //            assertNulledExecution(run);
             Assert.assertEquals(Result.FAILURE, run.getResult());
         });
     }
