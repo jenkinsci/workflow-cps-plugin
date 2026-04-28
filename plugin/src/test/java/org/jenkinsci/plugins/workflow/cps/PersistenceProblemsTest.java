@@ -192,18 +192,14 @@ public class PersistenceProblemsTest {
     @Test
     public void completedNoNodesPersisted() throws Exception {
         final int[] build = new int[1];
-        final Result[] executionAndBuildResult = new Result[2];
         story.thenWithHardShutdown(j -> {
             WorkflowRun run = runBasicBuild(j, DEFAULT_JOBNAME, build);
             FileUtils.deleteDirectory(((CpsFlowExecution) run.getExecution()).getStorageDir());
-            executionAndBuildResult[0] = ((CpsFlowExecution) run.getExecution()).getResult();
-            executionAndBuildResult[1] = run.getResult();
         });
         story.then(j -> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
             assertCompletedCleanly(run, true);
-            // assertNulledExecution(run);
             Assert.assertEquals(Result.FAILURE, run.getResult());
         });
     }
