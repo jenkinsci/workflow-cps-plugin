@@ -171,6 +171,7 @@ public class PersistenceProblemsTest {
     /** Simulates something happening badly during final shutdown, which may cause build to not appear done. */
     @Test
     public void completedFinalFlowNodeNotPersisted() throws Exception {
+        // TODO is this test even useful after #807, since it relies on separate flow nodes?
         CpsFlowExecution.OPTIMIZE_STORAGE_UPON_COMPLETION = false;
         final int[] build = new int[1];
         story.thenWithHardShutdown(j -> {
