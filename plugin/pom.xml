@@ -60,6 +60,11 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins.workflow</groupId>
+        <artifactId>workflow-job</artifactId>
+        <version>1571.1580.v18e46842c125</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
   <dependencies>
