@@ -60,12 +60,10 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-      <!-- TODO until in BOM -->
       <dependency>
         <groupId>org.jenkins-ci.plugins.workflow</groupId>
         <artifactId>workflow-job</artifactId>
-        <!-- TODO https://github.com/jenkinsci/workflow-job-plugin/pull/758 -->
-        <version>1571.1579.v703855f75573</version>
+        <version>1571.1580.v18e46842c125</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
