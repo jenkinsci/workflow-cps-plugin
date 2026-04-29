@@ -53,7 +53,7 @@ public class PersistenceProblemsTest {
             });
 
     /** Verifies all the assumptions about a cleanly finished build. */
-    static void assertCompletedCleanly(WorkflowRun run, boolean verifyFlowEndNode) throws Exception {
+    private static void assertCompletedCleanly(WorkflowRun run, boolean verifyFlowEndNode) throws Exception {
         await().until(() -> run, completed());
         Assert.assertNotNull(run.getResult());
         FlowExecution fe = run.getExecution();
@@ -67,7 +67,7 @@ public class PersistenceProblemsTest {
 
         if (fe instanceof CpsFlowExecution cpsExec) {
             Assert.assertTrue(cpsExec.isComplete());
-            Assert.assertEquals(Boolean.TRUE, cpsExec.done);
+            Assert.assertTrue(cpsExec.done);
             Assert.assertTrue(cpsExec.isComplete());
             if (verifyFlowEndNode) {
                 Assert.assertEquals(1, cpsExec.getCurrentHeads().size());
@@ -76,6 +76,7 @@ public class PersistenceProblemsTest {
             }
             await().until(cpsExec::blocksRestart, is(false));
         } else {
+            Assert.assertFalse("did not need to verify FlowEndNode when there is no FlowExecution", verifyFlowEndNode);
             System.out.println("WARNING: no FlowExecutionForBuild");
         }
     }
@@ -185,7 +186,7 @@ public class PersistenceProblemsTest {
         story.then(j -> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
-            assertCompletedCleanly(run, true);
+            assertCompletedCleanly(run, false);
             Assert.assertEquals(Result.FAILURE, run.getResult());
         });
     }
@@ -200,7 +201,7 @@ public class PersistenceProblemsTest {
         story.then(j -> {
             WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
             WorkflowRun run = r.getBuildByNumber(build[0]);
-            assertCompletedCleanly(run, true);
+            assertCompletedCleanly(run, false);
             Assert.assertEquals(Result.FAILURE, run.getResult());
         });
     }
