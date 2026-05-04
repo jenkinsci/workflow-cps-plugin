@@ -29,15 +29,17 @@
                         </f:form>
                     </j:when>
                     <j:otherwise>
-                        <h1>${%Rebuild(it.owner.displayName)}</h1>
-                        <p>
-                            <j:out value="${%blurb.rebuild}"/>
-                        </p>
-                        <f:form action="rebuild" method="POST" name="rebuild">
-                            <f:bottomButtonBar>
-                                <f:submit value="${%Run}"/>
-                            </f:bottomButtonBar>
-                        </f:form>
+                        <j:when test="${it.rebuildEnabled}">
+                            <h1>${%Rebuild(it.owner.displayName)}</h1>
+                            <p>
+                                <j:out value="${%blurb.rebuild}"/>
+                            </p>
+                            <f:form action="rebuild" method="POST" name="rebuild">
+                                <f:bottomButtonBar>
+                                    <f:submit value="${%Run}"/>
+                                </f:bottomButtonBar>
+                            </f:form>
+                        </j:when>
                     </j:otherwise>
                 </j:choose>
             </j:if>
