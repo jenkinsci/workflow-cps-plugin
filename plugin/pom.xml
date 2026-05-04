@@ -63,7 +63,7 @@
       <dependency>
         <groupId>org.jenkins-ci.plugins.workflow</groupId>
         <artifactId>workflow-job</artifactId>
-        <version>1571.1580.v18e46842c125</version>
+        <version>1581.ve4b_d0db_fcb_b_b_</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
