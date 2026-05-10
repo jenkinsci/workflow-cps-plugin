@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>6.2138.v03274d462c13</version>
+    <version>6.2153.vcf31911d10c4</version>
     <relativePath />
   </parent>
   <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -35,8 +35,8 @@
     <changelist>999999-SNAPSHOT</changelist>
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
-    <jenkins.baseline>2.516</jenkins.baseline>
-    <jenkins.version>2.564</jenkins.version>
+    <jenkins.baseline>2.555</jenkins.baseline>
+    <jenkins.version>2.564-SNAPSHOT</jenkins.version>
     <!-- TODO: Add org.codehaus.groovy:groovy and org.codehaus.groovy:groovy:sources to Jenkins core BOM so this can be deleted? (currently it only specifies groovy-all) -->
     <groovy.version>2.4.21</groovy.version>
     <spotless.check.skip>false</spotless.check.skip>
