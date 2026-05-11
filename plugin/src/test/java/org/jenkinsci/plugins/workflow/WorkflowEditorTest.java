@@ -24,12 +24,17 @@
 
 package org.jenkinsci.plugins.workflow;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.startsWith;
+
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.junit.Options;
 import com.microsoft.playwright.junit.OptionsFactory;
 import com.microsoft.playwright.junit.UsePlaywright;
 import com.microsoft.playwright.options.AriaRole;
 import hudson.ExtensionList;
+import java.util.List;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.junit.jupiter.api.Test;
@@ -42,6 +47,7 @@ class WorkflowEditorTest {
 
     @Test
     void xxx(JenkinsRule r, Page page) throws Exception {
+        page.context().grantPermissions(List.of("clipboard-read", "clipboard-write"));
         ExtensionList.lookupSingleton(CpsFlowDefinition.DescriptorImpl.class).enableWorkflowEditor = true;
         var p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("", true));
@@ -52,9 +58,29 @@ class WorkflowEditorTest {
                 .press("ControlOrMeta+a");
         page.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("Cursor at row"))
                 .press("ControlOrMeta+x");
-        // TODO assert that clipboard starts with "node {"
-        // TODO now type "node {\n" again (do *not* use .fill(String)), then "sh 'echo hello",
-        // and C-A C-C assert clipboard contains "node {\n    sh 'echo hello'\n}"
+
+        // Assert that clipboard starts with "node {"
+        String clipboard1 = (String) page.evaluate("navigator.clipboard.readText()");
+        assertThat(clipboard1, startsWith("node {"));
+
+        // Type "node {\n" again (character by character, not .fill())
+        var textbox = page.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("Cursor at row"));
+        textbox.pressSequentially("node {");
+        textbox.press("Enter");
+
+        // Type "sh 'echo hello" (without closing quote to test auto-completion)
+        textbox.pressSequentially("sh 'echo hello");
+
+        // Select all and copy
+        textbox.press("ControlOrMeta+a");
+        textbox.press("ControlOrMeta+c");
+
+        // Assert clipboard contains the formatted code with proper indentation
+        String clipboard2 = (String) page.evaluate("navigator.clipboard.readText()");
+        assertThat(clipboard2, equalTo("""
+                node {
+                    sh 'echo hello'
+                }"""));
     }
 
     public static final class HeadlessOptionsFactory implements OptionsFactory {
