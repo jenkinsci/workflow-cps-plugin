@@ -28,6 +28,7 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.junit.Options;
 import com.microsoft.playwright.junit.OptionsFactory;
 import com.microsoft.playwright.junit.UsePlaywright;
+import hudson.ExtensionList;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,7 @@ class WorkflowEditorTest {
 
     @Test
     void xxx(JenkinsRule r, Page page) throws Exception {
+        ExtensionList.lookupSingleton(CpsFlowDefinition.DescriptorImpl.class).enableWorkflowEditor = true;
         var p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("", true));
         page.navigate(p.getAbsoluteUrl() + "configure");

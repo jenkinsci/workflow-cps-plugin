@@ -7,16 +7,15 @@
         </st:attribute>
     </st:documentation>
     <j:choose>
-        <j:when test="${h.isUnitTest}">
-            <!-- HtmlUnit and ACE do not seem to mix. -->
-            <f:textarea value="${script}" checkMethod="post" checkUrl="${attrs.checkUrl}" checkDependsOn="${attrs.checkDependsOn}"/>
-        </j:when>
-        <j:otherwise>
+        <j:when test="${app.getDescriptor('org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition').enableWorkflowEditor}">
             <div class="workflow-editor-wrapper" style="display: none; position: relative">
                 <f:textarea value="${script}" checkMethod="post" checkUrl="${attrs.checkUrl}" checkDependsOn="${attrs.checkDependsOn}"/>
                 <div class="editor" style="height: 350px;" samplesUrl="${rootURL}/workflow-cps-samples/" />
             </div>
             <st:adjunct includes="org.jenkinsci.plugins.workflow.cps.workflow-editor"/>
+        </j:when>
+        <j:otherwise>
+            <f:textarea value="${script}" checkMethod="post" checkUrl="${attrs.checkUrl}" checkDependsOn="${attrs.checkDependsOn}"/>
         </j:otherwise>
     </j:choose>
 </j:jelly>
