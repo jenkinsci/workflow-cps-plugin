@@ -58,8 +58,7 @@ class WorkflowEditorTest {
         // Configure project, select sample, focus editor
         page.context().grantPermissions(List.of("clipboard-read", "clipboard-write"));
         page.navigate(p.getAbsoluteUrl() + "configure");
-        page.getByRole(AriaRole.COMBOBOX)
-                .nth(1)
+        page.locator("#workflow-editor-samples")
                 .selectOption(ExtensionList.lookupSingleton(GroovySample.Scripted.class)
                         .name());
         page.locator(".ace_content").click();
