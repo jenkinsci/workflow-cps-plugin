@@ -36,6 +36,7 @@ import com.microsoft.playwright.options.AriaRole;
 import hudson.ExtensionList;
 import java.util.List;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
+import org.jenkinsci.plugins.workflow.cps.GroovySample;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -46,25 +47,30 @@ import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 class WorkflowEditorTest {
 
     @Test
-    void xxx(JenkinsRule r, Page page) throws Exception {
-        page.context().grantPermissions(List.of("clipboard-read", "clipboard-write"));
+    void smokes(JenkinsRule r, Page page) throws Exception {
         ExtensionList.lookupSingleton(CpsFlowDefinition.DescriptorImpl.class).enableWorkflowEditor = true;
         var p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("", true));
-        page.navigate(p.getAbsoluteUrl() + "configure");
-        page.getByRole(AriaRole.COMBOBOX).nth(1).selectOption("scripted");
-        page.locator(".ace_content").click();
-        page.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("Cursor at row"))
-                .press("ControlOrMeta+a");
-        page.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("Cursor at row"))
-                .press("ControlOrMeta+x");
 
-        // Assert that clipboard starts with "node {"
-        String clipboard1 = (String) page.evaluate("navigator.clipboard.readText()");
-        assertThat(clipboard1, startsWith("node {"));
+        // Configure project, select sample, focus editor
+        page.context().grantPermissions(List.of("clipboard-read", "clipboard-write"));
+        page.navigate(p.getAbsoluteUrl() + "configure");
+        page.getByRole(AriaRole.COMBOBOX)
+                .nth(1)
+                .selectOption(ExtensionList.lookupSingleton(GroovySample.Scripted.class)
+                        .name());
+        page.locator(".ace_content").click();
+        var textbox = page.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("Cursor at row"));
+
+        // Cut the sample to clipboard
+        textbox.press("ControlOrMeta+a");
+        textbox.press("ControlOrMeta+x");
+        assertThat(
+                "looks like scripted.groovy",
+                (String) page.evaluate("navigator.clipboard.readText()"),
+                startsWith("node {"));
 
         // Type "node {\n" again (character by character, not .fill())
-        var textbox = page.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("Cursor at row"));
         textbox.pressSequentially("node {");
         textbox.press("Enter");
 
@@ -75,12 +81,13 @@ class WorkflowEditorTest {
         textbox.press("ControlOrMeta+a");
         textbox.press("ControlOrMeta+c");
 
-        // Assert clipboard contains the formatted code with proper indentation
-        String clipboard2 = (String) page.evaluate("navigator.clipboard.readText()");
-        assertThat(clipboard2, equalTo("""
-                node {
-                    sh 'echo hello'
-                }"""));
+        assertThat(
+                "clipboard contains the formatted code with proper indentation",
+                (String) page.evaluate("navigator.clipboard.readText()"),
+                equalTo("""
+            node {
+                sh 'echo hello'
+            }"""));
     }
 
     public static final class HeadlessOptionsFactory implements OptionsFactory {
