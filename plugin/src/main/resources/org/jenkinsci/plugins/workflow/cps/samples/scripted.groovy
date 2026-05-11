@@ -4,7 +4,7 @@ node {
         git 'https://github.com/jglick/simple-maven-project-with-tests.git'
     }
     stage('Build') {
-        // Run the maven build
+        // Run the build. You must have Maven installed.
         if (isUnix()) {
             sh 'mvn -Dmaven.test.failure.ignore clean package'
         } else {
