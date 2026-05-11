@@ -95,7 +95,7 @@ class WorkflowEditorTest {
     public static final class HeadlessOptionsFactory implements OptionsFactory {
         @Override
         public Options getOptions() {
-            return new Options().setHeadless(Boolean.valueOf(System.getenv("CI")));
+            return new Options().setHeadless(!Boolean.parseBoolean(System.getenv("PLAYWRIGHT_HEADED")));
         }
     }
 }
