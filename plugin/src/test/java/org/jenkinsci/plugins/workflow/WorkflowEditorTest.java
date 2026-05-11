@@ -28,6 +28,7 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.junit.Options;
 import com.microsoft.playwright.junit.OptionsFactory;
 import com.microsoft.playwright.junit.UsePlaywright;
+import com.microsoft.playwright.options.AriaRole;
 import hudson.ExtensionList;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -45,8 +46,15 @@ class WorkflowEditorTest {
         var p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("", true));
         page.navigate(p.getAbsoluteUrl() + "configure");
-        Thread.sleep(5_000);
-        // TODO check some workflow-editor.js functionality
+        page.getByRole(AriaRole.COMBOBOX).nth(1).selectOption("scripted");
+        page.locator(".ace_content").click();
+        page.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("Cursor at row"))
+                .press("ControlOrMeta+a");
+        page.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("Cursor at row"))
+                .press("ControlOrMeta+x");
+        // TODO assert that clipboard starts with "node {"
+        // TODO now type "node {\n" again (do *not* use .fill(String)), then "sh 'echo hello",
+        // and C-A C-C assert clipboard contains "node {\n    sh 'echo hello'\n}"
     }
 
     public static final class HeadlessOptionsFactory implements OptionsFactory {
