@@ -140,23 +140,40 @@ class WorkflowEditorTest {
             }""";
         p.setDefinition(new CpsFlowDefinition(pipeline, true));
 
+        var consoleMessages = new ArrayList<ConsoleMessage>();
+        page.onConsoleMessage(consoleMessages::add);
+
         page.navigate(p.getAbsoluteUrl() + "configure");
-        page.locator(".ace_content").click();
-        var textbox = page.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("Cursor at row"));
-        var originalScript = page.locator(".workflow-editor-wrapper .editor").evaluate("el => el.aceEditor.getValue()");
 
-        textbox.press("ControlOrMeta+f");
-        var searchInput = page.locator(".ace_search .ace_search_field").first();
-        searchInput.waitFor();
-        searchInput.fill("FarewellNeedle");
-        page.waitForFunction("() => document.querySelector('.ace_search_counter')?.textContent?.trim() === '1 of 1'");
-        searchInput.press("Enter");
+        assertAll(
+                () -> {
+                    page.locator(".ace_content").click();
+                    var textbox =
+                            page.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("Cursor at row"));
+                    var originalScript =
+                            page.locator(".workflow-editor-wrapper .editor").evaluate("el => el.aceEditor.getValue()");
 
-        assertThat(page.locator(".ace_search_counter").textContent().trim(), equalTo("1 of 1"));
-        assertThat(
-                page.locator(".workflow-editor-wrapper .editor").evaluate("el => el.aceEditor.getValue()"),
-                equalTo(originalScript));
-        assertThat(page.url(), startsWith(p.getAbsoluteUrl() + "configure"));
+                    textbox.press("ControlOrMeta+f");
+                    var searchInput = page.locator(".ace_search .ace_search_field").first();
+                    searchInput.waitFor();
+                    searchInput.fill("FarewellNeedle");
+                    page.waitForFunction(
+                            "() => document.querySelector('.ace_search_counter')?.textContent?.trim() === '1 of 1'");
+                    searchInput.press("Enter");
+
+                    assertThat(page.locator(".ace_search_counter").textContent().trim(), equalTo("1 of 1"));
+                    assertThat(
+                            page.locator(".workflow-editor-wrapper .editor").evaluate("el => el.aceEditor.getValue()"),
+                            equalTo(originalScript));
+                    assertThat(page.url(), startsWith(p.getAbsoluteUrl() + "configure"));
+                },
+                () -> assertThat(
+                        consoleMessages.stream()
+                                .filter(msg ->
+                                        msg.type().equals("error") || msg.type().equals("warning"))
+                                .map(msg -> "[" + msg.type() + "] " + msg.text() + " at " + msg.location())
+                                .toList(),
+                        empty()));
     }
 
     public static final class HeadlessOptionsFactory implements OptionsFactory {
