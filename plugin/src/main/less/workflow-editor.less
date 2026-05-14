@@ -126,6 +126,70 @@
   background: var(--selection-color);
 }
 
+// Ace renders its search box inside the editor wrapper, so keep it aligned with Jenkins theme variables.
+.workflow-editor-wrapper .ace_search {
+  color: var(--text-color);
+  background: var(--card-background);
+  border: 1px solid var(--input-border);
+  border-top: 0;
+  border-radius: 0 0 0 var(--form-input-border-radius);
+  box-shadow: var(--dropdown-box-shadow);
+  animation: workflow-editor-search-slide-down 0.16s ease-out;
+}
+
+.workflow-editor-wrapper .ace_search_form,
+.workflow-editor-wrapper .ace_replace_form {
+  line-height: 1.9;
+}
+
+.workflow-editor-wrapper .ace_search_field {
+  color: var(--text-color);
+  background: var(--input-color);
+  border-color: var(--input-border);
+
+  &:focus {
+    border-color: var(--focus-input-border);
+    box-shadow: var(--form-input-glow--focus);
+  }
+}
+
+.workflow-editor-wrapper .ace_searchbtn,
+.workflow-editor-wrapper .ace_button {
+  color: var(--text-color);
+  background: var(--button-background);
+  border-color: var(--input-border);
+}
+
+.workflow-editor-wrapper .ace_searchbtn:hover,
+.workflow-editor-wrapper .ace_button:hover {
+  background: var(--button-background--hover);
+  border-color: var(--input-border-hover);
+}
+
+.workflow-editor-wrapper .ace_button.checked {
+  border-color: var(--focus-input-border);
+}
+
+.workflow-editor-wrapper .ace_search_counter {
+  color: var(--text-color-secondary);
+}
+
+@keyframes workflow-editor-search-slide-down {
+  from {
+    transform: translateY(calc(-100% - 10px));
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workflow-editor-wrapper .ace_search {
+    animation: none;
+  }
+}
+
 .ace_editor.ace_multiselect .ace_selection.ace_start {
   box-shadow: 0 0 3px 0px #1D1F21;
 }
