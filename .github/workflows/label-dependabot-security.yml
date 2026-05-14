@@ -3,8 +3,6 @@ name: Label Dependabot security updates
 on:
   pull_request_target:
     types: [opened]
-    branches:
-      - 'dependabot/npm_and_yarn/plugin/javascript-security-*'
 
 permissions:
   pull-requests: write
@@ -12,7 +10,7 @@ permissions:
 jobs:
   label-security-updates:
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]' && contains(github.head_ref, 'javascript-security')
+    if: github.actor == 'dependabot[bot]' && startsWith(github.head_ref, 'dependabot/npm_and_yarn/plugin/javascript-security-')
     steps:
       - name: Replace dependencies label with bug
         env:
