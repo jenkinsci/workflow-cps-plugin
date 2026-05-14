@@ -25,15 +25,19 @@
 package org.jenkinsci.plugins.workflow;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.startsWith;
+import static org.junit.jupiter.api.Assertions.assertAll;
 
+import com.microsoft.playwright.ConsoleMessage;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.junit.Options;
 import com.microsoft.playwright.junit.OptionsFactory;
 import com.microsoft.playwright.junit.UsePlaywright;
 import com.microsoft.playwright.options.AriaRole;
 import hudson.ExtensionList;
+import java.util.ArrayList;
 import java.util.List;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.GroovySample;
@@ -55,41 +59,57 @@ class WorkflowEditorTest {
         var p = r.createProject(WorkflowJob.class, "p");
         p.setDefinition(new CpsFlowDefinition("", true));
 
+        // Capture console messages
+        var consoleMessages = new ArrayList<ConsoleMessage>();
+        page.onConsoleMessage(consoleMessages::add);
+
         // Configure project, select sample, focus editor
         page.context().grantPermissions(List.of("clipboard-read", "clipboard-write"));
         page.navigate(p.getAbsoluteUrl() + "configure");
-        page.locator("#workflow-editor-samples")
-                .selectOption(ExtensionList.lookupSingleton(GroovySample.Scripted.class)
-                        .name());
-        page.locator(".ace_content").click();
-        var textbox = page.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("Cursor at row"));
 
-        // Cut the sample to clipboard
-        textbox.press("ControlOrMeta+a");
-        textbox.press("ControlOrMeta+x");
-        assertThat(
-                "looks like scripted.groovy",
-                (String) page.evaluate("navigator.clipboard.readText()"),
-                startsWith("node {"));
+        assertAll(
+                () -> {
+                    page.locator("#workflow-editor-samples")
+                            .selectOption(ExtensionList.lookupSingleton(GroovySample.Scripted.class)
+                                    .name());
+                    page.locator(".ace_content").click();
+                    var textbox =
+                            page.getByRole(AriaRole.TEXTBOX, new Page.GetByRoleOptions().setName("Cursor at row"));
 
-        // Type "node {\n" again (character by character, not .fill())
-        textbox.pressSequentially("node {");
-        textbox.press("Enter");
+                    // Cut the sample to clipboard
+                    textbox.press("ControlOrMeta+a");
+                    textbox.press("ControlOrMeta+x");
+                    assertThat(
+                            "looks like scripted.groovy",
+                            (String) page.evaluate("navigator.clipboard.readText()"),
+                            startsWith("node {"));
 
-        // Type "sh 'echo hello" (without closing quote to test auto-completion)
-        textbox.pressSequentially("sh 'echo hello");
+                    // Type "node {\n" again (character by character, not .fill())
+                    textbox.pressSequentially("node {");
+                    textbox.press("Enter");
 
-        // Select all and copy
-        textbox.press("ControlOrMeta+a");
-        textbox.press("ControlOrMeta+c");
+                    // Type "sh 'echo hello" (without closing quote to test auto-completion)
+                    textbox.pressSequentially("sh 'echo hello");
 
-        assertThat(
-                "clipboard contains the formatted code with proper indentation",
-                (String) page.evaluate("navigator.clipboard.readText()"),
-                equalTo("""
-            node {
-                sh 'echo hello'
-            }"""));
+                    // Select all and copy
+                    textbox.press("ControlOrMeta+a");
+                    textbox.press("ControlOrMeta+c");
+
+                    assertThat(
+                            "clipboard contains the formatted code with proper indentation",
+                            (String) page.evaluate("navigator.clipboard.readText()"),
+                            equalTo("""
+                            node {
+                                sh 'echo hello'
+                            }"""));
+                },
+                () -> assertThat(
+                        consoleMessages.stream()
+                                .filter(msg ->
+                                        msg.type().equals("error") || msg.type().equals("warning"))
+                                .map(msg -> "[" + msg.type() + "] " + msg.text() + " at " + msg.location())
+                                .toList(),
+                        empty()));
     }
 
     public static final class HeadlessOptionsFactory implements OptionsFactory {
