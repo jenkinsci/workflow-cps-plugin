@@ -24,5 +24,3 @@ updates:
       javascript-security:
         applies-to: security-updates
         dependency-type: production
-        labels:
-          - "bug"
