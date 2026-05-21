@@ -233,7 +233,7 @@ public class ReplayAction implements Action {
             replacementLoadedScripts.put(
                     entry.getKey(), form.optString(entry.getKey().replace('.', '_'), entry.getValue()));
         }
-        if (run(form.getString("mainScript"), replacementLoadedScripts) == null) {
+        if (run(form.getString("mainScript"), replacementLoadedScripts, false) == null) {
             throw HttpResponses.error(
                     SC_CONFLICT, new IOException(run.getParent().getFullName() + " is not buildable"));
         }
@@ -247,7 +247,7 @@ public class ReplayAction implements Action {
             // AccessDeniedException2 requires us to look up the specific Permission
             throw new AccessDeniedException("not allowed to replay");
         }
-        if (run(getOriginalScript(), getOriginalLoadedScripts()) == null) {
+        if (run(getOriginalScript(), getOriginalLoadedScripts(), true) == null) {
             throw HttpResponses.error(
                     SC_CONFLICT, new IOException(run.getParent().getFullName() + " is not buildable"));
         }
@@ -262,10 +262,29 @@ public class ReplayAction implements Action {
      * @param replacementMainScript main script; replacement for {@link #getOriginalScript}
      * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
      * @return a way to wait for the replayed build to complete
+     *
+     * @deprecated this method specify that the script might have been modified.
+     * Use {@link #run(String, Map, boolean)}
      */
+    @Deprecated
     public @CheckForNull QueueTaskFuture /*<Run>*/ run(
             @NonNull String replacementMainScript, @NonNull Map<String, String> replacementLoadedScripts) {
-        Queue.Item item = run2(replacementMainScript, replacementLoadedScripts);
+        return run(replacementMainScript, replacementLoadedScripts, false);
+    }
+
+    /**
+     * For whitebox testing.
+     *
+     * @param replacementMainScript    main script; replacement for {@link #getOriginalScript}
+     * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
+     * @param rebuilt                  true if the run was unmodified, false if the script might have been modified
+     * @return a way to wait for the replayed build to complete
+     */
+    public @CheckForNull QueueTaskFuture /*<Run>*/ run(
+            @NonNull String replacementMainScript,
+            @NonNull Map<String, String> replacementLoadedScripts,
+            boolean rebuilt) {
+        Queue.Item item = run2(replacementMainScript, replacementLoadedScripts, rebuilt);
         return item == null ? null : item.getFuture();
     }
 
@@ -275,9 +294,28 @@ public class ReplayAction implements Action {
      * @param replacementMainScript main script; replacement for {@link #getOriginalScript}
      * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
      * @return build queue item
+     *
+     * @deprecated this method specify that the script might have been modified.
+     * Use {@link #run2(String, Map, boolean)}
      */
+    @Deprecated
     public @CheckForNull Queue.Item run2(
             @NonNull String replacementMainScript, @NonNull Map<String, String> replacementLoadedScripts) {
+        return run2(replacementMainScript, replacementLoadedScripts, false);
+    }
+
+    /**
+     * For use in projects that want initiate a replay via the Java API.
+     *
+     * @param replacementMainScript    main script; replacement for {@link #getOriginalScript}
+     * @param replacementLoadedScripts auxiliary scripts, keyed by class name; replacement for {@link #getOriginalLoadedScripts}
+     * @param rebuilt                  true if the run was unmodified, false if the script might have been modified
+     * @return build queue item
+     */
+    public @CheckForNull Queue.Item run2(
+            @NonNull String replacementMainScript,
+            @NonNull Map<String, String> replacementLoadedScripts,
+            boolean rebuilt) {
         List<Action> actions = new ArrayList<>();
         CpsFlowExecution execution = getExecutionBlocking();
         if (execution == null) {
@@ -296,7 +334,7 @@ public class ReplayAction implements Action {
 
         actions.add(
                 new ReplayFlowFactoryAction(replacementMainScript, replacementLoadedScripts, execution.isSandbox()));
-        actions.add(new CauseAction(new Cause.UserIdCause(), new ReplayCause(run)));
+        actions.add(new CauseAction(new Cause.UserIdCause(), new ReplayCause(run, rebuilt)));
 
         if (hasPasswordParameter(this.run)) {
             throw new Failure("Replay is not allowed when password parameters are used.");

@@ -26,9 +26,11 @@ package org.jenkinsci.plugins.workflow.cps;
 
 import static org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext.JOB;
 
+import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
+import hudson.Main;
 import hudson.model.Action;
 import hudson.model.Descriptor;
 import hudson.model.Item;
@@ -56,6 +58,7 @@ import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.flow.GlobalDefaultFlowDurabilityLevel;
 import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -139,6 +142,11 @@ public class CpsFlowDefinition extends FlowDefinition {
 
     @Extension
     public static class DescriptorImpl extends FlowDefinitionDescriptor {
+
+        /** HtmlUnit and ACE do not seem to mix. */
+        @VisibleForTesting
+        @Restricted(DoNotUse.class)
+        public boolean enableWorkflowEditor = !Main.isUnitTest;
 
         /* In order to fix SECURITY-2450 without causing significant UX regressions, we decided to continue to
          * automatically approve scripts on save if the script was modified by an administrator. To make this possible,
