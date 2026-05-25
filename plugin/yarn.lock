@@ -1366,26 +1366,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/eslint-scope@npm:^3.7.7":
-  version: 3.7.7
-  resolution: "@types/eslint-scope@npm:3.7.7"
-  dependencies:
-    "@types/eslint": "npm:*"
-    "@types/estree": "npm:*"
-  checksum: 10c0/a0ecbdf2f03912679440550817ff77ef39a30fa8bfdacaf6372b88b1f931828aec392f52283240f0d648cf3055c5ddc564544a626bcf245f3d09fcb099ebe3cc
-  languageName: node
-  linkType: hard
-
-"@types/eslint@npm:*":
-  version: 9.6.1
-  resolution: "@types/eslint@npm:9.6.1"
-  dependencies:
-    "@types/estree": "npm:*"
-    "@types/json-schema": "npm:*"
-  checksum: 10c0/69ba24fee600d1e4c5abe0df086c1a4d798abf13792d8cfab912d76817fe1a894359a1518557d21237fbaf6eda93c5ab9309143dee4c59ef54336d1b3570420e
-  languageName: node
-  linkType: hard
-
 "@types/esrecurse@npm:^4.3.1":
   version: 4.3.1
   resolution: "@types/esrecurse@npm:4.3.1"
@@ -1393,7 +1373,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/estree@npm:*, @types/estree@npm:^1.0.6, @types/estree@npm:^1.0.8":
+"@types/estree@npm:^1.0.6, @types/estree@npm:^1.0.8":
   version: 1.0.9
   resolution: "@types/estree@npm:1.0.9"
   checksum: 10c0/3ad3286ca2988cd550dafb8f2ad599c8474868e954fa601a36655bdfefd8039f7c714b8c1c7f2ae219ffbd58bd4660e66fa7479a0120fc02d4777057d4865387
@@ -1410,10 +1390,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/json-schema@npm:*, @types/json-schema@npm:^7.0.15, @types/json-schema@npm:^7.0.9":
+"@types/json-schema@npm:^7.0.15, @types/json-schema@npm:^7.0.9":
   version: 7.0.15
   resolution: "@types/json-schema@npm:7.0.15"
   checksum: 10c0/a996a745e6c5d60292f36731dd41341339d4eeed8180bb09226e5c8d23759067692b1d88e5d91d72ee83dfc00d3aca8e7bd43ea120516c17922cbcb7c3e252db
+  languageName: node
+  linkType: hard
+
+"@types/less@npm:^3.0.8":
+  version: 3.0.8
+  resolution: "@types/less@npm:3.0.8"
+  checksum: 10c0/79ed1014ccecaa060b8b2ccc8ea8cd28a62463a69e21184c13eaa08bd200ffe5149b4ecc380792a3204d8f629a328b504f2ef25a6a5974f8c512f15514e78426
   languageName: node
   linkType: hard
 
@@ -2096,13 +2083,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"enhanced-resolve@npm:^5.20.0":
-  version: 5.21.3
-  resolution: "enhanced-resolve@npm:5.21.3"
+"enhanced-resolve@npm:^5.21.4":
+  version: 5.22.0
+  resolution: "enhanced-resolve@npm:5.22.0"
   dependencies:
     graceful-fs: "npm:^4.2.4"
     tapable: "npm:^2.3.3"
-  checksum: 10c0/4d6ea9a93cc2ba385bdc5393a10c4fbaf7ae9fb04d49f94d6c8e3a73eb9599cfb5baab3ff8bb5395f3ef292db75c83bc8aca820825754cca203303d558e809bc
+  checksum: 10c0/01d3d7a7628c87f617df7d9a0a34b0f543a2268ac0755a73237d68c3627eb0612f28899343d20b7781a05ebd276069919441e1562cf99171bfcc85924f3d830a
   languageName: node
   linkType: hard
 
@@ -2149,7 +2136,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"es-module-lexer@npm:^2.0.0":
+"es-module-lexer@npm:^2.1.0":
   version: 2.1.0
   resolution: "es-module-lexer@npm:2.1.0"
   checksum: 10c0/93bcf2454fa72d67fe3ccd0abef8ce7933f5840a319513418a643dd8e9c6aa8f49709cecfae02ded722805dd327232d30723a807cc52e6809d6ac697c62c29fb
@@ -2928,9 +2915,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"less-loader@npm:^12.3.2":
-  version: 12.3.2
-  resolution: "less-loader@npm:12.3.2"
+"less-loader@npm:^13.0.0":
+  version: 13.0.0
+  resolution: "less-loader@npm:13.0.0"
+  dependencies:
+    "@types/less": "npm:^3.0.8"
   peerDependencies:
     "@rspack/core": 0.x || ^1.0.0 || ^2.0.0-0
     less: ^3.5.0 || ^4.0.0
@@ -2940,7 +2929,7 @@ __metadata:
       optional: true
     webpack:
       optional: true
-  checksum: 10c0/25083fc636a5bfeccb31faa4383db2a1a7b0f99a34bfe663fca8bdeece3eccfb9539776462910075a6eeb8f22594fa32aa9bb3320cce355f36284371715c053c
+  checksum: 10c0/622e690dfdcb51359ba1bd67640fe5f7296061f00f4b86f5088e5771954953bc313220a0b7be7d127694342c552b87c25e643ae16916640bb922c3ef9c9b278d
   languageName: node
   linkType: hard
 
@@ -2995,7 +2984,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"loader-runner@npm:^4.3.1":
+"loader-runner@npm:^4.3.2":
   version: 4.3.2
   resolution: "loader-runner@npm:4.3.2"
   checksum: 10c0/35297f2d1cadcef8995c4ba2c4e27ef397f508014c5cdcdae43456ed27d07d3bfc3e81a5460857184517a02576917363f5f8f98cb22500c124f00c33eb6ec7b1
@@ -3131,7 +3120,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nanoid@npm:^3.3.11":
+"nanoid@npm:^3.3.11, nanoid@npm:^3.3.12":
   version: 3.3.12
   resolution: "nanoid@npm:3.3.12"
   bin:
@@ -3504,7 +3493,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"postcss@npm:^8.4.40, postcss@npm:^8.5.14":
+"postcss@npm:^8.4.40":
   version: 8.5.14
   resolution: "postcss@npm:8.5.14"
   dependencies:
@@ -3512,6 +3501,17 @@ __metadata:
     picocolors: "npm:^1.1.1"
     source-map-js: "npm:^1.2.1"
   checksum: 10c0/48138207cf5ef5581be1bfe2cb65ccfe0ac75e43888ba045afc8ed6043d7b56aeb3b9a9fe5b353ff554be943cd0cc15d826ccb991525159175971e5ee8ab0237
+  languageName: node
+  linkType: hard
+
+"postcss@npm:^8.5.15":
+  version: 8.5.15
+  resolution: "postcss@npm:8.5.15"
+  dependencies:
+    nanoid: "npm:^3.3.12"
+    picocolors: "npm:^1.1.1"
+    source-map-js: "npm:^1.2.1"
+  checksum: 10c0/7f2e63ae22fbe43aace1bf652bd99da4e90737c64194d49e51ddc9cd0f9e51ff2861a7d734379b494deffa03a880a5c65eec70bc29ee9ebaa7136dde3eee8f31
   languageName: node
   linkType: hard
 
@@ -3839,7 +3839,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"terser-webpack-plugin@npm:^5.3.17":
+"terser-webpack-plugin@npm:^5.5.0":
   version: 5.6.0
   resolution: "terser-webpack-plugin@npm:5.6.0"
   dependencies:
@@ -4051,18 +4051,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"webpack-sources@npm:^3.3.4":
-  version: 3.4.1
-  resolution: "webpack-sources@npm:3.4.1"
-  checksum: 10c0/5943f3d98670f640bc96bb734a47da46938eb1d8788ed7ef175cc9a1bd8d822be684ad985a7d88eb8a50db084fa391ef84f073ffae4dbf01ef3095615517a8e5
+"webpack-sources@npm:^3.4.1":
+  version: 3.5.0
+  resolution: "webpack-sources@npm:3.5.0"
+  checksum: 10c0/f186eb66ffe245479e7f78c1c202d79584d5b65cc2bc4a6175ff952cdc8840872b1a95e6305078b1286324a19527213935e7d10b53192a9f74c0e0e148e55cb0
   languageName: node
   linkType: hard
 
-"webpack@npm:^5.106.2":
-  version: 5.106.2
-  resolution: "webpack@npm:5.106.2"
+"webpack@npm:^5.107.1":
+  version: 5.107.1
+  resolution: "webpack@npm:5.107.1"
   dependencies:
-    "@types/eslint-scope": "npm:^3.7.7"
     "@types/estree": "npm:^1.0.8"
     "@types/json-schema": "npm:^7.0.15"
     "@webassemblyjs/ast": "npm:^1.14.1"
@@ -4072,26 +4071,26 @@ __metadata:
     acorn-import-phases: "npm:^1.0.3"
     browserslist: "npm:^4.28.1"
     chrome-trace-event: "npm:^1.0.2"
-    enhanced-resolve: "npm:^5.20.0"
-    es-module-lexer: "npm:^2.0.0"
+    enhanced-resolve: "npm:^5.21.4"
+    es-module-lexer: "npm:^2.1.0"
     eslint-scope: "npm:5.1.1"
     events: "npm:^3.2.0"
     glob-to-regexp: "npm:^0.4.1"
     graceful-fs: "npm:^4.2.11"
-    loader-runner: "npm:^4.3.1"
+    loader-runner: "npm:^4.3.2"
     mime-db: "npm:^1.54.0"
     neo-async: "npm:^2.6.2"
     schema-utils: "npm:^4.3.3"
     tapable: "npm:^2.3.0"
-    terser-webpack-plugin: "npm:^5.3.17"
+    terser-webpack-plugin: "npm:^5.5.0"
     watchpack: "npm:^2.5.1"
-    webpack-sources: "npm:^3.3.4"
+    webpack-sources: "npm:^3.4.1"
   peerDependenciesMeta:
     webpack-cli:
       optional: true
   bin:
     webpack: bin/webpack.js
-  checksum: 10c0/933293ae94b7f3405147aebd824d978696693a7fbd85cfbf4d05b517329c93f69e634400ad70a27f4ba4148e14e2fd502e335cd8d30d75282091ab3c72a1ac01
+  checksum: 10c0/18f4788d71c994bfab491774a6d669cad9f77c6eb93fb29db7efa12bc70cf8adeb904ba5da150678883e24ba2c73e9f6efbfb9912cbe7a4e9a7fc2a1859fd90c
   languageName: node
   linkType: hard
 
@@ -4153,13 +4152,13 @@ __metadata:
     jquery: "npm:^4.0.0"
     jquery-ui: "npm:^1.14.2"
     less: "npm:^4.6.4"
-    less-loader: "npm:^12.3.2"
+    less-loader: "npm:^13.0.0"
     mini-css-extract-plugin: "npm:^2.10.2"
-    postcss: "npm:^8.5.14"
+    postcss: "npm:^8.5.15"
     postcss-less: "npm:^6.0.0"
     postcss-loader: "npm:^8.2.1"
     style-loader: "npm:^4.0.0"
-    webpack: "npm:^5.106.2"
+    webpack: "npm:^5.107.1"
     webpack-cli: "npm:^7.0.2"
     webpack-fix-style-only-entries: "npm:^0.6.1"
     webpack-merge: "npm:^6.0.1"
