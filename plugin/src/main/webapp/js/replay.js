@@ -8,8 +8,8 @@ Behaviour.specify(
     999,
     (button) => {
         button.addEventListener("click", function (event) {
-            let success = button.dataset.buildSuccess;
-            let failure = button.dataset.buildFailure;
+            const success = button.dataset.buildSuccess;
+            const failure = button.dataset.buildFailure;
 
             fetch(button.dataset.baseUrl + button.dataset.href, {
                 method: "post",
