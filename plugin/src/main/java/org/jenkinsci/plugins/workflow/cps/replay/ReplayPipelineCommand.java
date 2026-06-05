@@ -102,10 +102,10 @@ public class ReplayPipelineCommand extends CLICommand {
             if (approve) {
                 approveScript(action.getOriginalScript(), action);
             }
-            action.run(action.getOriginalScript(), replacementLoadedScripts);
+            action.run(action.getOriginalScript(), replacementLoadedScripts, false);
         } else {
             approveScript(text, action);
-            action.run(text, action.getOriginalLoadedScripts());
+            action.run(text, action.getOriginalLoadedScripts(), true);
         }
         return 0;
     }

@@ -3,13 +3,13 @@ import $ from 'jquery';
 export function addSamplesWidget(editor, editorId, samplesUrl) {
     var samples = [];
 
-    if ($('#workflow-editor-wrapper .samples').length) {
+    if ($('#workflow-editor-samples').length) {
         // Already there.
         return;
     }
 
     var $aceEditor = $('#' + editorId);
-    var sampleSelect = $('<select></select>');
+    var sampleSelect = $('<select id="workflow-editor-samples"></select>');
 
     sampleSelect.append('<option >try sample Pipeline...</option>');
     fetch(samplesUrl, {
@@ -26,11 +26,8 @@ export function addSamplesWidget(editor, editorId, samplesUrl) {
         }
     });
 
-    var samplesDiv = $('<div class="samples"></div>');
-    samplesDiv.append(sampleSelect);
-
-    samplesDiv.insertBefore($aceEditor);
-    samplesDiv.css({
+    sampleSelect.insertBefore($aceEditor);
+    sampleSelect.css({
         'position': 'absolute',
         'right': '1px',
         'z-index': 100,

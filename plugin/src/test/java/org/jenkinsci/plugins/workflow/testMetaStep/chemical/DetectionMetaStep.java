@@ -27,9 +27,11 @@ public class DetectionMetaStep extends Step {
 
     @Override
     public StepExecution start(StepContext context) throws Exception {
-        return StepExecutions.synchronousNonBlockingVoid(context, c -> c.get(TaskListener.class)
-                .getLogger()
-                .println("Detecting " + compound.getClass().getName()));
+        return StepExecutions.synchronousNonBlockingVoid(
+                context,
+                c -> c.get(TaskListener.class)
+                        .getLogger()
+                        .println("Detecting " + compound.getClass().getName()));
     }
 
     @Extension(ordinal = 100)
