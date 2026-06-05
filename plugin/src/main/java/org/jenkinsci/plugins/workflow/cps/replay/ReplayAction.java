@@ -136,9 +136,9 @@ public class ReplayAction implements Action {
                         "href",
                         urlName,
                         "buildSuccess",
-                        "Build scheduled",
+                        Messages.ReplayAction_buildSuccess(),
                         "buildFailure",
-                        "Failed to schedule build. Reload the page and try again."),
+                        Messages.ReplayAction_buildFailure()),
                 "plugin/workflow-cps/js/replay.js");
 
         // Allow for plugins to add additional build options
