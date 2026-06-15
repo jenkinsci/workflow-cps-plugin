@@ -2312,9 +2312,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint@npm:^10.4.1":
-  version: 10.4.1
-  resolution: "eslint@npm:10.4.1"
+"eslint@npm:^10.5.0":
+  version: 10.5.0
+  resolution: "eslint@npm:10.5.0"
   dependencies:
     "@eslint-community/eslint-utils": "npm:^4.8.0"
     "@eslint-community/regexpp": "npm:^4.12.2"
@@ -2353,7 +2353,7 @@ __metadata:
       optional: true
   bin:
     eslint: bin/eslint.js
-  checksum: 10c0/c5e6bb5158fb0d62f090c8e2671de5c98283bbb37a58b6d871bada63af3018e683483c96c1a92272fedc8f4e5279a273a0451acf0da67c487406639daa05aedb
+  checksum: 10c0/e1f7a1d442027e5478945cb07b6a382adc3f149fbfd3dbc14951a7a9fa312546b27fb35b0556897ca1d04539ad16ee85bda75ad9f724873e1153d1fbca0d6145
   languageName: node
   linkType: hard
 
@@ -3017,15 +3017,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"less@npm:^4.6.4":
-  version: 4.6.4
-  resolution: "less@npm:4.6.4"
+"less@npm:^4.6.6":
+  version: 4.6.6
+  resolution: "less@npm:4.6.6"
   dependencies:
     copy-anything: "npm:^3.0.5"
     errno: "npm:^0.1.1"
     graceful-fs: "npm:^4.1.2"
     image-size: "npm:~0.5.0"
-    make-dir: "npm:^2.1.0"
+    make-dir: "npm:^5.1.0"
     mime: "npm:^1.4.1"
     needle: "npm:^3.1.0"
     parse-node-version: "npm:^1.0.1"
@@ -3047,7 +3047,7 @@ __metadata:
       optional: true
   bin:
     lessc: bin/lessc
-  checksum: 10c0/34fc96e617f1c8b9bff019ffcab6304550d733fdb5daaa4a69dd404d83aa8566c21d8905bbb75f025334875188f38126edd4af10604e9ee634f43f6d41430837
+  checksum: 10c0/b65db4a34d51b8dab497a36cb87714e84d9f63cac51be698d4d489361df18e5e61ad62dd8d525bb76a7c2e8bce2cac6a426c7092d49cf71dfb6ca1e52a227ae6
   languageName: node
   linkType: hard
 
@@ -3116,6 +3116,13 @@ __metadata:
     pify: "npm:^4.0.1"
     semver: "npm:^5.6.0"
   checksum: 10c0/ada869944d866229819735bee5548944caef560d7a8536ecbc6536edca28c72add47cc4f6fc39c54fb25d06b58da1f8994cf7d9df7dadea047064749efc085d8
+  languageName: node
+  linkType: hard
+
+"make-dir@npm:^5.1.0":
+  version: 5.1.0
+  resolution: "make-dir@npm:5.1.0"
+  checksum: 10c0/b8dc9e831e9941db84b63c0ba7dc7c8c7e92704d4fada300fc86293bea6491496b95208d6f98ec78b87f004e26abf143730dd8050920b88ee4b8bbe1eb14d661
   languageName: node
   linkType: hard
 
@@ -4228,13 +4235,13 @@ __metadata:
     babel-loader: "npm:^10.1.1"
     clean-webpack-plugin: "npm:^4.0.0"
     css-loader: "npm:^7.1.4"
-    eslint: "npm:^10.4.1"
+    eslint: "npm:^10.5.0"
     eslint-formatter-checkstyle: "npm:^9.0.1"
     eslint-plugin-only-warn: "npm:^1.2.1"
     globals: "npm:^17.6.0"
     jquery: "npm:^4.0.0"
     jquery-ui: "npm:^1.14.2"
-    less: "npm:^4.6.4"
+    less: "npm:^4.6.6"
     less-loader: "npm:^13.0.0"
     mini-css-extract-plugin: "npm:^2.10.2"
     postcss: "npm:^8.5.15"
