@@ -47,6 +47,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.StreamSupport;
 import javax.lang.model.SourceVersion;
 import jenkins.model.Jenkins;
 import jenkins.model.TransientActionFactory;
@@ -65,9 +66,10 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
-import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest2;
+import org.kohsuke.stapler.json.SubmittedForm;
+import org.kohsuke.stapler.verb.POST;
 
 /**
  * Takes a {@link Step} as configured through the UI and tries to produce equivalent Groovy code.
@@ -507,20 +509,23 @@ public class Snippetizer implements RootAction, DescriptorByNameOwner {
     @Restricted(NoExternalUse.class)
     public static final String GENERATE_URL = ACTION_URL + "/generateSnippet";
 
+    @POST
     @Restricted(DoNotUse.class) // accessed via REST API
-    public HttpResponse doGenerateSnippet(StaplerRequest2 req, @QueryParameter String json) throws Exception {
-        // TODO is there not an easier way to do this?
-        // Maybe Descriptor.newInstancesFromHeteroList on a one-element JSONArray?
-        JSONObject jsonO = JSONObject.fromObject(json);
+    public HttpResponse doGenerateSnippet(StaplerRequest2 req, @SubmittedForm JSONObject json) throws Exception {
         Jenkins j = Jenkins.get();
-        Class<?> c = j.getPluginManager().uberClassLoader.loadClass(jsonO.getString("stapler-class"));
+        Class<?> c = j.getPluginManager().uberClassLoader.loadClass(json.getString("stapler-class"));
         Descriptor descriptor = j.getDescriptor(c.asSubclass(Describable.class));
         if (descriptor == null) {
             return HttpResponses.text("<could not find " + c.getName() + ">");
         }
+        if (!(descriptor instanceof StepDescriptor)
+                && StreamSupport.stream(StepDescriptor.allMeta().spliterator(), false)
+                        .noneMatch(d -> d.getMetaStepArgumentType().isAssignableFrom(c))) {
+            return HttpResponses.text("<" + c.getName() + " is not a supported step type>");
+        }
         Object o;
         try {
-            o = descriptor.newInstance(req, jsonO);
+            o = descriptor.newInstance(req, json);
         } catch (RuntimeException x) { // e.g. IllegalArgumentException
             return HttpResponses.text(Functions.printThrowable(x));
         }
