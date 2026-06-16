@@ -112,6 +112,10 @@ public class ReplayAction implements Action {
 
     @Override
     public String getIconFileName() {
+        if (run.isBuilding()) {
+            return null;
+        }
+
         return isEnabled() || isRebuildEnabled() ? "symbol-arrow-redo-outline plugin-ionicons-api" : null;
     }
 
@@ -526,7 +530,6 @@ public class ReplayAction implements Action {
         public Collection<? extends Action> createFor(Run run) {
             return run instanceof FlowExecutionOwner.Executable
                             && run.getParent() instanceof ParameterizedJobMixIn.ParameterizedJob
-                            && !run.isBuilding()
                     ? Collections.<Action>singleton(new ReplayAction(run))
                     : Collections.<Action>emptySet();
         }
