@@ -408,7 +408,27 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
          * Loading or saving flow nodes.
          * @see FlowNodeStorage
          */
-        flowNode
+        flowNode,
+        /**
+         * Deserializing program state from disk.
+         * @see CpsFlowExecution#loadProgramAsync(File)
+         */
+        serializationRead,
+        /**
+         * Serializing program state to disk (the writeObject call, not file I/O).
+         * @see CpsThreadGroup#saveProgram(File)
+         */
+        serializationWrite,
+        /**
+         * End-to-end compilation of the Jenkinsfile: parsing + CPS transform + class loading.
+         * @see #parseScript
+         */
+        compilationTotal,
+        /**
+         * Time CPS threads spend runnable-but-waiting before being picked up by the scheduler loop.
+         * @see CpsThreadGroup#run
+         */
+        schedulerWait
     }
 
     /** accumulated time in ns of a given {@link TimingKind#name}; {@link String} key for pretty XStream form */
@@ -663,7 +683,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     private CpsScript parseScript() throws IOException {
         // classloader hierarchy. See doc/classloader.md
         CpsScript s;
-        try {
+        try (Timing t = time(TimingKind.compilationTotal)) {
             trusted = new CpsGroovyShellFactory(this).forTrusted().build();
             shell = new CpsGroovyShellFactory(this).withParent(trusted).build();
 
@@ -934,7 +954,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     try {
                         CpsFlowExecution old = PROGRAM_STATE_SERIALIZATION.get();
                         PROGRAM_STATE_SERIALIZATION.set(CpsFlowExecution.this);
-                        try {
+                        try (Timing t = time(TimingKind.serializationRead)) {
                             CpsThreadGroup g = (CpsThreadGroup) u.readObject();
                             result.set(g);
                             pausedWhenLoaded = g.isPaused();

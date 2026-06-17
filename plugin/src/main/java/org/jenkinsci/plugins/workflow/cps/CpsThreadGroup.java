@@ -64,6 +64,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
@@ -125,6 +126,28 @@ public final class CpsThreadGroup implements Serializable {
 
     /** Set while {@link #runner} is doing something. */
     transient boolean busy;
+
+    /**
+     * Diagnostic counters for scheduler performance, reset each pass through {@link #run()}.
+     * Not persisted.
+     */
+    transient int threadsInPass;
+
+    transient int runnableThreadsInPass;
+    transient int executedThreadsInPass;
+    transient long lastPassDurationNanos;
+    transient long totalSchedulerPasses;
+
+    /**
+     * Peak number of queued tasks observed by {@link #scheduleRun()}.
+     */
+    transient long maxQueueDepth;
+
+    /**
+     * Number of times {@link #scheduleRun()} was called while {@link #busy},
+     * indicating re-submission depth for the current pass.
+     */
+    transient long reentrantSubmissions;
 
     /**
      * True if the build was automatically paused because quiet mode is enabled.
@@ -297,6 +320,14 @@ public final class CpsThreadGroup implements Serializable {
      *      {@link Future} object that represents when the CPS VM is executed.
      */
     public Future<?> scheduleRun() {
+        // Track re-submission depth: scheduleRun() called while the executor is busy
+        // means work is piling up behind the currently executing run() pass
+        if (busy) {
+            reentrantSubmissions++;
+            if (reentrantSubmissions > maxQueueDepth) {
+                maxQueueDepth = reentrantSubmissions;
+            }
+        }
         final CompletableFuture<Void> f = new CompletableFuture<>();
         try {
             runner.submit(new Callable<Void>() {
@@ -458,10 +489,31 @@ public final class CpsThreadGroup implements Serializable {
         boolean ending = false;
         boolean stillRunnable = false;
 
+        final long passStart = System.nanoTime();
+        totalSchedulerPasses++;
+        threadsInPass = runtimeThreads.size();
+        runnableThreadsInPass = 0;
+        executedThreadsInPass = 0;
+        reentrantSubmissions = 0;
+
         // TODO: maybe instead of running all the thread, run just one thread in round robin
         for (CpsThread t : runtimeThreads.values().toArray(new CpsThread[runtimeThreads.size()])) {
             if (t.isRunnable()) {
+                runnableThreadsInPass++;
+
+                // Track scheduler wait time: how long was this thread runnable before we got to it?
+                if (t.becameRunnableAt != 0) {
+                    long waitNanos = passStart - t.becameRunnableAt;
+                    if (waitNanos > 0) {
+                        execution
+                                .liveTimings
+                                .computeIfAbsent(CpsFlowExecution.TimingKind.schedulerWait.name(), k -> new LongAdder())
+                                .add(waitNanos);
+                    }
+                }
+
                 Outcome o = t.runNextChunk();
+                executedThreadsInPass++;
                 if (o.isFailure()) {
                     assert !t.isAlive(); // failed thread is non-resumable
 
@@ -533,6 +585,22 @@ public final class CpsThreadGroup implements Serializable {
             } catch (IOException x) {
                 LOGGER.log(Level.WARNING, "Failed to delete program.dat in " + execution, x);
             }
+        }
+
+        lastPassDurationNanos = System.nanoTime() - passStart;
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.log(
+                    Level.FINE,
+                    "scheduler pass #{0}: {1} threads total, {2} runnable, {3} executed, {4}ms, reentrant={5}, peakQueue={6}",
+                    new Object[] {
+                        totalSchedulerPasses,
+                        threadsInPass,
+                        runnableThreadsInPass,
+                        executedThreadsInPass,
+                        lastPassDurationNanos / 1_000_000,
+                        reentrantSubmissions,
+                        maxQueueDepth
+                    });
         }
 
         return stillRunnable;
@@ -635,7 +703,8 @@ public final class CpsThreadGroup implements Serializable {
         boolean serializedOK = false;
         try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.saveProgram);
                 WithThreadName diag = new WithThreadName("saving " + f)) {
-            try (RiverWriter w = new RiverWriter(tmpFile, execution.getOwner(), pickleFactories)) {
+            try (RiverWriter w = new RiverWriter(tmpFile, execution.getOwner(), pickleFactories);
+                    CpsFlowExecution.Timing st = execution.time(CpsFlowExecution.TimingKind.serializationWrite)) {
                 w.writeObject(this);
             }
             serializedOK = true;

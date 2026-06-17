@@ -111,6 +111,24 @@ public final class CpsThread implements Serializable {
      */
     private final List<FutureCallback<Object>> completionHandlers = new ArrayList<>();
 
+    /**
+     * Total number of times {@link #runNextChunk()} has been called on this thread.
+     * Used to validate vruntime-based scheduling fairness.
+     */
+    long totalChunksRun;
+
+    /**
+     * Accumulated wall-clock nanoseconds spent executing inside {@link #runNextChunk()}.
+     * Does not include time spent suspended waiting for external events.
+     */
+    long totalNanosExecuting;
+
+    /**
+     * Timestamp (from {@link System#nanoTime()}) when this thread last became runnable,
+     * set in {@link #resume(Outcome)}. Used by the scheduler to track schedulerWait time.
+     */
+    transient long becameRunnableAt;
+
     CpsThread(
             CpsThreadGroup group,
             int id,
@@ -180,6 +198,8 @@ public final class CpsThread implements Serializable {
 
         final CpsThread old = CURRENT.get();
         CURRENT.set(this);
+        final long chunkStart = System.nanoTime();
+        totalChunksRun++;
 
         try (Timeout timeout = Timeout.limit(5, TimeUnit.MINUTES)) {
             LOGGER.fine(() -> "runNextChunk on " + resumeValue);
@@ -206,6 +226,7 @@ public final class CpsThread implements Serializable {
                 }
             }
         } finally {
+            totalNanosExecuting += System.nanoTime() - chunkStart;
             CURRENT.set(old);
         }
 
@@ -292,6 +313,7 @@ public final class CpsThread implements Serializable {
             return Futures.immediateFailedFuture(new IllegalStateException("Already resumed with " + resumeValue));
         }
         resumeValue = v;
+        becameRunnableAt = System.nanoTime();
         promise = new CompletableFuture<>();
         group.scheduleRun();
         return promise;
@@ -355,6 +377,8 @@ public final class CpsThread implements Serializable {
     @Override
     public String toString() {
         // getExecution().getOwner() would be useful but seems problematic.
-        return "Thread #" + id + String.format(" @%h", this);
+        return "Thread #" + id + " chunks=" + totalChunksRun
+                + " execMs=" + (totalNanosExecuting / 1_000_000)
+                + String.format(" @%h", this);
     }
 }
