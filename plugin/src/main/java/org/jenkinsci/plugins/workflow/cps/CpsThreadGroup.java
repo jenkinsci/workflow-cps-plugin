@@ -72,6 +72,8 @@ import jenkins.util.Timer;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext;
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.pickles.Pickle;
 import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
@@ -483,12 +485,44 @@ public final class CpsThreadGroup implements Serializable {
      *      and requires some external event to become resumable again. The false return value
      *      is akin to a Unix thread waiting for I/O completion.
      */
+    static final String BASE_QUANTUM_MS_PROPERTY = "org.jenkinsci.plugins.workflow.cps.CFS.baseQuantumMs";
+
+    static final String LOAD_FACTOR_PROPERTY = "org.jenkinsci.plugins.workflow.cps.CFS.loadFactor";
+
+    static final long MIN_QUANTUM_NS = 5_000_000L; // 5ms floor
+
+    static final long DEFAULT_BASE_QUANTUM_NS = 50_000_000L; // 50ms
+
+    @CpsVmThreadOnly
+    long getMinVruntime() {
+        long min = Long.MAX_VALUE;
+        for (CpsThread t : runtimeThreads.values()) {
+            if (t.vruntime < min) min = t.vruntime;
+        }
+        return min == Long.MAX_VALUE ? 0 : min;
+    }
+
+    private long computeQuantumNs() {
+        long baseMs = Long.getLong(BASE_QUANTUM_MS_PROPERTY, DEFAULT_BASE_QUANTUM_NS / 1_000_000);
+        long base = baseMs * 1_000_000L;
+        if (base <= 0) return Long.MAX_VALUE; // effectively unlimited
+
+        int loadFactor = Integer.getInteger(LOAD_FACTOR_PROPERTY, 10);
+        // Count active builds as a proxy for system load
+        int activeBuilds = 0;
+        FlowExecutionList list = FlowExecutionList.get();
+        if (list != null) {
+            for (FlowExecution fe : list) {
+                if (!fe.isComplete()) activeBuilds++;
+            }
+        }
+
+        long quantum = base / Math.max(1, activeBuilds / loadFactor);
+        return Math.max(MIN_QUANTUM_NS, quantum);
+    }
+
     @CpsVmThreadOnly("root")
     private boolean run() {
-        boolean changed = false;
-        boolean ending = false;
-        boolean stillRunnable = false;
-
         final long passStart = System.nanoTime();
         totalSchedulerPasses++;
         threadsInPass = runtimeThreads.size();
@@ -496,14 +530,16 @@ public final class CpsThreadGroup implements Serializable {
         executedThreadsInPass = 0;
         reentrantSubmissions = 0;
 
-        // TODO: maybe instead of running all the thread, run just one thread in round robin
-        for (CpsThread t : runtimeThreads.values().toArray(new CpsThread[runtimeThreads.size()])) {
+        // CFS: find the runnable thread with the lowest vruntime
+        CpsThread chosen = null;
+        int runnableCount = 0;
+        for (CpsThread t : runtimeThreads.values()) {
             if (t.isRunnable()) {
-                runnableThreadsInPass++;
-
-                // Track scheduler wait time: how long was this thread runnable before we got to it?
+                runnableCount++;
+                // Track scheduler wait time for all runnable threads
                 if (t.becameRunnableAt != 0) {
                     long waitNanos = passStart - t.becameRunnableAt;
+                    t.becameRunnableAt = 0; // reset to avoid double-counting
                     if (waitNanos > 0) {
                         execution
                                 .liveTimings
@@ -511,63 +547,90 @@ public final class CpsThreadGroup implements Serializable {
                                 .add(waitNanos);
                     }
                 }
+                if (chosen == null || t.vruntime < chosen.vruntime) {
+                    chosen = t;
+                }
+            }
+        }
+        runnableThreadsInPass = runnableCount;
 
-                Outcome o = t.runNextChunk();
-                executedThreadsInPass++;
-                if (o.isFailure()) {
-                    assert !t.isAlive(); // failed thread is non-resumable
+        if (chosen == null) {
+            // Nothing is runnable — save and report
+            lastPassDurationNanos = System.nanoTime() - passStart;
+            return false;
+        }
 
-                    // workflow produced an exception
-                    Result result = Result.FAILURE;
-                    Throwable error = o.getAbnormal();
-                    if (error instanceof FlowInterruptedException) {
-                        result = ((FlowInterruptedException) error).getResult();
-                    }
-                    execution.setResult(result);
-                    FlowNode fn = t.head.get();
-                    if (fn != null) {
-                        t.head.get().addAction(new ErrorAction(error));
-                    }
-                    if (error instanceof VerifyError) {
-                        var msg = error.getMessage();
-                        if (msg != null && msg.contains("Illegal type in constant pool")) {
-                            try {
-                                execution
-                                        .getOwner()
-                                        .getListener()
-                                        .getLogger()
-                                        .println(
-                                                "May be JENKINS-73031: calling static interface methods from Groovy is not currently supported by Jenkins");
-                            } catch (IOException x) {
-                                LOGGER.log(Level.WARNING, null, x);
-                            }
-                        }
+        // Execute the chosen thread
+        Outcome o = chosen.runNextChunk();
+        executedThreadsInPass = 1;
+
+        boolean ending = false;
+        boolean stillRunnable = false;
+
+        if (o.isFailure()) {
+            assert !chosen.isAlive(); // failed thread is non-resumable
+
+            // workflow produced an exception
+            Result result = Result.FAILURE;
+            Throwable error = o.getAbnormal();
+            if (error instanceof FlowInterruptedException) {
+                result = ((FlowInterruptedException) error).getResult();
+            }
+            execution.setResult(result);
+            FlowNode fn = chosen.head.get();
+            if (fn != null) {
+                chosen.head.get().addAction(new ErrorAction(error));
+            }
+            if (error instanceof VerifyError) {
+                var msg = error.getMessage();
+                if (msg != null && msg.contains("Illegal type in constant pool")) {
+                    try {
+                        execution
+                                .getOwner()
+                                .getListener()
+                                .getLogger()
+                                .println(
+                                        "May be JENKINS-73031: calling static interface methods from Groovy is not currently supported by Jenkins");
+                    } catch (IOException x) {
+                        LOGGER.log(Level.WARNING, null, x);
                     }
                 }
-
-                if (!t.isAlive()) {
-                    LOGGER.fine("completed " + t);
-                    t.fireCompletionHandlers(o); // do this after ErrorAction is set above
-
-                    runtimeThreads.remove(t.id);
-                    t.cleanUp();
-                    if (runtimeThreads.isEmpty()) {
-                        execution.onProgramEnd(o, false);
-                        try {
-                            this.execution.saveOwner();
-                        } catch (Exception ex) {
-                            LOGGER.log(Level.WARNING, "Error saving execution for " + this.getExecution(), ex);
-                        }
-                        ending = true;
-                    }
-                } else {
-                    stillRunnable |= t.isRunnable();
-                }
-                changed = true;
             }
         }
 
-        if (changed && !stillRunnable) {
+        if (!chosen.isAlive()) {
+            LOGGER.fine("completed " + chosen);
+            chosen.fireCompletionHandlers(o); // do this after ErrorAction is set above
+
+            runtimeThreads.remove(chosen.id);
+            chosen.cleanUp();
+            if (runtimeThreads.isEmpty()) {
+                execution.onProgramEnd(o, false);
+                try {
+                    this.execution.saveOwner();
+                } catch (Exception ex) {
+                    LOGGER.log(Level.WARNING, "Error saving execution for " + this.getExecution(), ex);
+                }
+                ending = true;
+            }
+        } else {
+            // Thread is still alive; it may be runnable again (ThreadTask yield, or quantum exceeded)
+            if (chosen.isRunnable()) {
+                stillRunnable = true;
+            }
+        }
+
+        // Check if any other threads are still runnable
+        if (!stillRunnable) {
+            for (CpsThread t : runtimeThreads.values()) {
+                if (t.isRunnable()) {
+                    stillRunnable = true;
+                    break;
+                }
+            }
+        }
+
+        if (!stillRunnable) {
             execution.persistedClean = null;
             saveProgramIfPossible(false);
         }
@@ -591,15 +654,14 @@ public final class CpsThreadGroup implements Serializable {
         if (LOGGER.isLoggable(Level.FINE)) {
             LOGGER.log(
                     Level.FINE,
-                    "scheduler pass #{0}: {1} threads total, {2} runnable, {3} executed, {4}ms, reentrant={5}, peakQueue={6}",
+                    "scheduler pass #{0}: {1} threads total, {2} runnable, pick={3}, {4}ms, reentrant={5}",
                     new Object[] {
                         totalSchedulerPasses,
                         threadsInPass,
                         runnableThreadsInPass,
-                        executedThreadsInPass,
+                        chosen.id,
                         lastPassDurationNanos / 1_000_000,
-                        reentrantSubmissions,
-                        maxQueueDepth
+                        reentrantSubmissions
                     });
         }
 

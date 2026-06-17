@@ -124,6 +124,20 @@ public final class CpsThread implements Serializable {
     long totalNanosExecuting;
 
     /**
+     * Accumulated virtual runtime in nanoseconds. Used by the CFS scheduler
+     * to pick the next thread to execute. Lower values get priority.
+     * Updated as: vruntime += (elapsedNs * 1024) / max(1, weight).
+     */
+    long vruntime;
+
+    /**
+     * Scheduling weight (default 1024, matching Linux CFS NICE_0_LOAD).
+     * Higher weight means vruntime accumulates slower → more CPU time.
+     * Guarded with max(1, weight) to handle deserialized threads where weight=0.
+     */
+    int weight = 1024;
+
+    /**
      * Timestamp (from {@link System#nanoTime()}) when this thread last became runnable,
      * set in {@link #resume(Outcome)}. Used by the scheduler to track schedulerWait time.
      */
@@ -226,7 +240,10 @@ public final class CpsThread implements Serializable {
                 }
             }
         } finally {
-            totalNanosExecuting += System.nanoTime() - chunkStart;
+            long elapsed = System.nanoTime() - chunkStart;
+            totalNanosExecuting += elapsed;
+            // Math.max(1, weight) guards against deserialized threads with weight=0
+            vruntime += (elapsed * 1024L) / Math.max(1, weight);
             CURRENT.set(old);
         }
 
@@ -314,6 +331,14 @@ public final class CpsThread implements Serializable {
         }
         resumeValue = v;
         becameRunnableAt = System.nanoTime();
+        // New threads start at min_vruntime for fairness; deserialized threads keep their vruntime
+        if (vruntime == 0) {
+            vruntime = group.getMinVruntime();
+        }
+        // Ensure weight has a sane value (deserialization may zero it)
+        if (weight == 0) {
+            weight = 1024;
+        }
         promise = new CompletableFuture<>();
         group.scheduleRun();
         return promise;
@@ -379,6 +404,7 @@ public final class CpsThread implements Serializable {
         // getExecution().getOwner() would be useful but seems problematic.
         return "Thread #" + id + " chunks=" + totalChunksRun
                 + " execMs=" + (totalNanosExecuting / 1_000_000)
+                + " vruntime=" + (vruntime / 1_000_000) + "/" + weight
                 + String.format(" @%h", this);
     }
 }
