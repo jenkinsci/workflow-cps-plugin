@@ -122,12 +122,64 @@ The new `vruntime` (long) and `weight` (int) fields on `CpsThread` are Java prim
 | Configuration | None | Two system properties |
 | Per-pass overhead | O(n) scan + execute all runnable | O(n) scan + execute one thread |
 
+## Pipeline-Level Fairness
+
+Each `CpsFlowExecution` (pipeline build) independently tracks its own `flowVruntime` and `flowWeight`. This enables fairness across multiple pipeline builds sharing the same master thread pool:
+
+### Flow vruntime Accumulation
+
+Every time a `CpsThread.runNextChunk()` executes, the elapsed wall-clock time advances both the thread-level vruntime AND the flow-level vruntime:
+
+```
+thread.vruntime += (elapsedNs * 1024) / max(1, thread.weight)
+flow.flowVruntime += (elapsedNs * 1024) / max(1, flow.flowWeight)
+```
+
+This means `flowVruntime` represents the total accumulated CPU consumption of all threads in a pipeline build.
+
+### New Thread Initialization with Flow Floor
+
+When a new thread is first `resume()`d (vruntime == 0), it inherits the **maximum** of the group's `min_vruntime` and the flow's `flowVruntime`:
+
+```java
+if (vruntime == 0) {
+    long groupMin = group.getMinVruntime();
+    long flowVr = group.getExecution().getFlowVruntime();
+    vruntime = Math.max(groupMin, flowVr);
+}
+```
+
+This prevents new threads in CPU-heavy pipelines from being starved: they start at the higher of the two floors, ensuring threads in pipelines that have consumed less CPU get priority.
+
+### Flow-Level Quantum Adjustment
+
+`computeQuantumNs()` now incorporates a flow fairness adjustment. During the active-build scan, the global minimum `flowVruntime` is tracked. If this pipeline's `flowVruntime` exceeds the global minimum, its quantum is proportionally reduced:
+
+```
+adjustment = 1.0 - (flowFairnessFactor / 100) × (1 - minFlowVruntime / myFlowVruntime)
+quantum = quantum × max(0.25, adjustment)
+```
+
+A flow that has consumed twice as much CPU as the minimum gets its quantum reduced (e.g., by up to 50% at `flowFairnessFactor=100`), down to a hard floor of 25% of the base quantum.
+
+### Flow Weight
+
+Each `CpsFlowExecution` has `flowWeight` (default 1024, matching `NICE_0_LOAD`). Higher weight means slower `flowVruntime` accumulation → more CPU share for that pipeline. Set via `CpsFlowExecution.setFlowWeight(int)`.
+
+### Configuration
+
+#### `org.jenkinsci.plugins.workflow.cps.CFS.flowFairnessFactor`
+- **Type:** `int` (range 0–100)
+- **Default:** 50
+- **Effect:** Controls how aggressively flow vruntime affects the per-pass quantum. 0 disables flow-level quantum adjustment while keeping flow vruntime tracking and thread-initialization-floor inheritance active.
+- **At 100:** A flow with twice the minimum vruntime gets its quantum halved (down to the 25% floor).
+
 ## Observability
 
 Each scheduler pass logs at `FINE` level to the logger `org.jenkinsci.plugins.workflow.cps.CpsThreadGroup`:
 
 ```
-scheduler pass #42: 3 threads total, 2 runnable, pick=1, 15ms, reentrant=0
+scheduler pass #42: 3 threads total, 2 runnable, pick=1, 15ms, reentrant=0, flowVr=1500ms
 ```
 
 Where:
@@ -137,6 +189,12 @@ Where:
 - **pick**: the thread ID selected by CFS
 - **Nms**: wall-clock duration of this pass
 - **reentrant**: number of times `scheduleRun()` was called while already busy
+- **flowVr**: accumulated flow-level vruntime in milliseconds
+
+`CpsThread.toString()` also includes flow vruntime and weight:
+```
+Thread #1 chunks=5 execMs=42 vruntime=42/1024 flowVr=1500/1024 @1a2b3c4d
+```
 
 The `schedulerWait` timing in the thread dump measures how long each thread waited runnable before being picked.
 
@@ -148,6 +206,5 @@ Potential directions for extending the scheduler:
 
 2. **Thread affinity for same FlowHead**: Threads sharing a `FlowHead` could be scheduled consecutively to improve caller-callee locality.
 
-3. **Pipeline-level fairness**: vruntime could be tracked per `CpsFlowExecution` (not just per `CpsThread`), ensuring fair CPU distribution across multiple pipeline builds sharing the same master thread pool.
+3. **CFS time slice**: Instead of one thread per pass, execute up to N threads per pass, each limited by the quantum, reducing scheduler overhead when many threads are runnable.
 
-4. **CFS time slice**: Instead of one thread per pass, execute up to N threads per pass, each limited by the quantum, reducing scheduler overhead when many threads are runnable.
