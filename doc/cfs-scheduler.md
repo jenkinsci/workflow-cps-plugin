@@ -60,6 +60,14 @@ Where:
 - **loadFactor** = system property `org.jenkinsci.plugins.workflow.cps.CFS.loadFactor` (default: 10)
 - **Floor** = `MIN_QUANTUM_NS` = 5,000,000 ns (5ms), hardcoded to prevent thrashing
 
+### Cooperative, Not Preemptive
+
+The quantum is **cooperative** — it is checked *after* `runNextChunk()` returns, not during execution. There is no mechanism to preempt a running CPS chunk mid-loop (the only hard limit is the existing 5-minute `Timeout`). This is by design: preempting a CPS continuation mid-evaluation would require saving/restoring a partial `Next` chain, which is complex and error-prone.
+
+In practice, nearly all CPS chunks suspend naturally at a step boundary (`sleep`, `sh`, `semaphore`) in microseconds. The quantum only affects threads that repeatedly yield-and-become-runnable-again without suspending — a rare pattern that occurs when a safepoint `ThreadTask` fires in a tight Groovy loop. In that case, the quantum bounds how many consecutive passes that thread can dominate before the scheduler picks a different thread.
+
+This means a 50ms default generates **zero additional overhead** — the CFS scheduler adds one O(n) scan of runnable threads per pass (where n is typically 1–5), and the quantum path is only taken in the uncommon yield-without-suspend case. The real fairness guarantee comes from vruntime ordering: CPU-heavy threads accumulate higher vruntime and naturally lose priority on subsequent passes.
+
 ### Quantum Scaling Examples
 
 | Active Builds | Quantum (default loadFactor=10) |
@@ -91,17 +99,28 @@ Example: `-Dorg.jenkinsci.plugins.workflow.cps.CFS.baseQuantumMs=25` to halve th
 
 Example: `-Dorg.jenkinsci.plugins.workflow.cps.CFS.loadFactor=20` to keep quantum larger under load.
 
+## Performance Considerations
+
+### Scheduler Overhead
+
+Each pass adds one O(n) scan across runnable threads (typically 1–5 threads per pipeline, rarely more than 20 across all parallel branches). This is negligible compared to the Groovy CPS evaluation and sandbox checks inside each chunk. The pass setup (thread-local manipulation, timing capture) and teardown (logging at FINE) are constant-time operations measured in nanoseconds.
+
+### Serialization Impact
+
+The new `vruntime` (long) and `weight` (int) fields on `CpsThread` are Java primitives, handled automatically by the existing River serialization. Old `program.dat` files deserialize with `vruntime=0` and `weight=0`; the `resume()` method corrects `weight=0` to `1024` on first use. No migration is needed.
+
 ## How It Compares to the Original Scheduler
 
 | Aspect | Original (before CFS) | CFS |
 |--------|----------------------|-----|
 | Selection | All runnable threads, ID order | One thread, lowest vruntime |
 | Fairness | Later threads (higher IDs) always run last | Equal share among all threads |
-| Preemption | None (runs until suspension) | Quantum-limited each pass |
+| Preemption | None (runs until suspension) | None (cooperative; quantum checked post-chunk) |
 | New threads | Starved until existing threads complete | Start at min_vruntime |
-| Service latency | Unbounded (rogue loops starve everyone) | Bounded by quantum × runnable thread count |
+| Service latency | Unbounded (rogue loops starve everyone) | Bounded by vruntime; CPU-heavy threads deprioritized |
 | Scheduler wait | Measured but not acted on | Measured and used for ordering |
 | Configuration | None | Two system properties |
+| Per-pass overhead | O(n) scan + execute all runnable | O(n) scan + execute one thread |
 
 ## Observability
 
