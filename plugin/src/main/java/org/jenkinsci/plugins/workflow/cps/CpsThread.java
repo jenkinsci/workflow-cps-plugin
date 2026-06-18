@@ -244,6 +244,11 @@ public final class CpsThread implements Serializable {
             totalNanosExecuting += elapsed;
             // Math.max(1, weight) guards against deserialized threads with weight=0
             vruntime += (elapsed * 1024L) / Math.max(1, weight);
+            // Advance flow-level vruntime for pipeline-level fairness
+            CpsFlowExecution exec = group.getExecution();
+            if (exec != null) {
+                exec.advanceFlowVruntime(elapsed);
+            }
             CURRENT.set(old);
         }
 
@@ -331,9 +336,12 @@ public final class CpsThread implements Serializable {
         }
         resumeValue = v;
         becameRunnableAt = System.nanoTime();
-        // New threads start at min_vruntime for fairness; deserialized threads keep their vruntime
+        // New threads start at max(group min, flow vruntime) for cross-pipeline fairness;
+        // deserialized threads keep their existing vruntime
         if (vruntime == 0) {
-            vruntime = group.getMinVruntime();
+            long groupMin = group.getMinVruntime();
+            long flowVr = group.getExecution() != null ? group.getExecution().getFlowVruntime() : 0;
+            vruntime = Math.max(groupMin, flowVr);
         }
         // Ensure weight has a sane value (deserialization may zero it)
         if (weight == 0) {
@@ -402,9 +410,13 @@ public final class CpsThread implements Serializable {
     @Override
     public String toString() {
         // getExecution().getOwner() would be useful but seems problematic.
+        CpsFlowExecution exec = group.getExecution();
+        long flowVrMs = exec != null ? exec.getFlowVruntime() / 1_000_000 : 0;
+        int flowW = exec != null ? exec.getFlowWeight() : 0;
         return "Thread #" + id + " chunks=" + totalChunksRun
                 + " execMs=" + (totalNanosExecuting / 1_000_000)
                 + " vruntime=" + (vruntime / 1_000_000) + "/" + weight
+                + " flowVr=" + flowVrMs + "/" + flowW
                 + String.format(" @%h", this);
     }
 }

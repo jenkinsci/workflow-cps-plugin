@@ -489,6 +489,14 @@ public final class CpsThreadGroup implements Serializable {
 
     static final String LOAD_FACTOR_PROPERTY = "org.jenkinsci.plugins.workflow.cps.CFS.loadFactor";
 
+    /**
+     * Controls how aggressively pipeline-level (flow) vruntime affects the per-pass quantum.
+     * Range 0-100, default 50.  0 disables flow-level quantum adjustment while flow vruntime
+     * tracking and new-thread-floor inheritance remain active.
+     * At 100, a flow that has consumed twice the minimum gets its quantum halved (down to the 25% floor).
+     */
+    static final String FLOW_FAIRNESS_FACTOR_PROPERTY = "org.jenkinsci.plugins.workflow.cps.CFS.flowFairnessFactor";
+
     static final long MIN_QUANTUM_NS = 5_000_000L; // 5ms floor
 
     static final long DEFAULT_BASE_QUANTUM_NS = 50_000_000L; // 50ms
@@ -508,16 +516,39 @@ public final class CpsThreadGroup implements Serializable {
         if (base <= 0) return Long.MAX_VALUE; // effectively unlimited
 
         int loadFactor = Integer.getInteger(LOAD_FACTOR_PROPERTY, 10);
-        // Count active builds as a proxy for system load
+        int flowFairnessFactor = Integer.getInteger(FLOW_FAIRNESS_FACTOR_PROPERTY, 50);
+        // Count active builds as a proxy for system load; also track global min flow vruntime
         int activeBuilds = 0;
+        long globalMinFlowVr = Long.MAX_VALUE;
         FlowExecutionList list = FlowExecutionList.get();
         if (list != null) {
             for (FlowExecution fe : list) {
-                if (!fe.isComplete()) activeBuilds++;
+                if (!fe.isComplete()) {
+                    activeBuilds++;
+                    if (fe instanceof CpsFlowExecution) {
+                        long fvr = ((CpsFlowExecution) fe).flowVruntime;
+                        if (fvr < globalMinFlowVr) {
+                            globalMinFlowVr = fvr;
+                        }
+                    }
+                }
+            }
+        }
+        if (globalMinFlowVr == Long.MAX_VALUE) globalMinFlowVr = 0;
+
+        long quantum = base / Math.max(1, activeBuilds / loadFactor);
+
+        // Pipeline-level fairness: flows with higher vruntime than the global minimum get
+        // a proportionally reduced quantum, bounded at 25% of the base quantum.
+        if (flowFairnessFactor > 0 && execution != null) {
+            long myFlowVr = execution.getFlowVruntime();
+            if (myFlowVr > globalMinFlowVr && globalMinFlowVr > 0) {
+                double ratio = (double) globalMinFlowVr / myFlowVr;
+                double adjustment = 1.0 - (flowFairnessFactor / 100.0) * (1.0 - ratio);
+                quantum = (long) (quantum * Math.max(0.25, adjustment));
             }
         }
 
-        long quantum = base / Math.max(1, activeBuilds / loadFactor);
         return Math.max(MIN_QUANTUM_NS, quantum);
     }
 
@@ -652,16 +683,18 @@ public final class CpsThreadGroup implements Serializable {
 
         lastPassDurationNanos = System.nanoTime() - passStart;
         if (LOGGER.isLoggable(Level.FINE)) {
+            long flowVrMs = execution != null ? execution.getFlowVruntime() / 1_000_000 : 0;
             LOGGER.log(
                     Level.FINE,
-                    "scheduler pass #{0}: {1} threads total, {2} runnable, pick={3}, {4}ms, reentrant={5}",
+                    "scheduler pass #{0}: {1} threads total, {2} runnable, pick={3}, {4}ms, reentrant={5}, flowVr={6}ms",
                     new Object[] {
                         totalSchedulerPasses,
                         threadsInPass,
                         runnableThreadsInPass,
                         chosen.id,
                         lastPassDurationNanos / 1_000_000,
-                        reentrantSubmissions
+                        reentrantSubmissions,
+                        flowVrMs
                     });
         }
 
