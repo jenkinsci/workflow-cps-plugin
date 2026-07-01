@@ -111,6 +111,38 @@ public final class CpsThread implements Serializable {
      */
     private final List<FutureCallback<Object>> completionHandlers = new ArrayList<>();
 
+    /**
+     * Total number of times {@link #runNextChunk()} has been called on this thread.
+     * Used to validate vruntime-based scheduling fairness.
+     */
+    long totalChunksRun;
+
+    /**
+     * Accumulated wall-clock nanoseconds spent executing inside {@link #runNextChunk()}.
+     * Does not include time spent suspended waiting for external events.
+     */
+    long totalNanosExecuting;
+
+    /**
+     * Accumulated virtual runtime in nanoseconds. Used by the CFS scheduler
+     * to pick the next thread to execute. Lower values get priority.
+     * Updated as: vruntime += (elapsedNs * 1024) / max(1, weight).
+     */
+    long vruntime;
+
+    /**
+     * Scheduling weight (default 1024, matching Linux CFS NICE_0_LOAD).
+     * Higher weight means vruntime accumulates slower → more CPU time.
+     * Guarded with max(1, weight) to handle deserialized threads where weight=0.
+     */
+    int weight = 1024;
+
+    /**
+     * Timestamp (from {@link System#nanoTime()}) when this thread last became runnable,
+     * set in {@link #resume(Outcome)}. Used by the scheduler to track schedulerWait time.
+     */
+    transient long becameRunnableAt;
+
     CpsThread(
             CpsThreadGroup group,
             int id,
@@ -180,6 +212,8 @@ public final class CpsThread implements Serializable {
 
         final CpsThread old = CURRENT.get();
         CURRENT.set(this);
+        final long chunkStart = System.nanoTime();
+        totalChunksRun++;
 
         try (Timeout timeout = Timeout.limit(5, TimeUnit.MINUTES)) {
             LOGGER.fine(() -> "runNextChunk on " + resumeValue);
@@ -206,6 +240,15 @@ public final class CpsThread implements Serializable {
                 }
             }
         } finally {
+            long elapsed = System.nanoTime() - chunkStart;
+            totalNanosExecuting += elapsed;
+            // Math.max(1, weight) guards against deserialized threads with weight=0
+            vruntime += (elapsed * 1024L) / Math.max(1, weight);
+            // Advance flow-level vruntime for pipeline-level fairness
+            CpsFlowExecution exec = group.getExecution();
+            if (exec != null) {
+                exec.advanceFlowVruntime(elapsed);
+            }
             CURRENT.set(old);
         }
 
@@ -292,6 +335,18 @@ public final class CpsThread implements Serializable {
             return Futures.immediateFailedFuture(new IllegalStateException("Already resumed with " + resumeValue));
         }
         resumeValue = v;
+        becameRunnableAt = System.nanoTime();
+        // New threads start at max(group min, flow vruntime) for cross-pipeline fairness;
+        // deserialized threads keep their existing vruntime
+        if (vruntime == 0) {
+            long groupMin = group.getMinVruntime();
+            long flowVr = group.getExecution() != null ? group.getExecution().getFlowVruntime() : 0;
+            vruntime = Math.max(groupMin, flowVr);
+        }
+        // Ensure weight has a sane value (deserialization may zero it)
+        if (weight == 0) {
+            weight = 1024;
+        }
         promise = new CompletableFuture<>();
         group.scheduleRun();
         return promise;
@@ -355,6 +410,13 @@ public final class CpsThread implements Serializable {
     @Override
     public String toString() {
         // getExecution().getOwner() would be useful but seems problematic.
-        return "Thread #" + id + String.format(" @%h", this);
+        CpsFlowExecution exec = group.getExecution();
+        long flowVrMs = exec != null ? exec.getFlowVruntime() / 1_000_000 : 0;
+        int flowW = exec != null ? exec.getFlowWeight() : 0;
+        return "Thread #" + id + " chunks=" + totalChunksRun
+                + " execMs=" + (totalNanosExecuting / 1_000_000)
+                + " vruntime=" + (vruntime / 1_000_000) + "/" + weight
+                + " flowVr=" + flowVrMs + "/" + flowW
+                + String.format(" @%h", this);
     }
 }
