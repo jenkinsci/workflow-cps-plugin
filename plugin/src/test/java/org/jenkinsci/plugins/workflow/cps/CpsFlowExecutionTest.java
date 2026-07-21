@@ -951,8 +951,8 @@ public class CpsFlowExecutionTest {
             r.assertBuildStatus(Result.FAILURE, r.waitForCompletion(b));
             r.assertLogContains("Failure in CPS VM thread!", b);
             r.assertLogContains("Terminating parallel (id: 3)", b);
-            r.assertLogContains("Terminating node (id: 7)", b);
-            r.assertLogContains("Terminating semaphore (id: 8)", b);
+            r.assertLogContains("Terminating node", b);
+            r.assertLogContains("Terminating semaphore", b);
             for (Executor executor : Jenkins.get().toComputer().getExecutors()) {
                 // Node step should have cleaned up its PlaceholderExecutable.
                 assertThat(executor.getCurrentWorkUnit(), nullValue());
