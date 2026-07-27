@@ -25,15 +25,19 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.containsStringIgnoringCase;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import hudson.ExtensionList;
 import hudson.cli.CLICommand;
 import hudson.cli.CLICommandInvoker;
 import hudson.cli.UpdateJobCommand;
@@ -51,9 +55,11 @@ import org.apache.tools.ant.filters.StringInputStream;
 import org.htmlunit.FailingHttpStatusCodeException;
 import org.htmlunit.HttpMethod;
 import org.htmlunit.WebRequest;
+import org.htmlunit.html.DomNode;
 import org.htmlunit.html.HtmlCheckBoxInput;
 import org.htmlunit.html.HtmlForm;
 import org.htmlunit.html.HtmlInput;
+import org.htmlunit.html.HtmlPage;
 import org.htmlunit.html.HtmlTextArea;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
 import org.jenkinsci.plugins.scriptsecurity.scripts.languages.GroovyLanguage;
@@ -141,6 +147,44 @@ public class CpsFlowDefinitionTest {
 
         assertThat(ScriptApproval.get().getPendingScripts(), hasSize(1));
         assertFalse(ScriptApproval.get().isScriptApproved(groovy, GroovyLanguage.get()));
+    }
+
+    @Issue("JENKINS-62410")
+    @Test
+    public void readOnlyViewerSeesPlainScriptNotEditor() throws Exception {
+        ExtensionList.lookupSingleton(CpsFlowDefinition.DescriptorImpl.class).enableWorkflowEditor = true;
+        jenkins.jenkins.setSecurityRealm(jenkins.createDummySecurityRealm());
+
+        MockAuthorizationStrategy mockStrategy = new MockAuthorizationStrategy();
+        mockStrategy
+                .grant(Jenkins.READ, Item.READ, Item.EXTENDED_READ)
+                .everywhere()
+                .to("viewer");
+        mockStrategy.grant(Jenkins.ADMINISTER).everywhere().to("admin");
+        jenkins.jenkins.setAuthorizationStrategy(mockStrategy);
+
+        String groovy = "echo 'hi from readOnlyViewerSeesPlainScriptNotEditor'";
+        WorkflowJob p = jenkins.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(groovy, true));
+
+        JenkinsRule.WebClient viewer = jenkins.createWebClient();
+        viewer.login("viewer");
+        HtmlPage viewerConfigure = viewer.getPage(p, "configure");
+        assertThat(
+                "the rich script editor must not be rendered for a viewer without Job/Configure",
+                viewerConfigure.querySelector(".workflow-editor-wrapper"),
+                nullValue());
+        DomNode readonlyScript = viewerConfigure.querySelector("pre.jenkins-readonly");
+        assertThat("the script must still be visible as plain read-only text", readonlyScript, notNullValue());
+        assertThat(readonlyScript.asNormalizedText(), containsString(groovy));
+
+        JenkinsRule.WebClient admin = jenkins.createWebClient();
+        admin.login("admin");
+        HtmlPage adminConfigure = admin.getPage(p, "configure");
+        assertThat(
+                "the rich script editor must still be rendered for a user who can configure the job",
+                adminConfigure.querySelector(".workflow-editor-wrapper"),
+                notNullValue());
     }
 
     @Issue({"SECURITY-2450", "SECURITY-3103"})

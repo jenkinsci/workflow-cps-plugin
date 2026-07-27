@@ -7,7 +7,7 @@
         </st:attribute>
     </st:documentation>
     <j:choose>
-        <j:when test="${app.getDescriptor('org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition').enableWorkflowEditor}">
+        <j:when test="${app.getDescriptor('org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition').enableWorkflowEditor and !readOnlyMode}">
             <div class="workflow-editor-wrapper" style="display: none; position: relative">
                 <f:textarea value="${script}" checkMethod="post" checkUrl="${attrs.checkUrl}" checkDependsOn="${attrs.checkDependsOn}"/>
                 <div class="editor" style="height: 350px;" samplesUrl="${rootURL}/workflow-cps-samples/" />
