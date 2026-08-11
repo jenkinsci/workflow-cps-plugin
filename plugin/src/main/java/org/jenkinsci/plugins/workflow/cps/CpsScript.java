@@ -112,9 +112,19 @@ public abstract class CpsScript extends SerializableScript {
         GlobalVariable v = GlobalVariable.byName(name, $buildNoException());
         if (v != null) {
             try {
-                Object o = v.getValue(this);
-                return InvokerHelper.getMetaClass(o).invokeMethod(o, "call", args);
-            } catch (Exception x) {
+                try {
+                    Object o = v.getValue(this);
+                    return InvokerHelper.getMetaClass(o).invokeMethod(o, "call", args);
+                } catch (RuntimeException | Error x) {
+                    // This method ends up throwing something (original
+                    // or changed exception, depending on situation).
+                    // Here we anticipate a MethodTooLargeException
+                    // (or traces of its message stack), possibly
+                    // wrapped into further exception, for actionable
+                    // logging in the job.
+                    throw CpsFlowExecution.reportSuspectedMethodTooLarge(x);
+                }
+            } catch (Throwable x) {
                 throw new InvokerInvocationException(x);
             }
         }
