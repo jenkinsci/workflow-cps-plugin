@@ -1165,9 +1165,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@eslint/eslintrc@npm:^3.3.6":
-  version: 3.3.6
-  resolution: "@eslint/eslintrc@npm:3.3.6"
+"@eslint/eslintrc@npm:^3.3.7":
+  version: 3.3.7
+  resolution: "@eslint/eslintrc@npm:3.3.7"
   dependencies:
     ajv: "npm:^6.14.0"
     debug: "npm:^4.3.2"
@@ -1175,10 +1175,10 @@ __metadata:
     globals: "npm:^14.0.0"
     ignore: "npm:^5.2.0"
     import-fresh: "npm:^3.2.1"
-    js-yaml: "npm:^4.3.0"
+    js-yaml: "npm:^4.3.2"
     minimatch: "npm:^3.1.5"
     strip-json-comments: "npm:^3.1.1"
-  checksum: 10c0/349697171ee116f501a2f483bf47cd38937a61880aeb1c23481a69afc95e95859430a0947acbe1f5507f223180bf57530ecf2989e73bcbea763a6dcffdf1d010
+  checksum: 10c0/010fca3403489ff109cfb5b9996142a2a4b4be28bbb233eda3c30ed004826aeab84d6914d0c5c4b1cd80add7051525adb7818268e0fb4775ddb6dbc620f00c72
   languageName: node
   linkType: hard
 
@@ -1901,9 +1901,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"css-loader@npm:^7.1.4":
-  version: 7.1.4
-  resolution: "css-loader@npm:7.1.4"
+"css-loader@npm:^7.1.5":
+  version: 7.1.5
+  resolution: "css-loader@npm:7.1.5"
   dependencies:
     icss-utils: "npm:^5.1.0"
     postcss: "npm:^8.4.40"
@@ -1921,7 +1921,7 @@ __metadata:
       optional: true
     webpack:
       optional: true
-  checksum: 10c0/a3a3a6b564d4fcf978961be8bc6ca06fb3836fc8fbd729ddae4b0b94166a0f5ccf119fb3301a6fecbe90608a8edbfd418bdc644cf053615e6271aa65b3fdc00b
+  checksum: 10c0/a75341a93542b8ad465d0a499244da9bb38c79a33be8f400b24aa102825d14a3c9ccd38522c13ab1af9b4068675ef364fe2be4d5abd516660b16b1c9d901d35a
   languageName: node
   linkType: hard
 
@@ -2393,10 +2393,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"globals@npm:^17.11.0":
-  version: 17.11.0
-  resolution: "globals@npm:17.11.0"
-  checksum: 10c0/5e1be3d816e04d4d0d01b1cdd40e46b5fb6b5e9f15aece9a5919b060e0fb1b3f1b9e7327dce97ef19e05513a6d65872e0834999ddea251557556dddd0f5fde30
+"globals@npm:^17.12.0":
+  version: 17.12.0
+  resolution: "globals@npm:17.12.0"
+  checksum: 10c0/8325cf8818c848871d17c32974c2c74e9c5f09c1b0e04421886f64f21e77c3e95f3ba25586743895a73acd860ada151132481d87d44a1f12993ae7758a694d03
   languageName: node
   linkType: hard
 
@@ -2667,7 +2667,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"js-yaml@npm:^4.1.0, js-yaml@npm:^4.3.0":
+"js-yaml@npm:^4.1.0":
   version: 4.3.1
   resolution: "js-yaml@npm:4.3.1"
   dependencies:
@@ -2675,6 +2675,17 @@ __metadata:
   bin:
     js-yaml: bin/js-yaml.js
   checksum: 10c0/13c500ca322e0c3f8c81686e6ecda96d2ea37b45247a420c17c7db36932d6965cc27391abc2d1a104501600e7f0d947a5f8b7be6db619c4fefa87901b3512807
+  languageName: node
+  linkType: hard
+
+"js-yaml@npm:^4.3.2":
+  version: 4.3.2
+  resolution: "js-yaml@npm:4.3.2"
+  dependencies:
+    argparse: "npm:^2.0.1"
+  bin:
+    js-yaml: bin/js-yaml.js
+  checksum: 10c0/dedd34c2e8fef1d504687f1bc94ed0ee1311a1f78770fa2800352c6d59c635ccf555009d74e9afe529ae62199da2b1ccef30e53dc84dcd8d2d8187c22574bc97
   languageName: node
   linkType: hard
 
@@ -2765,9 +2776,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"less@npm:^4.9.0":
-  version: 4.9.0
-  resolution: "less@npm:4.9.0"
+"less@npm:^4.9.1":
+  version: 4.9.1
+  resolution: "less@npm:4.9.1"
   dependencies:
     copy-anything: "npm:^3.0.5"
     errno: "npm:^0.1.1"
@@ -2795,7 +2806,7 @@ __metadata:
       optional: true
   bin:
     lessc: bin/lessc
-  checksum: 10c0/5a75cea669724b14515e6b249405fedb616c44e8d1f69945b87b0ddf375c19358c550dfbf9607f3a305b5d80d01854dd35cc984518039b44d316d9aa6c4cf37c
+  checksum: 10c0/6f4e9efb3356cfb7ed7458f3eda436de470e2058dc0d2d99f2555a2fa4c22f594ff2c78ad6acd4d843545f03ccbacfaeb685710d5e25da48218e5c1d99292441
   languageName: node
   linkType: hard
 
@@ -3002,7 +3013,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nanoid@npm:^3.3.17":
+"nanoid@npm:^3.3.18":
   version: 3.3.18
   resolution: "nanoid@npm:3.3.18"
   bin:
@@ -3371,14 +3382,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"postcss@npm:^8.5.26":
-  version: 8.5.26
-  resolution: "postcss@npm:8.5.26"
+"postcss@npm:^8.5.28":
+  version: 8.5.28
+  resolution: "postcss@npm:8.5.28"
   dependencies:
-    nanoid: "npm:^3.3.17"
+    nanoid: "npm:^3.3.18"
     picocolors: "npm:^1.1.1"
     source-map-js: "npm:^1.2.1"
-  checksum: 10c0/2bdafc00d96bd57b6649a52e458864a4bf58ee56cfdbe4aea1472b5cccc127e6c1ad653bd0bec50d211e650eb0b9270c80e1e72aff2e2fa40d9e7363234d6e43
+  checksum: 10c0/9fe44215a6628d89c8a75184b92f5b2f77e16f9e5b13b39b9009bb7e8e6eccddf82c8854bae922db1f17ace6ef3445073fe38abff513caeb03e5285b1b55620a
   languageName: node
   linkType: hard
 
@@ -3795,9 +3806,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"webpack-cli@npm:^7.2.2":
-  version: 7.2.2
-  resolution: "webpack-cli@npm:7.2.2"
+"webpack-cli@npm:^7.2.3":
+  version: 7.2.3
+  resolution: "webpack-cli@npm:7.2.3"
   dependencies:
     "@discoveryjs/json-ext": "npm:^1.1.0"
     commander: "npm:^14.0.3"
@@ -3810,7 +3821,7 @@ __metadata:
   peerDependencies:
     js-yaml: ^4.0.0 || ^5.0.0
     json5: ^2.2.3
-    toml: ^3.0.0 || ^4.0.0
+    toml: ^3.0.0 || ^4.0.0 || ^5.0.0
     webpack: ^5.101.0
     webpack-bundle-analyzer: ^4.0.0 || ^5.0.0
     webpack-dev-server: ^5.0.0 || ^6.0.0
@@ -3827,7 +3838,7 @@ __metadata:
       optional: true
   bin:
     webpack-cli: bin/cli.js
-  checksum: 10c0/f46b732710d175fc0a63230783c0a3cfd6e99a576d3b80fdd1fff3197851565d938c10be4d74076c2d9846297331aea763b7b5ff0e04a1934bc7fbda6f875724
+  checksum: 10c0/f8f573c10ac4a3fbcace2ec5cb7ee68e227c4af1f5f551de0cc199f0e3580dbd51506769032fb402dfbc910d4a59ef7345484eff39b3eced805a6cf31a153577
   languageName: node
   linkType: hard
 
@@ -3856,9 +3867,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"webpack@npm:^5.110.1":
-  version: 5.110.1
-  resolution: "webpack@npm:5.110.1"
+"webpack@npm:^5.110.3":
+  version: 5.110.3
+  resolution: "webpack@npm:5.110.3"
   dependencies:
     "@types/estree": "npm:^1.0.8"
     "@types/json-schema": "npm:^7.0.15"
@@ -3884,7 +3895,7 @@ __metadata:
       optional: true
   bin:
     webpack: bin/webpack.js
-  checksum: 10c0/ba2e05ebbfb7e1feeb37febafa862a4f5ed6fd16c77d8825734a74adc402af83beca27f7abe38cf7b57035d0ad34d6b7369a19e56852a00a634309d40b988f67
+  checksum: 10c0/e1c86317d2d04d33f670a0ad7095e1a8d410867360c327c2dfb14f589794d8ce9b0619998e6fe66aebcfdac6d2e6c9e6f7085adfc9e44cd7d39855654fe75ed4
   languageName: node
   linkType: hard
 
@@ -3921,28 +3932,28 @@ __metadata:
     "@babel/core": "npm:^8.0.1"
     "@babel/preset-env": "npm:^8.0.2"
     "@delucis/if-env": "npm:^1.1.2"
-    "@eslint/eslintrc": "npm:^3.3.6"
+    "@eslint/eslintrc": "npm:^3.3.7"
     "@eslint/js": "npm:^10.0.1"
     ace-builds: "npm:^1.44.0"
     autoprefixer: "npm:^10.5.4"
     babel-loader: "npm:^10.1.1"
     clean-webpack-plugin: "npm:^4.0.0"
-    css-loader: "npm:^7.1.4"
+    css-loader: "npm:^7.1.5"
     eslint: "npm:^10.9.1"
     eslint-formatter-checkstyle: "npm:^9.0.1"
     eslint-plugin-only-warn: "npm:^1.2.1"
-    globals: "npm:^17.11.0"
+    globals: "npm:^17.12.0"
     jquery: "npm:^4.0.0"
     jquery-ui: "npm:^1.14.2"
-    less: "npm:^4.9.0"
+    less: "npm:^4.9.1"
     less-loader: "npm:^13.0.0"
     mini-css-extract-plugin: "npm:^2.10.2"
-    postcss: "npm:^8.5.26"
+    postcss: "npm:^8.5.28"
     postcss-less: "npm:^6.0.0"
     postcss-loader: "npm:^8.2.1"
     style-loader: "npm:^4.0.0"
-    webpack: "npm:^5.110.1"
-    webpack-cli: "npm:^7.2.2"
+    webpack: "npm:^5.110.3"
+    webpack-cli: "npm:^7.2.3"
     webpack-fix-style-only-entries: "npm:^0.6.1"
     webpack-merge: "npm:^6.0.1"
   languageName: unknown
