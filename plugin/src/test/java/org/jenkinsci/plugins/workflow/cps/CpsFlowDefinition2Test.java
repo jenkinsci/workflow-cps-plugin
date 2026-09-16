@@ -753,11 +753,14 @@ public class CpsFlowDefinition2Test {
         jenkins.assertLogContains("staticMethod java.lang.System getProperty java.lang.String", b);
     }
 
-    @Issue("SECURITY-1465")
+    @Issue({"SECURITY-1465", "SECURITY-3923"})
     @Test
     public void blockCastingUnsafeUserDefinedImplementationsOfCollection() throws Exception {
         // See additional info on this test case in `SandboxTransformerTest.sandboxWillNotCastNonStandardCollections()`
         // over in groovy-sandbox.
+        // The method returns null from toArray() on the first call (the i == 0 branch). Since SECURITY-3923 the
+        // sandbox snapshots toArray() once and uses that for both the pre-check and the cast, so a null snapshot
+        // is rejected outright instead of being treated as a non-standard Collection.
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
         p.setDefinition(new CpsFlowDefinition("""
                 import groovy.transform.Field
@@ -775,10 +778,10 @@ public class CpsFlowDefinition2Test {
                 ((this.&unsafe as Collection) as File) as Object[]""", true));
         WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
         // Before the security fix, fails with FileNotFoundException, bypassing the sandbox!
-        jenkins.assertLogContains("Casting non-standard Collections to a type via constructor is not supported", b);
+        jenkins.assertLogContains("toArray() must not return null", b);
     }
 
-    @Issue("SECURITY-1465")
+    @Issue({"SECURITY-1465", "SECURITY-3923"})
     @Test
     public void blockCastingSafeUserDefinedImplementationsOfCollection() throws Exception {
         WorkflowJob p = jenkins.createProject(WorkflowJob.class);
@@ -790,10 +793,10 @@ public class CpsFlowDefinition2Test {
                 }
                 (this.&safe as Collection) as File""", true));
         WorkflowRun b = jenkins.assertBuildStatus(Result.FAILURE, p.scheduleBuild2(0));
-        // Before the security fix, fails because `new File(String)` is not whitelisted, so not a problem, but we have
-        // no good way to distinguish this case from the one in
-        // blockCastingUnsafeUserDefinedImplementationsOfCollection.
-        jenkins.assertLogContains("Casting non-standard Collections to a type via constructor is not supported", b);
+        // The method returns a consistent list from toArray(), so since SECURITY-3923 the snapshot is safe to use and
+        // the cast is no longer blocked for being a non-standard Collection. It is still rejected because
+        // `new File(String)` is not whitelisted.
+        jenkins.assertLogContains("new java.io.File java.lang.String", b);
     }
 
     @Issue("SECURITY-1465")
