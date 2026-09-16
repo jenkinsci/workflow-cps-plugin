@@ -61,6 +61,11 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins</groupId>
+        <artifactId>script-security</artifactId>
+        <version>1422.v06869826dd9b_</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
   <dependencies>
