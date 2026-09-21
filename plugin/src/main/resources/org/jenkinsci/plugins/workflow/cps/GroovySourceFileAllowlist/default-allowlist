@@ -1,10 +1,8 @@
 # This list is ordered from most popular to least popular plugin to minimize performance impact.
 # pipeline-model-definition
-/org/jenkinsci/plugins/pipeline/modeldefinition/ModelInterpreter.groovy
 /org/jenkinsci/plugins/pipeline/modeldefinition/agent/impl/AnyScript.groovy
 /org/jenkinsci/plugins/pipeline/modeldefinition/agent/impl/LabelScript.groovy
 /org/jenkinsci/plugins/pipeline/modeldefinition/agent/impl/NoneScript.groovy
-/org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/AbstractChangelogConditionalScript.groovy
 /org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/AllOfConditionalScript.groovy
 /org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/AnyOfConditionalScript.groovy
 /org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/BranchConditionalScript.groovy
@@ -18,11 +16,7 @@
 /org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/NotConditionalScript.groovy
 /org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/TagConditionalScript.groovy
 /org/jenkinsci/plugins/pipeline/modeldefinition/when/impl/TriggeredByConditionalScript.groovy
-# pipeline-model-extensions
-/org/jenkinsci/plugins/pipeline/modeldefinition/agent/CheckoutScript.groovy
 # docker-workflow
-/org/jenkinsci/plugins/docker/workflow/Docker.groovy
-/org/jenkinsci/plugins/docker/workflow/declarative/AbstractDockerPipelineScript.groovy
 /org/jenkinsci/plugins/docker/workflow/declarative/DockerPipelineFromDockerfileScript.groovy
 /org/jenkinsci/plugins/docker/workflow/declarative/DockerPipelineScript.groovy
 # kubernetes
