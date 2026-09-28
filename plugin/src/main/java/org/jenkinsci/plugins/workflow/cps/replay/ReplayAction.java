@@ -141,12 +141,34 @@ public class ReplayAction implements Action {
         return null;
     }
 
+    /** Offer a fallback Rebuild link if Replay is not permitted? */
     /* accessible to Jelly */ public boolean isRebuildEnabled() {
         if (!run.hasPermission(Item.BUILD)) {
             return false;
         }
         if (!run.getParent().isBuildable()) {
             return false;
+        }
+        if (Jenkins.get().getPlugin("rebuild") != null) {
+            // Go via reflection to avoid a pom.xml (and subsequent
+            // Jenkins controller) dependency on the "competing" plugin:
+            try {
+                Class<?> abstractRebuildAction = Jenkins.get()
+                        .getPluginManager()
+                        .uberClassLoader
+                        .loadClass("com.sonyericsson.rebuild.AbstractRebuildAction");
+                if ((Boolean)
+                        abstractRebuildAction.getMethod("isRebuildAvailable").invoke(null)) {
+                    // THAT plugin will handle the Rebuild link better
+                    // (parameterized if need be), so we here should
+                    // show nothing at all
+                    return false;
+                }
+            } catch (ClassNotFoundException e) {
+                // ignore
+            } catch (Exception e) {
+                LOGGER.log(Level.WARNING, "failed to check for rebuild-plugin", e);
+            }
         }
 
         return true;
