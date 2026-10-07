@@ -336,6 +336,24 @@ public class CpsFlowExecutionTest {
         });
     }
 
+    @Test
+    public void abortWhilePaused() throws Throwable {
+        sessions.then(r -> {
+            WorkflowJob p = r.createProject(WorkflowJob.class, "p");
+            p.setDefinition(new CpsFlowDefinition("try {semaphore 'wait'} finally {echo 'cleaning up'}", true));
+            WorkflowRun b = p.scheduleBuild2(0).waitForStart();
+            SemaphoreStep.waitForStart("wait/1", b);
+            CpsFlowExecution e = (CpsFlowExecution) b.getExecution();
+            e.pause(true);
+            await().atMost(30, TimeUnit.SECONDS).until(e::isPaused);
+            b.getExecutor().interrupt();
+            await().atMost(60, TimeUnit.SECONDS).until(() -> !b.isBuilding());
+            r.assertBuildStatus(Result.ABORTED, b);
+            assertFalse(e.isPaused());
+            r.assertLogContains("cleaning up", b);
+        });
+    }
+
     @Issue("JENKINS-32015")
     @Test
     public void quietDown() throws Throwable {
