@@ -64,6 +64,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
@@ -71,6 +72,8 @@ import jenkins.util.Timer;
 import org.jenkinsci.plugins.workflow.actions.ErrorAction;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistIn;
 import org.jenkinsci.plugins.workflow.cps.persistence.PersistenceContext;
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.pickles.Pickle;
 import org.jenkinsci.plugins.workflow.pickles.PickleFactory;
@@ -125,6 +128,28 @@ public final class CpsThreadGroup implements Serializable {
 
     /** Set while {@link #runner} is doing something. */
     transient boolean busy;
+
+    /**
+     * Diagnostic counters for scheduler performance, reset each pass through {@link #run()}.
+     * Not persisted.
+     */
+    transient int threadsInPass;
+
+    transient int runnableThreadsInPass;
+    transient int executedThreadsInPass;
+    transient long lastPassDurationNanos;
+    transient long totalSchedulerPasses;
+
+    /**
+     * Peak number of queued tasks observed by {@link #scheduleRun()}.
+     */
+    transient long maxQueueDepth;
+
+    /**
+     * Number of times {@link #scheduleRun()} was called while {@link #busy},
+     * indicating re-submission depth for the current pass.
+     */
+    transient long reentrantSubmissions;
 
     /**
      * True if the build was automatically paused because quiet mode is enabled.
@@ -297,6 +322,14 @@ public final class CpsThreadGroup implements Serializable {
      *      {@link Future} object that represents when the CPS VM is executed.
      */
     public Future<?> scheduleRun() {
+        // Track re-submission depth: scheduleRun() called while the executor is busy
+        // means work is piling up behind the currently executing run() pass
+        if (busy) {
+            reentrantSubmissions++;
+            if (reentrantSubmissions > maxQueueDepth) {
+                maxQueueDepth = reentrantSubmissions;
+            }
+        }
         final CompletableFuture<Void> f = new CompletableFuture<>();
         try {
             runner.submit(new Callable<Void>() {
@@ -452,70 +485,183 @@ public final class CpsThreadGroup implements Serializable {
      *      and requires some external event to become resumable again. The false return value
      *      is akin to a Unix thread waiting for I/O completion.
      */
-    @CpsVmThreadOnly("root")
-    private boolean run() {
-        boolean changed = false;
-        boolean ending = false;
-        boolean stillRunnable = false;
+    static final String BASE_QUANTUM_MS_PROPERTY = "org.jenkinsci.plugins.workflow.cps.CFS.baseQuantumMs";
 
-        // TODO: maybe instead of running all the thread, run just one thread in round robin
-        for (CpsThread t : runtimeThreads.values().toArray(new CpsThread[runtimeThreads.size()])) {
-            if (t.isRunnable()) {
-                Outcome o = t.runNextChunk();
-                if (o.isFailure()) {
-                    assert !t.isAlive(); // failed thread is non-resumable
+    static final String LOAD_FACTOR_PROPERTY = "org.jenkinsci.plugins.workflow.cps.CFS.loadFactor";
 
-                    // workflow produced an exception
-                    Result result = Result.FAILURE;
-                    Throwable error = o.getAbnormal();
-                    if (error instanceof FlowInterruptedException) {
-                        result = ((FlowInterruptedException) error).getResult();
-                    }
-                    execution.setResult(result);
-                    FlowNode fn = t.head.get();
-                    if (fn != null) {
-                        t.head.get().addAction(new ErrorAction(error));
-                    }
-                    if (error instanceof VerifyError) {
-                        var msg = error.getMessage();
-                        if (msg != null && msg.contains("Illegal type in constant pool")) {
-                            try {
-                                execution
-                                        .getOwner()
-                                        .getListener()
-                                        .getLogger()
-                                        .println(
-                                                "May be JENKINS-73031: calling static interface methods from Groovy is not currently supported by Jenkins");
-                            } catch (IOException x) {
-                                LOGGER.log(Level.WARNING, null, x);
-                            }
+    /**
+     * Controls how aggressively pipeline-level (flow) vruntime affects the per-pass quantum.
+     * Range 0-100, default 50.  0 disables flow-level quantum adjustment while flow vruntime
+     * tracking and new-thread-floor inheritance remain active.
+     * At 100, a flow that has consumed twice the minimum gets its quantum halved (down to the 25% floor).
+     */
+    static final String FLOW_FAIRNESS_FACTOR_PROPERTY = "org.jenkinsci.plugins.workflow.cps.CFS.flowFairnessFactor";
+
+    static final long MIN_QUANTUM_NS = 5_000_000L; // 5ms floor
+
+    static final long DEFAULT_BASE_QUANTUM_NS = 50_000_000L; // 50ms
+
+    @CpsVmThreadOnly
+    long getMinVruntime() {
+        long min = Long.MAX_VALUE;
+        for (CpsThread t : runtimeThreads.values()) {
+            if (t.vruntime < min) min = t.vruntime;
+        }
+        return min == Long.MAX_VALUE ? 0 : min;
+    }
+
+    private long computeQuantumNs() {
+        long baseMs = Long.getLong(BASE_QUANTUM_MS_PROPERTY, DEFAULT_BASE_QUANTUM_NS / 1_000_000);
+        long base = baseMs * 1_000_000L;
+        if (base <= 0) return Long.MAX_VALUE; // effectively unlimited
+
+        int loadFactor = Integer.getInteger(LOAD_FACTOR_PROPERTY, 10);
+        int flowFairnessFactor = Integer.getInteger(FLOW_FAIRNESS_FACTOR_PROPERTY, 50);
+        // Count active builds as a proxy for system load; also track global min flow vruntime
+        int activeBuilds = 0;
+        long globalMinFlowVr = Long.MAX_VALUE;
+        FlowExecutionList list = FlowExecutionList.get();
+        if (list != null) {
+            for (FlowExecution fe : list) {
+                if (!fe.isComplete()) {
+                    activeBuilds++;
+                    if (fe instanceof CpsFlowExecution) {
+                        long fvr = ((CpsFlowExecution) fe).flowVruntime;
+                        if (fvr < globalMinFlowVr) {
+                            globalMinFlowVr = fvr;
                         }
                     }
                 }
+            }
+        }
+        if (globalMinFlowVr == Long.MAX_VALUE) globalMinFlowVr = 0;
 
-                if (!t.isAlive()) {
-                    LOGGER.fine("completed " + t);
-                    t.fireCompletionHandlers(o); // do this after ErrorAction is set above
+        long quantum = base / Math.max(1, activeBuilds / loadFactor);
 
-                    runtimeThreads.remove(t.id);
-                    t.cleanUp();
-                    if (runtimeThreads.isEmpty()) {
-                        execution.onProgramEnd(o, false);
-                        try {
-                            this.execution.saveOwner();
-                        } catch (Exception ex) {
-                            LOGGER.log(Level.WARNING, "Error saving execution for " + this.getExecution(), ex);
-                        }
-                        ending = true;
-                    }
-                } else {
-                    stillRunnable |= t.isRunnable();
-                }
-                changed = true;
+        // Pipeline-level fairness: flows with higher vruntime than the global minimum get
+        // a proportionally reduced quantum, bounded at 25% of the base quantum.
+        if (flowFairnessFactor > 0 && execution != null) {
+            long myFlowVr = execution.getFlowVruntime();
+            if (myFlowVr > globalMinFlowVr && globalMinFlowVr > 0) {
+                double ratio = (double) globalMinFlowVr / myFlowVr;
+                double adjustment = 1.0 - (flowFairnessFactor / 100.0) * (1.0 - ratio);
+                quantum = (long) (quantum * Math.max(0.25, adjustment));
             }
         }
 
-        if (changed && !stillRunnable) {
+        return Math.max(MIN_QUANTUM_NS, quantum);
+    }
+
+    @CpsVmThreadOnly("root")
+    private boolean run() {
+        final long passStart = System.nanoTime();
+        totalSchedulerPasses++;
+        threadsInPass = runtimeThreads.size();
+        runnableThreadsInPass = 0;
+        executedThreadsInPass = 0;
+        reentrantSubmissions = 0;
+
+        // CFS: find the runnable thread with the lowest vruntime
+        CpsThread chosen = null;
+        int runnableCount = 0;
+        for (CpsThread t : runtimeThreads.values()) {
+            if (t.isRunnable()) {
+                runnableCount++;
+                // Track scheduler wait time for all runnable threads
+                if (t.becameRunnableAt != 0) {
+                    long waitNanos = passStart - t.becameRunnableAt;
+                    t.becameRunnableAt = 0; // reset to avoid double-counting
+                    if (waitNanos > 0) {
+                        execution
+                                .liveTimings
+                                .computeIfAbsent(CpsFlowExecution.TimingKind.schedulerWait.name(), k -> new LongAdder())
+                                .add(waitNanos);
+                    }
+                }
+                if (chosen == null || t.vruntime < chosen.vruntime) {
+                    chosen = t;
+                }
+            }
+        }
+        runnableThreadsInPass = runnableCount;
+
+        if (chosen == null) {
+            // Nothing is runnable — save and report
+            lastPassDurationNanos = System.nanoTime() - passStart;
+            return false;
+        }
+
+        // Execute the chosen thread
+        Outcome o = chosen.runNextChunk();
+        executedThreadsInPass = 1;
+
+        boolean ending = false;
+        boolean stillRunnable = false;
+
+        if (o.isFailure()) {
+            assert !chosen.isAlive(); // failed thread is non-resumable
+
+            // workflow produced an exception
+            Result result = Result.FAILURE;
+            Throwable error = o.getAbnormal();
+            if (error instanceof FlowInterruptedException) {
+                result = ((FlowInterruptedException) error).getResult();
+            }
+            execution.setResult(result);
+            FlowNode fn = chosen.head.get();
+            if (fn != null) {
+                chosen.head.get().addAction(new ErrorAction(error));
+            }
+            if (error instanceof VerifyError) {
+                var msg = error.getMessage();
+                if (msg != null && msg.contains("Illegal type in constant pool")) {
+                    try {
+                        execution
+                                .getOwner()
+                                .getListener()
+                                .getLogger()
+                                .println(
+                                        "May be JENKINS-73031: calling static interface methods from Groovy is not currently supported by Jenkins");
+                    } catch (IOException x) {
+                        LOGGER.log(Level.WARNING, null, x);
+                    }
+                }
+            }
+        }
+
+        if (!chosen.isAlive()) {
+            LOGGER.fine("completed " + chosen);
+            chosen.fireCompletionHandlers(o); // do this after ErrorAction is set above
+
+            runtimeThreads.remove(chosen.id);
+            chosen.cleanUp();
+            if (runtimeThreads.isEmpty()) {
+                execution.onProgramEnd(o, false);
+                try {
+                    this.execution.saveOwner();
+                } catch (Exception ex) {
+                    LOGGER.log(Level.WARNING, "Error saving execution for " + this.getExecution(), ex);
+                }
+                ending = true;
+            }
+        } else {
+            // Thread is still alive; it may be runnable again (ThreadTask yield, or quantum exceeded)
+            if (chosen.isRunnable()) {
+                stillRunnable = true;
+            }
+        }
+
+        // Check if any other threads are still runnable
+        if (!stillRunnable) {
+            for (CpsThread t : runtimeThreads.values()) {
+                if (t.isRunnable()) {
+                    stillRunnable = true;
+                    break;
+                }
+            }
+        }
+
+        if (!stillRunnable) {
             execution.persistedClean = null;
             saveProgramIfPossible(false);
         }
@@ -533,6 +679,23 @@ public final class CpsThreadGroup implements Serializable {
             } catch (IOException x) {
                 LOGGER.log(Level.WARNING, "Failed to delete program.dat in " + execution, x);
             }
+        }
+
+        lastPassDurationNanos = System.nanoTime() - passStart;
+        if (LOGGER.isLoggable(Level.FINE)) {
+            long flowVrMs = execution != null ? execution.getFlowVruntime() / 1_000_000 : 0;
+            LOGGER.log(
+                    Level.FINE,
+                    "scheduler pass #{0}: {1} threads total, {2} runnable, pick={3}, {4}ms, reentrant={5}, flowVr={6}ms",
+                    new Object[] {
+                        totalSchedulerPasses,
+                        threadsInPass,
+                        runnableThreadsInPass,
+                        chosen.id,
+                        lastPassDurationNanos / 1_000_000,
+                        reentrantSubmissions,
+                        flowVrMs
+                    });
         }
 
         return stillRunnable;
@@ -635,7 +798,8 @@ public final class CpsThreadGroup implements Serializable {
         boolean serializedOK = false;
         try (CpsFlowExecution.Timing t = execution.time(CpsFlowExecution.TimingKind.saveProgram);
                 WithThreadName diag = new WithThreadName("saving " + f)) {
-            try (RiverWriter w = new RiverWriter(tmpFile, execution.getOwner(), pickleFactories)) {
+            try (RiverWriter w = new RiverWriter(tmpFile, execution.getOwner(), pickleFactories);
+                    CpsFlowExecution.Timing st = execution.time(CpsFlowExecution.TimingKind.serializationWrite)) {
                 w.writeObject(this);
             }
             serializedOK = true;
