@@ -555,7 +555,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             wrappedStorage = new BulkFlowNodeStorage(this, dir);
         } else {
             if (hint.isPersistWithEveryStep()) {
-                if (this.headsSerial == null) {
+                if (this.headsSerial == null || (this.storageDir != null && this.storageDir.endsWith("-fallback"))) {
                     Files.createDirectories(dir.toPath());
                 }
                 wrappedStorage = new SimpleXStreamFlowNodeStorage(this, dir);

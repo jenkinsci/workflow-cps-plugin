@@ -43,7 +43,7 @@ public class TimingFlowNodeStorageTest {
 
         @Override
         public Queue.Executable getExecutable() throws IOException {
-            throw new IOException("not implemented");
+            return null;
         }
 
         @Override
@@ -113,15 +113,34 @@ public class TimingFlowNodeStorageTest {
         FlowNodeStorage completedStorage = (FlowNodeStorage) createStorageMethod.invoke(maxSurvivability);
         assertFalse(completedStorage.isAvoidAtomicWrite());
 
-        // Verify optimizeStorage preserves avoidAtomicWrite when migrating from SimpleXStreamFlowNodeStorage
+        // Verify optimizeStorage migrates to BulkFlowNodeStorage and preserves avoidAtomicWrite
         CpsFlowExecution toOptimize = new CpsFlowExecution(
                 "echo 'test'", true, new DummyOwner(tmp.newFolder()), FlowDurabilityHint.MAX_SURVIVABILITY);
         FlowStartNode startNode = new FlowStartNode(toOptimize, "2");
+        toOptimize.getStorage().storeNode(startNode, false);
         java.lang.reflect.Method optimizeMethod =
                 CpsFlowExecution.class.getDeclaredMethod("optimizeStorage", FlowNode.class);
         optimizeMethod.setAccessible(true);
         optimizeMethod.invoke(toOptimize, startNode);
+        assertTrue(
+                "Expected BulkFlowNodeStorage after optimizeStorage",
+                toOptimize.storage.delegate
+                        instanceof org.jenkinsci.plugins.workflow.support.storage.BulkFlowNodeStorage);
         assertFalse(toOptimize.getStorage().isAvoidAtomicWrite());
+
+        // Verify placeholder recovery creates fallback directory with SURVIVABLE_NONATOMIC when headsSerial is non-null
+        CpsFlowExecution fallbackExec = new CpsFlowExecution(
+                "echo 'test'", true, new DummyOwner(tmp.newFolder()), FlowDurabilityHint.SURVIVABLE_NONATOMIC);
+        fallbackExec.getStorage();
+        java.lang.reflect.Field headsSerialField = CpsFlowExecution.class.getDeclaredField("headsSerial");
+        headsSerialField.setAccessible(true);
+        headsSerialField.set(fallbackExec, Collections.singletonMap(1, "2"));
+        fallbackExec.createPlaceholderNodes(new IOException("corrupt node"));
+        assertTrue(fallbackExec.getStorageDir().getName().endsWith("-fallback"));
+        assertTrue(fallbackExec.getStorageDir().isDirectory());
+        assertTrue(new File(fallbackExec.getStorageDir(), "1.xml").isFile());
+        assertTrue(fallbackExec.getStorage().isAvoidAtomicWrite());
+        assertFalse(fallbackExec.getCurrentHeads().isEmpty());
 
         StubFlowNodeStorage delegate = new StubFlowNodeStorage();
         CpsFlowExecution.TimingFlowNodeStorage wrapper = maxSurvivability.new TimingFlowNodeStorage(delegate);
