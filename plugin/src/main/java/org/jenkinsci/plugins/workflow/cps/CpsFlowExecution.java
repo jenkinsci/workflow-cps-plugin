@@ -556,6 +556,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             wrappedStorage = (hint.isPersistWithEveryStep())
                     ? new SimpleXStreamFlowNodeStorage(this, getStorageDir())
                     : new BulkFlowNodeStorage(this, getStorageDir());
+            wrappedStorage.setAvoidAtomicWrite(!hint.isAtomicWrite());
         }
         return new TimingFlowNodeStorage(wrappedStorage);
     }
@@ -2166,6 +2167,22 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             try (Timing t = time(TimingKind.flowNode)) {
                 withWriteLock(() -> delegate.saveActions(node, actions));
             }
+        }
+
+        @Override
+        public boolean isAvoidAtomicWrite() {
+            return delegate.isAvoidAtomicWrite();
+        }
+
+        @Override
+        public void setAvoidAtomicWrite(boolean avoidAtomicWrite) {
+            super.setAvoidAtomicWrite(avoidAtomicWrite);
+            delegate.setAvoidAtomicWrite(avoidAtomicWrite);
+        }
+
+        @Override
+        public boolean isPersistedFully() {
+            return delegate.isPersistedFully();
         }
 
         @Override
