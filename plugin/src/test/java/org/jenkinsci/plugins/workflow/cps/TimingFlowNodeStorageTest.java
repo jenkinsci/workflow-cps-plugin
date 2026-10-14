@@ -138,9 +138,10 @@ public class TimingFlowNodeStorageTest {
         fallbackExec.createPlaceholderNodes(new IOException("corrupt node"));
         assertTrue(fallbackExec.getStorageDir().getName().endsWith("-fallback"));
         assertTrue(fallbackExec.getStorageDir().isDirectory());
-        assertTrue(new File(fallbackExec.getStorageDir(), "1.xml").isFile());
         assertTrue(fallbackExec.getStorage().isAvoidAtomicWrite());
         assertFalse(fallbackExec.getCurrentHeads().isEmpty());
+        FlowNode recoveredHead = fallbackExec.getCurrentHeads().get(0);
+        assertTrue(new File(fallbackExec.getStorageDir(), recoveredHead.getId() + ".xml").isFile());
 
         StubFlowNodeStorage delegate = new StubFlowNodeStorage();
         CpsFlowExecution.TimingFlowNodeStorage wrapper = maxSurvivability.new TimingFlowNodeStorage(delegate);
