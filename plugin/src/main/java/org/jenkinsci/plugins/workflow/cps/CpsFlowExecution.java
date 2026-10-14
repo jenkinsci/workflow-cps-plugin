@@ -548,16 +548,22 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
 
     private TimingFlowNodeStorage createStorage() throws IOException {
         FlowNodeStorage wrappedStorage;
+        FlowDurabilityHint hint = getDurabilityHint();
+        File dir = getStorageDir();
 
         if (this.storageDir != null && this.storageDir.endsWith("-completed")) {
-            wrappedStorage = new BulkFlowNodeStorage(this, getStorageDir());
+            wrappedStorage = new BulkFlowNodeStorage(this, dir);
         } else {
-            FlowDurabilityHint hint = getDurabilityHint();
-            wrappedStorage = (hint.isPersistWithEveryStep())
-                    ? new SimpleXStreamFlowNodeStorage(this, getStorageDir())
-                    : new BulkFlowNodeStorage(this, getStorageDir());
-            wrappedStorage.setAvoidAtomicWrite(!hint.isAtomicWrite());
+            if (hint.isPersistWithEveryStep()) {
+                if (this.headsSerial == null) {
+                    Files.createDirectories(dir.toPath());
+                }
+                wrappedStorage = new SimpleXStreamFlowNodeStorage(this, dir);
+            } else {
+                wrappedStorage = new BulkFlowNodeStorage(this, dir);
+            }
         }
+        wrappedStorage.setAvoidAtomicWrite(!hint.isAtomicWrite());
         return new TimingFlowNodeStorage(wrappedStorage);
     }
 
@@ -575,6 +581,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             try {
                 FlowNodeStorage newStorage =
                         new BulkFlowNodeStorage(this, new File(this.owner.getRootDir(), newStorageDir));
+                newStorage.setAvoidAtomicWrite(storage.isAvoidAtomicWrite());
                 DepthFirstScanner scanner = new DepthFirstScanner();
                 scanner.setup(flowEndNode);
                 // The hope is that by doing this right when the execution completes, most of the nodes will already be

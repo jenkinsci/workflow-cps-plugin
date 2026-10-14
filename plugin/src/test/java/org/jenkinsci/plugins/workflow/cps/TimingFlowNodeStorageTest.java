@@ -13,6 +13,7 @@ import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
 import org.jenkinsci.plugins.workflow.support.storage.FlowNodeStorage;
 import org.junit.Rule;
 import org.junit.Test;
@@ -91,12 +92,39 @@ public class TimingFlowNodeStorageTest {
 
     @Test
     public void delegatesAvoidAtomicWriteAndIsPersistedFully() throws Exception {
-        CpsFlowExecution execution = new CpsFlowExecution(
+        CpsFlowExecution maxSurvivability = new CpsFlowExecution(
                 "echo 'test'", true, new DummyOwner(tmp.newFolder()), FlowDurabilityHint.MAX_SURVIVABILITY);
-        assertFalse(execution.getStorage().isAvoidAtomicWrite());
+        assertFalse(maxSurvivability.getStorage().isAvoidAtomicWrite());
+
+        CpsFlowExecution nonAtomic = new CpsFlowExecution(
+                "echo 'test'", true, new DummyOwner(tmp.newFolder()), FlowDurabilityHint.SURVIVABLE_NONATOMIC);
+        assertTrue(nonAtomic.getStorage().isAvoidAtomicWrite());
+
+        CpsFlowExecution perfOptimized = new CpsFlowExecution(
+                "echo 'test'", true, new DummyOwner(tmp.newFolder()), FlowDurabilityHint.PERFORMANCE_OPTIMIZED);
+        assertTrue(perfOptimized.getStorage().isAvoidAtomicWrite());
+
+        // Verify completed storage reload honors MAX_SURVIVABILITY atomic write configuration
+        java.lang.reflect.Field storageDirField = CpsFlowExecution.class.getDeclaredField("storageDir");
+        storageDirField.setAccessible(true);
+        storageDirField.set(maxSurvivability, "workflow-completed");
+        java.lang.reflect.Method createStorageMethod = CpsFlowExecution.class.getDeclaredMethod("createStorage");
+        createStorageMethod.setAccessible(true);
+        FlowNodeStorage completedStorage = (FlowNodeStorage) createStorageMethod.invoke(maxSurvivability);
+        assertFalse(completedStorage.isAvoidAtomicWrite());
+
+        // Verify optimizeStorage preserves avoidAtomicWrite when migrating from SimpleXStreamFlowNodeStorage
+        CpsFlowExecution toOptimize = new CpsFlowExecution(
+                "echo 'test'", true, new DummyOwner(tmp.newFolder()), FlowDurabilityHint.MAX_SURVIVABILITY);
+        FlowStartNode startNode = new FlowStartNode(toOptimize, "2");
+        java.lang.reflect.Method optimizeMethod =
+                CpsFlowExecution.class.getDeclaredMethod("optimizeStorage", FlowNode.class);
+        optimizeMethod.setAccessible(true);
+        optimizeMethod.invoke(toOptimize, startNode);
+        assertFalse(toOptimize.getStorage().isAvoidAtomicWrite());
 
         StubFlowNodeStorage delegate = new StubFlowNodeStorage();
-        CpsFlowExecution.TimingFlowNodeStorage wrapper = execution.new TimingFlowNodeStorage(delegate);
+        CpsFlowExecution.TimingFlowNodeStorage wrapper = maxSurvivability.new TimingFlowNodeStorage(delegate);
 
         assertFalse(delegate.isAvoidAtomicWrite());
         assertFalse(wrapper.isAvoidAtomicWrite());
