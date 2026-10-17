@@ -122,12 +122,12 @@ public class EnvActionImpl extends GroovyObjectSupport implements EnvironmentAct
 
     private FlowExecution getExecution() throws IOException {
         if (owner instanceof FlowExecutionOwner.Executable) {
-            return ((FlowExecutionOwner.Executable) owner)
-                    .asFlowExecutionOwner()
-                    .get();
-        } else {
-            throw new IOException("no FlowExecution");
+            FlowExecutionOwner executionOwner = ((FlowExecutionOwner.Executable) owner).asFlowExecutionOwner();
+            if (executionOwner != null) {
+                return executionOwner.get();
+            }
         }
+        throw new IOException("no FlowExecution");
     }
 
     private FlowNode getNode() throws IOException {
