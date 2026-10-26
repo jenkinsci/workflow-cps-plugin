@@ -2426,9 +2426,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint@npm:^10.12.0":
-  version: 10.12.0
-  resolution: "eslint@npm:10.12.0"
+"eslint@npm:^10.13.0":
+  version: 10.13.0
+  resolution: "eslint@npm:10.13.0"
   dependencies:
     "@eslint-community/eslint-utils": "npm:^4.8.0"
     "@eslint-community/regexpp": "npm:^4.12.2"
@@ -2467,7 +2467,7 @@ __metadata:
       optional: true
   bin:
     eslint: bin/eslint.js
-  checksum: 10c0/1302ce8a7df2f67fe8f4014b2f9449bd38eb86903ba7b841d9a8ca5a5daf8ee15442861ab870e96c0074d5f333b405d7b2f16388981f807db410cc3a02178af9
+  checksum: 10c0/4a28e85de458f13306d30f07df21b58109056bd8bd691b6158952d95e126cf742db2eb09562e3f1c1cc0154ee44dedc789f8ced8d0d8da48e82a689aa9cb1c0d
   languageName: node
   linkType: hard
 
@@ -3687,14 +3687,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"postcss@npm:^8.5.30":
-  version: 8.5.30
-  resolution: "postcss@npm:8.5.30"
+"postcss@npm:^8.5.31":
+  version: 8.5.31
+  resolution: "postcss@npm:8.5.31"
   dependencies:
     nanoid: "npm:^3.3.20"
     picocolors: "npm:^1.1.1"
     source-map-js: "npm:^1.2.2"
-  checksum: 10c0/219cdc50ba3f2b6d0f8b779c4939514cb9d9f53cc9eb92dae1a06f2d6eb910b2ce339a3ee93e7c893b89e50241509fd92c04f0639af1cdf41a1e13983a476029
+  checksum: 10c0/52f94c6655f86f568a803ce9c8eb3c749e109cc711d26644c4cde953b30c1b947a2f25af3b9453de68584ac655572f46ed8e830b8ab2f21dd226b3f640992e00
   languageName: node
   linkType: hard
 
@@ -3898,18 +3898,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"schema-utils@npm:^4.5.0":
-  version: 4.5.0
-  resolution: "schema-utils@npm:4.5.0"
-  dependencies:
-    "@types/json-schema": "npm:^7.0.15"
-    ajv: "npm:^8.20.0"
-    ajv-formats: "npm:^3.0.1"
-    ajv-keywords: "npm:^5.1.0"
-  checksum: 10c0/b2b8e6fc1b1f2abb30741a04e9d309879fd09afcea8c8aa163bdb380d8836ab4102f60a750cb1116c5e299f597cc8d59ee8f2bbee87dd7606d45e748ce901794
-  languageName: node
-  linkType: hard
-
 "schema-utils@npm:^4.6.0":
   version: 4.8.0
   resolution: "schema-utils@npm:4.8.0"
@@ -3926,6 +3914,25 @@ __metadata:
   bin:
     schema-utils: bin/schema-utils.js
   checksum: 10c0/edf12e09e1b4a22e0612a2732fe457bb6c117a35d73ceba0244e37195abdb40fe074a4957d46fd4d4faec34b40ef2a530e673480735a153950b6c05917809647
+  languageName: node
+  linkType: hard
+
+"schema-utils@npm:^4.8.1":
+  version: 4.8.1
+  resolution: "schema-utils@npm:4.8.1"
+  dependencies:
+    "@types/json-schema": "npm:^7.0.15"
+    ajv: "npm:^8.20.0"
+    ajv-formats: "npm:^3.0.1"
+    ajv-keywords: "npm:^5.1.0"
+  peerDependencies:
+    webpack: ^5.112.0
+  peerDependenciesMeta:
+    webpack:
+      optional: true
+  bin:
+    schema-utils: bin/schema-utils.js
+  checksum: 10c0/b18b816e5628adb6a703883dbbb672aa3368e6462e16097c9df16d9ca192e41191b98c1b63b6cf18b0ee17a7223268ec9ca76935e8c50337cfa8484d3d289eea
   languageName: node
   linkType: hard
 
@@ -4156,7 +4163,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"watchpack@npm:^2.6.1":
+"watchpack@npm:^2.6.3":
   version: 2.6.3
   resolution: "watchpack@npm:2.6.3"
   dependencies:
@@ -4226,9 +4233,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"webpack@npm:^5.112.0":
-  version: 5.112.0
-  resolution: "webpack@npm:5.112.0"
+"webpack@npm:^5.112.1":
+  version: 5.112.1
+  resolution: "webpack@npm:5.112.1"
   dependencies:
     "@types/estree": "npm:^1.0.8"
     "@types/json-schema": "npm:^7.0.15"
@@ -4243,16 +4250,16 @@ __metadata:
     graceful-fs: "npm:^4.2.11"
     mime-db: "npm:^1.54.0"
     minimizer-webpack-plugin: "npm:^5.13.0"
-    schema-utils: "npm:^4.5.0"
+    schema-utils: "npm:^4.8.1"
     tapable: "npm:^2.3.0"
-    watchpack: "npm:^2.6.1"
+    watchpack: "npm:^2.6.3"
     webpack-sources: "npm:^3.6.0"
   peerDependenciesMeta:
     webpack-cli:
       optional: true
   bin:
     webpack: bin/webpack.js
-  checksum: 10c0/dee2e7ad612138536e1b8d5dc306955fc5b110146085061e43ed5e100293ebeb23d3521a1b400da9f4e11e99396305bba8aabb5fc35be9480c15c38759c163f9
+  checksum: 10c0/478fff0dac0128e52b60a1fbfd03a0a915905041e5b6794661c1f783da05211b99182e37ee9b79d9bb49b4b6c234f49796163116c6ad8395d3a2a7579b9be5b9
   languageName: node
   linkType: hard
 
@@ -4296,7 +4303,7 @@ __metadata:
     babel-loader: "npm:^10.1.1"
     clean-webpack-plugin: "npm:^4.0.0"
     css-loader: "npm:^7.1.5"
-    eslint: "npm:^10.12.0"
+    eslint: "npm:^10.13.0"
     eslint-formatter-checkstyle: "npm:^9.0.1"
     eslint-plugin-only-warn: "npm:^1.2.1"
     globals: "npm:^17.13.0"
@@ -4305,11 +4312,11 @@ __metadata:
     less: "npm:^4.9.1"
     less-loader: "npm:^13.0.0"
     mini-css-extract-plugin: "npm:^2.10.2"
-    postcss: "npm:^8.5.30"
+    postcss: "npm:^8.5.31"
     postcss-less: "npm:^6.0.0"
     postcss-loader: "npm:^8.2.1"
     style-loader: "npm:^4.0.0"
-    webpack: "npm:^5.112.0"
+    webpack: "npm:^5.112.1"
     webpack-cli: "npm:^7.2.3"
     webpack-fix-style-only-entries: "npm:^0.6.1"
     webpack-merge: "npm:^6.0.1"
