@@ -27,6 +27,7 @@ package org.jenkinsci.plugins.workflow.cps.replay;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import hudson.cli.CLICommandInvoker;
+import hudson.util.VersionNumber;
 import jenkins.model.Jenkins;
 import org.apache.tools.ant.filters.StringInputStream;
 import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
@@ -93,11 +94,14 @@ public class ReplayPipelineCommandTest {
 
         ScriptApproval.get().clearApprovedScripts();
 
+        // TODO Remove once plugin requires jenkins 2.586 minimum
+        // See https://github.com/jenkinsci/jenkins/pull/27340
+        int expectedCode = new VersionNumber("2.586").isOlderThanOrEqualTo(Jenkins.getVersion()) ? 8 : 1;
         assertThat(
                 new CLICommandInvoker(j, new ReplayPipelineCommand())
                         .withStdin(new StringInputStream(viaCliScript))
                         .invokeWithArgs(p.getName(), "-n", "1", "-s", "Script1"),
-                CLICommandInvoker.Matcher.failedWith(1));
+                CLICommandInvoker.Matcher.failedWith(expectedCode));
 
         assertThat(
                 new CLICommandInvoker(j, new ReplayPipelineCommand())

@@ -27,6 +27,7 @@ package org.jenkinsci.plugins.workflow.cps;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 
 import groovy.lang.GroovyShell;
 import hudson.model.Result;
@@ -36,6 +37,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
+import org.htmlunit.HttpMethod;
+import org.htmlunit.WebRequest;
+import org.htmlunit.util.NameValuePair;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.workflow.cps.steps.ParallelStep;
@@ -70,6 +74,7 @@ import org.jenkinsci.plugins.workflow.testMetaStep.Polygon;
 import org.jenkinsci.plugins.workflow.testMetaStep.StateMetaStep;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.CarbonMonoxide;
 import org.jenkinsci.plugins.workflow.testMetaStep.chemical.DetectionMetaStep;
+import org.json.JSONObject;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Email;
@@ -398,6 +403,49 @@ public class SnippetizerTest {
         st.assertRoundTrip(a, "echoStringAndDouble 'some string'");
         a.setNumber(0.5);
         st.assertRoundTrip(a, "echoStringAndDouble number: 0.5, string: 'some string'");
+    }
+
+    @Issue("SECURITY-3677")
+    @Test
+    public void generateSnippetRequiresPOST() throws Exception {
+        var obj =
+                new JSONObject().put("stapler-class", EchoStep.class.getName()).put("message", "hello");
+        var url = r.getURL().toURI().resolve(Snippetizer.GENERATE_URL).toURL();
+        var wc = r.createWebClient();
+        wc.setThrowExceptionOnFailingStatusCode(false);
+
+        // GET with the same payload should be rejected
+        var get = new WebRequest(url, HttpMethod.GET);
+        get.setRequestParameters(List.of(new NameValuePair("json", obj.toString())));
+        assertEquals(
+                "GET should be rejected", 404, wc.getPage(get).getWebResponse().getStatusCode());
+
+        // POST with the same payload should succeed
+        st.assertGenerateSnippet(obj.toString(), "echo 'hello'", null);
+    }
+
+    @Issue("SECURITY-3677")
+    @Test
+    public void generateSnippetRejectsNonStepTypes() throws Exception {
+        // CpsFlowDefinition is a Describable but not a Step or metastep delegate — must be rejected
+        var obj1 = new JSONObject()
+                .put("stapler-class", CpsFlowDefinition.class.getName())
+                .put("$class", CpsFlowDefinition.class.getName())
+                .put("script", "System.err.println(123)")
+                .put("sandbox", false);
+        st.assertGenerateSnippet(
+                obj1.toString(), "<" + CpsFlowDefinition.class.getName() + " is not a supported step type>", null);
+
+        // EchoStep is a direct pipeline step — must still work
+        var obj2 =
+                new JSONObject().put("stapler-class", EchoStep.class.getName()).put("message", "hello");
+        st.assertGenerateSnippet(obj2.toString(), "echo 'hello'", null);
+
+        // ArtifactArchiver is a metastep delegate (wrapped by CoreStep) — must still work
+        var obj3 = new JSONObject()
+                .put("stapler-class", ArtifactArchiver.class.getName())
+                .put("artifacts", "x.jar");
+        st.assertGenerateSnippet(obj3.toString(), "archiveArtifacts 'x.jar'", null);
     }
 
     @Test

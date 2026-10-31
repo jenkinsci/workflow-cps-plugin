@@ -308,7 +308,12 @@ public final class CpsThread implements Serializable {
     @CpsVmThreadOnly
     public void stop(Throwable t) {
         StepExecution s = getStep(); // this is the part that should run in CpsVmThread
-        if (s == null) {
+        // The step may have already recorded its outcome (e.g. sh responded in time), while
+        // the task that processes its completion is still queued on the CPS VM thread. In
+        // that case s.stop(t) would fall through to CpsStepContext.completed() and be silently
+        // dropped as a redundant outcome. Such a step should be treated as absent for the
+        // purpose of interruption.
+        if (s == null || (s.getContext() instanceof CpsStepContext c && c.isCompleted())) {
             // if it's not running inside a StepExecution, we need to set an interrupt flag
             // and interrupt at an earliest convenience
             Outcome o = new Outcome(null, t);
