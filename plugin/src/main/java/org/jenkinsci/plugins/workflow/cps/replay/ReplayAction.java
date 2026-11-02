@@ -145,10 +145,13 @@ public class ReplayAction implements Action {
                         Messages.ReplayAction_buildFailure()),
                 "plugin/workflow-cps/js/replay.js");
 
+        List<Action> actions = new ArrayList<>();
+        if (isEnabled()) {
+            actions.add(new EditAndReplayMenuItem());
+        }
+
         // Allow for plugins to add additional build options
-        List<Action> actions = ReplayActionMenuContributor.all().stream()
-                .flatMap(e -> e.getActions(run).stream())
-                .toList();
+        ReplayActionMenuContributor.all().forEach(e -> actions.addAll(e.getActions(run)));
 
         return SplitButtonEvent.of(primaryEvent, actions);
     }
@@ -532,6 +535,30 @@ public class ReplayAction implements Action {
                             && run.getParent() instanceof ParameterizedJobMixIn.ParameterizedJob
                     ? Collections.<Action>singleton(new ReplayAction(run))
                     : Collections.<Action>emptySet();
+        }
+    }
+
+    /** Split button entry that opens the replay page to edit the script before running. */
+    private static final class EditAndReplayMenuItem implements Action {
+
+        @Override
+        public String getIconFileName() {
+            return "symbol-arrow-redo-outline plugin-ionicons-api";
+        }
+
+        @Override
+        public String getDisplayName() {
+            return Messages.ReplayAction_edit_displayName();
+        }
+
+        @Override
+        public String getDescription() {
+            return Messages.ReplayAction_edit_description();
+        }
+
+        @Override
+        public String getUrlName() {
+            return "replay";
         }
     }
 }
