@@ -53,4 +53,40 @@
       <url>https://repo.jenkins-ci.org/public/</url>
     </pluginRepository>
   </pluginRepositories>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>display-info</id>
+            <inherited>false</inherited>
+            <configuration>
+              <rules>
+                <!--
+                  plugin-pom configures enforceBytecodeVersion with maxJdkVersion=${maven.compiler.release},
+                  defaulting to 17. For hpi-packaged modules, maven-hpi-plugin's ValidateMojo dynamically
+                  updates maven.compiler.release based on the core version
+                  (https://github.com/jenkinsci/maven-hpi-plugin/pull/323) and skips enforceBytecodeVersion
+                  on first invocation until that takes effect
+                  (https://github.com/jenkinsci/maven-hpi-plugin/pull/583).
+                  However, ValidateMojo is only bound to hpi packaging via HpiLifecycleMappingProvider
+                  (@Named("hpi")), so it never runs for this pom-packaged parent. As a result,
+                  maven.compiler.release stays at 17 and enforceBytecodeVersion fails against
+                  dependencies that now ship JDK 21 bytecode.
+                  Disable the rule at this level only; child hpi modules are unaffected.
+                -->
+                <enforceBytecodeVersion>
+                  <ignoreClasses>
+                    <ignoreClass>*</ignoreClass>
+                  </ignoreClasses>
+                </enforceBytecodeVersion>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>
