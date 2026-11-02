@@ -65,6 +65,11 @@ import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import jenkins.model.ParameterizedJobMixIn;
 import jenkins.model.TransientActionFactory;
+import jenkins.model.menu.Group;
+import jenkins.model.menu.Semantic;
+import jenkins.model.menu.event.Event;
+import jenkins.model.menu.event.JavaScriptEvent;
+import jenkins.model.menu.event.SplitButtonEvent;
 import jenkins.scm.api.SCMRevisionAction;
 import net.sf.json.JSON;
 import net.sf.json.JSONObject;
@@ -107,12 +112,53 @@ public class ReplayAction implements Action {
 
     @Override
     public String getIconFileName() {
+        if (run.isBuilding()) {
+            return null;
+        }
+
         return isEnabled() || isRebuildEnabled() ? "symbol-arrow-redo-outline plugin-ionicons-api" : null;
     }
 
     @Override
     public String getUrlName() {
         return isEnabled() || isRebuildEnabled() ? "replay" : null;
+    }
+
+    @Override
+    public Group getGroup() {
+        return Group.FIRST_IN_APP_BAR;
+    }
+
+    @Override
+    public Event getEvent() {
+        String urlName = getUrlName() + "/rebuild";
+
+        JavaScriptEvent primaryEvent = JavaScriptEvent.of(
+                Map.of(
+                        "type",
+                        "replay",
+                        "href",
+                        urlName,
+                        "buildSuccess",
+                        Messages.ReplayAction_buildSuccess(),
+                        "buildFailure",
+                        Messages.ReplayAction_buildFailure()),
+                "plugin/workflow-cps/js/replay.js");
+
+        List<Action> actions = new ArrayList<>();
+        if (isEnabled()) {
+            actions.add(new EditAndReplayMenuItem());
+        }
+
+        // Allow for plugins to add additional build options
+        ReplayActionMenuContributor.all().forEach(e -> actions.addAll(e.getActions(run)));
+
+        return SplitButtonEvent.of(primaryEvent, actions);
+    }
+
+    @Override
+    public Semantic getSemantic() {
+        return Semantic.BUILD;
     }
 
     /** Poke for an execution without blocking - may be null if run is very fresh or has not lazy-loaded yet. */
@@ -489,6 +535,25 @@ public class ReplayAction implements Action {
                             && run.getParent() instanceof ParameterizedJobMixIn.ParameterizedJob
                     ? Collections.<Action>singleton(new ReplayAction(run))
                     : Collections.<Action>emptySet();
+        }
+    }
+
+    /** Split button entry that opens the replay page to edit the script before running. */
+    private static final class EditAndReplayMenuItem implements Action {
+
+        @Override
+        public String getIconFileName() {
+            return "symbol-arrow-redo-outline plugin-ionicons-api";
+        }
+
+        @Override
+        public String getDisplayName() {
+            return Messages.ReplayAction_edit_displayName();
+        }
+
+        @Override
+        public String getUrlName() {
+            return "replay";
         }
     }
 }

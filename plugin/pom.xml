@@ -57,14 +57,9 @@
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
         <artifactId>bom-${jenkins.baseline}.x</artifactId>
-        <version>6398.v1d26a_dd495e2</version>
+        <version>7237.v5071b_f4589f1</version>
         <type>pom</type>
         <scope>import</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>script-security</artifactId>
-        <version>1422.v06869826dd9b_</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
