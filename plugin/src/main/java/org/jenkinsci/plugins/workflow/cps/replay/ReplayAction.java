@@ -552,11 +552,6 @@ public class ReplayAction implements Action {
         }
 
         @Override
-        public String getDescription() {
-            return Messages.ReplayAction_edit_description();
-        }
-
-        @Override
         public String getUrlName() {
             return "replay";
         }
