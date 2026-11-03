@@ -89,6 +89,9 @@ public class CpsScmFlowDefinition extends FlowDefinition {
 
     @Override
     public Collection<? extends SCM> getSCMs() {
+        if (scm == null) { // e.g. its plugin is no longer installed
+            return Collections.emptyList();
+        }
         return Collections.singletonList(scm);
     }
 
