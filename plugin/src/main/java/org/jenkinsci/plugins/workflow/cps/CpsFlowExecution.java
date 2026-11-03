@@ -368,6 +368,65 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     /** Actions to add to the {@link FlowStartNode}. */
     final transient List<Action> flowStartNodeActions = new ArrayList<>();
 
+    /**
+     * Accumulated virtual runtime for the entire pipeline (all threads in this flow execution).
+     * Used for pipeline-level fairness across multiple builds sharing the same master thread pool.
+     * Updated in {@link CpsThread#runNextChunk()} via {@link #advanceFlowVruntime(long)}.
+     */
+    long flowVruntime;
+
+    /**
+     * Pipeline-level scheduling weight (default 1024, matching Linux CFS NICE_0_LOAD).
+     * Higher weight means flow vruntime accumulates slower → more CPU share for this pipeline.
+     * Guarded with max(1, weight) to handle deserialized flows where weight=0.
+     */
+    int flowWeight = 1024;
+
+    public long getFlowVruntime() {
+        return flowVruntime;
+    }
+
+    public int getFlowWeight() {
+        return flowWeight;
+    }
+
+    public void setFlowWeight(int w) {
+        this.flowWeight = w;
+    }
+
+    /**
+     * Advance this pipeline's flow-level vruntime by the given elapsed wall-clock nanoseconds.
+     * Called from {@link CpsThread#runNextChunk()} after thread-level vruntime is updated.
+     */
+    void advanceFlowVruntime(long elapsedNs) {
+        if (flowWeight == 0) {
+            flowWeight = 1024;
+        }
+        flowVruntime += (elapsedNs * 1024L) / Math.max(1, flowWeight);
+    }
+
+    /**
+     * Returns the minimum {@link #flowVruntime} among all active {@link CpsFlowExecution}
+     * instances in the system. Used by {@link CpsThreadGroup#computeQuantumNs()} for
+     * pipeline-level fairness quantum adjustment.
+     * Returns 0 if no other active flows exist.
+     */
+    static long getGlobalMinFlowVruntime() {
+        long min = Long.MAX_VALUE;
+        FlowExecutionList list = FlowExecutionList.get();
+        if (list != null) {
+            for (FlowExecution fe : list) {
+                if (fe instanceof CpsFlowExecution && !fe.isComplete()) {
+                    CpsFlowExecution cpsFe = (CpsFlowExecution) fe;
+                    if (cpsFe.flowVruntime < min) {
+                        min = cpsFe.flowVruntime;
+                    }
+                }
+            }
+        }
+        return min == Long.MAX_VALUE ? 0 : min;
+    }
+
     /** If true, pipeline is forbidden to resume even if it can. */
     public boolean isResumeBlocked() {
         return resumeBlocked;
@@ -408,7 +467,27 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
          * Loading or saving flow nodes.
          * @see FlowNodeStorage
          */
-        flowNode
+        flowNode,
+        /**
+         * Deserializing program state from disk.
+         * @see CpsFlowExecution#loadProgramAsync(File)
+         */
+        serializationRead,
+        /**
+         * Serializing program state to disk (the writeObject call, not file I/O).
+         * @see CpsThreadGroup#saveProgram(File)
+         */
+        serializationWrite,
+        /**
+         * End-to-end compilation of the Jenkinsfile: parsing + CPS transform + class loading.
+         * @see #parseScript
+         */
+        compilationTotal,
+        /**
+         * Time CPS threads spend runnable-but-waiting before being picked up by the scheduler loop.
+         * @see CpsThreadGroup#run
+         */
+        schedulerWait
     }
 
     /** accumulated time in ns of a given {@link TimingKind#name}; {@link String} key for pretty XStream form */
@@ -663,7 +742,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     private CpsScript parseScript() throws IOException {
         // classloader hierarchy. See doc/classloader.md
         CpsScript s;
-        try {
+        try (Timing t = time(TimingKind.compilationTotal)) {
             trusted = new CpsGroovyShellFactory(this).forTrusted().build();
             shell = new CpsGroovyShellFactory(this).withParent(trusted).build();
 
@@ -934,7 +1013,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                     try {
                         CpsFlowExecution old = PROGRAM_STATE_SERIALIZATION.get();
                         PROGRAM_STATE_SERIALIZATION.set(CpsFlowExecution.this);
-                        try {
+                        try (Timing t = time(TimingKind.serializationRead)) {
                             CpsThreadGroup g = (CpsThreadGroup) u.readObject();
                             result.set(g);
                             pausedWhenLoaded = g.isPaused();
