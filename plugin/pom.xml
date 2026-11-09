@@ -125,6 +125,8 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
       <artifactId>workflow-api</artifactId>
+      <!-- TODO the release of jenkinsci/workflow-api-plugin with StepListener.aroundStart -->
+      <version>999999-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
