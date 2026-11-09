@@ -33,6 +33,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -87,6 +88,14 @@ public final class CpsThread implements Serializable {
      * Promise that {@link Continuable#run0(Outcome)} gets eventually invoked with {@link #resumeValue}.
      */
     private transient CompletableFuture<Object> promise;
+
+    /**
+     * What {@link CpsVmThreadListener}s set up for the run of this thread's program in progress, if any.
+     */
+    @SuppressFBWarnings(
+            value = "SE_TRANSIENT_FIELD_NOT_RESTORED",
+            justification = "set only while the program runs, so null after deserialization")
+    private transient List<CpsVmThreadListener.ProgramRun> programRuns;
 
     /**
      * The head of the flow node graph that this thread is growing.
@@ -180,6 +189,10 @@ public final class CpsThread implements Serializable {
 
         final CpsThread old = CURRENT.get();
         CURRENT.set(this);
+        final List<CpsVmThreadListener.ProgramRun> outerRuns = programRuns;
+        final List<CpsVmThreadListener.ProgramRun> runs =
+                CpsVmThreadListeners.aroundProgramRun(group.getExecution(), head.get());
+        programRuns = runs;
 
         try (Timeout timeout = Timeout.limit(5, TimeUnit.MINUTES)) {
             LOGGER.fine(() -> "runNextChunk on " + resumeValue);
@@ -206,6 +219,8 @@ public final class CpsThread implements Serializable {
                 }
             }
         } finally {
+            programRuns = outerRuns;
+            CpsVmThreadListeners.close(runs, () -> "a program run of " + this);
             CURRENT.set(old);
         }
 
@@ -347,6 +362,16 @@ public final class CpsThread implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private static final ThreadLocal<CpsThread> CURRENT = new ThreadLocal<>();
+
+    /**
+     * Notifies the {@link CpsVmThreadListener}s of a new head of this thread while its program runs.
+     */
+    void notifyProgramRunOfNewHead(@NonNull FlowNode newHead) {
+        List<CpsVmThreadListener.ProgramRun> runs = programRuns;
+        if (runs != null) {
+            CpsVmThreadListeners.onNewHead(runs, newHead);
+        }
+    }
 
     /**
      * While {@link CpsThreadGroup} executes, this method returns {@link CpsThread}

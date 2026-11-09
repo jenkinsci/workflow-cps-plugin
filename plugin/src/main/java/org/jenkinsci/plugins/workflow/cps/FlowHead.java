@@ -147,6 +147,10 @@ final class FlowHead implements Serializable {
         }
         this.head = v;
         notifyNewHead(v, asynchNotifications);
+        CpsThread running = CpsThread.current();
+        if (running != null && running.head == this) {
+            running.notifyProgramRunOfNewHead(v);
+        }
     }
 
     /**
