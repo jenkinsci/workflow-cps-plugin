@@ -39,6 +39,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.util.SystemProperties;
@@ -137,17 +139,33 @@ public abstract class GroovySourceFileAllowlist implements ExtensionPoint {
 
         private static boolean isAllowed(URL url) {
             String urlString = url.toString();
-            for (GroovySourceFileAllowlist allowlist : GroovySourceFileAllowlist.all()) {
-                if (allowlist.isAllowed(urlString)) {
-                    return true;
-                }
-            }
-            return false;
+            return ExtensionList.lookupSingleton(AllowedGroovyResourcesCache.class).isAllowed(urlString);
         }
 
         private static boolean endsWithIgnoreCase(String value, String suffix) {
             int suffixLength = suffix.length();
             return value.regionMatches(true, value.length() - suffixLength, suffix, 0, suffixLength);
+        }
+    }
+
+    @Extension
+    @SuppressFBWarnings(value = "NP_BOOLEAN_RETURN_NULL", justification = "intentionally not caching negative results")
+    public static class AllowedGroovyResourcesCache {
+        private final Map<String, Boolean> cache = new ConcurrentHashMap<>();
+
+        public boolean isAllowed(String groovySourceFileUrl) {
+            Boolean cachedResult = cache.computeIfAbsent(groovySourceFileUrl, url -> {
+                for (GroovySourceFileAllowlist allowlist : GroovySourceFileAllowlist.all()) {
+                    if (allowlist.isAllowed(url)) {
+                        return true;
+                    }
+                }
+                // In practice we should only get here with files that are allowed, so we don't cache negative
+                // results in case it would cause problems with unusual Pipelines that reference Groovy source
+                // files directly in combination with dynamically installed plugins.
+                return null;
+            });
+            return Boolean.TRUE.equals(cachedResult);
         }
     }
 
