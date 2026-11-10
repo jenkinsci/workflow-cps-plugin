@@ -25,6 +25,7 @@
 package org.jenkinsci.plugins.workflow.cps;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -338,5 +339,15 @@ public class CpsScmFlowDefinitionTest {
         WorkflowRun b = r.buildAndAssertStatus(Result.FAILURE, p);
         assertThat(b.getExecution(), nullValue());
         r.assertLogContains("Jenkinsfile references a file that is not inside " + r.jenkins.getWorkspaceFor(p), b);
+    }
+
+    @Test
+    public void unloadableScm() throws Exception {
+        // As loaded from config.xml when the plugin providing the SCM is no longer installed
+        WorkflowJob p = r.jenkins.createProject(WorkflowJob.class, "p");
+        p.setDefinition(new CpsScmFlowDefinition(null, "Jenkinsfile"));
+        r.buildAndAssertStatus(Result.FAILURE, p);
+        assertThat(p.getDefinition().getSCMs(), empty());
+        assertThat(p.getSCMs(), empty());
     }
 }
