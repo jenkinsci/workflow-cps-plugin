@@ -32,6 +32,13 @@ final class CpsVmThreadListeners {
         return call(listener -> listener.aroundProgramRun(execution, head), () -> "a program run of " + execution);
     }
 
+    @NonNull
+    static List<AutoCloseable> aroundAsyncNotification(@NonNull CpsFlowExecution execution, @NonNull FlowNode node) {
+        return call(
+                listener -> listener.aroundAsyncNotification(execution, node),
+                () -> "the notification of " + node + " in " + execution);
+    }
+
     static void onNewHead(@NonNull List<CpsVmThreadListener.ProgramRun> runs, @NonNull FlowNode head) {
         for (CpsVmThreadListener.ProgramRun run : runs) {
             try {

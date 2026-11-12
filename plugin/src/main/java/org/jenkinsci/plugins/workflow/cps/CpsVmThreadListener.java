@@ -7,13 +7,16 @@ import org.jenkinsci.plugins.workflow.flow.GraphListener;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 
 /**
- * Lets a plugin set up thread-local state, such as a tracing context, for the work that a CPS VM thread does for one
- * {@link CpsFlowExecution}, and only for that work. The CPS VM runs the work of all executions on one pool of threads:
+ * Lets a plugin set up thread-local state, such as a tracing context, for the work that a thread, mostly a CPS VM
+ * thread, does for one {@link CpsFlowExecution}, and only for that work. The CPS VM runs the work of all executions on one pool of threads:
  * the thread closes what a listener returned before it goes on with other work, of this execution or of another one.
  * <p>
  * Each task of an execution goes through {@link #aroundTask}. In a task, each run of the program of one of the
  * execution's {@link CpsThread}s, until that thread waits or ends, goes through {@link #aroundProgramRun}. The objects
  * that listeners return are closed in the reverse order, on the same thread, whether the work returns or throws.
+ * <p>
+ * The notification of the asynchronous {@link GraphListener}s of each new node goes through
+ * {@link #aroundAsyncNotification}, also when it happens outside the CPS VM.
  *
  * @since TODO
  */
@@ -41,6 +44,30 @@ public interface CpsVmThreadListener extends ExtensionPoint {
      */
     @CheckForNull
     default ProgramRun aroundProgramRun(@NonNull CpsFlowExecution execution, @CheckForNull FlowNode head) {
+        return null;
+    }
+
+    /**
+     * Called for each new node of the execution before the {@link GraphListener}s that are not
+     * {@link GraphListener.Synchronous} are notified of it, on the thread that notifies them. That thread closes the
+     * returned object once those listeners have returned or thrown, before it notifies them of the next node. When
+     * one task notifies them of several nodes, for example the start nodes of the branches of a {@code parallel} step,
+     * each node gets its own call and its own close.
+     * <p>
+     * Usually that thread is a CPS VM thread, in a task of the execution (inside {@link #aroundTask}). When the graph
+     * grows outside the program, it is another thread: the thread that grows it (for example the one that starts the
+     * build, for its {@code FlowStartNode}), or a {@link jenkins.util.Timer} thread (for example when the execution
+     * ends after a fatal error outside the CPS VM). In those cases {@link #aroundTask} and {@link #aroundProgramRun} of
+     * this execution are not open, and the thread can carry unrelated state, even a context that a listener set up for
+     * another execution: an implementation should set up its state from scratch (for example from a root context) and
+     * not rely on them. Not called for the notifications of the {@link GraphListener.Synchronous} listeners.
+     *
+     * @param execution the execution that the node belongs to
+     * @param node the node that the asynchronous graph listeners are about to be notified of
+     * @return what to close after those listeners, or {@code null}
+     */
+    @CheckForNull
+    default AutoCloseable aroundAsyncNotification(@NonNull CpsFlowExecution execution, @NonNull FlowNode node) {
         return null;
     }
 
