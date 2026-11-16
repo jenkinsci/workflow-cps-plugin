@@ -21,7 +21,7 @@
   "readme": "../README.md",
   "devDependencies": {
     "@babel/cli": "^8.1.0",
-    "@babel/core": "^8.1.0",
+    "@babel/core": "^8.1.2",
     "@babel/preset-env": "^8.0.7",
     "@delucis/if-env": "^1.1.2",
     "@eslint/eslintrc": "^3.3.7",
