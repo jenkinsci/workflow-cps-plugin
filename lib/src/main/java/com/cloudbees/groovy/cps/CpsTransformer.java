@@ -121,9 +121,6 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
 
     @Override
     public void call(SourceUnit source, GeneratorContext context, ClassNode classNode) {
-        if (classNode.isInterface()) {
-            return; // not touching interfaces
-        }
         this.sourceUnit = source;
         this.classNode = classNode;
 
@@ -138,6 +135,14 @@ public class CpsTransformer extends CompilationCustomizer implements GroovyCodeV
             for (FieldNode field : new ArrayList<>(classNode.getFields())) {
                 visitNontransformedField(field);
             }
+
+            if (classNode.isInterface()) {
+                // Interfaces (including annotation types) cannot declare method bodies, constructors, or
+                // object initializers in Groovy 2.4, so there is nothing left to instrument once field
+                // initializers -- the only executable interface member -- have been visited above.
+                return;
+            }
+
             for (MethodNode method : new ArrayList<>(classNode.getMethods())) {
                 visitMethod(method);
             }

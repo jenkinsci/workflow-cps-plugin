@@ -261,6 +261,34 @@ public class CpsFlowDefinition2Test {
                 b);
     }
 
+    @Issue("SECURITY-4152")
+    @Test
+    public void interfaceFieldInitializerSandbox() throws Exception {
+        logging.record(CpsTransformer.class, Level.FINEST);
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
+        job.setDefinition(new CpsFlowDefinition(
+                "interface I { def x = {Jenkins.instance.systemMessage = 'pwned'}() }; echo \"${I.x}\"", true));
+        WorkflowRun b = job.scheduleBuild2(0).get();
+        assertNull(jenkins.jenkins.getSystemMessage());
+        jenkins.assertBuildStatus(Result.FAILURE, b);
+        jenkins.assertLogContains(
+                "org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException: Scripts not permitted to use staticMethod jenkins.model.Jenkins getInstance",
+                b);
+    }
+
+    @Issue("SECURITY-4152")
+    @Test
+    public void interfaceFieldInitializerSandboxProcessBuilder() throws Exception {
+        logging.record(CpsTransformer.class, Level.FINEST);
+        WorkflowJob job = jenkins.createProject(WorkflowJob.class);
+        job.setDefinition(new CpsFlowDefinition(
+                "interface I { def x = new ProcessBuilder(['id']).start().waitFor() }; echo \"${I.x}\"", true));
+        WorkflowRun b = job.scheduleBuild2(0).get();
+        jenkins.assertBuildStatus(Result.FAILURE, b);
+        // The rejection happens inside <clinit>, so the JVM wraps it in ExceptionInInitializerError.
+        assertThat(b.getExecution().getCauseOfFailure().getCause(), instanceOf(RejectedAccessException.class));
+    }
+
     @Test
     public void traitsSandbox() throws Exception {
         logging.record(CpsTransformer.class, Level.FINEST);
