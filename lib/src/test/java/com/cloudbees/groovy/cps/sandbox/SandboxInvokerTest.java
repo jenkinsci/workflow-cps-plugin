@@ -335,6 +335,22 @@ public class SandboxInvokerTest extends AbstractGroovyCpsTest {
                 "ScriptBytecodeAdapter:compareEqual(Double,Integer)");
     }
 
+    @Issue("SECURITY-4152")
+    @Test
+    public void interfaceFields() throws Throwable {
+        assertIntercept(
+                "import java.awt.Point;\n" + "interface I {\n"
+                        + "    Point p = new Point(1, 3)\n"
+                        + "}\n"
+                        + "assert I.p.y == 3\n",
+                (Object) null,
+                "Script1.super(Script1).setBinding(Binding)",
+                "Class.p",
+                "new Point(Integer,Integer)",
+                "Point.y",
+                "ScriptBytecodeAdapter:compareEqual(Double,Integer)");
+    }
+
     @Issue("SECURITY-551")
     @Test
     public void initializers() throws Throwable {
