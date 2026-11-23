@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "ace-builds": "^1.45.2",
-    "jquery": "^4.0.0",
+    "jquery": "^4.1.0",
     "jquery-ui": "^1.14.2"
   },
   "browserslist": [
