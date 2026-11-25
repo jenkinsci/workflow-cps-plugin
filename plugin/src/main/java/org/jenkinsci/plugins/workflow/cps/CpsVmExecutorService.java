@@ -77,12 +77,14 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         return () -> {
             timing.close();
             ThreadContext context = setUp();
+            List<AutoCloseable> around = CpsVmThreadListeners.aroundTask(cpsThreadGroup.getExecution());
             try {
                 r.run();
             } catch (final Throwable t) {
                 reportProblem(t);
                 throw t;
             } finally {
+                CpsVmThreadListeners.close(around, () -> "a CPS VM task of " + cpsThreadGroup.getExecution());
                 tearDown(context);
             }
         };
@@ -139,12 +141,14 @@ class CpsVmExecutorService extends InterceptingExecutorService {
         return () -> {
             timing.close();
             ThreadContext context = setUp();
+            List<AutoCloseable> around = CpsVmThreadListeners.aroundTask(cpsThreadGroup.getExecution());
             try {
                 return r.call();
             } catch (final Throwable t) {
                 reportProblem(t);
                 throw t;
             } finally {
+                CpsVmThreadListeners.close(around, () -> "a CPS VM task of " + cpsThreadGroup.getExecution());
                 tearDown(context);
             }
         };

@@ -125,6 +125,8 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
       <artifactId>workflow-api</artifactId>
+      <!-- TODO the release of jenkinsci/workflow-api-plugin#536 -->
+      <version>1431.v37c21a_74421e</version>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>

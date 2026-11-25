@@ -1678,16 +1678,24 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             }
             BulkChange bc = new BulkChange(s);
             try {
+                boolean around = !synchronous
+                        && toRun.stream().anyMatch(listener -> !(listener instanceof GraphListener.Synchronous));
                 for (FlowNode node : nodes) {
-                    for (GraphListener listener : toRun) {
-                        if (listener instanceof GraphListener.Synchronous == synchronous) {
-                            try {
-                                LOGGER.fine(() -> "notifying " + listener + " of " + node);
-                                listener.onNewHead(node);
-                            } catch (Throwable x) {
-                                LOGGER.log(Level.WARNING, null, x);
+                    List<AutoCloseable> opened =
+                            around ? CpsVmThreadListeners.aroundAsyncNotification(this, node) : List.of();
+                    try {
+                        for (GraphListener listener : toRun) {
+                            if (listener instanceof GraphListener.Synchronous == synchronous) {
+                                try {
+                                    LOGGER.fine(() -> "notifying " + listener + " of " + node);
+                                    listener.onNewHead(node);
+                                } catch (Throwable x) {
+                                    LOGGER.log(Level.WARNING, null, x);
+                                }
                             }
                         }
+                    } finally {
+                        CpsVmThreadListeners.close(opened, () -> "the notification of " + node + " in " + this);
                     }
                 }
             } finally {

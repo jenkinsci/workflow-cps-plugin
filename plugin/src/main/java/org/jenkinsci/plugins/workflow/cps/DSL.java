@@ -334,9 +334,14 @@ public class DSL extends GroovyObjectSupport implements Serializable {
                 }
             }
             if (!context.isCompleted()) {
-                StepExecution e = s.start(context);
-                thread.setStep(e);
-                sync = e.start();
+                List<AutoCloseable> aroundStart = aroundStart(s, context);
+                try {
+                    StepExecution e = s.start(context);
+                    thread.setStep(e);
+                    sync = e.start();
+                } finally {
+                    closeAroundStart(aroundStart, s);
+                }
             } else {
                 s = null;
                 sync = true;
@@ -381,6 +386,41 @@ public class DSL extends GroovyObjectSupport implements Serializable {
             // the control then goes back to CpsFlowExecution.runNextChunk
             // so the execution will never reach here.
             throw new AssertionError();
+        }
+    }
+
+    /** Calls {@link StepListener#aroundStart} of each listener, in order. */
+    private static List<AutoCloseable> aroundStart(Step s, StepContext context) {
+        List<AutoCloseable> closeables = new ArrayList<>();
+        for (StepListener sl : ExtensionList.lookup(StepListener.class)) {
+            try {
+                AutoCloseable closeable = sl.aroundStart(s, context);
+                if (closeable != null) {
+                    closeables.add(closeable);
+                }
+            } catch (Throwable e) {
+                LOGGER.log(
+                        Level.WARNING,
+                        "failed to notify step listener around the start of "
+                                + s.getDescriptor().getFunctionName(),
+                        e);
+            }
+        }
+        return closeables;
+    }
+
+    /** Closes what {@link #aroundStart} returned, last first, on the thread that started the step. */
+    private static void closeAroundStart(List<AutoCloseable> closeables, Step s) {
+        for (int i = closeables.size() - 1; i >= 0; i--) {
+            try {
+                closeables.get(i).close();
+            } catch (Throwable e) {
+                LOGGER.log(
+                        Level.WARNING,
+                        "failed to close what a step listener set up around the start of "
+                                + s.getDescriptor().getFunctionName(),
+                        e);
+            }
         }
     }
 
