@@ -713,7 +713,9 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
             // problem. Note the code overflow may be not in "WorkflowScript"
             // of the pipeline, but in a JSL step (global variable) or even
             // class with an actual huge method that should be refactored.
-            if (xStr.contains("MethodTooLargeException")) {
+            if (Pattern.compile("(?m)^groovyjarjarasm\\.asm\\.MethodTooLargeException:")
+                    .matcher(xStr)
+                    .find()) {
                 final Pattern NUM_ERROR_PATTERN = Pattern.compile("^\\d+ error$");
                 boolean blankBefore = false, patternMatchedAfterBlank = false;
 
