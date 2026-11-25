@@ -950,7 +950,6 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                 .append(METHOD_TOO_LARGE_LOGGER.getName())
                 .append(" is required)");
 
-        // return new RuntimeException(actionableMsg.toString(), mtlEx);
         RuntimeException rtex = new RuntimeException(actionableMsg.toString(), null);
 
         // Avoid having a huge stack trace leading to this pretty log-printer
