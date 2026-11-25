@@ -732,51 +732,54 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
     @GuardedBy("this")
     void createPlaceholderNodes(Throwable failureReason) throws Exception {
         synchronized (this) {
-            this.done = true;
-
-            if (this.owner != null) {
-                // Ensure that the Run is marked as completed (failed) if it isn't already so it won't show as running
-                Queue.Executable ex = owner.getExecutable();
-                if (ex instanceof Run) {
-                    Result res = ((Run) ex).getResult();
-                    setResult(res != null ? res : Result.FAILURE);
+            try {
+                if (this.owner != null) {
+                    // Ensure that the Run is marked as completed (failed) if it isn't already so it won't show as
+                    // running
+                    Queue.Executable ex = owner.getExecutable();
+                    if (ex instanceof Run) {
+                        Result res = ((Run) ex).getResult();
+                        setResult(res != null ? res : Result.FAILURE);
+                    }
                 }
-            }
 
-            programPromise =
-                    Futures.immediateFailedFuture(new IllegalStateException("Failed loading heads", failureReason));
-            LOGGER.log(Level.INFO, "Creating placeholder flownodes for execution: " + this);
-            if (this.owner != null) {
-                try {
-                    owner.getListener()
-                            .getLogger()
-                            .println("Creating placeholder flownodes because failed loading originals.");
-                } catch (Exception ex) {
-                    // It's okay to fail to log
+                programPromise =
+                        Futures.immediateFailedFuture(new IllegalStateException("Failed loading heads", failureReason));
+                LOGGER.log(Level.INFO, "Creating placeholder flownodes for execution: " + this);
+                if (this.owner != null) {
+                    try {
+                        owner.getListener()
+                                .getLogger()
+                                .println("Creating placeholder flownodes because failed loading originals.");
+                    } catch (Exception ex) {
+                        // It's okay to fail to log
+                    }
                 }
+
+                // Switch to fallback storage so we don't delete original node data
+                this.storageDir = (this.storageDir != null) ? this.storageDir + "-fallback" : "workflow-fallback";
+                this.storage = createStorage(); // Empty storage
+
+                // Clear out old start nodes and heads
+                this.startNodes = new Stack<>();
+                FlowHead head = new FlowHead(this);
+                this.heads = new TreeMap<>();
+                heads.put(head.getId(), head);
+                FlowStartNode start = new FlowStartNode(this, iotaStr());
+                head.newStartNode(start);
+
+                // Create end
+                FlowNode end = new FlowEndNode(
+                        this,
+                        iotaStr(),
+                        (FlowStartNode) startNodes.pop(),
+                        result,
+                        getCurrentHeads().toArray(new FlowNode[0]));
+                end.addAction(new ErrorAction(failureReason));
+                head.setNewHead(end);
+            } finally {
+                this.done = true;
             }
-
-            // Switch to fallback storage so we don't delete original node data
-            this.storageDir = (this.storageDir != null) ? this.storageDir + "-fallback" : "workflow-fallback";
-            this.storage = createStorage(); // Empty storage
-
-            // Clear out old start nodes and heads
-            this.startNodes = new Stack<>();
-            FlowHead head = new FlowHead(this);
-            this.heads = new TreeMap<>();
-            heads.put(head.getId(), head);
-            FlowStartNode start = new FlowStartNode(this, iotaStr());
-            head.newStartNode(start);
-
-            // Create end
-            FlowNode end = new FlowEndNode(
-                    this,
-                    iotaStr(),
-                    (FlowStartNode) startNodes.pop(),
-                    result,
-                    getCurrentHeads().toArray(new FlowNode[0]));
-            end.addAction(new ErrorAction(failureReason));
-            head.setNewHead(end);
         }
         saveOwner();
     }
@@ -936,6 +939,11 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         PROGRAM_STATE_SERIALIZATION.set(CpsFlowExecution.this);
                         try {
                             CpsThreadGroup g = (CpsThreadGroup) u.readObject();
+                            if (!g.getThreads().iterator().hasNext() && !isComplete()) {
+                                LOGGER.log(Level.WARNING, "Loaded program for {0} contains no CPS threads", owner);
+                                loadProgramFailed(new AbortException("Loaded program contains no CPS threads"), result);
+                                return;
+                            }
                             result.set(g);
                             pausedWhenLoaded = g.isPaused();
                             g.pause(false);

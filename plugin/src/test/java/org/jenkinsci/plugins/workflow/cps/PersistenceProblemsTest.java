@@ -9,17 +9,22 @@ import static org.hamcrest.Matchers.isA;
 import com.google.common.util.concurrent.ListenableFuture;
 import hudson.model.Queue;
 import hudson.model.Result;
+import hudson.model.Run;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.io.FileUtils;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepEndNode;
 import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionList;
 import org.jenkinsci.plugins.workflow.graph.FlowEndNode;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graph.FlowStartNode;
+import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.job.properties.DurabilityHintJobProperty;
@@ -104,6 +109,12 @@ public class PersistenceProblemsTest {
     static void assertResultMatchExecutionAndRun(WorkflowRun run, Result[] executionAndBuildResult) throws Exception {
         Assert.assertEquals(executionAndBuildResult[0], ((CpsFlowExecution) run.getExecution()).getResult());
         Assert.assertEquals(executionAndBuildResult[1], run.getResult());
+    }
+
+    private static void setField(Object target, Class<?> declaringClass, String name, Object value) throws Exception {
+        Field field = declaringClass.getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(target, value);
     }
 
     /** Create and run a basic build before we mangle its persisted contents.  Stores job number to jobIdNumber index 0. */
@@ -228,6 +239,47 @@ public class PersistenceProblemsTest {
             assertCompletedCleanly(run, true);
             Assert.assertEquals(Result.SUCCESS, run.getResult());
             assertResultMatchExecutionAndRun(run, executionAndBuildResult);
+        });
+    }
+
+    @Test
+    public void inProgressWithStepEndHeadButNoCpsThreads() throws Exception {
+        final int[] build = new int[1];
+        story.thenWithHardShutdown(j -> {
+            WorkflowJob job = j.jenkins.createProject(WorkflowJob.class, DEFAULT_JOBNAME);
+            job.setDefinition(new CpsFlowDefinition("stage('x') { echo 'doSomething' }", true));
+            WorkflowRun run = j.buildAndAssertSuccess(job);
+            build[0] = run.getNumber();
+            assertCompletedCleanly(run, true);
+            CpsFlowExecution cpsExec = (CpsFlowExecution) run.getExecution();
+            FlowNode stepEnd = new DepthFirstScanner().findFirstMatch(cpsExec, n -> n instanceof StepEndNode);
+            Assert.assertNotNull("expected completed build to contain a StepEndNode", stepEnd);
+
+            FlowHead head = cpsExec.getFirstHead();
+            Assert.assertNotNull("expected a persisted FlowHead", head);
+            head.head = stepEnd;
+            cpsExec.done = false;
+            CpsThreadGroup emptyProgram = new CpsThreadGroup(cpsExec);
+            try {
+                emptyProgram
+                        .runner
+                        .submit(() -> {
+                            emptyProgram.saveProgram(cpsExec.getProgramDataFile());
+                            return null;
+                        })
+                        .get();
+            } finally {
+                emptyProgram.shutdown();
+            }
+            setField(run, WorkflowRun.class, "completed", false);
+            setField(run, Run.class, "result", null);
+            run.save();
+        });
+        story.then(j -> {
+            WorkflowJob r = j.jenkins.getItemByFullName(DEFAULT_JOBNAME, WorkflowJob.class);
+            WorkflowRun run = r.getBuildByNumber(build[0]);
+            assertCompletedCleanly(run, false);
+            Assert.assertEquals(Result.FAILURE, run.getResult());
         });
     }
 
