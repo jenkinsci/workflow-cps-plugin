@@ -1320,6 +1320,17 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
                         LOGGER.log(Level.WARNING, "Failed to abort " + owner, x);
                     }
                 }
+                // The interruption above is only delivered into the CPS threads; propagating it (running catch and
+                // finally blocks, and ultimately ending the program) requires the CPS VM to run the program again,
+                // which CpsThreadGroup.scheduleRun refuses to do while paused. So drop the pause.
+                if (g.isPaused()) {
+                    try {
+                        owner.getListener().getLogger().println("Resuming to process abort");
+                    } catch (IOException x) {
+                        LOGGER.log(Level.WARNING, null, x);
+                    }
+                    g.unpause();
+                }
             }
 
             @Override
