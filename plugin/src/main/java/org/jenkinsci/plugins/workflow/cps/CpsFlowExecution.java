@@ -680,7 +680,17 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         // are descended from RuntimeException.
         Throwable mtlEx = null;
         int ecCount = 0;
-        String xStr = Functions.printThrowable(x); // includes x.getMessage() contents
+        String xStr;
+        try {
+            xStr = Functions.printThrowable(x); // includes x.getMessage() contents
+        } catch (Throwable t) {
+            // Printing may stringify arbitrary state (e.g. CpsCallableInvocation.toString()
+            // renders the receiver and call arguments), which can itself fail. This is a
+            // best-effort diagnostic, so never let it replace the original problem.
+            METHOD_TOO_LARGE_LOGGER.log(
+                    Level.FINE, "Could not render " + x.getClass().getName() + " for analysis", t);
+            return x;
+        }
         final Pattern LINE_SEP_PATTERN = Pattern.compile("\r?\n");
         String[] xLines = LINE_SEP_PATTERN.split(xStr);
 
