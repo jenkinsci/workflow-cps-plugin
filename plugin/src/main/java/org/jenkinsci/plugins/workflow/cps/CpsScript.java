@@ -115,16 +115,19 @@ public abstract class CpsScript extends SerializableScript {
                 try {
                     Object o = v.getValue(this);
                     return InvokerHelper.getMetaClass(o).invokeMethod(o, "call", args);
-                } catch (RuntimeException | Error x) {
+                } catch (RuntimeException x) {
                     // This method ends up throwing something (original
                     // or changed exception, depending on situation).
+                    // Only RuntimeExceptions are examined here: an Error such as
+                    // CpsCallableInvocation is normal CPS control flow and must
+                    // pass through untouched, as it did before this handler existed.
                     // Here we anticipate a MethodTooLargeException
                     // (or traces of its message stack), possibly
                     // wrapped into further exception, for actionable
                     // logging in the job.
                     throw CpsFlowExecution.reportSuspectedMethodTooLarge(x);
                 }
-            } catch (Throwable x) {
+            } catch (Exception x) {
                 throw new InvokerInvocationException(x);
             }
         }
@@ -146,16 +149,19 @@ public abstract class CpsScript extends SerializableScript {
                 try {
                     try {
                         return v.getValue(this);
-                    } catch (RuntimeException | Error x) {
+                    } catch (RuntimeException x) {
                         // This method ends up throwing something (original
                         // or changed exception, depending on situation).
+                        // Only RuntimeExceptions are examined here: an Error such as
+                        // CpsCallableInvocation is normal CPS control flow and must
+                        // pass through untouched, as it did before this handler existed.
                         // Here we anticipate a MethodTooLargeException
                         // (or traces of its message stack), possibly
                         // wrapped into further exception, for actionable
                         // logging in the job.
                         throw CpsFlowExecution.reportSuspectedMethodTooLarge(x);
                     }
-                } catch (Throwable x) {
+                } catch (Exception x) {
                     throw new InvokerInvocationException(x);
                 }
             }
