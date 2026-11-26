@@ -10,6 +10,7 @@ import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.TestExtension;
 
 public class CpsScriptTest {
 
@@ -229,5 +230,62 @@ public class CpsScriptTest {
 
         // Assert separately from (and after) log parsing, to facilitate test maintenance
         r.assertBuildStatus(Result.FAILURE, b);
+    }
+
+    /** Argument whose {@code toString()} must never be invoked by diagnostics for successful calls. */
+    public static class ThrowingToString implements java.io.Serializable {
+        @Override
+        public String toString() {
+            throw new IllegalStateException("toString() of the argument must not be called");
+        }
+    }
+
+    /** A global variable whose value is a CPS-transformed object (like those from shared libraries), defined by the pipeline script itself. */
+    @TestExtension
+    public static class CpsBackedGlobalVariable extends GlobalVariable {
+        @Override
+        public String getName() {
+            return "cpsBackedVar";
+        }
+
+        @Override
+        public Object getValue(CpsScript script) throws Exception {
+            return script.getBinding().getVariable("cpsBackedImpl");
+        }
+    }
+
+    /**
+     * Calling a global variable whose implementation is CPS-transformed makes {@code CpsScript.invokeMethod}
+     * see a {@code CpsCallableInvocation} (an {@link Error}) from the underlying call. That is normal control flow,
+     * and must be neither examined by the "method too large" diagnostics (which would stringify the call
+     * arguments) nor wrapped into another exception.
+     */
+    @Test
+    public void globalVariableCallPassesCpsControlFlow() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(
+                "class CpsBackedImpl implements Serializable { def call(x) { return 'result' } }\n"
+                        + "cpsBackedImpl = new CpsBackedImpl()\n"
+                        + "def res = cpsBackedVar(new " + ThrowingToString.class.getName() + "())\n"
+                        + "assert res == 'result'\n"
+                        + "echo 'CALL OK'\n",
+                false));
+        WorkflowRun b = r.buildAndAssertSuccess(p);
+        r.assertLogContains("CALL OK", b);
+    }
+
+    /** Same as above, but with an ordinary argument: the successful call itself must keep working. */
+    @Test
+    public void globalVariableCallWithPlainArgument() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition(
+                "class CpsBackedImpl implements Serializable { def call(x) { return 'result' } }\n"
+                        + "cpsBackedImpl = new CpsBackedImpl()\n"
+                        + "def res = cpsBackedVar('plain')\n"
+                        + "assert res == 'result'\n"
+                        + "echo 'CALL OK'\n",
+                false));
+        WorkflowRun b = r.buildAndAssertSuccess(p);
+        r.assertLogContains("CALL OK", b);
     }
 }
