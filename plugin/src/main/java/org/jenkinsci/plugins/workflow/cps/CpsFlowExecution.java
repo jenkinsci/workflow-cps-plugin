@@ -701,7 +701,7 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
      * which reflects several faults as a "cause" (letting the developer
      * sift through that long stack trace after all).<br/>
      *
-     * @param x A {@link Throwable} to analyze
+     * @param x A {@link Throwable} to analyze; an {@link Error} is returned as-is
      * @return Either original {@link Throwable} or a {@link RuntimeException}
      *         wrapping or replacing it with a concise message on where
      *         should developers seek their code problem. Detailed stack
@@ -720,6 +720,14 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         // Note that all of MultipleCompilationErrorsException, and
         // MethodTooLargeException and CpsCompilationErrorsException
         // are descended from RuntimeException.
+        if (x instanceof Error) {
+            // Never a compilation problem we can explain (all of the types we
+            // look for are RuntimeExceptions). Errors include CPS control-flow
+            // signals such as CpsCallableInvocation, whose toString() renders
+            // call arguments, and VM-level ones such as StackOverflowError with
+            // huge stack traces: do not spend time rendering any of them.
+            return x;
+        }
         Throwable mtlEx = null;
         int ecCount = 0;
         String xStr;

@@ -1,5 +1,8 @@
 package org.jenkinsci.plugins.workflow.cps;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+
 import hudson.model.Result;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
@@ -287,5 +290,66 @@ public class CpsScriptTest {
                 false));
         WorkflowRun b = r.buildAndAssertSuccess(p);
         r.assertLogContains("CALL OK", b);
+    }
+
+    /** Records whether it was rendered; the diagnostics must not do that for types they cannot explain. */
+    private static class CountingError extends Error {
+        int rendered;
+
+        @Override
+        public String toString() {
+            rendered++;
+            return super.toString();
+        }
+    }
+
+    @Test
+    public void reportSuspectedMethodTooLargeReturnsErrorsAsIs() {
+        CountingError e = new CountingError();
+        assertSame(e, CpsFlowExecution.reportSuspectedMethodTooLarge((Throwable) e));
+        assertEquals("an Error should not even be rendered", 0, e.rendered);
+
+        StackOverflowError so = new StackOverflowError();
+        assertSame(so, CpsFlowExecution.reportSuspectedMethodTooLarge(so));
+    }
+
+    @Test
+    public void reportSuspectedMethodTooLargeSurvivesUnrenderableException() {
+        RuntimeException x = new RuntimeException("whatever") {
+            @Override
+            public String toString() {
+                throw new IllegalStateException("cannot render");
+            }
+        };
+        assertSame(x, CpsFlowExecution.reportSuspectedMethodTooLarge(x));
+    }
+
+    @Test
+    public void reportSuspectedMethodTooLargeIgnoresUnrelatedException() {
+        RuntimeException x = new IllegalArgumentException("unrelated");
+        assertSame(x, CpsFlowExecution.reportSuspectedMethodTooLarge(x));
+    }
+
+    /** An Error escaping the global variable must reach the build unchanged, not be wrapped or replaced. */
+    @TestExtension
+    public static class ErrorThrowingGlobalVariable extends GlobalVariable {
+        @Override
+        public String getName() {
+            return "errorThrowingVar";
+        }
+
+        @Override
+        public Object getValue(CpsScript script) {
+            throw new AssertionError("custom marker error");
+        }
+    }
+
+    @Test
+    public void globalVariableErrorIsNotWrapped() throws Exception {
+        WorkflowJob p = r.createProject(WorkflowJob.class);
+        p.setDefinition(new CpsFlowDefinition("errorThrowingVar()" + "\n", false));
+        WorkflowRun b = r.buildAndAssertStatus(Result.FAILURE, p);
+        r.assertLogContains("java.lang.AssertionError: custom marker error", b);
+        r.assertLogNotContains("InvokerInvocationException", b);
     }
 }
