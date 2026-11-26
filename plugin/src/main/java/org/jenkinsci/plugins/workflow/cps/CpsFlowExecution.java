@@ -667,6 +667,48 @@ public class CpsFlowExecution extends FlowExecution implements BlockableResume {
         return LoggingInvoker.create(isSandbox());
     }
 
+    /**
+     * Variant for callers which may only throw {@link RuntimeException}s: the result is
+     * either the original exception or a {@link RuntimeException} replacing it.
+     *
+     * @param x A {@link RuntimeException} to analyze
+     * @see #reportSuspectedMethodTooLarge(Throwable)
+     */
+    protected static RuntimeException reportSuspectedMethodTooLarge(RuntimeException x) {
+        return (RuntimeException) reportSuspectedMethodTooLarge((Throwable) x);
+    }
+
+    /**
+     * Analyze the given {@link Throwable} to see if it is suspected to
+     * be a {@link groovyjarjarasm.asm.MethodTooLargeException} or a
+     * {@link org.codehaus.groovy.control.MultipleCompilationErrorsException}
+     * whose collection of errors refers to MethodTooLargeException.
+     * Per review comments, we do not want to statically compile a
+     * dependency on the groovyjarjarasm.asm.MethodTooLargeException
+     * internals, so gauge hitting it via String name comparisons.<br/>
+     *
+     * The goal of this method is to analyze compilation errors caused
+     * by method size limitations of pipeline scripts, library classes
+     * and global variables (steps). If the correct type of exception
+     * is found, this method returns a {@link RuntimeException} with
+     * a concise actionable message to guide developers in identifying
+     * and resolving the issue, while also logging the detailed stack
+     * trace at FINE level for further investigation if needed.<br/>
+     *
+     * The wrapped return with an actionable message wholly replaces
+     * an instance of MultipleCompilationErrorsException which passes
+     * only one matching culprit, and refers to the original exception
+     * which reflects several faults as a "cause" (letting the developer
+     * sift through that long stack trace after all).<br/>
+     *
+     * @param x A {@link Throwable} to analyze
+     * @return Either original {@link Throwable} or a {@link RuntimeException}
+     *         wrapping or replacing it with a concise message on where
+     *         should developers seek their code problem. Detailed stack
+     *         trace is then logged at FINE level into the server
+     *         log.
+     * @see #reportSuspectedMethodTooLarge(RuntimeException)
+     */
     protected static Throwable reportSuspectedMethodTooLarge(Throwable x) {
         // Suspected groovyjarjarasm.asm.MethodTooLargeException or a
         // org.codehaus.groovy.control.MultipleCompilationErrorsException
